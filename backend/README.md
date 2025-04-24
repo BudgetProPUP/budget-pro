@@ -10,10 +10,13 @@ This is a modular budgeting and financial tracking web application built with Dj
 - **Database**: PostgreSQL
 - **Frontend**: React (in separate `/frontend/` repo or folder)
 - **Environment**: Docker (optional), `.env` files, Virtual Environment (venv)
-- **Authentication**: Custom (SSO-ready) + JWT planned
+- **Authentication**: Custom (SSO-ready) + JWT planned | (Unsure yet)
 - **Deployment Workflow**:
   - Local → Staging → Production
   - GitHub + CI/CD (to be set up)
+  - Follow SDLC
+  - Follow Agile
+    
 
 ---
 

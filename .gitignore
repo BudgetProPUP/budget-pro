@@ -1,21 +1,52 @@
-# Python
+### Python ###
 __pycache__/
 *.py[cod]
 *.pyo
+*.pyd
+*.pyi
+*.so
+*.egg-info/
+*.egg
+.pytest_cache/
+.mypy_cache/
 
-# Virtual environment
+### Virtual Environment ###
 venv/
+.venv/
+env/
+ENV/
 
-# Environment variables
-.env
-.env.*
-
-# Django
+### Django ###
 *.log
 *.pot
 *.pyc
 *.mo
+*.sqlite3
+*.sqlite
+db.sqlite3
+media/
+staticfiles/
 
-# OS
+### Environment ###
+.env
+.env.local
+.env.*.local
+.env.dev
+.env.prod
+.env.test
+secrets.json
+
+### IDE ###
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+### OS ###
 .DS_Store
 Thumbs.db
+desktop.ini
+
+### Database migrations (optional) ###
+# migrations/

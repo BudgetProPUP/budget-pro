@@ -72,6 +72,14 @@ venv/
 .env
 ```
 ### 9. Github Reminders
+- In Github, options or arguments modify the git commands
+Example:
+-a	All (e.g., stage all changes)	git add -a
+-m	Message (for commits)	git commit -m "Fix bug"
+-b	Create and checkout a branch	git checkout -b feature-x
+-d	Delete (e.g., a branch)	git branch -d old-branch
+-f	Force (overwrite)	git push -f
+-p	Patch (interactive staging)	git add -p
 - In Github, never push directly to the main branch. Always create a new branch for your changes and create a pull request for review before merging into the main branch.
 - In Github, always use descriptive and atomic commit messages (one logical change per commit). 
 

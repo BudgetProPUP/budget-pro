@@ -4,8 +4,14 @@ from rest_framework import status, generics#, permissions
 from rest_framework.response import Response
 from rest_framework.views import APIView
 from rest_framework_simplejwt.tokens import RefreshToken
+from rest_framework_simplejwt.exceptions import TokenError
+from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
 from rest_framework.permissions import IsAuthenticated
+from rest_framework.permissions import AllowAny #TODO Remove Later
+from rest_framework import serializers
 from django.contrib.auth import get_user_model
+from drf_spectacular.utils import extend_schema
+
 #from django.utils import timezone
 
 from .serializers import UserSerializer, LoginSerializer, LoginAttemptSerializer
@@ -15,6 +21,13 @@ User = get_user_model()
 
 
 class LoginView(APIView):
+    permission_classes = [AllowAny]            # ← Add this
+    authentication_classes = []                # ← Disable auth checks here
+    @extend_schema(
+    request=LoginSerializer,
+    responses={200: TokenObtainPairSerializer},
+    )
+    
     def post(self, request):
         # Get client info for logging
         ip_address = self.get_client_ip(request)
@@ -97,36 +110,36 @@ class LoginView(APIView):
             ip = request.META.get('REMOTE_ADDR')
         return ip
 
+class LogoutSerializer(serializers.Serializer):
+    refresh = serializers.CharField(required=True, help_text="Refresh token to blacklist")
+
+
 class LogoutView(APIView):
     permission_classes = [IsAuthenticated]
-    
+
+    @extend_schema(request=LogoutSerializer)
     def post(self, request):
+        refresh_token = request.data.get('refresh')
+        if not refresh_token:
+            return Response({"error": "Refresh token required"},
+                            status=status.HTTP_400_BAD_REQUEST)
+
         try:
-            # Get the refresh token
-            refresh_token = request.data.get('refresh')
-            
-            # Don't require the refresh token in the test environment
-            if not refresh_token and not settings.TESTING:
-                return Response({"error": "Refresh token is required"}, status=status.HTTP_400_BAD_REQUEST)
-            
-            # Only blacklist if token provided (for tests)
-            if refresh_token:
-                token = RefreshToken(refresh_token)
-                token.blacklist()
-            
-            # Log the user activity
-            UserActivityLog.objects.create(
-                user=request.user,
-                log_type='LOGIN',
-                action='User logged out',
-                status='SUCCESS',
-                details={}
-            )
-            
-            return Response({"success": "Logged out successfully"}, status=status.HTTP_200_OK)
-        except Exception as e:
+            # Blacklist only the refresh token
+            RefreshToken(refresh_token).blacklist()
+        except TokenError as e:
             return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
 
+        # Log user activity
+        UserActivityLog.objects.create(
+            user=request.user,
+            log_type='LOGIN',
+            action='User logged out',
+            status='SUCCESS',
+            details={}
+        )
+
+        return Response({"success": "Logged out"}, status=status.HTTP_200_OK)
 
 class UserProfileView(generics.RetrieveUpdateAPIView):
     permission_classes = [IsAuthenticated]
@@ -171,3 +184,4 @@ class LoginAttemptsView(generics.ListAPIView):
             return Response({"detail": "You do not have permission to view login attempts."},
                            status=status.HTTP_403_FORBIDDEN)
         return super().get(request, *args, **kwargs)
+    

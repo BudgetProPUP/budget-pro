@@ -12,15 +12,17 @@ class DepartmentSerializer(serializers.ModelSerializer):
 class UserSerializer(serializers.ModelSerializer):
     department = DepartmentSerializer(read_only=True)
     department_id = serializers.IntegerField(write_only=True, required=False)
-    
+
     class Meta:
         model = User
-        fields = ['id', 'email', 'username', 'first_name', 'last_name', 
-                  'role', 'department', 'department_id', 'phone_number',
-                  'is_active', 'created_at', 'last_login']
-        read_only_fields = ['created_at', 'last_login']
+        fields = [
+          'id','email','username','first_name','last_name',
+          'role','department','department_id','phone_number',
+          'is_active','created_at','last_login'
+        ]
         extra_kwargs = {
-            'password': {'write_only': True}
+          'phone_number': {'required': False, 'allow_blank': True},
+          'password':     {'write_only': True}
         }
 
     def create(self, validated_data):
@@ -64,30 +66,33 @@ class UserSerializer(serializers.ModelSerializer):
 
 
 class LoginSerializer(serializers.Serializer):
-    email = serializers.EmailField(required=True)
-    password = serializers.CharField(style={'input_type': 'password'}, trim_whitespace=False, required=True)
-    
+    email        = serializers.EmailField(required=False)
+    phone_number = serializers.CharField(required=False, allow_blank=False)
+    password     = serializers.CharField(style={'input_type':'password'},
+                                         trim_whitespace=False)
+
     def validate(self, attrs):
-        email = attrs.get('email')
-        password = attrs.get('password')
-        
-        if not email or not password:
-            raise serializers.ValidationError('Please provide both email and password')
-        
-        user = authenticate(request=self.context.get('request'),
-                            username=email, password=password)
-        
+        identifier = attrs.get('email') or attrs.get('phone_number')
+        password   = attrs.get('password')
+
+        if not identifier or not password:
+            raise serializers.ValidationError(
+              'Please provide email or phone number, and password.'
+            )
+
+        user = authenticate(
+            request=self.context.get('request'),
+            username=identifier, password=password
+        )
         if not user:
-            # Don't reveal if the user exists or just has wrong password
             raise serializers.ValidationError('Invalid credentials')
-        
         if not user.is_active:
             raise serializers.ValidationError('Account is disabled')
-        
-        # Update last login time
+
+        # update last_login…
         user.last_login = timezone.now()
         user.save(update_fields=['last_login'])
-        
+
         attrs['user'] = user
         return attrs
 

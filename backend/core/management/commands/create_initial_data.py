@@ -225,6 +225,7 @@ class Command(BaseCommand):
                 'last_name': 'Head',
                 'role': 'FINANCE_HEAD',
                 'department': finance_dept,
+                'phone_number': '09171234567',   
                 'is_staff': True,
             },
             {
@@ -235,6 +236,7 @@ class Command(BaseCommand):
                 'last_name': 'Operator',
                 'role': 'FINANCE_OPERATOR',
                 'department': finance_dept,
+                'phone_number': '09179876543',
             },
             {
                 'email': 'it_operator@example.com',
@@ -258,6 +260,7 @@ class Command(BaseCommand):
                     role=user_data['role'],
                     department=user_data['department'],
                     is_staff=user_data.get('is_staff', False),
+                    phone_number=user_data.get('phone_number'),  
                 )
         
         self.stdout.write(self.style.SUCCESS(f'Created test users'))

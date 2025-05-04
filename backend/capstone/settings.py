@@ -58,7 +58,11 @@ INSTALLED_APPS = [
     # 'finance',
     # 'budgeting',
     # 'expenses',
+    'core',
 ]
+
+AUTH_USER_MODEL = 'core.User'
+
 
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',

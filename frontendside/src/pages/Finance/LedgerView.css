@@ -159,6 +159,12 @@
   width: 100%;
   outline: none;
   font-size: 14px;
+  background-color: transparent;
+  color: #1e293b;
+}
+
+.search-box input::placeholder {
+  color: #94a3b8;
 }
 
 .search-button {
@@ -235,6 +241,41 @@
   padding: 12px 20px;
   font-size: 14px;
   color: #1e293b;
+}
+
+/* Pagination controls */
+.pagination-controls {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  margin-top: 15px;
+}
+
+.pagination-btn {
+  background-color: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 4px;
+  padding: 6px 10px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #64748b;
+}
+
+.pagination-btn:hover {
+  background-color: #f1f5f9;
+  color: #0284c7;
+}
+
+/* Dashboard timestamp */
+.dashboard-timestamp {
+  margin-bottom: 15px;
+}
+
+.timestamp-container {
+  font-size: 14px;
+  color: #64748b;
 }
 
 /* Responsive adjustments */

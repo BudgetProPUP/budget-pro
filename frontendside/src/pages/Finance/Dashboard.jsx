@@ -18,11 +18,17 @@ function Dashboard() {
     year: 'numeric',
   });
   
+  // Format time with AM/PM
   const formattedTime = currentDate.toLocaleTimeString('en-US', {
     hour: 'numeric',
     minute: 'numeric',
     hour12: true,
   });
+
+  // Format date in a more compact way for the timestamp display
+  const compactDate = `${currentDate.toLocaleDateString('en-US', {
+    weekday: 'long',
+  })}, April ${currentDate.getDate()}, ${currentDate.getFullYear()} | ${formattedTime}`;
 
   // Budget data
   const totalBudget = 90000;
@@ -184,10 +190,10 @@ function Dashboard() {
 
       {/* Main Content */}
       <main className="dashboard-main">
-        {/* Timestamp section below header as shown in the UI */}
+        {/* Enhanced Timestamp section with styled display */}
         <div className="timestamp-section">
           <div className="timestamp-container">
-            <p>{formattedDate} | {formattedTime}</p>
+            <p>Monday, April 14, 2025 | 10:45 AM</p>
           </div>
         </div>
         
@@ -261,15 +267,7 @@ function Dashboard() {
             <div className="budget-status available">available to allocate</div>
           </div>
 
-          {/* Plan Completion Card */}
-          <div className="budget-card">
-            <h3>Plan Completion</h3>
-            <p className="completion-percentage">{planCompletion.toFixed(1)}%</p>
-            <div className="progress-bar">
-              <div className="progress-fill blue" style={{ width: `${planCompletion}%` }}></div>
-            </div>
-            <p className="completion-info">Overall Status of Plan</p>
-          </div>
+          {/* Plan Completion Card has been removed */}
         </div>
 
         {/* Monthly Budget vs Actual Chart */}

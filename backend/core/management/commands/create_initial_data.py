@@ -231,12 +231,22 @@ class Command(BaseCommand):
             {
                 'email': 'finance_operator@example.com',
                 'username': 'finance_operator',
-                'password': 'password123',
+                'password': 'password123456789',
                 'first_name': 'Finance',
                 'last_name': 'Operator',
                 'role': 'FINANCE_OPERATOR',
                 'department': finance_dept,
                 'phone_number': '09179876543',
+            },
+             {
+                'email': 'adibentulan@gmail.com',
+                'username': 'adi123',
+                'password': 'password123',
+                'first_name': 'Finance',
+                'last_name': 'Operator',
+                'role': 'FINANCE_OPERATOR',
+                'department': finance_dept,
+                'phone_number': '09179876542',
             },
             {
                 'email': 'it_operator@example.com',

@@ -1,3 +1,4 @@
+
 """
 Django settings for capstone project.
 
@@ -9,8 +10,21 @@ https://docs.djangoproject.com/en/5.2/topics/settings/
 For the full list of settings and their values, see
 https://docs.djangoproject.com/en/5.2/ref/settings/
 """
-
 from pathlib import Path
+import os
+from dotenv import load_dotenv
+import sys
+
+# Detect if running tests
+TESTING = 'test' in sys.argv
+
+# Load .env from capstone folder
+BASE_DIR = Path(__file__).resolve().parent  # Points to /capstone
+load_dotenv(BASE_DIR / '.env')  # Explicit path
+
+# Frontend URL (for password reset links)
+FRONTEND_URL = os.getenv('FRONTEND_URL', 'http://localhost:5173')
+
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -20,10 +34,10 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 # See https://docs.djangoproject.com/en/5.2/howto/deployment/checklist/
 
 # SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = 'django-insecure-o9cts6!u+be6po5_egb(@-pp_3@vryn2li_faptmc%lw=_d9p5'
+SECRET_KEY = os.getenv('DJANGO_SECRET_KEY')
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
+DEBUG = os.getenv('DEBUG', 'False').lower() == 'true' # Disable in production
 
 ALLOWED_HOSTS = []
 
@@ -37,19 +51,125 @@ INSTALLED_APPS = [
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
+    
+    # Third-party apps
+    'rest_framework',
+    'rest_framework_simplejwt',
+    'rest_framework_simplejwt.token_blacklist',
+    'corsheaders',
+    'drf_spectacular',
+    'debug_toolbar',
+    
+    # Local apps
+    # Add your project apps here, e.g.:
+    # 'users',
+    # 'finance',
+    # 'budgeting',
+    # 'expenses',
+    'core',
 ]
+
+AUTH_USER_MODEL = 'core.User'
+
+AUTHENTICATION_BACKENDS = [
+    'core.authentication.EmailOrPhoneNumberBackend',
+    'django.contrib.auth.backends.ModelBackend',
+]
+
+# CORS settings
+CORS_ALLOWED_ORIGINS = [
+    "http://localhost:5173",  # Vite default dev server
+    # Add production URLs when deployed
+]
+
+CORS_ALLOW_ALL_ORIGINS = True  # For development - restrict in production
+CORS_ALLOW_CREDENTIALS = True
+
+# Email Configuration
+EMAIL_BACKEND = os.getenv('EMAIL_BACKEND', 'django.core.mail.backends.smtp.EmailBackend')
+EMAIL_HOST = os.getenv('EMAIL_HOST', 'smtp.gmail.com')
+EMAIL_PORT = int(os.getenv('EMAIL_PORT', 587))
+EMAIL_USE_TLS = os.getenv('EMAIL_USE_TLS', 'True') == 'True'
+EMAIL_HOST_USER = os.getenv('EMAIL_HOST_USER')
+EMAIL_HOST_PASSWORD = os.getenv('EMAIL_HOST_PASSWORD')
+DEFAULT_FROM_EMAIL = os.getenv('DEFAULT_FROM_EMAIL', EMAIL_HOST_USER)
+
+
+
+# Debug toolbar settings
+INTERNAL_IPS = [
+    '127.0.0.1',
+]
+
+# JWT Settings
+from datetime import timedelta
+
+SIMPLE_JWT = {
+    'ACCESS_TOKEN_LIFETIME': timedelta(minutes=30),
+    'REFRESH_TOKEN_LIFETIME': timedelta(days=1),
+    'ROTATE_REFRESH_TOKENS': False,
+    'BLACKLIST_AFTER_ROTATION': True,
+    'UPDATE_LAST_LOGIN': False,
+    
+    'ALGORITHM': 'HS256',
+    'SIGNING_KEY': SECRET_KEY,
+    'VERIFYING_KEY': None,
+    'AUDIENCE': None,
+    'ISSUER': None,
+    
+    'AUTH_HEADER_TYPES': ('Bearer',),
+    'AUTH_HEADER_NAME': 'HTTP_AUTHORIZATION',
+    'USER_ID_FIELD': 'id',
+    'USER_ID_CLAIM': 'user_id',
+}
+
 
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
+    'whitenoise.middleware.WhiteNoiseMiddleware',  # Add for static files in production
     'django.contrib.sessions.middleware.SessionMiddleware',
+    'corsheaders.middleware.CorsMiddleware',  # Add before CommonMiddleware
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
+    'debug_toolbar.middleware.DebugToolbarMiddleware',  # For development
 ]
 
+# REST Framework settings
+REST_FRAMEWORK = {
+    'DEFAULT_AUTHENTICATION_CLASSES': (
+        'rest_framework_simplejwt.authentication.JWTAuthentication',
+    ),
+    'DEFAULT_PERMISSION_CLASSES': [
+        'rest_framework.permissions.IsAuthenticated',
+    ],
+    'DEFAULT_SCHEMA_CLASS': 'drf_spectacular.openapi.AutoSchema',
+}
+
+
+
+
 ROOT_URLCONF = 'capstone.urls'
+
+
+# DRF Spectacular settings for API documentation
+SPECTACULAR_SETTINGS = {
+    "TITLE": "My API",
+    "DESCRIPTION": "Auto-generated documentation",
+    "VERSION": "1.0.0",
+    "SERVE_INCLUDE_SCHEMA": False,
+    'COMPONENT_SPLIT_REQUEST': True,  # Separate schemas for request/response
+    'SCHEMA_PATH_PREFIX': r'/api/',  # Match your API base path
+    'ENUM_NAME_OVERRIDES': {
+        # Add enum overrides if needed
+    },
+    'TAGS': [  # Organize endpoints by category
+        {'name': 'Authentication', 'description': 'User login/logout operations'},
+        {'name': 'Budgeting', 'description': 'Budget proposals and allocations'},
+    ],
+}
 
 TEMPLATES = [
     {
@@ -74,10 +194,22 @@ WSGI_APPLICATION = 'capstone.wsgi.application'
 
 DATABASES = {
     'default': {
-        'ENGINE': 'django.db.backends.sqlite3',
-        'NAME': BASE_DIR / 'db.sqlite3',
+        'ENGINE': 'django.db.backends.postgresql',
+        'NAME': os.getenv('DB_NAME'),
+        'USER': os.getenv('DB_USER'),
+        'PASSWORD': os.getenv('DB_PASSWORD'),
+        'HOST': os.getenv('DB_HOST', 'localhost'),
+        'PORT': os.getenv('DB_PORT', '5432'),
+        
     }
 }
+
+
+
+# Optional: Only needed if using Django's createsuperuser command
+DJANGO_SUPERUSER_USERNAME = os.getenv('DJANGO_SUPERUSER_USERNAME')
+DJANGO_SUPERUSER_EMAIL = os.getenv('DJANGO_SUPERUSER_EMAIL')
+DJANGO_SUPERUSER_PASSWORD = os.getenv('DJANGO_SUPERUSER_PASSWORD')
 
 
 # Password validation
@@ -88,14 +220,16 @@ AUTH_PASSWORD_VALIDATORS = [
         'NAME': 'django.contrib.auth.password_validation.UserAttributeSimilarityValidator',
     },
     {
-        'NAME': 'django.contrib.auth.password_validation.MinimumLengthValidator',
+        'NAME': 'core.password_validators.CustomPasswordValidator',
+        'OPTIONS': {
+            'min_length': 8,  # Minimum 8 characters as per requirements
+            'max_length': 64, # Maximum 64 characters as per requirements
+        }
     },
     {
         'NAME': 'django.contrib.auth.password_validation.CommonPasswordValidator',
     },
-    {
-        'NAME': 'django.contrib.auth.password_validation.NumericPasswordValidator',
-    },
+
 ]
 
 

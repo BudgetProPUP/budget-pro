@@ -1,0 +1,591 @@
+/* Reset and base styles */
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+body, html {
+  height: 100%;
+  width: 100%;
+  margin: 0;
+  padding: 0;
+  font-family: Poppins, Poppins, 'Poppins', Poppins, Poppins, Poppins, Poppins, 'Poppins', 'Poppins', Poppins;
+  background-color: #f9fafb;
+}
+
+#root {
+  height: 100%;
+  width: 100%;
+}
+
+/* Dashboard Container */
+.dashboard-container {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  width: 100%;
+  overflow: hidden;
+  background-color: #f9fafb;
+}
+
+/* Header Styles */
+.dashboard-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.75rem 1.5rem;
+  background-color: #ffffff;
+  border-bottom: 1px solid #e5e7eb;
+}
+
+.header-left {
+  display: flex;
+  align-items: center;
+  gap: 2rem;
+}
+
+.logo {
+  font-size: 1rem;
+  font-weight: bold;
+  color: #3b82f6;
+  letter-spacing: 0.05rem;
+}
+
+.main-nav {
+  display: flex;
+  align-items: center;
+  gap: 1.5rem;
+}
+
+.nav-item {
+  color: #6b7280;
+  text-decoration: none;
+  font-size: 0.85rem;
+  transition: color 0.2s;
+  cursor: pointer;
+}
+
+.nav-item:hover {
+  color: #3b82f6;
+}
+
+.nav-item.active {
+  color: #1e40af;
+  font-weight: 500;
+}
+
+/* Dropdown Styling - Updated for combined dropdown */
+.dropdown-container {
+  position: relative;
+}
+
+.dropdown-toggle {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+  cursor: pointer;
+}
+
+.dropdown-menu {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  margin-top: 0.5rem;
+  background-color: #ffffff;
+  border-radius: 0.25rem;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+  min-width: 200px;
+  z-index: 20;
+  padding: 8px 0;
+}
+
+.dropdown-category {
+  font-size: 0.75rem;
+  color: #6b7280;
+  margin: 8px 16px 4px;
+  padding-bottom: 4px;
+  border-bottom: 1px solid #e5e7eb;
+  font-weight: 500;
+}
+
+.dropdown-item {
+  display: block;
+  padding: 8px 16px;
+  font-size: 0.8rem;
+  color: #4b5563;
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+
+.dropdown-item:hover {
+  background-color: #f3f4f6;
+  color: #3b82f6;
+}
+
+.header-right {
+  display: flex;
+  align-items: center;
+}
+
+.user-avatar {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  overflow: hidden;
+  border: 2px solid #e5e7eb;
+}
+
+.avatar-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+/* Main Content */
+.dashboard-main {
+  flex: 1;
+  padding: 1rem 1.5rem;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+/* Timestamp */
+.dashboard-timestamp {
+  display: flex;
+  justify-content: flex-end;
+  margin-bottom: 0.5rem;
+}
+
+.timestamp-container {
+  background-color: #ffffff;
+  padding: 0.4rem 1rem;
+  border-radius: 1rem;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+  border: 1px solid #e5e7eb;
+}
+
+.timestamp-container p {
+  font-size: 0.75rem;
+  color: #6b7280;
+}
+
+/* Budget Cards Row */
+.budget-cards-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr 2fr 1fr 1fr;
+  gap: 1rem;
+}
+
+/* Budget Card */
+.budget-card {
+  background-color: #ffffff;
+  padding: 1.25rem;
+  border-radius: 0.5rem;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.03);
+  display: flex;
+  flex-direction: column;
+  border: 1px solid #e5e7eb;
+}
+
+.budget-card h3 {
+  font-size: 0.85rem;
+  font-weight: 500;
+  color: #4b5563;
+  margin-bottom: 0.75rem;
+}
+
+.budget-amount {
+  font-size: 1.5rem;
+  font-weight: 600;
+  color: #111827;
+  margin-bottom: 0.25rem;
+}
+
+.budget-label {
+  font-size: 0.75rem;
+  color: #6b7280;
+  margin-bottom: 0.5rem;
+}
+
+/* Budget Status Badge */
+.budget-status {
+  font-size: 0.7rem;
+  padding: 0.25rem 0.5rem;
+  border-radius: 1rem;
+  display: inline-block;
+  margin-top: auto;
+  text-align: center;
+}
+
+.budget-status.on-target {
+  background-color: #d1fae5;
+  color: #065f46;
+}
+
+.budget-status.available {
+  background-color: #dbeafe;
+  color: #1e40af;
+}
+
+/* Progress Bar */
+.progress-bar {
+  height: 6px;
+  background-color: #e5e7eb;
+  border-radius: 3px;
+  overflow: hidden;
+  margin: 0.5rem 0;
+}
+
+.progress-fill {
+  height: 100%;
+  background-color: #3b82f6;
+  border-radius: 3px;
+}
+
+.progress-fill.blue {
+  background-color: #3b82f6;
+}
+
+.progress-fill.green {
+  background-color: #16a34a;
+}
+
+.progress-fill.red {
+  background-color: #ef4444;
+}
+
+.progress-fill.yellow {
+  background-color: #f59e0b;
+}
+
+.percentage-text {
+  font-size: 0.75rem;
+  color: #6b7280;
+}
+
+/* Plan Completion */
+.completion-percentage {
+  font-size: 1.5rem;
+  font-weight: 600;
+  color: #111827;
+  margin: 0.5rem 0;
+}
+
+.completion-info {
+  font-size: 0.75rem;
+  color: #6b7280;
+  margin-top: 0.5rem;
+}
+
+/* Allocation Card */
+.allocation-card {
+  grid-column: span 2;
+}
+
+.allocation-chart-container {
+  display: flex;
+  height: 100%;
+  align-items: center;
+}
+
+.pie-chart {
+  flex: 1;
+  height: 140px;
+}
+
+.allocation-legend {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.legend-item {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.legend-color {
+  width: 10px;
+  height: 10px;
+  border-radius: 2px;
+  flex-shrink: 0;
+}
+
+.legend-name {
+  width: 80px;
+  font-size: 0.75rem;
+  color: #4b5563;
+  flex-shrink: 0;
+}
+
+.legend-bar {
+  flex: 1;
+  height: 6px;
+  background-color: #e5e7eb;
+  border-radius: 3px;
+  overflow: hidden;
+}
+
+.legend-bar-fill {
+  width: 100%;
+  height: 100%;
+}
+
+.legend-value {
+  font-size: 0.75rem;
+  color: #4b5563;
+  flex-shrink: 0;
+  text-align: right;
+  min-width: 75px;
+}
+
+/* Chart Section */
+.chart-section {
+  background-color: #ffffff;
+  padding: 1.5rem;
+  border-radius: 0.5rem;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.03);
+  border: 1px solid #e5e7eb;
+}
+
+.chart-section h3 {
+  font-size: 0.95rem;
+  font-weight: 500;
+  color: #4b5563;
+  margin-bottom: 1.5rem;
+}
+
+.chart-container {
+  height: 300px;
+}
+
+/* Section Card (Project Status, Timeline, Department Budget) */
+.section-card {
+  background-color: #ffffff;
+  padding: 1.5rem;
+  border-radius: 0.5rem;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.03);
+  border: 1px solid #e5e7eb;
+}
+
+.section-card h3 {
+  font-size: 0.95rem;
+  font-weight: 500;
+  color: #4b5563;
+  margin-bottom: 1.5rem;
+}
+
+/* Project Table */
+.table-container {
+  overflow-x: auto;
+}
+
+.project-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.project-table th {
+  text-align: left;
+  font-size: 0.7rem;
+  font-weight: 500;
+  color: #6b7280;
+  padding: 0.75rem 1rem;
+  border-bottom: 1px solid #e5e7eb;
+}
+
+.project-table td {
+  padding: 0.75rem 1rem;
+  font-size: 0.8rem;
+  color: #4b5563;
+  border-bottom: 1px solid #e5e7eb;
+}
+
+/* Status Badge */
+.status-badge {
+  display: inline-block;
+  padding: 0.25rem 0.5rem;
+  border-radius: 1rem;
+  font-size: 0.7rem;
+  font-weight: 500;
+  text-align: center;
+  width: 80px;
+}
+
+.status-badge.on-track {
+  background-color: #d1fae5;
+  color: #065f46;
+}
+
+.status-badge.at-risk {
+  background-color: #fee2e2;
+  color: #991b1b;
+}
+
+.status-badge.warning {
+  background-color: #fef3c7;
+  color: #92400e;
+}
+
+/* Progress Container */
+.progress-container {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.progress-container .progress-bar {
+  flex: 1;
+  margin: 0;
+}
+
+.progress-container span {
+  font-size: 0.75rem;
+  color: #4b5563;
+}
+
+/* Pagination Controls */
+.pagination-controls {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 0.75rem;
+  gap: 0.5rem;
+}
+
+.pagination-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border: none;
+  border-radius: 4px;
+  background-color: #f3f4f6;
+  cursor: pointer;
+  color: #6b7280;
+  border: 1px solid #e5e7eb;
+}
+
+.pagination-btn:hover {
+  background-color: #e5e7eb;
+}
+
+/* Timeline */
+.timeline-container {
+  padding: 1rem 0;
+}
+
+.timeline-steps {
+  display: flex;
+  justify-content: space-between;
+  position: relative;
+}
+
+.timeline-steps:before {
+  content: '';
+  position: absolute;
+  top: 10px;
+  left: 0;
+  right: 0;
+  height: 1px;
+  background-color: #e5e7eb;
+  z-index: 1;
+}
+
+.timeline-step {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  position: relative;
+  z-index: 2;
+  flex: 1;
+}
+
+.step-circle {
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  margin-bottom: 0.75rem;
+  border: 2px solid white;
+}
+
+.step-circle.completed {
+  background-color: #d1d5db;
+}
+
+.step-circle.current {
+  background-color: #f59e0b;
+}
+
+.step-circle.pending {
+  background-color: #e5e7eb;
+}
+
+.step-info {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+}
+
+.step-name {
+  font-size: 0.75rem;
+  font-weight: 500;
+  color: #4b5563;
+  margin-bottom: 0.25rem;
+}
+
+.step-status {
+  font-size: 0.7rem;
+  color: #6b7280;
+}
+
+/* Department Budget */
+.dept-budget-item {
+  margin-bottom: 1.5rem;
+  padding-bottom: 1.5rem;
+  border-bottom: 1px solid #e5e7eb;
+}
+
+.dept-budget-item:last-child {
+  margin-bottom: 0;
+  padding-bottom: 0;
+  border-bottom: none;
+}
+
+.dept-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 0.5rem;
+}
+
+.dept-header h4 {
+  font-size: 0.9rem;
+  font-weight: 500;
+  color: #111827;
+}
+
+.dept-percentage {
+  font-size: 0.8rem;
+  color: #6b7280;
+}
+
+.dept-progress {
+  margin-bottom: 0.75rem;
+}
+
+.dept-values {
+  display: flex;
+  justify-content: space-between;
+}
+
+.dept-values p {
+  font-size: 0.8rem;
+  color: #4b5563;
+}

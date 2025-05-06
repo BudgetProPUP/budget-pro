@@ -2,7 +2,7 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import './LoginPage.css';
-import logoImage from '../assets/maplogo.jpg';
+import logoImage from '../../assets/maplogo.jpg';
 
 function LoginPage() {
   const [email, setEmail] = useState('');

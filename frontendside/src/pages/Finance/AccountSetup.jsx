@@ -58,12 +58,7 @@ function AccountSetup() {
                   >
                     Budget Proposal
                   </div>
-                  <div 
-                    className="dropdown-item" 
-                    onClick={() => handleNavigate('/finance/status-proposal')}
-                  >
-                    Status Proposal
-                  </div>
+                  
                   <div 
                     className="dropdown-item" 
                     onClick={() => handleNavigate('/finance/proposal-history')}

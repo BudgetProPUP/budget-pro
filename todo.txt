@@ -1,0 +1,4 @@
+- backend/login: Add security measures in logins/forgot password
+- backend/logout: Add limits for reset attempts
+- backend/passwords: Implement better password strength validation
+- frontend/login: Improve Ui for login and forget password.

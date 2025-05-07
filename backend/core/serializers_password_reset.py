@@ -92,7 +92,7 @@ class PasswordResetConfirmSerializer(serializers.Serializer):
     token = serializers.CharField(write_only=True)
     uid = serializers.CharField(write_only=True)
 
-    def validate(self, attrs):
+    def validate(self, attrs): 
         password = attrs.get('password')
         token = attrs.get('token')
         uid = attrs.get('uid')

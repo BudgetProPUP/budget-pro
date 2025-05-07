@@ -9,6 +9,8 @@ import ProposalHistory from './pages/Finance/ProposalHistory';
 import ExpenseTracking from './pages/Finance/ExpenseTracking';
 import ExpenseHistory from './pages/Finance/ExpenseHistory';
 import UserManagement from './pages/Finance/User Management';
+import ForgotPasswordPage from './pages/ForgotPasswordPage';
+import ResetPasswordPage from './pages/ResetPasswordPage';
 
 function App() {
   return (
@@ -37,6 +39,10 @@ function App() {
 
         {/* Catch-all route */}
         <Route path="*" element={<Navigate to="/login" replace />} />
+
+         {/* Forgot Password */}
+        <Route path="/forgot-password" element={<ForgotPasswordPage />} />
+        <Route path="/reset-password/:uid/:token" element={<ResetPasswordPage />} />
       </Routes>
     </Router>
   );

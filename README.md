@@ -14,7 +14,7 @@ cd budget-pro/backend
 ### 2. Create a virtual environment
 ```bash
 python -m venv venv
-source venv/bin/activate  # On Windows use `venv\Scripts\activate`
+# Mac: source venv/bin/activate  # On Windows use `venv\Scripts\activate`
 ```
 Make sure (venv) is in your terminal prompt. Use the command below to check if you are in the virtual environment.
 ```bash
@@ -42,13 +42,125 @@ DB_PASSWORD=your_db_password
 DB_HOST=localhost
 DB_PORT=5432
 ```
-### 5. Create the database
-Make sure you have PostgreSQL installed and running, and created a new PostgreSQL database. Update your .env file with the correct database name, user, and password.
+### 5. PostgreSQL Database Setup
+Installation
+Windows
 
-## Run migrations:
+-Download the installer from PostgreSQL official website
+Run the installer and follow the setup wizard
+Add PostgreSQL bin directory to your system PATH:
+
+-Right-click on "This PC" or "My Computer" → Properties → Advanced system settings → Environment Variables
+Edit the PATH variable and add: C:\Program Files\PostgreSQL\<version>\bin
+Verify installation by opening Command Prompt and typing: psql --version
+
+- Open pgAdmin and create your account (take note of your username and password), and create the database (take note of the name).
+
+# Django .env
+Add the following to your .env (if not copied from .env.example):
 ```bash
+# Django settings
+DJANGO_SECRET_KEY=your-secret-key
+DEBUG=True
+
+# PostgreSQL DB connection
+DB_NAME=your-db-name
+DB_USER=your-db-user
+DB_PASSWORD=your-db-password
+DB_HOST=localhost
+DB_PORT=5432
+DJANGO_SUPERUSER_USERNAME=your-superuser-username
+DJANGO_SUPERUSER_EMAIL=your-superuser-email
+DJANGO_SUPERUSER_PASSWORD=your-superuser-password
+
+# Email settings
+EMAIL_BACKEND=django.core.mail.backends.smtp.EmailBackend
+EMAIL_HOST=smtp.gmail.com
+EMAIL_PORT=587
+EMAIL_USE_TLS=True
+EMAIL_HOST_USER=your-email@example.com
+EMAIL_HOST_PASSWORD=your-email-password
+DEFAULT_FROM_EMAIL=your-email@example.com
+
+## Frontend URL (for password reset links)
+FRONTEND_URL=http://localhost:5173
+
+## Django Database Commands
+bash# Make migrations
+python manage.py makemigrations
+
+## Apply migrations
 python manage.py migrate
+
+## Show migrations status
+python manage.py showmigrations
+
+## Create a new app
+python manage.py startapp app_name
+
+## Create a superuser
+python manage.py createsuperuser
+
+## Reset database
+python manage.py flush
+
+## Reset migrations for a specific app
+python manage.py migrate app_name zero
+
+## Shell with Django context
+python manage.py shell
+
+## Run Django development server
+python manage.py runserver
 ```
+## Run migrations and start development server:
+```bash
+
+python manage.py migrate
+python manage.py runserver
+
+# Frontend (Vite)
+npm run dev
+```
+
+## Access the application:
+Access the application:
+```bash
+Frontend: http://localhost:5173
+Backend API: http://localhost:8000
+Django Admin: http://localhost:8000/admin
+
+```
+# Django Database Commands:
+```bash
+## Make migrations
+python manage.py makemigrations
+
+## Apply migrations
+python manage.py migrate
+
+## Show migrations status
+python manage.py showmigrations
+
+## Create a new app
+python manage.py startapp app_name
+
+## Create a superuser
+python manage.py createsuperuser
+
+## Reset database
+python manage.py flush
+
+## Reset migrations for a specific app
+python manage.py migrate app_name zero
+
+## Shell with Django context
+python manage.py shell
+
+## Run Django development server
+python manage.py runserver
+```
+
 ### 6. Create a superuser (optional)
 ```bash
 python manage.py createsuperuser
@@ -58,6 +170,7 @@ python manage.py createsuperuser
 python manage.py runserver
 ```
 ### 8. Important Reminders
+
 - Make sure to set the `DEBUG` variable to `False` in production.
 - Always activate your virtual environment before running any Django commands.
 - After installing new packages, make sure to update the `requirements.txt` file:

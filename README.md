@@ -115,7 +115,7 @@ python manage.py runserver
 ```
 ## Run migrations and start development server:
 ```bash
-
+python manage.py makemigrations
 python manage.py migrate
 python manage.py runserver
 
@@ -165,11 +165,8 @@ python manage.py runserver
 ```bash
 python manage.py createsuperuser
 ```
-### 7. Run the server
-```bash
-python manage.py runserver
-```
-### 8. Important Reminders
+
+### 7. Important Reminders
 
 - Make sure to set the `DEBUG` variable to `False` in production.
 - Always activate your virtual environment before running any Django commands.
@@ -184,7 +181,7 @@ pip freeze > requirements.txt
 venv/
 .env
 ```
-### 9. Github Reminders
+### 8. Github Reminders
 - In Github, options or arguments modify the git commands
 Example:
 -a	All (e.g., stage all changes)	git add -a

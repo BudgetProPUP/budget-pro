@@ -160,6 +160,9 @@ SPECTACULAR_SETTINGS = {
     "DESCRIPTION": "Auto-generated documentation",
     "VERSION": "1.0.0",
     "SERVE_INCLUDE_SCHEMA": False,
+    'SWAGGER_UI_SETTINGS': {
+        'defaultModelsExpandDepth': -1,  # Hide schemas section completely
+    },
     'COMPONENT_SPLIT_REQUEST': True,  # Separate schemas for request/response
     'SCHEMA_PATH_PREFIX': r'/api/',  # Match your API base path
     'ENUM_NAME_OVERRIDES': {
@@ -167,9 +170,12 @@ SPECTACULAR_SETTINGS = {
     },
     'TAGS': [  # Organize endpoints by category
         {'name': 'Authentication', 'description': 'User login/logout operations'},
-        {'name': 'Budgeting', 'description': 'Budget proposals and allocations'},
     ],
+    'APPEND_COMMON_PREFIX': False,
+    'TAGS_SORTER': 'alpha',
+    'OPERATION_SORTER': 'method',
 }
+
 
 TEMPLATES = [
     {

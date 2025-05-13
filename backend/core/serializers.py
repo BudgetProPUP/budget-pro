@@ -2,7 +2,7 @@ from rest_framework import serializers
 from django.contrib.auth import authenticate
 from django.utils import timezone
 from .models import User, Department, LoginAttempt
-
+from drf_spectacular.utils import extend_schema_field
 class DepartmentSerializer(serializers.ModelSerializer):
     class Meta:
         model = Department
@@ -98,11 +98,14 @@ class LoginSerializer(serializers.Serializer):
 
 
 class LoginAttemptSerializer(serializers.ModelSerializer):
+    # Add type hint for the method using extend_schema_field
+    @extend_schema_field(serializers.CharField())
+    def get_username(self, obj) -> str:
+        """Get username for the login attempt."""
+        return obj.user.username if obj.user else "Unknown"
+    
     username = serializers.SerializerMethodField()
     
     class Meta:
         model = LoginAttempt
         fields = ['id', 'username', 'ip_address', 'user_agent', 'success', 'timestamp']
-    
-    def get_username(self, obj):
-        return obj.user.username if obj.user else "Unknown"

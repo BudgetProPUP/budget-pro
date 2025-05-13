@@ -49,6 +49,9 @@ class User(AbstractBaseUser, PermissionsMixin):
     ROLE_CHOICES = [
         ('FINANCE_HEAD', 'Finance Head'),
         ('FINANCE_OPERATOR', 'Finance Operator'),
+        ('APPROVER', 'Approver'),
+        ('VIEWER', 'Viewer'),
+        ('ACCOUNTANT', 'Accountant'),
     ]
 
     email = models.EmailField(unique=True)
@@ -144,6 +147,7 @@ class BudgetProposal(models.Model):
     ('RETRYING', 'Retrying'),
     ]
     
+   
 
     title = models.CharField(max_length=200)
     project_summary = models.TextField()
@@ -157,6 +161,11 @@ class BudgetProposal(models.Model):
     submitted_at = models.DateTimeField(null=True, blank=True)
     last_modified = models.DateTimeField(auto_now=True)
     is_deleted = models.BooleanField(default=False)
+    approved_by = models.ForeignKey(User, on_delete=models.PROTECT, null=True, blank=True, related_name='approved_proposals')
+    approval_date = models.DateTimeField(null=True, blank=True)
+    rejected_by = models.ForeignKey(User, on_delete=models.PROTECT, null=True, blank=True, related_name='rejected_proposals')
+    rejection_date = models.DateTimeField(null=True, blank=True)
+    
     
     external_system_id = models.CharField(max_length=100, unique=True, help_text="ID reference from the external help desk system")
     last_sync_timestamp = models.DateTimeField(null=True, blank=True, help_text="When this proposal was last synced with the external system")
@@ -227,9 +236,35 @@ class BudgetTransfer(models.Model):
     reason = models.TextField()
     transferred_at = models.DateTimeField(auto_now_add=True)
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='PENDING')
+    approved_by = models.ForeignKey(User, on_delete=models.PROTECT, null=True, blank=True, related_name='approved_transfers')
+    approval_date = models.DateTimeField(null=True, blank=True)
+    rejected_by = models.ForeignKey(User, on_delete=models.PROTECT, null=True, blank=True, related_name='rejected_transfers')
+    rejection_date = models.DateTimeField(null=True, blank=True)
 
     def __str__(self):
         return f"Transfer of {self.amount} from {self.source_allocation.department.name} to {self.destination_allocation.department.name}"
+    
+    def validate_sufficient_funds(self):
+        # Get total allocated
+        allocated = self.source_allocation.amount
+        
+        # Get total spent
+        expenses = Expense.objects.filter(
+            budget_allocation=self.source_allocation,
+            status='APPROVED'
+        ).aggregate(total=models.Sum('amount'))['total'] or 0
+        
+        # Get already transferred amount
+        transferred = BudgetTransfer.objects.filter(
+            source_allocation=self.source_allocation,
+            status='APPROVED'
+        ).aggregate(total=models.Sum('amount'))['total'] or 0
+        
+        # Calculate available
+        available = allocated - expenses - transferred
+        
+        return available >= self.amount
+
 
 
 class JournalEntry(models.Model):
@@ -307,6 +342,44 @@ class Expense(models.Model):
 
     def __str__(self):
         return f"{self.description} - {self.date}"
+    
+class Document(models.Model):
+    DOCUMENT_TYPES = [
+        ('RECEIPT', 'Receipt'),
+        ('PROPOSAL', 'Budget Proposal'),
+        ('CONTRACT', 'Contract'),
+        ('OTHER', 'Other'),
+    ]
+    
+    file = models.FileField(upload_to='documents/')
+    document_type = models.CharField(max_length=20, choices=DOCUMENT_TYPES)
+    name = models.CharField(max_length=255)
+    uploaded_by = models.ForeignKey(User, on_delete=models.PROTECT)
+    uploaded_at = models.DateTimeField(auto_now_add=True)
+    department = models.ForeignKey(Department, on_delete=models.SET_NULL, null=True, blank=True)
+    proposal = models.ForeignKey(BudgetProposal, on_delete=models.CASCADE, 
+                                null=True, blank=True, related_name='documents')
+    expense = models.ForeignKey(Expense, on_delete=models.CASCADE, 
+                               null=True, blank=True, related_name='documents')
+    metadata = models.JSONField(blank=True, null=True)
+    
+    def __str__(self):
+        return self.name
+   
+    
+class ExpenseCategory(models.Model):
+    code = models.CharField(max_length=20, unique=True)
+    name = models.CharField(max_length=100)
+    description = models.TextField(blank=True)
+    parent_category = models.ForeignKey('self', on_delete=models.SET_NULL, 
+                                       null=True, blank=True, related_name='subcategories')
+    level = models.IntegerField(validators=[MinValueValidator(1), MaxValueValidator(3)])
+    is_active = models.BooleanField(default=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    
+    def __str__(self):
+        return self.name
 
 
 class ProposalHistory(models.Model):
@@ -442,6 +515,8 @@ class DashboardMetric(models.Model):
     fiscal_year = models.ForeignKey(FiscalYear, on_delete=models.CASCADE)
     department = models.ForeignKey(Department, on_delete=models.CASCADE, null=True, blank=True)
     last_updated = models.DateTimeField(auto_now=True)
+    warning_threshold = models.DecimalField(max_digits=5, decimal_places=2, null=True, blank=True)
+    critical_threshold = models.DecimalField(max_digits=5, decimal_places=2, null=True, blank=True)
 
     def __str__(self):
         dept_str = f" - {self.department.name}" if self.department else ""

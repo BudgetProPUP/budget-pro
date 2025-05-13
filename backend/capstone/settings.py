@@ -13,10 +13,17 @@ https://docs.djangoproject.com/en/5.2/ref/settings/
 from pathlib import Path
 import os
 from dotenv import load_dotenv
+import sys
+
+# Detect if running tests
+TESTING = 'test' in sys.argv
 
 # Load .env from capstone folder
 BASE_DIR = Path(__file__).resolve().parent  # Points to /capstone
 load_dotenv(BASE_DIR / '.env')  # Explicit path
+
+# Frontend URL (for password reset links)
+FRONTEND_URL = os.getenv('FRONTEND_URL', 'http://localhost:5173')
 
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
@@ -48,6 +55,7 @@ INSTALLED_APPS = [
     # Third-party apps
     'rest_framework',
     'rest_framework_simplejwt',
+    'rest_framework_simplejwt.token_blacklist',
     'corsheaders',
     'drf_spectacular',
     'debug_toolbar',
@@ -62,6 +70,58 @@ INSTALLED_APPS = [
 ]
 
 AUTH_USER_MODEL = 'core.User'
+
+AUTHENTICATION_BACKENDS = [
+    'core.authentication.EmailOrPhoneNumberBackend',
+    'django.contrib.auth.backends.ModelBackend',
+]
+
+# CORS settings
+CORS_ALLOWED_ORIGINS = [
+    "http://localhost:5173",  # Vite default dev server
+    # Add production URLs when deployed
+]
+
+CORS_ALLOW_ALL_ORIGINS = True  # For development - restrict in production
+CORS_ALLOW_CREDENTIALS = True
+
+# Email Configuration
+EMAIL_BACKEND = os.getenv('EMAIL_BACKEND', 'django.core.mail.backends.smtp.EmailBackend')
+EMAIL_HOST = os.getenv('EMAIL_HOST', 'smtp.gmail.com')
+EMAIL_PORT = int(os.getenv('EMAIL_PORT', 587))
+EMAIL_USE_TLS = os.getenv('EMAIL_USE_TLS', 'True') == 'True'
+EMAIL_HOST_USER = os.getenv('EMAIL_HOST_USER')
+EMAIL_HOST_PASSWORD = os.getenv('EMAIL_HOST_PASSWORD')
+DEFAULT_FROM_EMAIL = os.getenv('DEFAULT_FROM_EMAIL', EMAIL_HOST_USER)
+
+
+
+# Debug toolbar settings
+INTERNAL_IPS = [
+    '127.0.0.1',
+]
+
+# JWT Settings
+from datetime import timedelta
+
+SIMPLE_JWT = {
+    'ACCESS_TOKEN_LIFETIME': timedelta(minutes=30),
+    'REFRESH_TOKEN_LIFETIME': timedelta(days=1),
+    'ROTATE_REFRESH_TOKENS': False,
+    'BLACKLIST_AFTER_ROTATION': True,
+    'UPDATE_LAST_LOGIN': False,
+    
+    'ALGORITHM': 'HS256',
+    'SIGNING_KEY': SECRET_KEY,
+    'VERIFYING_KEY': None,
+    'AUDIENCE': None,
+    'ISSUER': None,
+    
+    'AUTH_HEADER_TYPES': ('Bearer',),
+    'AUTH_HEADER_NAME': 'HTTP_AUTHORIZATION',
+    'USER_ID_FIELD': 'id',
+    'USER_ID_CLAIM': 'user_id',
+}
 
 
 MIDDLEWARE = [
@@ -88,25 +148,34 @@ REST_FRAMEWORK = {
     'DEFAULT_SCHEMA_CLASS': 'drf_spectacular.openapi.AutoSchema',
 }
 
-# CORS settings
-CORS_ALLOWED_ORIGINS = [
-    "http://localhost:5173",  # Vite default dev server
-    # Add production URLs when deployed
-]
 
-# Spectacular API settings
-SPECTACULAR_SETTINGS = {
-    'TITLE': 'MAP Active Philippines Budgeting API',
-    'DESCRIPTION': 'API for MAP Active Philippines Budgeting Software',
-    'VERSION': '1.0.0',
-}
 
-# Debug toolbar settings
-INTERNAL_IPS = [
-    '127.0.0.1',
-]
 
 ROOT_URLCONF = 'capstone.urls'
+
+
+# DRF Spectacular settings for API documentation
+SPECTACULAR_SETTINGS = {
+    "TITLE": "My API",
+    "DESCRIPTION": "Auto-generated documentation",
+    "VERSION": "1.0.0",
+    "SERVE_INCLUDE_SCHEMA": False,
+    'SWAGGER_UI_SETTINGS': {
+        'defaultModelsExpandDepth': -1,  # Hide schemas section completely
+    },
+    'COMPONENT_SPLIT_REQUEST': True,  # Separate schemas for request/response
+    'SCHEMA_PATH_PREFIX': r'/api/',  # Match your API base path
+    'ENUM_NAME_OVERRIDES': {
+        # Add enum overrides if needed
+    },
+    'TAGS': [  # Organize endpoints by category
+        {'name': 'Authentication', 'description': 'User login/logout operations'},
+    ],
+    'APPEND_COMMON_PREFIX': False,
+    'TAGS_SORTER': 'alpha',
+    'OPERATION_SORTER': 'method',
+}
+
 
 TEMPLATES = [
     {
@@ -157,14 +226,16 @@ AUTH_PASSWORD_VALIDATORS = [
         'NAME': 'django.contrib.auth.password_validation.UserAttributeSimilarityValidator',
     },
     {
-        'NAME': 'django.contrib.auth.password_validation.MinimumLengthValidator',
+        'NAME': 'core.password_validators.CustomPasswordValidator',
+        'OPTIONS': {
+            'min_length': 8,  # Minimum 8 characters as per requirements
+            'max_length': 64, # Maximum 64 characters as per requirements
+        }
     },
     {
         'NAME': 'django.contrib.auth.password_validation.CommonPasswordValidator',
     },
-    {
-        'NAME': 'django.contrib.auth.password_validation.NumericPasswordValidator',
-    },
+
 ]
 
 

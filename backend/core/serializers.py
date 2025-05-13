@@ -1,7 +1,7 @@
 from rest_framework import serializers
 from django.contrib.auth import authenticate
 from django.utils import timezone
-from .models import User, Department, LoginAttempt
+from .models import User, Department, LoginAttempt, ExpenseCategory, Expense
 from drf_spectacular.utils import extend_schema_field
 class DepartmentSerializer(serializers.ModelSerializer):
     class Meta:
@@ -109,3 +109,12 @@ class LoginAttemptSerializer(serializers.ModelSerializer):
     class Meta:
         model = LoginAttempt
         fields = ['id', 'username', 'ip_address', 'user_agent', 'success', 'timestamp']
+        
+        
+class TopCategorySerializer(serializers.Serializer):
+    """
+    Serializer for top expense category with amount and percentage.
+    """
+    name = serializers.CharField()
+    amount = serializers.DecimalField(max_digits=15, decimal_places=2)
+    percentage = serializers.FloatField()

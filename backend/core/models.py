@@ -3,6 +3,7 @@ from django.contrib.auth.models import AbstractBaseUser, PermissionsMixin, BaseU
 from django.core.validators import MinValueValidator, MaxValueValidator
 from django.db.models.signals import post_save
 from django.dispatch import receiver
+from django.forms import ValidationError
 
 
 class Department(models.Model):
@@ -12,10 +13,37 @@ class Department(models.Model):
     is_active = models.BooleanField(default=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
-
+    
+    def get_budget_summary(self, fiscal_year):
+        """Get budget vs actual summary for this department"""
+        allocations = BudgetAllocation.objects.filter(
+            department=self,
+            fiscal_year=fiscal_year,
+            is_active=True
+        )
+        
+        total_budget = allocations.aggregate(total=models.Sum('amount'))['total'] or 0
+        
+        # Get all approved expenses for these allocations
+        expenses = Expense.objects.filter(
+            budget_allocation__in=allocations,
+            status='APPROVED'
+        )
+        
+        total_spent = expenses.aggregate(total=models.Sum('amount'))['total'] or 0
+        
+        return {
+            'total_budget': total_budget,
+            'total_spent': total_spent,
+            'remaining': total_budget - total_spent,
+            'percentage_used': (total_spent / total_budget * 100) if total_budget > 0 else 0
+        }
+        
+        
+    
     def __str__(self):
         return self.name
-
+    
 
 class AccountType(models.Model):
     name = models.CharField(max_length=100)
@@ -148,7 +176,6 @@ class BudgetProposal(models.Model):
     ]
     
    
-
     title = models.CharField(max_length=200)
     project_summary = models.TextField()
     project_description = models.TextField()
@@ -219,6 +246,30 @@ class BudgetAllocation(models.Model):
                 name='unique_budget_allocation'
             )
         ]
+        
+        
+    def get_total_expenses(self):
+        """Calculate total approved expenses for this allocation"""
+        return self.expense_set.filter(status='APPROVED').aggregate(
+            total=models.Sum('amount'))['total'] or 0
+    
+    def get_remaining_budget(self):
+        """Calculate remaining available budget"""
+        return self.amount - self.get_total_expenses()
+    
+    def get_usage_percentage(self):
+        """Calculate percentage of budget used"""
+        if self.amount == 0:
+            return 0
+        return (self.get_total_expenses() / self.amount) * 100
+    
+    def get_monthly_expenses(self, year, month):
+        """Get expenses for a specific month"""
+        return self.expense_set.filter(
+            status='APPROVED',
+            date__year=year,
+            date__month=month
+        ).aggregate(total=models.Sum('amount'))['total'] or 0
 
 
 class BudgetTransfer(models.Model):
@@ -315,7 +366,80 @@ class JournalEntryLine(models.Model):
     def __str__(self):
         return f"{self.transaction_type} {self.amount} to {self.account.name}"
 
-
+class ExpenseCategory(models.Model):
+    code = models.CharField(max_length=20, unique=True)
+    name = models.CharField(max_length=100)
+    description = models.TextField(blank=True)
+    parent_category = models.ForeignKey('self', on_delete=models.SET_NULL, 
+                                       null=True, blank=True, related_name='subcategories')
+    level = models.IntegerField(validators=[MinValueValidator(1), MaxValueValidator(3)])
+    is_active = models.BooleanField(default=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    
+    def __str__(self):
+        return self.name
+    
+    
+    @classmethod
+    def get_top_category_with_percentage(cls, fiscal_year=None, department=None):
+        """
+        Get the top expense category with amount and percentage of total expenses.
+        
+        Parameters:
+        - fiscal_year: Optional FiscalYear to filter expenses by fiscal year
+        - department: Optional Department to filter expenses by department
+        
+        Returns:
+        {
+            'category': ExpenseCategory instance,
+            'amount': Decimal value of expenses in this category,
+            'percentage': Float percentage of total expenses (0-100)
+        }
+        """
+        from django.db.models import Sum, F
+        
+        # Base query for approved expenses
+        expenses_query = Expense.objects.filter(status='APPROVED')
+        
+        # Apply optional filters
+        if fiscal_year:
+            expenses_query = expenses_query.filter(
+                budget_allocation__fiscal_year=fiscal_year
+            )
+        
+        if department:
+            expenses_query = expenses_query.filter(department=department)
+        
+        # Get total approved expenses
+        total_expenses = expenses_query.aggregate(
+            total=Sum('amount')
+        )['total'] or 0
+        
+        if total_expenses == 0:
+            return None
+        
+        # Group by category, sum amounts, and order by highest amount
+        categories = expenses_query.values(
+            'category', 'category__name'
+        ).annotate(
+            total_amount=Sum('amount')
+        ).order_by('-total_amount')
+        
+        if not categories:
+            return None
+        
+        # Get the top category
+        top_category = categories[0]
+        category_obj = cls.objects.get(pk=top_category['category'])
+        
+        return {
+            'category': category_obj,
+            'amount': top_category['total_amount'],
+            'percentage': (top_category['total_amount'] / total_expenses) * 100
+        }
+    
+    
 class Expense(models.Model):
     STATUS_CHOICES = [
         ('DRAFT', 'Draft'),
@@ -339,9 +463,90 @@ class Expense(models.Model):
     posting_date = models.DateField(null=True, blank=True)
     approved_at = models.DateTimeField(null=True, blank=True)
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='DRAFT')
-
+    category = models.ForeignKey(ExpenseCategory, on_delete=models.PROTECT, 
+                                related_name='expenses')
+    
     def __str__(self):
         return f"{self.description} - {self.date}"
+    
+    def clean(self):
+        super().clean()
+        # Skip validation for non-approved expenses
+        if self.status != 'APPROVED':
+            return
+            
+        # Check if this expense would exceed the budget allocation
+        allocated = self.budget_allocation.amount
+        spent = Expense.objects.filter(
+            budget_allocation=self.budget_allocation,
+            status='APPROVED'
+        ).exclude(pk=self.pk).aggregate(total=models.Sum('amount'))['total'] or 0
+        
+        if spent + self.amount > allocated:
+            raise ValidationError({
+                'amount': f"This expense of {self.amount} would exceed the remaining budget of {allocated - spent}."
+            })
+            
+    @classmethod
+    def get_top_category_with_percentage(cls, fiscal_year=None, department=None):
+        """
+        Get the top expense category with amount and percentage of total expenses.
+        
+        Parameters:
+        - fiscal_year: Optional FiscalYear to filter expenses by fiscal year
+        - department: Optional Department to filter expenses by department
+        
+        Returns:
+        {
+            'category': ExpenseCategory instance,
+            'amount': Decimal value of expenses in this category,
+            'percentage': Float percentage of total expenses (0-100)
+        }
+        """
+        from django.db.models import Sum, F
+        
+        # Base query for approved expenses
+        expenses_query = Expense.objects.filter(status='APPROVED')
+        
+        # Apply optional filters
+        if fiscal_year:
+            expenses_query = expenses_query.filter(
+                budget_allocation__fiscal_year=fiscal_year
+            )
+        
+        if department:
+            expenses_query = expenses_query.filter(department=department)
+        
+        # Get total approved expenses
+        total_expenses = expenses_query.aggregate(
+            total=Sum('amount')
+        )['total'] or 0
+        
+        if total_expenses == 0:
+            return None
+        
+        # Group by category, sum amounts, and order by highest amount
+        categories = expenses_query.values(
+            'category', 'category__name'
+        ).annotate(
+            total_amount=Sum('amount')
+        ).order_by('-total_amount')
+        
+        if not categories:
+            return None
+        
+        # Get the top category
+        top_category = categories[0]
+        category_obj = cls.objects.get(pk=top_category['category'])
+        
+        return {
+            'category': category_obj,
+            'amount': top_category['total_amount'],
+            'percentage': (top_category['total_amount'] / total_expenses) * 100
+        }
+
+    
+
     
 class Document(models.Model):
     DOCUMENT_TYPES = [
@@ -366,22 +571,6 @@ class Document(models.Model):
     def __str__(self):
         return self.name
    
-    
-class ExpenseCategory(models.Model):
-    code = models.CharField(max_length=20, unique=True)
-    name = models.CharField(max_length=100)
-    description = models.TextField(blank=True)
-    parent_category = models.ForeignKey('self', on_delete=models.SET_NULL, 
-                                       null=True, blank=True, related_name='subcategories')
-    level = models.IntegerField(validators=[MinValueValidator(1), MaxValueValidator(3)])
-    is_active = models.BooleanField(default=True)
-    created_at = models.DateTimeField(auto_now_add=True)
-    updated_at = models.DateTimeField(auto_now=True)
-    
-    def __str__(self):
-        return self.name
-
-
 class ProposalHistory(models.Model):
     ACTION_CHOICES = [
         ('CREATED', 'Created'),
@@ -442,6 +631,37 @@ class TransactionAudit(models.Model):
 
     def __str__(self):
         return f"{self.transaction_type} {self.transaction_id} {self.action} by {self.user.username}"
+    
+    @receiver(post_save, sender=Expense)
+    def expense_audit_log(sender, instance, created, **kwargs):
+        """Create audit entry when expense is created or updated"""
+        action = 'CREATED' if created else 'UPDATED'
+        
+        # Get the user from the current request if available
+        user = None
+        if hasattr(instance, 'submitted_by'):
+            user = instance.submitted_by
+        elif hasattr(instance, 'approved_by') and instance.approved_by:
+            user = instance.approved_by
+        
+        if not user:
+            # If we can't determine the user, we can't create the audit
+            return
+            
+        # Create transaction audit record
+        TransactionAudit.objects.create(
+            transaction_type='EXPENSE',
+            transaction_id=instance.id,
+            user=user,
+            action=action,
+            details={
+                'amount': str(instance.amount),
+                'description': instance.description,
+                'status': instance.status,
+                'department_id': instance.department.id,
+                'budget_allocation_id': instance.budget_allocation.id
+            }
+        )
 
 
 class Project(models.Model):
@@ -567,3 +787,5 @@ class UserActivityLog(models.Model):
     
     def __str__(self):
         return f"{self.user.username} - {self.action} - {self.timestamp}"
+    
+    

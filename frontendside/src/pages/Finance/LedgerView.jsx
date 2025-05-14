@@ -1,208 +1,164 @@
 import React, { useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
-import { ChevronDown, Search, ChevronRight, ChevronLeft } from 'lucide-react';
 import './LedgerView.css';
 
-function LedgerView() {
-  const [currentDate] = useState(new Date('2025-04-14T10:45:00'));
-  const [showBudgetDropdown, setShowBudgetDropdown] = useState(false);
-  const [showExpenseDropdown, setShowExpenseDropdown] = useState(false);
-  const navigate = useNavigate();
+const LedgerView = () => {
+  // Sample data for the ledger
+  const [transactions] = useState([
+    { 
+      reference: 'EX-001', 
+      date: '05-12-2025', 
+      category: 'Expenses', 
+      description: 'Internet Bill', 
+      amount: '₱8,300' 
+    },
+    { 
+      reference: 'AS-001', 
+      date: '05-03-2025', 
+      category: 'Assets', 
+      description: 'Company Laptops', 
+      amount: '₱250,000' 
+    },
+    { 
+      reference: 'AS-002', 
+      date: '04-27-2025', 
+      category: 'Assets', 
+      description: 'Office Printer', 
+      amount: '₱12,500' 
+    },
+    { 
+      reference: 'EX-002', 
+      date: '04-12-2025', 
+      category: 'Expenses', 
+      description: 'Internet Bill', 
+      amount: '₱9,200' 
+    },
+    { 
+      reference: 'AS-003', 
+      date: '03-20-2025', 
+      category: 'Assets', 
+      description: 'Cloud Hosting', 
+      amount: '₱5,800' 
+    },
+  ]);
 
-  // Format date and time
-  const formattedDate = currentDate.toLocaleDateString('en-US', {
-    weekday: 'long',
-    month: 'long',
-    day: 'numeric',
-    year: 'numeric',
-  });
-  
-  const formattedTime = currentDate.toLocaleTimeString('en-US', {
-    hour: 'numeric',
-    minute: 'numeric',
-    hour12: true,
-  });
+  // State for search and filter
+  const [searchTerm, setSearchTerm] = useState('');
+  const [currentPage, setCurrentPage] = useState(1);
+  const [selectedCategory, setSelectedCategory] = useState('');
 
-  // Sample transactions data
-  const transactions = [
-    { reference: 'INV-4321', date: '04/01/2025', description: 'Office Supplies payment', balance: '₱50,000.00' },
-    { reference: 'CHK-188', date: '03/08/2024', description: 'Monthly Depreciation', balance: '₱50,000.00' },
-    { reference: 'INV-4356', date: '03/26/2024', description: 'Office Supplies Payment', balance: '₱40,000.00' },
-    { reference: 'INV-4321', date: '03/26/2024', description: 'Office Supplies Payment', balance: '₱40,000.00' },
-    { reference: 'INV-4321', date: '03/26/2024', description: 'Office Supplies Payment', balance: '₱40,000.00' },
-  ];
-
-  const toggleBudgetDropdown = () => {
-    setShowBudgetDropdown(!showBudgetDropdown);
-    if (showExpenseDropdown) setShowExpenseDropdown(false);
+  // Handle search input change
+  const handleSearchChange = (e) => {
+    setSearchTerm(e.target.value);
   };
 
-  const toggleExpenseDropdown = () => {
-    setShowExpenseDropdown(!showExpenseDropdown);
-    if (showBudgetDropdown) setShowBudgetDropdown(false);
+  // Handle category filter change
+  const handleCategoryChange = (e) => {
+    setSelectedCategory(e.target.value);
   };
-  
-  const handleNavigate = (path) => {
-    navigate(path);
-    setShowBudgetDropdown(false);
-    setShowExpenseDropdown(false);
+
+  // Handle pagination
+  const handlePrevPage = () => {
+    if (currentPage > 1) {
+      setCurrentPage(currentPage - 1);
+    }
+  };
+
+  const handleNextPage = () => {
+    // Assuming there are more pages
+    setCurrentPage(currentPage + 1);
+  };
+
+  // Handle export button click
+  const handleExport = () => {
+    alert('Exporting data...');
+    // Implementation for exporting data
   };
 
   return (
-    <div className="ledger-view-container">
-      {/* Header */}
-      <header className="dashboard-header">
-        <div className="header-left">
-          <h1 className="logo">BUDGETPRO</h1>
-          <nav className="main-nav">
-            <Link to="/dashboard" className="nav-item">Dashboard</Link>
-            
-            {/* Budget Dropdown */}
-            <div className="dropdown-container">
-              <div className="nav-item dropdown-toggle" onClick={toggleBudgetDropdown}>
-                Budget <ChevronDown size={14} />
-              </div>
-              {showBudgetDropdown && (
-                <div className="dropdown-menu">
-                  {/* Budget Items */}
-                  <h4 className="dropdown-category">Budget</h4>
-                  <div 
-                    className="dropdown-item" 
-                    onClick={() => handleNavigate('/finance/budget-proposal')}
-                  >
-                    Budget Proposal
-                  </div>
-                 
-                  <div 
-                    className="dropdown-item" 
-                    onClick={() => handleNavigate('/finance/proposal-history')}
-                  >
-                    Proposal History
-                  </div>
-
-                  {/* Account Items */}
-                  <h4 className="dropdown-category">Account</h4>
-                  <div 
-                    className="dropdown-item" 
-                    onClick={() => handleNavigate('/finance/account-setup')}
-                  >
-                    Account Setup
-                  </div>
-                  <div 
-                    className="dropdown-item" 
-                    onClick={() => handleNavigate('/finance/ledger-view')}
-                  >
-                    Ledger View
-                  </div>
-                  <div 
-                    className="dropdown-item" 
-                    onClick={() => handleNavigate('/finance/journal-entry')}
-                  >
-                    Journal Entries
-                  </div>
-                </div>
-              )}
-            </div>
-            
-            {/* Expense Dropdown */}
-            <div className="dropdown-container">
-              <div className="nav-item dropdown-toggle" onClick={toggleExpenseDropdown}>
-                Expense <ChevronDown size={14} />
-              </div>
-              {showExpenseDropdown && (
-                <div className="dropdown-menu">
-                  <div 
-                    className="dropdown-item" 
-                    onClick={() => handleNavigate('/finance/expense-tracking')}
-                  >
-                    Expense Tracking
-                  </div>
-                  <div 
-                    className="dropdown-item" 
-                    onClick={() => handleNavigate('/finance/expense-history')}
-                  >
-                    Expense History
-                  </div>
-                </div>
-              )}
-            </div>
-            
-            {/* User Management - Simple Navigation Item */}
-            <div 
-              className="nav-item"
-              onClick={() => handleNavigate('/finance/user-management')}
-            >
-              User Management
-            </div>
-          </nav>
+    <div className="ledger-container">
+      <div className="search-filter-container">
+        <div className="search-bar">
+          <input 
+            type="text" 
+            placeholder="Search Transactions" 
+            value={searchTerm}
+            onChange={handleSearchChange}
+          />
+          <button className="search-button">
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <circle cx="11" cy="11" r="8"></circle>
+              <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+            </svg>
+          </button>
         </div>
-        <div className="header-right">
-          <div className="user-avatar">
-            <img src="/api/placeholder/36/36" alt="User avatar" className="avatar-img" />
-          </div>
-        </div>
-      </header>
-
-      {/* Main Content */}
-      <main className="ledger-view-main">
-        {/* Timestamp */}
-        <div className="dashboard-timestamp">
-          <div className="timestamp-container">
-            <p>{formattedDate} | {formattedTime}</p>
+        
+        <div className="filter-options">
+          <button className="filter-button">
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"></polygon>
+            </svg>
+            Filter by:
+          </button>
+          
+          <div className="category-dropdown">
+            <select value={selectedCategory} onChange={handleCategoryChange}>
+              <option value="">Category</option>
+              <option value="Expenses">Expenses</option>
+              <option value="Assets">Assets</option>
+              <option value="Income">Income</option>
+            </select>
           </div>
         </div>
         
-        <h1 className="page-title">Ledger View</h1>
-
-        {/* Search and Filter */}
-        <div className="search-filter-container">
-          <div className="search-box">
-            <input type="text" placeholder="Search Transactions" />
-            <button className="search-button">
-              <Search size={18} />
-            </button>
+        <button className="export-button" onClick={handleExport}>
+          Export
+        </button>
+      </div>
+      
+      <div className="ledger-view-container">
+        <h2>Ledger View</h2>
+        
+        <div className="ledger-table">
+          <div className="ledger-header">
+            <div className="header-cell">Reference</div>
+            <div className="header-cell">Date</div>
+            <div className="header-cell">Category</div>
+            <div className="header-cell">Description</div>
+            <div className="header-cell">Amount</div>
           </div>
-
-          <div className="filter-container">
-            <span>Category: </span>
-            <span className="filter-value">All Categories</span>
-            <ChevronRight size={16} />
-          </div>
-
-          <button className="export-button">Export</button>
-        </div>
-
-        {/* Ledger Table */}
-        <div className="ledger-table-container">
-          <table className="ledger-table">
-            <thead>
-              <tr>
-                <th>Reference</th>
-                <th>Date</th>
-                <th>Description</th>
-                <th>Balance</th>
-              </tr>
-            </thead>
-            <tbody>
-              {transactions.map((transaction, index) => (
-                <tr key={index}>
-                  <td>{transaction.reference}</td>
-                  <td>{transaction.date}</td>
-                  <td>{transaction.description}</td>
-                  <td>{transaction.balance}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+          
+          {transactions.map((transaction, index) => (
+            <div key={index} className={`ledger-row ${index % 2 === 0 ? 'even-row' : 'odd-row'}`}>
+              <div className="cell">{transaction.reference}</div>
+              <div className="cell">{transaction.date}</div>
+              <div className="cell">{transaction.category}</div>
+              <div className="cell">{transaction.description}</div>
+              <div className="cell amount">{transaction.amount}</div>
+            </div>
+          ))}
         </div>
         
-        <div className="pagination-controls">
-          <button className="pagination-btn"><ChevronLeft size={16} /></button>
-          <button className="pagination-btn"><ChevronRight size={16} /></button>
+        <div className="pagination">
+          <button 
+            className="pagination-button prev" 
+            onClick={handlePrevPage}
+            disabled={currentPage === 1}
+          >
+            &lt; Prev
+          </button>
+          
+          <div className="page-number">{currentPage}</div>
+          
+          <button 
+            className="pagination-button next" 
+            onClick={handleNextPage}
+          >
+            Next &gt;
+          </button>
         </div>
-      </main>
+      </div>
     </div>
   );
-}
+};
 
 export default LedgerView;

@@ -1,7 +1,8 @@
 from django.urls import path
 from rest_framework_simplejwt.views import TokenRefreshView
 
-from backend.core import views_expense #,TokenObtainPairView
+
+from . import views_expense, views_dashboard #,TokenObtainPairView
 
 from .views import (
     LoginView,
@@ -33,6 +34,9 @@ urlpatterns = [
     # Security endpoint
     path('auth/login-attempts/', LoginAttemptsView.as_view(), name='login_attempts'),
     
+    #path('api/expenses/dashboard/', views_expense.get_expense_dashboard_data, name='expense-dashboard'),
     
-    path('api/expenses/dashboard/', views_expense.get_expense_dashboard_data, name='expense-dashboard'),
+    
+    # API endpoints for dashboard elements
+    path('department-budget/', views_dashboard.DepartmentBudgetView.as_view(), name='department-budget'),
 ]

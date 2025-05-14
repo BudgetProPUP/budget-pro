@@ -1,7 +1,7 @@
 from rest_framework import serializers
 from django.contrib.auth import authenticate
 from django.utils import timezone
-from .models import User, Department, LoginAttempt, ExpenseCategory, Expense
+from .models import FiscalYear, User, Department, LoginAttempt, ExpenseCategory, Expense
 from drf_spectacular.utils import extend_schema_field
 class DepartmentSerializer(serializers.ModelSerializer):
     class Meta:
@@ -118,3 +118,26 @@ class TopCategorySerializer(serializers.Serializer):
     name = serializers.CharField()
     amount = serializers.DecimalField(max_digits=15, decimal_places=2)
     percentage = serializers.FloatField()
+    
+    
+class DepartmentBudgetSerializer(serializers.ModelSerializer):
+    """
+    Serializer for displaying department budget allocation information
+    """
+    total_budget = serializers.DecimalField(max_digits=15, decimal_places=2, read_only=True)
+    total_spent = serializers.DecimalField(max_digits=15, decimal_places=2, read_only=True)
+    remaining_budget = serializers.DecimalField(max_digits=15, decimal_places=2, read_only=True)
+    percentage_used = serializers.FloatField(read_only=True)
+    
+    class Meta:
+        model = Department
+        fields = ['id', 'name', 'code', 'total_budget', 'total_spent', 'remaining_budget', 'percentage_used']
+
+
+class FiscalYearSerializer(serializers.ModelSerializer):
+    """
+    Serializer for fiscal year information
+    """
+    class Meta:
+        model = FiscalYear
+        fields = ['id', 'name', 'start_date', 'end_date', 'is_active', 'is_locked']

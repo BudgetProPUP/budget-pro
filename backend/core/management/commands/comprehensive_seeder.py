@@ -1,101 +1,113 @@
-import os
 from django.core.management.base import BaseCommand
-from django.db import transaction
 from django.utils import timezone
+from django.db import transaction
 from datetime import datetime, timedelta
-from decimal import Decimal
 import random
+from decimal import Decimal
+
+from django.contrib.auth import get_user_model
 from core.models import (
-    User, Department, AccountType, Account, FiscalYear,
-    BudgetAllocation, DashboardMetric, Project, ExpenseCategory
+    Department, AccountType, Account, FiscalYear, BudgetProposal, BudgetProposalItem,
+    BudgetAllocation, BudgetTransfer, JournalEntry, JournalEntryLine,
+    ExpenseCategory, Expense, Document, ProposalHistory, ProposalComment,
+    TransactionAudit, Project, RiskMetric, DashboardMetric, UserActivityLog
 )
 
+User = get_user_model()
 
 class Command(BaseCommand):
-    help = 'Creates comprehensive initial data for the application'
+    help = 'Seed database with initial data for testing and development'
 
-    def add_arguments(self, parser):
-        parser.add_argument(
-            '--reset',
-            action='store_true',
-            help='Reset data before creating (USE WITH CAUTION)',
-        )
+    def handle(self, *args, **options):
+        self.stdout.write('Starting database seeding process...')
+        
+        try:
+            with transaction.atomic():
+                # Create in order of dependencies
+                departments = self.create_departments()
+                admin_user, users = self.create_users(departments)
+                account_types = self.create_account_types()
+                accounts = self.create_accounts(account_types, admin_user)
+                fiscal_years = self.create_fiscal_years()
+                
+                # Budget related objects
+                expense_categories = self.create_expense_categories()
+                budget_proposals = self.create_budget_proposals(departments, fiscal_years, users)
+                self.create_budget_proposal_items(budget_proposals, accounts)
+                budget_allocations = self.create_budget_allocations(fiscal_years, departments, accounts, admin_user)
+                self.create_budget_transfers(fiscal_years, budget_allocations, users)
+                
+                # Financial transactions
+                journal_entries = self.create_journal_entries(users)
+                self.create_journal_entry_lines(journal_entries, accounts)
+                expenses = self.create_expenses(departments, accounts, budget_allocations, users, expense_categories)
+                
+                # Supporting documents and history
+                self.create_documents(budget_proposals, expenses, users, departments)
+                self.create_proposal_history(budget_proposals, users)
+                self.create_proposal_comments(budget_proposals, users)
+                
+                # Projects and metrics
+                projects = self.create_projects(departments, budget_proposals)
+                self.create_risk_metrics(projects, users)
+                self.create_dashboard_metrics(fiscal_years, departments)
+                
+                # Activity logs
+                self.create_user_activity_logs(users)
+                
+                self.stdout.write(self.style.SUCCESS('Successfully seeded database!'))
+        
+        except Exception as e:
+            self.stdout.write(self.style.ERROR(f'Error seeding database: {str(e)}'))
+            raise e
 
-    @transaction.atomic
-    def handle(self, *args, **kwargs):
-        reset = kwargs.get('reset', False)
-        
-        if reset:
-            self.stdout.write(self.style.WARNING('Resetting selected data...'))
-            # Only reset non-user data to preserve user accounts
-            self._reset_data()
-        
-        self.stdout.write(self.style.SUCCESS('Starting comprehensive data initialization...'))
-
-        # Step 1: Create departments
-        departments = self.create_departments()
-        
-        # Step 2: Create admin and test users (or retrieve existing ones)
-        admin_user, users = self.create_users(departments)
-        
-        # Step 3: Create account types and chart of accounts
-        account_types, accounts = self.create_account_structure(admin_user)
-        
-        # Step 4: Create expense categories
-        expense_categories = self.create_expense_categories(admin_user)
-        
-        # Step 5: Create fiscal years
-        fiscal_years = self.create_fiscal_years()
-        
-        # Step 6: Create budget allocations
-        allocations = self.create_budget_allocations(fiscal_years[0], departments, accounts, admin_user)
-        
-        # Step 7: Create dashboard metrics
-        self.create_dashboard_metrics(fiscal_years[0], departments, allocations)
-        
-        # Step 8: Create sample projects
-        self.create_sample_projects(fiscal_years[0], departments, users)
-        
-        self.stdout.write(self.style.SUCCESS('Comprehensive data initialization completed successfully'))
-    
-    def _reset_data(self):
-        """Reset non-user data carefully"""
-        # Order matters due to foreign key constraints
-        DashboardMetric.objects.all().delete()
-        BudgetAllocation.objects.all().delete()
-        Project.objects.all().delete()
-        FiscalYear.objects.all().delete()
-        Account.objects.all().delete()
-        AccountType.objects.all().delete()
-        ExpenseCategory.objects.all().delete()
-        # Keep departments as they might be referenced by users
-        self.stdout.write(self.style.WARNING('Selected data has been reset'))
-    
     def create_departments(self):
         self.stdout.write('Creating departments...')
         departments = [
-            {'name': 'Finance', 'code': 'FIN', 'description': 'Finance Department'},
-            {'name': 'Marketing', 'code': 'MKT', 'description': 'Marketing Department'},
-            {'name': 'Human Resources', 'code': 'HR', 'description': 'Human Resources Department'},
-            {'name': 'Information Technology', 'code': 'IT', 'description': 'IT Department'},
-            {'name': 'Operations', 'code': 'OPS', 'description': 'Operations Department'},
-            {'name': 'Sales', 'code': 'SLS', 'description': 'Sales Department'},
+            {
+                'name': 'Finance Department',
+                'code': 'FIN',
+                'description': 'Handles financial operations and budget management'
+            },
+            {
+                'name': 'Human Resources',
+                'code': 'HR',
+                'description': 'Manages personnel, hiring and organizational development'
+            },
+            {
+                'name': 'Information Technology',
+                'code': 'IT',
+                'description': 'Maintains IT infrastructure and develops software solutions'
+            },
+            {
+                'name': 'Operations',
+                'code': 'OPS',
+                'description': 'Handles day-to-day operational activities'
+            },
+            {
+                'name': 'Marketing',
+                'code': 'MKT',
+                'description': 'Manages promotional activities and brand development'
+            }
         ]
         
         created_departments = []
         for dept_data in departments:
-            dept, created = Department.objects.get_or_create(
+            dept, created = Department.objects.update_or_create(
                 code=dept_data['code'],
                 defaults={
                     'name': dept_data['name'],
                     'description': dept_data['description'],
+                    'is_active': True
                 }
             )
             created_departments.append(dept)
+            action = 'Created' if created else 'Updated'
+            self.stdout.write(f"{action} department: {dept.name}")
         
-        self.stdout.write(self.style.SUCCESS(f'Created/Retrieved {len(departments)} departments'))
+        self.stdout.write(self.style.SUCCESS(f'Created/Updated {len(created_departments)} departments'))
         return created_departments
-    
+
     def create_users(self, departments):
         self.stdout.write('Creating/verifying users...')
         
@@ -104,6 +116,8 @@ class Command(BaseCommand):
         finance_dept = dept_dict.get('FIN')
         it_dept = dept_dict.get('IT')
         hr_dept = dept_dict.get('HR')
+        ops_dept = dept_dict.get('OPS')
+        mkt_dept = dept_dict.get('MKT')
         
         # Create or retrieve admin user
         admin_user, admin_created = User.objects.get_or_create(
@@ -123,7 +137,10 @@ class Command(BaseCommand):
             admin_user.save()
             self.stdout.write(self.style.SUCCESS('Created admin user'))
         else:
-            self.stdout.write('Admin user already exists')
+            # Update existing admin user
+            admin_user.role = 'FINANCE_HEAD'  # Ensure role is valid
+            admin_user.save()
+            self.stdout.write('Updated admin user')
         
         # Create test users
         test_users = [
@@ -164,7 +181,7 @@ class Command(BaseCommand):
                 'password': 'password123',
                 'first_name': 'IT',
                 'last_name': 'Operator',
-                'role': 'FINANCE_OPERATOR',
+                'role': 'FINANCE_OPERATOR',  # Update role to valid choice
                 'department': it_dept,
             },
             {
@@ -173,9 +190,30 @@ class Command(BaseCommand):
                 'password': 'password123',
                 'first_name': 'HR',
                 'last_name': 'Approver',
-                'role': 'APPROVER',
+                'role': 'FINANCE_OPERATOR',  # Update from 'APPROVER' to valid role
                 'department': hr_dept,
                 'phone_number': '09178889999',
+            },
+            # Additional users for other departments
+            {
+                'email': 'ops_head@example.com',
+                'username': 'ops_head',
+                'password': 'password123',
+                'first_name': 'Operations',
+                'last_name': 'Head',
+                'role': 'FINANCE_HEAD',
+                'department': ops_dept,
+                'phone_number': '09171111111',
+            },
+            {
+                'email': 'mkt_operator@example.com',
+                'username': 'mkt_operator',
+                'password': 'password123',
+                'first_name': 'Marketing',
+                'last_name': 'Operator',
+                'role': 'FINANCE_OPERATOR',
+                'department': mkt_dept,
+                'phone_number': '09172222222',
             },
         ]
         
@@ -202,515 +240,833 @@ class Command(BaseCommand):
         
         self.stdout.write(self.style.SUCCESS(f'Created/Updated {len(created_users)} test users'))
         return admin_user, created_users
-    
-    def create_account_structure(self, admin_user):
-        self.stdout.write('Creating account types and chart of accounts...')
-        
-        # Create account types
+
+    def create_account_types(self):
+        self.stdout.write('Creating account types...')
         account_types = [
-            {'name': 'Assets (Current)', 'description': 'Current assets that are expected to be liquidated within one year'},
-            {'name': 'Assets (Non-current)', 'description': 'Long-term assets not expected to be converted to cash in the short term'},
-            {'name': 'Liabilities (Current)', 'description': 'Short-term liabilities due within one year'},
-            {'name': 'Liabilities (Non-current)', 'description': 'Long-term liabilities not due within one year'},
+            {'name': 'Asset', 'description': 'Resources owned by the company'},
+            {'name': 'Liability', 'description': 'Obligations owed by the company'},
             {'name': 'Equity', 'description': 'Ownership interest in the company'},
-            {'name': 'Revenue', 'description': 'Income from business operations'},
-            {'name': 'Expenses', 'description': 'Costs incurred during business operations'},
+            {'name': 'Revenue', 'description': 'Income earned from operations'},
+            {'name': 'Expense', 'description': 'Costs incurred in operations'}
         ]
         
-        created_types = {}
+        created_types = []
         for type_data in account_types:
-            acct_type, created = AccountType.objects.get_or_create(
+            acct_type, created = AccountType.objects.update_or_create(
                 name=type_data['name'],
-                defaults={'description': type_data['description']}
+                defaults={
+                    'description': type_data['description'],
+                    'is_active': True
+                }
             )
-            created_types[type_data['name']] = acct_type
+            created_types.append(acct_type)
         
-        # Create parent accounts
-        expense_type = created_types['Expenses']
-        asset_current_type = created_types['Assets (Current)']
-        asset_noncurrent_type = created_types['Assets (Non-current)']
-        liability_current_type = created_types['Liabilities (Current)']
-        revenue_type = created_types['Revenue']
+        self.stdout.write(self.style.SUCCESS(f'Created/Updated {len(created_types)} account types'))
+        return created_types
+
+    def create_accounts(self, account_types, created_by):
+        self.stdout.write('Creating accounts...')
         
+        # Get account types by name for easier reference
+        acct_type_dict = {acct.name: acct for acct in account_types}
+        
+        # Create parent accounts first
         parent_accounts = [
             {
-                'code': 'EXP-OPER',
-                'name': 'Operating Expenses',
-                'description': 'Day-to-day expenses for business operations',
-                'account_type': expense_type,
+                'code': '1000',
+                'name': 'Assets',
+                'description': 'All company assets',
+                'account_type': acct_type_dict['Asset'],
+                'parent_account': None
             },
             {
-                'code': 'EXP-ADMIN',
-                'name': 'Administrative Expenses',
-                'description': 'Administrative and overhead expenses',
-                'account_type': expense_type,
+                'code': '2000',
+                'name': 'Liabilities',
+                'description': 'All company liabilities',
+                'account_type': acct_type_dict['Liability'],
+                'parent_account': None
             },
             {
-                'code': 'ASSET-CURR',
-                'name': 'Current Assets',
-                'description': 'Assets expected to be converted to cash within one year',
-                'account_type': asset_current_type,
+                'code': '3000',
+                'name': 'Equity',
+                'description': 'All company equity',
+                'account_type': acct_type_dict['Equity'],
+                'parent_account': None
             },
             {
-                'code': 'ASSET-FIXED',
-                'name': 'Fixed Assets',
-                'description': 'Long-term tangible assets',
-                'account_type': asset_noncurrent_type,
+                'code': '4000',
+                'name': 'Revenue',
+                'description': 'All company revenue',
+                'account_type': acct_type_dict['Revenue'],
+                'parent_account': None
             },
             {
-                'code': 'REV-OPER',
-                'name': 'Operating Revenue',
-                'description': 'Revenue from primary business activities',
-                'account_type': revenue_type,
-            },
+                'code': '5000',
+                'name': 'Expenses',
+                'description': 'All company expenses',
+                'account_type': acct_type_dict['Expense'],
+                'parent_account': None
+            }
         ]
         
-        created_parent_accounts = {}
+        created_parents = []
         for acct_data in parent_accounts:
-            acct, created = Account.objects.get_or_create(
+            account, created = Account.objects.update_or_create(
                 code=acct_data['code'],
                 defaults={
                     'name': acct_data['name'],
                     'description': acct_data['description'],
                     'account_type': acct_data['account_type'],
-                    'created_by': admin_user,
+                    'parent_account': None,
+                    'created_by': created_by,
+                    'is_active': True
                 }
             )
-            created_parent_accounts[acct_data['code']] = acct
+            created_parents.append(account)
+        
+        # Create parent account dictionary for easier reference
+        parent_dict = {acct.code: acct for acct in created_parents}
         
         # Create child accounts
-        operating_expense = created_parent_accounts['EXP-OPER']
-        current_assets = created_parent_accounts['ASSET-CURR']
-        
-        # Create sub-level accounts
-        it_expense, _ = Account.objects.get_or_create(
-            code='EXP-IT',
-            defaults={
-                'name': 'IT Expenses',
-                'description': 'Technology related expenses',
-                'account_type': expense_type,
-                'parent_account': operating_expense,
-                'created_by': admin_user,
-            }
-        )
-        
-        # Create detailed accounts
-        detailed_accounts = [
+        child_accounts = [
+            # Asset child accounts
             {
-                'code': 'EXP-IT-HW',
-                'name': 'Hardware Expenses',
-                'description': 'Computer hardware purchases and maintenance',
-                'account_type': expense_type,
-                'parent_account': it_expense,
+                'code': '1100',
+                'name': 'Cash and Cash Equivalents',
+                'description': 'Cash on hand and in bank',
+                'account_type': acct_type_dict['Asset'],
+                'parent_account': parent_dict['1000']
             },
             {
-                'code': 'EXP-IT-SW',
-                'name': 'Software Expenses',
-                'description': 'Software licenses and services',
-                'account_type': expense_type,
-                'parent_account': it_expense,
-            },
-            {
-                'code': 'EXP-TRV',
-                'name': 'Travel Expenses',
-                'description': 'Business travel related expenses',
-                'account_type': expense_type,
-                'parent_account': operating_expense,
-            },
-            {
-                'code': 'EXP-TRAIN',
-                'name': 'Training Expenses',
-                'description': 'Staff training and development expenses',
-                'account_type': expense_type,
-                'parent_account': operating_expense,
-            },
-            {
-                'code': 'CASH',
-                'name': 'Cash',
-                'description': 'Cash on hand and in bank accounts',
-                'account_type': asset_current_type,
-                'parent_account': current_assets,
-            },
-            {
-                'code': 'AR',
+                'code': '1200',
                 'name': 'Accounts Receivable',
-                'description': 'Amounts owed by customers',
-                'account_type': asset_current_type,
-                'parent_account': current_assets,
+                'description': 'Amounts owed to the company',
+                'account_type': acct_type_dict['Asset'],
+                'parent_account': parent_dict['1000']
             },
+            {
+                'code': '1300',
+                'name': 'Inventory',
+                'description': 'Items held for sale',
+                'account_type': acct_type_dict['Asset'],
+                'parent_account': parent_dict['1000']
+            },
+            {
+                'code': '1400',
+                'name': 'Fixed Assets',
+                'description': 'Long-term tangible assets',
+                'account_type': acct_type_dict['Asset'],
+                'parent_account': parent_dict['1000']
+            },
+            
+            # Liability child accounts
+            {
+                'code': '2100',
+                'name': 'Accounts Payable',
+                'description': 'Amounts owed by the company',
+                'account_type': acct_type_dict['Liability'],
+                'parent_account': parent_dict['2000']
+            },
+            {
+                'code': '2200',
+                'name': 'Accrued Expenses',
+                'description': 'Expenses incurred but not yet paid',
+                'account_type': acct_type_dict['Liability'],
+                'parent_account': parent_dict['2000']
+            },
+            
+            # Expense child accounts
+            {
+                'code': '5100',
+                'name': 'Salaries and Wages',
+                'description': 'Employee compensation',
+                'account_type': acct_type_dict['Expense'],
+                'parent_account': parent_dict['5000']
+            },
+            {
+                'code': '5200',
+                'name': 'Office Supplies',
+                'description': 'Office consumables',
+                'account_type': acct_type_dict['Expense'],
+                'parent_account': parent_dict['5000']
+            },
+            {
+                'code': '5300',
+                'name': 'Travel and Entertainment',
+                'description': 'Business travel expenses',
+                'account_type': acct_type_dict['Expense'],
+                'parent_account': parent_dict['5000']
+            },
+            {
+                'code': '5400',
+                'name': 'IT Equipment',
+                'description': 'Technology purchases',
+                'account_type': acct_type_dict['Expense'],
+                'parent_account': parent_dict['5000']
+            },
+            {
+                'code': '5500',
+                'name': 'Professional Development',
+                'description': 'Training and education expenses',
+                'account_type': acct_type_dict['Expense'],
+                'parent_account': parent_dict['5000']
+            }
         ]
         
-        created_accounts = []
-        for acct_data in detailed_accounts:
-            acct, created = Account.objects.get_or_create(
+        created_children = []
+        for acct_data in child_accounts:
+            account, created = Account.objects.update_or_create(
                 code=acct_data['code'],
                 defaults={
                     'name': acct_data['name'],
                     'description': acct_data['description'],
                     'account_type': acct_data['account_type'],
                     'parent_account': acct_data['parent_account'],
-                    'created_by': admin_user,
+                    'created_by': created_by,
+                    'is_active': True
                 }
             )
-            created_accounts.append(acct)
+            created_children.append(account)
         
-        # Add all parent accounts to the list for return
-        all_accounts = list(created_parent_accounts.values()) + [it_expense] + created_accounts
+        all_accounts = created_parents + created_children
+        self.stdout.write(self.style.SUCCESS(f'Created/Updated {len(all_accounts)} accounts'))
+        return all_accounts
+
+    def create_fiscal_years(self):
+        self.stdout.write('Creating fiscal years...')
         
-        self.stdout.write(self.style.SUCCESS(f'Created account structure with {len(all_accounts)} accounts'))
-        return created_types.values(), all_accounts
-    
-    def create_expense_categories(self, admin_user):
-        self.stdout.write('Creating expense categories...')
-        
-        # Create parent categories
-        parent_categories = [
+        # Current year and surrounding years
+        current_year = datetime.now().year
+        fiscal_years = [
             {
-                'code': 'CAT-IT',
-                'name': 'IT Expenses',
-                'description': 'Information Technology Expenses',
-                'level': 1,
+                'name': f'FY {current_year-1}',
+                'start_date': datetime(current_year-1, 1, 1).date(),
+                'end_date': datetime(current_year-1, 12, 31).date(),
+                'is_active': False,
+                'is_locked': True
             },
             {
-                'code': 'CAT-ADM',
-                'name': 'Administrative Expenses',
-                'description': 'General Administrative Expenses',
-                'level': 1,
+                'name': f'FY {current_year}',
+                'start_date': datetime(current_year, 1, 1).date(),
+                'end_date': datetime(current_year, 12, 31).date(),
+                'is_active': True,
+                'is_locked': False
             },
             {
-                'code': 'CAT-MKT',
-                'name': 'Marketing Expenses',
-                'description': 'Marketing and Advertising Expenses',
-                'level': 1,
-            },
+                'name': f'FY {current_year+1}',
+                'start_date': datetime(current_year+1, 1, 1).date(),
+                'end_date': datetime(current_year+1, 12, 31).date(),
+                'is_active': False,
+                'is_locked': False
+            }
         ]
         
-        created_parents = {}
+        created_years = []
+        for year_data in fiscal_years:
+            fiscal_year, created = FiscalYear.objects.update_or_create(
+                name=year_data['name'],
+                defaults={
+                    'start_date': year_data['start_date'],
+                    'end_date': year_data['end_date'],
+                    'is_active': year_data['is_active'],
+                    'is_locked': year_data['is_locked']
+                }
+            )
+            created_years.append(fiscal_year)
+        
+        self.stdout.write(self.style.SUCCESS(f'Created/Updated {len(created_years)} fiscal years'))
+        return created_years
+
+    def create_expense_categories(self):
+        self.stdout.write('Creating expense categories...')
+        
+        # Create parent categories (level 1)
+        parent_categories = [
+            {
+                'code': 'OPS',
+                'name': 'Operations',
+                'description': 'Day-to-day operating expenses',
+                'parent_category': None,
+                'level': 1
+            },
+            {
+                'code': 'CAP',
+                'name': 'Capital Expenditures',
+                'description': 'Long-term asset investments',
+                'parent_category': None,
+                'level': 1
+            },
+            {
+                'code': 'HRM',
+                'name': 'Human Resources',
+                'description': 'Employee-related expenses',
+                'parent_category': None,
+                'level': 1
+            }
+        ]
+        
+        created_parents = []
         for cat_data in parent_categories:
-            cat, created = ExpenseCategory.objects.get_or_create(
+            category, created = ExpenseCategory.objects.update_or_create(
                 code=cat_data['code'],
                 defaults={
                     'name': cat_data['name'],
                     'description': cat_data['description'],
+                    'parent_category': None,
                     'level': cat_data['level'],
+                    'is_active': True
                 }
             )
-            created_parents[cat_data['code']] = cat
+            created_parents.append(category)
         
-        # Create subcategories
-        subcategories = [
+        # Create mapping for easier reference
+        parent_dict = {cat.code: cat for cat in created_parents}
+        
+        # Create child categories (level 2)
+        child_categories = [
+            # Operations subcategories
             {
-                'code': 'CAT-IT-HW',
-                'name': 'Hardware',
-                'description': 'Computer Hardware Expenses',
-                'parent_category': created_parents['CAT-IT'],
-                'level': 2,
+                'code': 'OPS-UTIL',
+                'name': 'Utilities',
+                'description': 'Electricity, water, internet, etc.',
+                'parent_category': parent_dict['OPS'],
+                'level': 2
             },
             {
-                'code': 'CAT-IT-SW',
-                'name': 'Software',
-                'description': 'Software Licenses and Services',
-                'parent_category': created_parents['CAT-IT'],
-                'level': 2,
+                'code': 'OPS-RENT',
+                'name': 'Rent',
+                'description': 'Office space and equipment rental',
+                'parent_category': parent_dict['OPS'],
+                'level': 2
             },
             {
-                'code': 'CAT-ADM-TRV',
-                'name': 'Travel',
-                'description': 'Business Travel Expenses',
-                'parent_category': created_parents['CAT-ADM'],
-                'level': 2,
+                'code': 'OPS-SUP',
+                'name': 'Office Supplies',
+                'description': 'Consumable office materials',
+                'parent_category': parent_dict['OPS'],
+                'level': 2
+            },
+            
+            # Capital expenditure subcategories
+            {
+                'code': 'CAP-IT',
+                'name': 'IT Equipment',
+                'description': 'Computer hardware and software',
+                'parent_category': parent_dict['CAP'],
+                'level': 2
             },
             {
-                'code': 'CAT-ADM-TRN',
+                'code': 'CAP-FAC',
+                'name': 'Facilities',
+                'description': 'Building and major improvements',
+                'parent_category': parent_dict['CAP'],
+                'level': 2
+            },
+            
+            # HR subcategories
+            {
+                'code': 'HRM-SAL',
+                'name': 'Salaries',
+                'description': 'Base employee compensation',
+                'parent_category': parent_dict['HRM'],
+                'level': 2
+            },
+            {
+                'code': 'HRM-BEN',
+                'name': 'Benefits',
+                'description': 'Health insurance, retirement, etc.',
+                'parent_category': parent_dict['HRM'],
+                'level': 2
+            },
+            {
+                'code': 'HRM-TRN',
                 'name': 'Training',
-                'description': 'Staff Training Expenses',
-                'parent_category': created_parents['CAT-ADM'],
-                'level': 2,
-            },
-            {
-                'code': 'CAT-MKT-ADV',
-                'name': 'Advertising',
-                'description': 'Advertising Expenses',
-                'parent_category': created_parents['CAT-MKT'],
-                'level': 2,
-            },
+                'description': 'Employee education and development',
+                'parent_category': parent_dict['HRM'],
+                'level': 2
+            }
         ]
         
-        created_subcategories = []
-        for cat_data in subcategories:
-            cat, created = ExpenseCategory.objects.get_or_create(
+        created_children = []
+        for cat_data in child_categories:
+            category, created = ExpenseCategory.objects.update_or_create(
                 code=cat_data['code'],
                 defaults={
                     'name': cat_data['name'],
                     'description': cat_data['description'],
                     'parent_category': cat_data['parent_category'],
                     'level': cat_data['level'],
+                    'is_active': True
                 }
             )
-            created_subcategories.append(cat)
+            created_children.append(category)
         
-        all_categories = list(created_parents.values()) + created_subcategories
-        self.stdout.write(self.style.SUCCESS(f'Created {len(all_categories)} expense categories'))
-        return all_categories
-    
-    def create_fiscal_years(self):
-        self.stdout.write('Creating fiscal years...')
+        # Create level 3 categories (grandchildren)
+        child_dict = {cat.code: cat for cat in created_children}
         
-        current_year = timezone.now().year
-        fiscal_years = [
+        grandchild_categories = [
             {
-                'name': f'FY {current_year}',
-                'start_date': datetime(current_year, 1, 1).date(),
-                'end_date': datetime(current_year, 12, 31).date(),
-                'is_active': True,
-                'is_locked': False,
+                'code': 'HRM-TRN-INT',
+                'name': 'Internal Training',
+                'description': 'In-house training programs',
+                'parent_category': child_dict['HRM-TRN'],
+                'level': 3
             },
             {
-                'name': f'FY {current_year + 1}',
-                'start_date': datetime(current_year + 1, 1, 1).date(),
-                'end_date': datetime(current_year + 1, 12, 31).date(),
-                'is_active': False,
-                'is_locked': False,
+                'code': 'HRM-TRN-EXT',
+                'name': 'External Training',
+                'description': 'Third-party training and conferences',
+                'parent_category': child_dict['HRM-TRN'],
+                'level': 3
             },
             {
-                'name': f'FY {current_year - 1}',
-                'start_date': datetime(current_year - 1, 1, 1).date(),
-                'end_date': datetime(current_year - 1, 12, 31).date(),
-                'is_active': False,
-                'is_locked': True,
+                'code': 'CAP-IT-HW',
+                'name': 'Hardware',
+                'description': 'Physical computing equipment',
+                'parent_category': child_dict['CAP-IT'],
+                'level': 3
             },
+            {
+                'code': 'CAP-IT-SW',
+                'name': 'Software',
+                'description': 'Computer programs and licenses',
+                'parent_category': child_dict['CAP-IT'],
+                'level': 3
+            }
         ]
         
-        created_fiscal_years = []
-        for fy_data in fiscal_years:
-            fiscal_year, created = FiscalYear.objects.get_or_create(
-                name=fy_data['name'],
+        created_grandchildren = []
+        for cat_data in grandchild_categories:
+            category, created = ExpenseCategory.objects.update_or_create(
+                code=cat_data['code'],
                 defaults={
-                    'start_date': fy_data['start_date'],
-                    'end_date': fy_data['end_date'],
-                    'is_active': fy_data['is_active'],
-                    'is_locked': fy_data['is_locked'],
+                    'name': cat_data['name'],
+                    'description': cat_data['description'],
+                    'parent_category': cat_data['parent_category'],
+                    'level': cat_data['level'],
+                    'is_active': True
                 }
             )
-            created_fiscal_years.append(fiscal_year)
+            created_grandchildren.append(category)
         
-        self.stdout.write(self.style.SUCCESS(f'Created {len(created_fiscal_years)} fiscal years'))
-        return created_fiscal_years
-    
-    def create_budget_allocations(self, fiscal_year, departments, accounts, admin_user):
+        all_categories = created_parents + created_children + created_grandchildren
+        self.stdout.write(self.style.SUCCESS(f'Created/Updated {len(all_categories)} expense categories'))
+        return all_categories
+
+    def create_budget_proposals(self, departments, fiscal_years, users):
+        self.stdout.write('Creating budget proposals...')
+        
+        # Get the current fiscal year
+        current_year = datetime.now().year
+        current_fy = next((fy for fy in fiscal_years if fy.name == f'FY {current_year}'), fiscal_years[0])
+        
+        # Get a finance user to be the submitter
+        finance_user = next((user for user in users if user.department and user.department.code == 'FIN'), users[0])
+        
+        # Create proposals for each department
+        proposals = []
+        statuses = ['DRAFT', 'SUBMITTED', 'UNDER_REVIEW', 'APPROVED', 'REJECTED']
+        
+        for i, department in enumerate(departments):
+            # Create multiple proposals for each department with different statuses
+            for j, status in enumerate(statuses):
+                start_date = current_fy.start_date + timedelta(days=30*j)
+                end_date = start_date + timedelta(days=90)  # 3-month performance period
+                
+                # Create a unique external system ID
+                external_id = f"EXT-{department.code}-{current_year}-{i+1}{j+1}"
+                
+                proposal_data = {
+                    'title': f"{department.name} {['Q1', 'Q2', 'Q3', 'Q4'][j % 4]} Budget {random.choice(['Initiative', 'Plan', 'Project'])}",
+                    'project_summary': f"Budget proposal for {department.name} {['Q1', 'Q2', 'Q3', 'Q4'][j % 4]} operations",
+                    'project_description': f"This budget covers all planned activities for {department.name} during {['Q1', 'Q2', 'Q3', 'Q4'][j % 4]} including staffing, equipment, and operational expenses.",
+                    'department': department,
+                    'fiscal_year': current_fy,
+                    'submitted_by': finance_user,
+                    'status': status,
+                    'performance_start_date': start_date,
+                    'performance_end_date': end_date,
+                    'submitted_at': timezone.now() if status != 'DRAFT' else None,
+                    'external_system_id': external_id,
+                    'sync_status': random.choice(['SYNCED', 'PENDING', 'FAILED']),
+                }
+                
+                # Add approval/rejection info for relevant statuses
+                if status == 'APPROVED':
+                    proposal_data['approved_by'] = users[0]  # Admin user
+                    proposal_data['approval_date'] = timezone.now() - timedelta(days=random.randint(1, 10))
+                elif status == 'REJECTED':
+                    proposal_data['rejected_by'] = users[0]  # Admin user
+                    proposal_data['rejection_date'] = timezone.now() - timedelta(days=random.randint(1, 10))
+                
+                proposal, created = BudgetProposal.objects.update_or_create(
+                    title=proposal_data['title'],
+                    department=proposal_data['department'],
+                    fiscal_year=proposal_data['fiscal_year'],
+                    defaults=proposal_data
+                )
+                
+                proposals.append(proposal)
+        
+        self.stdout.write(self.style.SUCCESS(f'Created/Updated {len(proposals)} budget proposals'))
+        return proposals
+        
+    def create_budget_proposal_items(self, proposals, accounts):
+        self.stdout.write('Creating budget proposal items...')
+        
+        # Get expense accounts
+        expense_accounts = [acc for acc in accounts if acc.account_type.name == 'Expense']
+        if not expense_accounts:
+            expense_accounts = accounts  # Fallback
+        
+        items_created = 0
+        
+        # For each proposal in DRAFT, SUBMITTED, or UNDER_REVIEW status, create items
+        for proposal in proposals:
+            if proposal.status in ['DRAFT', 'SUBMITTED', 'UNDER_REVIEW', 'APPROVED']:
+                # Number of items for this proposal (3-7)
+                num_items = random.randint(3, 7)
+                
+                for i in range(num_items):
+                    account = random.choice(expense_accounts)
+                    cost_element = f"CE-{random.randint(1000, 9999)}"
+                    
+                    # Generate cost that makes sense for the account
+                    if 'Salaries' in account.name:
+                        cost = Decimal(random.randint(500000, 2000000))
+                    elif 'Equipment' in account.name:
+                        cost = Decimal(random.randint(50000, 500000))
+                    else:
+                        cost = Decimal(random.randint(10000, 100000))
+                    
+                    item, created = BudgetProposalItem.objects.update_or_create(
+                        proposal=proposal,
+                        cost_element=cost_element,
+                        defaults={
+                            'description': f"{account.name} expenses for {proposal.department.name}",
+                            'estimated_cost': cost,
+                            'account': account,
+                            'notes': f"Based on {proposal.fiscal_year.name} projections"
+                        }
+                    )
+                    
+                    items_created += 1
+        
+        self.stdout.write(self.style.SUCCESS(f'Created/Updated {items_created} budget proposal items'))
+        
+    def create_budget_allocations(self, fiscal_years, departments, accounts, created_by):
         self.stdout.write('Creating budget allocations...')
         
-        # Find the accounts we want to allocate budgets to
-        account_map = {account.code: account for account in accounts}
+        # Get current fiscal year and expense accounts
+        current_fy = next(fy for fy in fiscal_years if fy.is_active)
+        expense_accounts = [acc for acc in accounts if acc.account_type.name == 'Expense']
         
-        # Define allocations for different departments
-        allocations_data = []
+        allocations = []
+        for department in departments:
+            for account in expense_accounts[:3]:  # Allocate to first 3 expense accounts
+                # Check for existing allocation
+                alloc, created = BudgetAllocation.objects.get_or_create(
+                    fiscal_year=current_fy,
+                    department=department,
+                    account=account,
+                    defaults={
+                        'amount': Decimal(random.randint(100000, 5000000)),
+                        'created_by': created_by,
+                        'is_active': True
+                    }
+                )
+                allocations.append(alloc)
         
-        # For each department, create allocations for different accounts
-        for dept in departments:
-            # Hardware expenses for IT department are higher
-            hw_amount = Decimal('150000') if dept.code == 'IT' else Decimal(f'{random.randint(20000, 50000)}')
-            # Software expenses for IT department are higher
-            sw_amount = Decimal('200000') if dept.code == 'IT' else Decimal(f'{random.randint(30000, 70000)}')
-            # Travel expenses - higher for sales
-            travel_amount = Decimal('100000') if dept.code == 'SLS' else Decimal(f'{random.randint(20000, 80000)}')
-            # Training - higher for HR
-            training_amount = Decimal('120000') if dept.code == 'HR' else Decimal(f'{random.randint(15000, 40000)}')
+        self.stdout.write(self.style.SUCCESS(f'Created {len(allocations)} budget allocations'))
+        return allocations
+
+    def create_budget_transfers(self, fiscal_years, allocations, users):
+        self.stdout.write('Creating budget transfers...')
+        
+        transfers = []
+        current_fy = next(fy for fy in fiscal_years if fy.is_active)
+        
+        for _ in range(10):  # Create 10 transfers
+            source = random.choice(allocations)
+            dest = random.choice([a for a in allocations if a != source])
             
-            # Create allocations for each account type
-            allocations_data.extend([
-                {
-                    'dept': dept,
-                    'account': account_map.get('EXP-IT-HW'),
-                    'amount': hw_amount,
-                },
-                {
-                    'dept': dept,
-                    'account': account_map.get('EXP-IT-SW'),
-                    'amount': sw_amount,
-                },
-                {
-                    'dept': dept,
-                    'account': account_map.get('EXP-TRV'),
-                    'amount': travel_amount,
-                },
-                {
-                    'dept': dept,
-                    'account': account_map.get('EXP-TRAIN'),
-                    'amount': training_amount,
-                },
-            ])
-        
-        # Create the allocations
-        created_allocations = []
-        for alloc_data in allocations_data:
-            if not alloc_data['account']:
-                continue  # Skip if account doesn't exist
-                
-            allocation, created = BudgetAllocation.objects.get_or_create(
-                fiscal_year=fiscal_year,
-                department=alloc_data['dept'],
-                account=alloc_data['account'],
-                defaults={
-                    'created_by': admin_user,
-                    'amount': alloc_data['amount'],
-                    'is_active': True,
-                }
+            transfer = BudgetTransfer.objects.create(
+                fiscal_year=current_fy,
+                source_allocation=source,
+                destination_allocation=dest,
+                transferred_by=random.choice(users),
+                amount=Decimal(random.randint(10000, 100000)),
+                reason=f"Budget reallocation between {source.department} and {dest.department}",
+                status=random.choice(['PENDING', 'APPROVED', 'REJECTED'])
             )
-            created_allocations.append(allocation)
+            transfers.append(transfer)
         
-        self.stdout.write(self.style.SUCCESS(f'Created {len(created_allocations)} budget allocations'))
-        return created_allocations
-    
-    def create_dashboard_metrics(self, fiscal_year, departments, allocations):
+        self.stdout.write(self.style.SUCCESS(f'Created {len(transfers)} budget transfers'))
+        return transfers
+
+    def create_journal_entries(self, users):
+        self.stdout.write('Creating journal entries...')
+        
+        entries = []
+        for _ in range(20):  # Create 20 journal entries
+            entry = JournalEntry.objects.create(
+                category=random.choice(['EXPENSES', 'ASSETS', 'PROJECTS']),
+                description=f"Journal entry for {random.choice(['month-end', 'adjustment', 'reconciliation'])}",
+                date=datetime.now() - timedelta(days=random.randint(1, 365)),
+                total_amount=Decimal(0),  # Will be updated by lines
+                status='POSTED',
+                created_by=random.choice(users)
+            )
+            entries.append(entry)
+        
+        self.stdout.write(self.style.SUCCESS(f'Created {len(entries)} journal entries'))
+        return entries
+
+    def create_journal_entry_lines(self, journal_entries, accounts):
+        self.stdout.write('Creating journal entry lines...')
+        
+        for entry in journal_entries:
+            total = Decimal(0)
+            # Create 2-4 lines per entry
+            for _ in range(random.randint(2, 4)):
+                amount = Decimal(random.randint(1000, 100000))
+                line = JournalEntryLine.objects.create(
+                    journal_entry=entry,
+                    account=random.choice(accounts),
+                    description=f"Journal line for {entry.description}",
+                    transaction_type=random.choice(['DEBIT', 'CREDIT']),
+                    journal_transaction_type=random.choice(['OPERATIONAL_EXPENDITURE', 'CAPITAL_EXPENDITURE']),
+                    amount=amount
+                )
+                if line.transaction_type == 'DEBIT':
+                    total += amount
+                else:
+                    total -= amount
+            
+            # Update entry total and save
+            entry.total_amount = abs(total)
+            entry.save()
+        
+        self.stdout.write(self.style.SUCCESS(f'Added lines to {len(journal_entries)} journal entries'))
+
+    def create_expenses(self, departments, accounts, allocations, users, categories):
+        self.stdout.write('Creating expenses...')
+        
+        expenses = []
+        statuses = ['DRAFT', 'SUBMITTED', 'APPROVED', 'REJECTED']
+        
+        for i in range(100):  # Create 100 expenses
+            alloc = random.choice(allocations)
+            # Generate a unique transaction_id
+            transaction_id = f"TXN-{datetime.now().strftime('%Y%m%d')}-{i+1:04d}"
+            
+            expense = Expense.objects.create(
+                transaction_id=transaction_id,  # Add this line to set a unique transaction_id
+                date=datetime.now() - timedelta(days=random.randint(1, 90)),
+                amount=Decimal(random.randint(1000, 50000)),
+                description=f"Expense for {alloc.department.name} - {random.choice(['supplies', 'services', 'equipment'])}",
+                vendor=random.choice(['Vendor A', 'Vendor B', 'Vendor C']),
+                account=alloc.account,
+                department=alloc.department,
+                budget_allocation=alloc,
+                submitted_by=random.choice(users),
+                status=random.choice(statuses),
+                category=random.choice(categories)
+            )
+            if expense.status == 'APPROVED':
+                expense.approved_by = random.choice([u for u in users if u.role == 'FINANCE_HEAD'])
+                expense.approved_at = timezone.now()
+                expense.save()
+            expenses.append(expense)
+        
+        self.stdout.write(self.style.SUCCESS(f'Created {len(expenses)} expenses'))
+        return expenses
+
+    def create_documents(self, proposals, expenses, users, departments):
+        self.stdout.write('Creating documents...')
+        
+        documents = []
+        for proposal in proposals:
+            if random.random() < 0.7:  # 70% chance to add doc to proposal
+                doc = Document.objects.create(
+                    name=f"Proposal Document - {proposal.title}",
+                    document_type='PROPOSAL',
+                    uploaded_by=proposal.submitted_by,
+                    department=proposal.department,
+                    proposal=proposal,
+                    file=f"documents/proposal_{proposal.id}.pdf"
+                )
+                documents.append(doc)
+        
+        for expense in expenses:
+            if random.random() < 0.5:  # 50% chance to add receipt
+                doc = Document.objects.create(
+                    name=f"Receipt for {expense.description}",
+                    document_type='RECEIPT',
+                    uploaded_by=expense.submitted_by,
+                    department=expense.department,
+                    expense=expense,
+                    file=f"receipts/expense_{expense.id}.pdf"
+                )
+                documents.append(doc)
+        
+        self.stdout.write(self.style.SUCCESS(f'Created {len(documents)} documents'))
+        return documents
+
+    def create_proposal_history(self, proposals, users):
+        self.stdout.write('Creating proposal history...')
+        
+        actions = []
+        for proposal in proposals:
+            # Create initial creation entry
+            actions.append(ProposalHistory(
+                proposal=proposal,
+                action='CREATED',
+                action_by=proposal.submitted_by,
+                previous_status=None,
+                new_status='DRAFT'
+            ))
+            
+            # Simulate status changes
+            if proposal.status != 'DRAFT':
+                actions.append(ProposalHistory(
+                    proposal=proposal,
+                    action='SUBMITTED',
+                    action_by=proposal.submitted_by,
+                    previous_status='DRAFT',
+                    new_status=proposal.status
+                ))
+                
+            if proposal.status in ['APPROVED', 'REJECTED']:
+                actions.append(ProposalHistory(
+                    proposal=proposal,
+                    action=proposal.status,
+                    action_by=users[0],  # Admin user
+                    previous_status='UNDER_REVIEW',
+                    new_status=proposal.status
+                ))
+        
+        ProposalHistory.objects.bulk_create(actions)
+        self.stdout.write(self.style.SUCCESS(f'Created {len(actions)} proposal history entries'))
+
+    def create_proposal_comments(self, proposals, users):
+        self.stdout.write('Creating proposal comments...')
+        
+        comments = []
+        for proposal in proposals:
+            for _ in range(random.randint(0, 3)):  # 0-3 comments per proposal
+                comments.append(ProposalComment(
+                    proposal=proposal,
+                    user=random.choice(users),
+                    comment=random.choice([
+                        "Need more details in section 3",
+                        "Budget numbers look reasonable",
+                        "Please clarify the timeline",
+                        "Approved pending final review"
+                    ])
+                ))
+        
+        ProposalComment.objects.bulk_create(comments)
+        self.stdout.write(self.style.SUCCESS(f'Created {len(comments)} proposal comments'))
+
+    def create_projects(self, departments, proposals):
+        self.stdout.write('Creating projects...')
+        
+        projects = []
+        status_weights = [('PLANNING', 2), ('IN_PROGRESS', 5), ('COMPLETED', 2), ('ON_HOLD', 1)]
+        statuses = [s[0] for s in status_weights for _ in range(s[1])]
+        
+        for dept in departments:
+            for _ in range(3):  # 3 projects per department
+                proposal = random.choice([p for p in proposals if p.department == dept])
+                project = Project.objects.create(
+                    name=f"{dept.code} {random.choice(['Automation', 'Optimization', 'Renewal'])} Project",
+                    description=f"{dept.name} strategic initiative",
+                    start_date=datetime.now() - timedelta(days=random.randint(30, 180)),
+                    end_date=datetime.now() + timedelta(days=random.randint(90, 365)),
+                    department=dept,
+                    budget_proposal=proposal,
+                    status=random.choice(statuses)
+                )
+                projects.append(project)
+        
+        self.stdout.write(self.style.SUCCESS(f'Created {len(projects)} projects'))
+        return projects
+
+    def create_risk_metrics(self, projects, users):
+        self.stdout.write('Creating risk metrics...')
+        
+        metrics = []
+        for project in projects:
+            for risk_type in ['BUDGET', 'TIMELINE', 'RESOURCES']:
+                metrics.append(RiskMetric(
+                    project=project,
+                    risk_type=risk_type,
+                    risk_level=random.randint(0, 100),
+                    description=f"{risk_type} risk assessment",
+                    updated_by=random.choice(users)
+                ))
+        
+        RiskMetric.objects.bulk_create(metrics)
+        self.stdout.write(self.style.SUCCESS(f'Created {len(metrics)} risk metrics'))
+
+    def create_dashboard_metrics(self, fiscal_years, departments):
         self.stdout.write('Creating dashboard metrics...')
         
-        # Calculate total budget from allocations
-        total_budget = sum(a.amount for a in allocations)
+        metrics = []
+        current_fy = next(fy for fy in fiscal_years if fy.is_active)
         
-        # For simulation, let's say 75% of the budget is already allocated to specific projects
-        allocated_budget = total_budget * Decimal('0.75')
+        for dept in departments:
+            # Budget utilization metric
+            metrics.append(DashboardMetric(
+                metric_type='BUDGET_UTILIZATION',
+                value=random.uniform(60, 95),
+                percentage=random.uniform(60, 95),
+                status='WARNING' if random.random() < 0.3 else 'NORMAL',
+                fiscal_year=current_fy,
+                department=dept
+            ))
+            
+            # Project completion metric
+            metrics.append(DashboardMetric(
+                metric_type='PROJECT_COMPLETION',
+                value=random.uniform(30, 100),
+                percentage=random.uniform(30, 100),
+                status='ON_TRACK' if random.random() < 0.7 else 'DELAYED',
+                fiscal_year=current_fy,
+                department=dept
+            ))
         
-        # Remaining budget
-        remaining_budget = total_budget - allocated_budget
+        DashboardMetric.objects.bulk_create(metrics)
+        self.stdout.write(self.style.SUCCESS(f'Created {len(metrics)} dashboard metrics'))
+
+    def create_user_activity_logs(self, users):
+        self.stdout.write('Creating user activity logs...')
         
-        # Create main metrics
-        DashboardMetric.objects.update_or_create(
-            metric_type='Total Budget',
-            fiscal_year=fiscal_year,
-            department=None,
-            defaults={
-                'value': total_budget,
-                'percentage': Decimal('100.00'),
-                'status': 'OK',
-                'warning_threshold': Decimal('90.00'),
-                'critical_threshold': Decimal('95.00'),
-            }
-        )
-        
-        DashboardMetric.objects.update_or_create(
-            metric_type='Allocated Budget',
-            fiscal_year=fiscal_year,
-            department=None,
-            defaults={
-                'value': allocated_budget,
-                'percentage': (allocated_budget / total_budget) * Decimal('100.00') if total_budget else Decimal('0.00'),
-                'status': 'OK',
-                'warning_threshold': Decimal('90.00'),
-                'critical_threshold': Decimal('95.00'),
-            }
-        )
-        
-        DashboardMetric.objects.update_or_create(
-            metric_type='Remaining Budget',
-            fiscal_year=fiscal_year,
-            department=None,
-            defaults={
-                'value': remaining_budget,
-                'percentage': (remaining_budget / total_budget) * Decimal('100.00') if total_budget else Decimal('0.00'),
-                'status': 'OK',
-            }
-        )
-        
-        # Create department-specific metrics
-        dept_totals = {}
-        for allocation in allocations:
-            dept = allocation.department
-            if dept not in dept_totals:
-                dept_totals[dept] = Decimal('0')
-            dept_totals[dept] += allocation.amount
-        
-        # Create a metric for each department
-        for dept, dept_total in dept_totals.items():
-            pct = (dept_total / total_budget) * Decimal('100.00') if total_budget else Decimal('0.00')
-            DashboardMetric.objects.update_or_create(
-                metric_type='Budget by Department',
-                fiscal_year=fiscal_year,
-                department=dept,
-                defaults={
-                    'value': dept_total,
-                    'percentage': pct,
-                    'status': 'OK',
-                }
-            )
-        
-        self.stdout.write(self.style.SUCCESS('Dashboard metrics created successfully'))
-    
-    def create_sample_projects(self, fiscal_year, departments, users):
-        self.stdout.write('Creating sample projects...')
-        
-        # Skip if no users
-        if not users:
-            self.stdout.write(self.style.WARNING('No users found, skipping project creation'))
-            return
-        
-        # For simplicity, let's use the first user as the project creator
-        creator = users[0]
-        
-        # Sample project data
-        project_data = [
-            {
-                'name': 'ERP System Upgrade',
-                'description': 'Upgrade the company ERP system to the latest version',
-                'department': next((d for d in departments if d.code == 'IT'), departments[0]),
-                'start_date': timezone.now().date(),
-                'end_date': (timezone.now() + timedelta(days=180)).date(),
-                'status': 'IN_PROGRESS',
-            },
-            {
-                'name': 'Annual Financial Audit',
-                'description': 'Complete the annual financial audit process',
-                'department': next((d for d in departments if d.code == 'FIN'), departments[0]),
-                'start_date': timezone.now().date(),
-                'end_date': (timezone.now() + timedelta(days=90)).date(),
-                'status': 'PLANNING',
-            },
-            {
-                'name': 'Office Renovation',
-                'description': 'Office space renovation and modernization',
-                'department': next((d for d in departments if d.code == 'OPS'), departments[0]),
-                'start_date': (timezone.now() + timedelta(days=30)).date(),
-                'end_date': (timezone.now() + timedelta(days=120)).date(),
-                'status': 'PLANNING',
-            },
+        logs = []
+        actions = [
+            ('LOGIN', 'SUCCESS', 20),
+            ('EXPORT', 'SUCCESS', 5),
+            ('CREATE', 'SUCCESS', 15),
+            ('UPDATE', 'SUCCESS', 25),
+            ('ERROR', 'FAILED', 3)
         ]
         
-        # Projects require budget proposals, so we'll need to create those first
-        # This is a simplified version - in a real system, you'd create more detailed proposals
-        from core.models import BudgetProposal
-        
-        for project in project_data:
-            # Create a simple budget proposal for the project
-            proposal, _ = BudgetProposal.objects.get_or_create(
-                title=f"Proposal for {project['name']}",
-                defaults={
-                    'project_summary': f"Budget proposal for {project['name']}",
-                    'project_description': project['description'],
-                    'department': project['department'],
-                    'fiscal_year': fiscal_year,
-                    'submitted_by': creator,
-                    'status': 'APPROVED',
-                    'performance_start_date': project['start_date'],
-                    'performance_end_date': project['end_date'],
-                    'submitted_at': timezone.now(),
-                    'approved_by': creator,  # Self-approval for demo purposes
-                    'approval_date': timezone.now(),
-                    'external_system_id': f"PRJ-{random.randint(1000, 9999)}",
-                    'sync_status': 'SYNCED',
-                }
-            )
+        for _ in range(100):  # Create 100 log entries
+            user = random.choice(users)
+            log_type, status = random.choices(
+                [a[:2] for a in actions],
+                weights=[a[2] for a in actions]
+            )[0]
             
-            # Create the project
-            Project.objects.get_or_create(
-                name=project['name'],
-                defaults={
-                    'description': project['description'],
-                    'start_date': project['start_date'],
-                    'end_date': project['end_date'],
-                    'department': project['department'],
-                    'budget_proposal': proposal,
-                    'status': project['status'],
-                }
-            )
+            logs.append(UserActivityLog(
+                user=user,
+                log_type=log_type,
+                action=f"{log_type} action performed",
+                status=status,
+                details={'ip': f"192.168.1.{random.randint(1, 255)}"} if log_type == 'LOGIN' else None
+            ))
         
-        self.stdout.write(self.style.SUCCESS(f'Created {len(project_data)} sample projects'))
+        UserActivityLog.objects.bulk_create(logs)
+        self.stdout.write(self.style.SUCCESS(f'Created {len(logs)} user activity logs'))

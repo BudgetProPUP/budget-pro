@@ -126,6 +126,11 @@ useEffect(() => {
     navigate('/login');
   };
 
+  const handleExport = () => {
+    // Implement actual export functionality here
+    console.log("Exporting report...");
+  };
+
   return (
     <div className="dashboard-container">
       {/* Header */}

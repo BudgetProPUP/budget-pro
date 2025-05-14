@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { ChevronDown, Search, Filter, ArrowLeft, LogOut } from 'lucide-react';
 import { Link, useNavigate } from 'react-router-dom';
 import './BudgetProposal.css';
-import { useNavigate } from 'react-router-dom';
+
 
 const proposals = [
   { 
@@ -42,7 +42,6 @@ const BudgetProposal = () => {
   const [showReviewPopup, setShowReviewPopup] = useState(false);
   const [showCommentPopup, setShowCommentPopup] = useState(false);
   const [showConfirmationPopup, setShowConfirmationPopup] = useState(false);
-  const [selectedProposal, setSelectedProposal] = useState(null);
   const [reviewComment, setReviewComment] = useState('');
   const [reviewStatus, setReviewStatus] = useState('');
   const [showDepartmentFilter, setShowDepartmentFilter] = useState(false);
@@ -238,7 +237,7 @@ const BudgetProposal = () => {
                   </div>
                   <div className="dropdown-item" onClick={() => handleNavigate('/finance/journal-entry')}>
                     Journal Entries
-                  </Link>
+                  </div>
                 </div>
               )}
             </div>
@@ -255,7 +254,7 @@ const BudgetProposal = () => {
                   </div>
                   <div className="dropdown-item" onClick={() => handleNavigate('/finance/expense-history')}>
                     Expense History
-                  </Link>
+                  </div>
                 </div>
               )}
             </div>
@@ -263,7 +262,7 @@ const BudgetProposal = () => {
             {/* User Management - Simple Navigation Item */}
             <div className="nav-item" onClick={() => handleNavigate('/finance/user-management')}>
               User Management
-            </Link>
+            </div>
           </nav>
         </div>
         

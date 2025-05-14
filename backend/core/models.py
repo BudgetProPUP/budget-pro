@@ -77,9 +77,6 @@ class User(AbstractBaseUser, PermissionsMixin):
     ROLE_CHOICES = [
         ('FINANCE_HEAD', 'Finance Head'),
         ('FINANCE_OPERATOR', 'Finance Operator'),
-        ('APPROVER', 'Approver'),
-        ('VIEWER', 'Viewer'),
-        ('ACCOUNTANT', 'Accountant'),
     ]
 
     email = models.EmailField(unique=True)
@@ -325,7 +322,12 @@ class JournalEntry(models.Model):
     ]
 
     entry_id = models.CharField(max_length=50, unique=True, editable=False)
-    category = models.CharField(max_length=100)
+    category = models.CharField(max_length=100, choices=[
+        ('EXPENSES', 'Expenses'),
+        ('ASSETS', 'Assets'),
+        ('PROJECTS', 'Projects'),
+        ('VENDOR_CONTRACTS', 'Vendor & Contracts'),
+    ])
     description = models.TextField()
     date = models.DateField()
     total_amount = models.DecimalField(max_digits=15, decimal_places=2, validators=[MinValueValidator(0)])
@@ -356,11 +358,18 @@ class JournalEntryLine(models.Model):
         ('DEBIT', 'Debit'),
         ('CREDIT', 'Credit'),
     ]
+    
+    JOURNAL_TRANSACTION_TYPES = [
+        ('CAPITAL_EXPENDITURE', 'Capital Expenditure'),
+        ('OPERATIONAL_EXPENDITURE', 'Operational Expenditure'),
+        ('TRANSFER', 'Transfer'),
+    ]
 
     journal_entry = models.ForeignKey(JournalEntry, on_delete=models.CASCADE, related_name='lines')
     account = models.ForeignKey(Account, on_delete=models.PROTECT)
     description = models.TextField()
     transaction_type = models.CharField(max_length=10, choices=TRANSACTION_TYPE_CHOICES)
+    journal_transaction_type = models.CharField(max_length=30, choices=JOURNAL_TRANSACTION_TYPES)
     amount = models.DecimalField(max_digits=15, decimal_places=2, validators=[MinValueValidator(0)])
 
     def __str__(self):
@@ -680,6 +689,7 @@ class Project(models.Model):
     department = models.ForeignKey(Department, on_delete=models.PROTECT)
     budget_proposal = models.ForeignKey(BudgetProposal, on_delete=models.PROTECT)
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='PLANNING')
+    completion_percentage = models.IntegerField(default=0, validators=[MinValueValidator(0), MaxValueValidator(100)])
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
@@ -694,39 +704,17 @@ class Project(models.Model):
             )
         ]
 
-    @property
-    def completion_percentage(self):
-        """Calculate overall project completion based on milestones"""
-        milestones = self.milestones.all()
-        if not milestones.exists():
-            return 0
+    # @property
+    # def completion_percentage(self):
+    #     """Calculate overall project completion based on milestones"""
+    #     milestones = self.milestones.all()
+    #     if not milestones.exists():
+    #         return 0
         
-        total_milestones = milestones.count()
-        completed_weight = sum(m.completion_percentage for m in milestones)
-        return completed_weight / total_milestones
+    #     total_milestones = milestones.count()
+    #     completed_weight = sum(m.completion_percentage for m in milestones)
+    #     return completed_weight / total_milestones
         
-    
-
-
-class ProjectMilestone(models.Model):
-    STATUS_CHOICES = [
-        ('NOT_STARTED', 'Not Started'),
-        ('IN_PROGRESS', 'In Progress'),
-        ('COMPLETED', 'Completed'),
-        ('DELAYED', 'Delayed'),
-    ]
-
-    project = models.ForeignKey(Project, on_delete=models.CASCADE, related_name='milestones')
-    title = models.CharField(max_length=200)
-    description = models.TextField()
-    due_date = models.DateField()
-    completion_percentage = models.IntegerField(default=0, validators=[MinValueValidator(0)])
-    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='NOT_STARTED')
-
-    def __str__(self):
-        return f"{self.project.name} - {self.title}"
-
-
 class DashboardMetric(models.Model):
     metric_type = models.CharField(max_length=100)
     value = models.DecimalField(max_digits=15, decimal_places=2)

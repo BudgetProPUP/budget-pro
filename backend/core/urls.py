@@ -1,5 +1,8 @@
-from django.urls import path
-from rest_framework_simplejwt.views import TokenRefreshView #,TokenObtainPairView
+from django.urls import path, include
+from rest_framework_simplejwt.views import TokenRefreshView
+from rest_framework.routers import DefaultRouter
+from .views_usermanagement import UserManagementViewSet, DepartmentViewSet
+from . import views_expense, views_dashboard #,TokenObtainPairView
 
 from .views import (
     LoginView,
@@ -13,6 +16,11 @@ from .views_password_reset import (
     PasswordResetConfirmView,
     PasswordChangeView
 )
+
+user_management_router = DefaultRouter()
+user_management_router.register(r'users', UserManagementViewSet, basename='user-management')
+user_management_router.register(r'departments', DepartmentViewSet, basename='department')
+
 
 urlpatterns = [
     # Authentication endpoints
@@ -31,4 +39,11 @@ urlpatterns = [
     # Security endpoint
     path('auth/login-attempts/', LoginAttemptsView.as_view(), name='login_attempts'),
     
+    #path('api/expenses/dashboard/', views_expense.get_expense_dashboard_data, name='expense-dashboard'),
+    
+    # Department and user management endpoints
+    path('user-management/', include(user_management_router.urls)),
+    
+    # API endpoints for dashboard elements
+    path('department-budget/', views_dashboard.DepartmentBudgetView.as_view(), name='department-budget'),
 ]

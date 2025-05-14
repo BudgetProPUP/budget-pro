@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { Search, ChevronDown, X, ChevronDown as ChevronDownIcon } from 'lucide-react';
+import { Search, ChevronDown } from 'lucide-react';
 import './JournalEntry.css';
 
 function JournalEntry() {
@@ -8,6 +8,8 @@ function JournalEntry() {
   const [showExpenseDropdown, setShowExpenseDropdown] = useState(false);
   const [showAddJournalModal, setShowAddJournalModal] = useState(false);
   const navigate = useNavigate();
+
+  // Initial form state
   const [journalForm, setJournalForm] = useState({
     entryId: 'System generated ID',
     date: '',
@@ -20,9 +22,8 @@ function JournalEntry() {
 
   // Sample journal entries data
   const journalEntries = [
-    { id: '0001', date: '04/01/2025', description: 'Office Supplies payment', totalAmount: '₱50,000.00', status: 'Posted' },
-    { id: '0002', date: '03/08/2024', description: 'Monthly Depreciation', totalAmount: '₱50,000.00', status: 'Posted' },
-    { id: '0003', date: '03/26/2024', description: 'Office Supplies Payment', totalAmount: '₱50,000.00', status: 'Posted' },
+    { id: 'EX-001', date: '05-12-2025', category: 'Expenses', description: 'Internet Bill', amount: 'P8,300' },
+    { id: 'AS-001', date: '05-03-2025', category: 'Assets', description: 'Company Laptops', amount: 'P250,000' },
   ];
 
   const toggleBudgetDropdown = () => {
@@ -60,7 +61,7 @@ function JournalEntry() {
   return (
     <div className="journal-container">
       {/* Header */}
-      <header className="dashboard-header">
+      <header className="app-header">
         <div className="header-left">
           <h1 className="logo">BUDGETPRO</h1>
           <nav className="main-nav">
@@ -136,7 +137,7 @@ function JournalEntry() {
               )}
             </div>
             
-            {/* User Management - Simple Navigation Item */}
+            {/* User Management */}
             <div 
               className="nav-item"
               onClick={() => handleNavigate('/finance/user-management')}
@@ -154,172 +155,203 @@ function JournalEntry() {
 
       {/* Main Content */}
       <main className="main-content">
-        <h2 className="page-title">Journal Entries</h2>
-        
-        {/* Search and Add Journal */}
-        <div className="actions-container">
-          <div className="search-box">
-            <input type="text" placeholder="Search by project or budget" />
-            <button className="search-button">
-              <Search size={16} />
-            </button>
+        <div className="journal-interface">
+          {/* Search and Filters Row */}
+          <div className="actions-container">
+            <div className="search-box">
+              <input type="text" placeholder="Search by project or budget" />
+              <button className="search-button">
+                <Search size={16} />
+              </button>
+            </div>
+            
+            <div className="filter-actions">
+              <div className="filter-group">
+                <button className="filter-button">
+                  <span>Filter by:</span>
+                </button>
+                
+                <div className="dropdown-filter">
+                  <select className="filter-select">
+                    <option value="">Code</option>
+                    <option value="expenses">Expenses</option>
+                    <option value="assets">Assets</option>
+                  </select>
+                </div>
+                
+                <div className="dropdown-filter">
+                  <select className="filter-select">
+                    <option value="">Type</option>
+                    <option value="expenses">Expenses</option>
+                    <option value="assets">Assets</option>
+                  </select>
+                </div>
+              </div>
+              
+              <button className="add-journal-button" onClick={openAddJournalModal}>
+                Add Journal
+              </button>
+            </div>
           </div>
-
-          <button className="add-journal-button" onClick={openAddJournalModal}>Add Journal</button>
+          
+          {/* Journal Entries Card */}
+          <div className="journal-card">
+            <div className="journal-header">
+              <h2>Journal Entries</h2>
+            </div>
+            
+            {/* Journal Table */}
+            <div className="table-container">
+              <table className="data-table">
+                <thead>
+                  <tr>
+                    <th>Reference</th>
+                    <th>Date</th>
+                    <th>Category</th>
+                    <th>Description</th>
+                    <th>Amount</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {journalEntries.map((entry, index) => (
+                    <tr key={index}>
+                      <td>{entry.id}</td>
+                      <td>{entry.date}</td>
+                      <td>{entry.category}</td>
+                      <td>{entry.description}</td>
+                      <td>{entry.amount}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
         </div>
-        
-        {/* Add Journal Modal */}
-        {showAddJournalModal && (
-          <div className="modal-overlay">
-            <div className="modal-container">
-              <div className="modal-content">
-                <h3 className="modal-title">Add Journal Entry</h3>
-                
-                <div className="form-group">
-                  <label htmlFor="entryId">Entry ID (System generated)</label>
-                  <input 
-                    type="text" 
-                    id="entryId" 
-                    name="entryId" 
-                    value={journalForm.entryId} 
-                    disabled 
-                    className="form-control"
-                  />
-                  <span className="helper-text">System generated ID</span>
-                </div>
-                
-                <div className="form-group">
-                  <label htmlFor="date">Date</label>
-                  <input 
-                    type="date" 
-                    id="date" 
-                    name="date" 
-                    value={journalForm.date} 
+      </main>
+
+      {/* Add Journal Modal */}
+      {showAddJournalModal && (
+        <div className="modal-overlay">
+          <div className="modal-container">
+            <div className="modal-content">
+              <h3 className="modal-title">Add Journal Entry</h3>
+              
+              <div className="form-group">
+                <label htmlFor="entryId">Entry ID (System generated)</label>
+                <input 
+                  type="text" 
+                  id="entryId" 
+                  name="entryId" 
+                  value={journalForm.entryId} 
+                  disabled 
+                  className="form-control"
+                />
+                <span className="helper-text">System generated ID</span>
+              </div>
+              
+              <div className="form-group">
+                <label htmlFor="date">Date</label>
+                <input 
+                  type="date" 
+                  id="date" 
+                  name="date" 
+                  value={journalForm.date} 
+                  onChange={handleInputChange} 
+                  className="form-control"
+                  placeholder="mm/dd/yyyy"
+                />
+              </div>
+              
+              <div className="form-group">
+                <label htmlFor="category">Category</label>
+                <div className="select-wrapper">
+                  <select 
+                    id="category" 
+                    name="category" 
+                    value={journalForm.category} 
                     onChange={handleInputChange} 
                     className="form-control"
-                  />
+                  >
+                    <option value="">Select a category</option>
+                    <option value="expenses">Expenses</option>
+                    <option value="assets">Assets</option>
+                  </select>
+                  <ChevronDown size={16} className="select-icon" />
                 </div>
-                
-                <div className="form-group">
-                  <label htmlFor="category">Category</label>
-                  <div className="select-wrapper">
-                    <select 
-                      id="category" 
-                      name="category" 
-                      value={journalForm.category} 
-                      onChange={handleInputChange} 
-                      className="form-control"
-                    >
-                      <option value="">Select a category</option>
-                      <option value="office-supplies">Office Supplies</option>
-                      <option value="utilities">Utilities</option>
-                      <option value="depreciation">Depreciation</option>
-                    </select>
-                    <ChevronDownIcon size={16} className="select-icon" />
-                  </div>
-                </div>
-                
-                <div className="form-group">
-                  <label htmlFor="account">Account</label>
-                  <div className="select-wrapper">
-                    <select 
-                      id="account" 
-                      name="account" 
-                      value={journalForm.account} 
-                      onChange={handleInputChange} 
-                      className="form-control"
-                    >
-                      <option value="">Select an Account</option>
-                      <option value="asset">Asset</option>
-                      <option value="liability">Liability</option>
-                      <option value="expense">Expense</option>
-                      <option value="revenue">Revenue</option>
-                    </select>
-                    <ChevronDownIcon size={16} className="select-icon" />
-                  </div>
-                </div>
-                
-                <div className="form-group">
-                  <label htmlFor="description">Description</label>
-                  <input 
-                    type="text" 
-                    id="description" 
-                    name="description" 
-                    placeholder="Type here..." 
-                    value={journalForm.description} 
+              </div>
+              
+              <div className="form-group">
+                <label htmlFor="account">Account</label>
+                <div className="select-wrapper">
+                  <select 
+                    id="account" 
+                    name="account" 
+                    value={journalForm.account} 
                     onChange={handleInputChange} 
                     className="form-control"
-                  />
+                  >
+                    <option value="">Select an Account</option>
+                    <option value="asset">Assets</option>
+                    <option value="expense">Expenses</option>
+                  </select>
+                  <ChevronDown size={16} className="select-icon" />
                 </div>
-                
-                <div className="form-group">
-                  <label htmlFor="transactionType">Transaction type</label>
-                  <div className="select-wrapper">
-                    <select 
-                      id="transactionType" 
-                      name="transactionType" 
-                      value={journalForm.transactionType} 
-                      onChange={handleInputChange} 
-                      className="form-control"
-                    >
-                      <option value="">Select transaction type</option>
-                      <option value="debit">Debit</option>
-                      <option value="credit">Credit</option>
-                    </select>
-                    <ChevronDownIcon size={16} className="select-icon" />
-                  </div>
-                </div>
-                
-                <div className="form-group">
-                  <label htmlFor="amount">Amount</label>
-                  <input 
-                    type="text" 
-                    id="amount" 
-                    name="amount" 
-                    placeholder="₱0.00" 
-                    value={journalForm.amount} 
+              </div>
+              
+              <div className="form-group">
+                <label htmlFor="description">Description</label>
+                <input 
+                  type="text" 
+                  id="description" 
+                  name="description" 
+                  placeholder="Type here..." 
+                  value={journalForm.description} 
+                  onChange={handleInputChange} 
+                  className="form-control"
+                />
+              </div>
+              
+              <div className="form-group">
+                <label htmlFor="transactionType">Transaction type</label>
+                <div className="select-wrapper">
+                  <select 
+                    id="transactionType" 
+                    name="transactionType" 
+                    value={journalForm.transactionType} 
                     onChange={handleInputChange} 
                     className="form-control"
-                  />
+                  >
+                    <option value="">Select transaction type</option>
+                    <option value="debit">Debit</option>
+                    <option value="credit">Credit</option>
+                  </select>
+                  <ChevronDown size={16} className="select-icon" />
                 </div>
-                
-                <div className="modal-actions">
+              </div>
+              
+              <div className="form-group">
+                <label htmlFor="amount">Amount</label>
+                <input 
+                  type="text" 
+                  id="amount" 
+                  name="amount" 
+                  placeholder="₱0.00" 
+                  value={journalForm.amount} 
+                  onChange={handleInputChange} 
+                  className="form-control"
+                />
+              </div>
+              
+              <div className="modal-actions">
+                <div className="button-row">
                   <button className="btn-cancel" onClick={closeAddJournalModal}>Cancel</button>
                   <button className="btn-save">Save</button>
                 </div>
               </div>
             </div>
           </div>
-        )}
-
-        {/* Journal Entry Table */}
-        <div className="table-container">
-          <table className="data-table">
-            <thead>
-              <tr>
-                <th>Entry ID</th>
-                <th>Date</th>
-                <th>Description</th>
-                <th>Total Amount</th>
-                <th>Status</th>
-              </tr>
-            </thead>
-            <tbody>
-              {journalEntries.map((entry, index) => (
-                <tr key={index}>
-                  <td>{entry.id}</td>
-                  <td>{entry.date}</td>
-                  <td>{entry.description}</td>
-                  <td>{entry.totalAmount}</td>
-                  <td>
-                    <span className="status-badge">{entry.status}</span>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
         </div>
-      </main>
+      )}
     </div>
   );
 }

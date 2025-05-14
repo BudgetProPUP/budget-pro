@@ -165,6 +165,27 @@ python manage.py runserver
 ```bash
 python manage.py createsuperuser
 ```
+### Make sure the React and Django server are both running if you want to test integration
+
+# Using API docs for testing
+## 1.) After running python manage.py runserver, go to
+```bash
+(http://127.0.0.1:8000/api/docs/)
+```
+## 2.) Check out the different api endpoints
+
+## 3.) In authentication, go to /api/auth/login/
+
+## 4.) Click 'Try it out' and change the request body with actual accounts ( You can check for accounts in the database, with Django shell, or checking the comprehensive_seeder.py for the accounts and password )
+
+## 5.) Scroll down, and copy the access token (excluding the quotation marks)
+
+## 6.) Scroll up, click the Authorize button, paste in the access token, and click Authorize
+
+## 7.) Endpoints that need authorized accounts can access it now.
+
+## 8.) You can see the example responses, and request headers on those with POST methods.
+
 
 ### 7. Important Reminders
 
@@ -244,8 +265,3 @@ git stash  # Temporarily save changes in the working directory
 git reset --soft HEAD~1  # Undo last commit and keep changes in the staging area
 ```
 - In Github, never commit secrets. Use environment variables instead. Use the `python-dotenv` package to load environment variables from a `.env` file.
-
-
-
-
-

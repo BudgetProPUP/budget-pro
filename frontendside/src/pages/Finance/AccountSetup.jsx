@@ -6,6 +6,8 @@ import './AccountSetup.css';
 function AccountSetup() {
   const [showBudgetDropdown, setShowBudgetDropdown] = useState(false);
   const [showExpenseDropdown, setShowExpenseDropdown] = useState(false);
+  const [selectedAccounts, setSelectedAccounts] = useState([]);
+  const [currentPage, setCurrentPage] = useState(1);
   const navigate = useNavigate();
   
   // Sample account data matching the UI in the image
@@ -34,40 +36,77 @@ function AccountSetup() {
     setShowExpenseDropdown(false);
   };
 
+  const handleAccountSelect = (id) => {
+    if (selectedAccounts.includes(id)) {
+      setSelectedAccounts(selectedAccounts.filter(accountId => accountId !== id));
+    } else {
+      setSelectedAccounts([...selectedAccounts, id]);
+    }
+  };
+
+  const handleCreateAccount = () => {
+    navigate('/finance/create-account');
+  };
+
+  const handleEditAccount = () => {
+    if (selectedAccounts.length === 1) {
+      navigate(`/finance/edit-account/${selectedAccounts[0]}`);
+    } else {
+      alert('Please select exactly one account to edit');
+    }
+  };
+
+  const handleDeleteAccount = () => {
+    if (selectedAccounts.length > 0) {
+      // In a real application, you would call an API to delete the accounts
+      alert(`Deleting accounts: ${selectedAccounts.join(', ')}`);
+      setSelectedAccounts([]);
+    } else {
+      alert('Please select at least one account to delete');
+    }
+  };
+
+  const handleExportData = () => {
+    // In a real application, you would generate and download a file
+    alert('Exporting account data');
+  };
+
   return (
-    <div className="account-setup-container">
+    <div className="app-container">
       {/* Header */}
       <header className="dashboard-header">
         <div className="header-left">
           <h1 className="logo">BUDGETPRO</h1>
           <nav className="main-nav">
-            <Link to="/dashboard" className="nav-item">Dashboard</Link>
+            <div 
+              className="nav-item"
+              onClick={() => handleNavigate('/dashboard')}
+            >
+              Dashboard
+            </div>
             
             {/* Budget Dropdown */}
             <div className="dropdown-container">
-              <div className="nav-item dropdown-toggle active" onClick={toggleBudgetDropdown}>
-                Budget <ChevronDown size={14} />
+              <div 
+                className="nav-item dropdown-toggle active"
+                onClick={toggleBudgetDropdown}
+              >
+                Budget <ChevronDown size={16} />
               </div>
               {showBudgetDropdown && (
                 <div className="dropdown-menu">
-                  {/* Budget Items */}
-                  <h4 className="dropdown-category">Budget</h4>
                   <div 
                     className="dropdown-item" 
                     onClick={() => handleNavigate('/finance/budget-proposal')}
                   >
                     Budget Proposal
                   </div>
-                  
                   <div 
                     className="dropdown-item" 
                     onClick={() => handleNavigate('/finance/proposal-history')}
                   >
                     Proposal History
                   </div>
-
-                  {/* Account Items */}
-                  <h4 className="dropdown-category">Account</h4>
                   <div 
                     className="dropdown-item active" 
                     onClick={() => handleNavigate('/finance/account-setup')}
@@ -92,8 +131,11 @@ function AccountSetup() {
             
             {/* Expense Dropdown */}
             <div className="dropdown-container">
-              <div className="nav-item dropdown-toggle" onClick={toggleExpenseDropdown}>
-                Expense <ChevronDown size={14} />
+              <div 
+                className="nav-item dropdown-toggle"
+                onClick={toggleExpenseDropdown}
+              >
+                Expense <ChevronDown size={16} />
               </div>
               {showExpenseDropdown && (
                 <div className="dropdown-menu">
@@ -113,7 +155,7 @@ function AccountSetup() {
               )}
             </div>
             
-            {/* User Management - Simple Navigation Item */}
+            {/* User Management */}
             <div 
               className="nav-item"
               onClick={() => handleNavigate('/finance/user-management')}
@@ -124,7 +166,7 @@ function AccountSetup() {
         </div>
         <div className="header-right">
           <div className="user-avatar">
-            <img src="/api/placeholder/36/36" alt="User avatar" className="avatar-img" />
+            <img src="/api/placeholder/32/32" alt="User avatar" className="avatar-img" />
           </div>
         </div>
       </header>
@@ -136,8 +178,12 @@ function AccountSetup() {
         {/* Search Bar */}
         <div className="search-bar-container">
           <div className="search-box">
-            <input type="text" placeholder="Search by project or budget" className="search-input" />
-            <Search size={16} className="search-icon" />
+            <input 
+              type="text" 
+              placeholder="Search by project or budget" 
+              className="search-input" 
+            />
+            <Search size={18} className="search-icon" />
           </div>
           <button className="filter-button">
             <Filter size={16} />

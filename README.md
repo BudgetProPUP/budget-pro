@@ -244,8 +244,3 @@ git stash  # Temporarily save changes in the working directory
 git reset --soft HEAD~1  # Undo last commit and keep changes in the staging area
 ```
 - In Github, never commit secrets. Use environment variables instead. Use the `python-dotenv` package to load environment variables from a `.env` file.
-
-
-
-
-

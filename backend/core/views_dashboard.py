@@ -3,7 +3,7 @@ from django.db.models.functions import Coalesce
 from rest_framework import viewsets, views, status
 from rest_framework.response import Response
 from drf_spectacular.utils import extend_schema, OpenApiParameter, OpenApiExample
-from django.db.models import Q 
+from django.db.models import Subquery, OuterRef
 from .models import Department, FiscalYear, BudgetAllocation, Expense
 from .serializers import DepartmentBudgetSerializer
 
@@ -63,28 +63,30 @@ class DepartmentBudgetView(views.APIView):
             budgetallocation__fiscal_year=fiscal_year,
             budgetallocation__is_active=True
         ).distinct()
-        
-        # Annotate departments with budget information
+
+        # Calculate total_budget using a subquery
+        budget_subquery = BudgetAllocation.objects.filter(
+            department=OuterRef('pk'),
+            fiscal_year=fiscal_year,
+            is_active=True
+        ).values('department').annotate(total=Sum('amount')).values('total')
+
+        # Calculate total_spent using a subquery
+        expense_subquery = Expense.objects.filter(
+            budget_allocation__department=OuterRef('pk'),
+            budget_allocation__fiscal_year=fiscal_year,
+            status='APPROVED'
+        ).values('budget_allocation__department').annotate(total=Sum('amount')).values('total')
+
         departments = departments.annotate(
-            total_budget=Coalesce(
-                Sum('budgetallocation__amount', 
-                    filter=Q(budgetallocation__fiscal_year_id=fiscal_year.id)),  # Use Q object and =
-                0,
-                output_field=DecimalField()
-            ),
-            total_spent=Coalesce(
-                Sum('budgetallocation__expense__amount', 
-                    filter=Q(budgetallocation__fiscal_year_id=fiscal_year.id) & 
-                    Q(budgetallocation__expense__status='APPROVED')),  # Use Q objects with &
-                0,
-                output_field=DecimalField()
-            )
-        )
-        
-        # Calculate remaining budget and percentage used
+            total_budget=Coalesce(Subquery(budget_subquery), 0, output_field=DecimalField()),
+            total_spent=Coalesce(Subquery(expense_subquery), 0, output_field=DecimalField())
+        ) 
+
+        # Rest of the calculation for remaining_budget and percentage_used remains the same
         for dept in departments:
             dept.remaining_budget = dept.total_budget - dept.total_spent
-            dept.percentage_used = (dept.total_spent / dept.total_budget * 100) if dept.total_budget > 0 else 0
-        
+            dept.percentage_used = round((dept.total_spent / dept.total_budget * 100), 2) if dept.total_budget > 0 else 0
+
         serializer = DepartmentBudgetSerializer(departments, many=True)
         return Response(serializer.data)

@@ -244,7 +244,7 @@ class BudgetAllocation(models.Model):
             )
         ]
         
-        
+    
     def get_total_expenses(self):
         """Calculate total approved expenses for this allocation"""
         return self.expense_set.filter(status='APPROVED').aggregate(

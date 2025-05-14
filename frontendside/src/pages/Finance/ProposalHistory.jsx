@@ -7,49 +7,53 @@ const ProposalHistory = () => {
   const [showBudgetDropdown, setShowBudgetDropdown] = useState(false);
   const [showExpenseDropdown, setShowExpenseDropdown] = useState(false);
   const navigate = useNavigate();
+  const [searchTerm, setSearchTerm] = useState('');
+  const [currentPage, setCurrentPage] = useState(1);
+  const [selectedFilter, setSelectedFilter] = useState('Proposal ID');
+  const [showFilterDropdown, setShowFilterDropdown] = useState(false);
   
-  // Sample data for demonstration
-  const [proposals, setProposals] = useState([
+  // Sample data for demonstration - updated to match the image exactly
+  const [proposals] = useState([
     {
       id: 'FP-2025-042',
       title: 'IT Infrastructure Upgrade',
-      lastModified: 'Apr 01, 2025',
-      modifiedBy: 'J. Thompson',
+      lastModified: '04-12-2025',
+      modifiedBy: 'J.Thompson',
       status: 'approved'
     },
     {
-      id: 'FP-2025-042',
+      id: 'FP-2025-942',
       title: 'Facility Expansion Plan',
-      lastModified: 'March 30, 2025',
-      modifiedBy: 'J. Thompson',
+      lastModified: '04-12-2025',
+      modifiedBy: 'A.Williams',
+      status: 'approved'
+    },
+    {
+      id: 'FP-2025-128',
+      title: 'DevOps Certification',
+      lastModified: '03-25-2025',
+      modifiedBy: 'L.Chen',
       status: 'rejected'
     },
     {
-      id: 'FP-2025-042',
-      title: 'Supply Chain optimization',
-      lastModified: 'March 28, 2025',
-      modifiedBy: 'J. Thompson',
+      id: 'FP-2025-367',
+      title: 'IT Budget',
+      lastModified: '02-14-2025',
+      modifiedBy: 'K.Thomas',
       status: 'approved'
     },
     {
-      id: 'FP-2025-042',
-      title: 'IT Budget',
-      lastModified: 'March 8, 2025',
-      modifiedBy: 'J. Thompson',
+      id: 'FP-2025-002',
+      title: 'Server Racks',
+      lastModified: '01-25-2025',
+      modifiedBy: 'A.Ford',
       status: 'approved'
     },
     {
-      id: 'FP-2025-042',
-      title: 'IT Budget',
-      lastModified: 'Feb 25, 2025',
-      modifiedBy: 'J. Thompson',
-      status: 'approved'
-    },
-    {
-      id: 'FP-2025-042',
-      title: 'IT Budget',
-      lastModified: 'Feb 8, 2025',
-      modifiedBy: 'J. Thompson',
+      id: 'FP-2024-042',
+      title: 'Company Laptops',
+      lastModified: '12-12-2024',
+      modifiedBy: 'A.Ford',
       status: 'approved'
     }
   ]);
@@ -64,15 +68,46 @@ const ProposalHistory = () => {
     if (showBudgetDropdown) setShowBudgetDropdown(false);
   };
 
+  const toggleFilterDropdown = () => {
+    setShowFilterDropdown(!showFilterDropdown);
+  };
+
   const handleNavigate = (path) => {
     navigate(path);
     setShowBudgetDropdown(false);
     setShowExpenseDropdown(false);
   };
 
+  const handleSearch = (e) => {
+    e.preventDefault();
+    // Search functionality - filter proposals based on search term
+    const filteredResults = proposals.filter(proposal => 
+      proposal.id.toLowerCase().includes(searchTerm.toLowerCase()) || 
+      proposal.title.toLowerCase().includes(searchTerm.toLowerCase())
+    );
+    
+    console.log("Search results:", filteredResults);
+    // In a real app, you would update the state with the filtered results
+  };
+
+  const handleFilterSelect = (filter) => {
+    setSelectedFilter(filter);
+    setShowFilterDropdown(false);
+  };
+
+  const handleNextPage = () => {
+    setCurrentPage(currentPage + 1);
+  };
+
+  const handlePrevPage = () => {
+    if (currentPage > 1) {
+      setCurrentPage(currentPage - 1);
+    }
+  };
+
   return (
     <div className="app-container">
-      {/* Header */}
+      {/* Header - Updated to match Dashboard navigation */}
       <header className="dashboard-header">
         <div className="header-left">
           <h1 className="logo">BUDGETPRO</h1>

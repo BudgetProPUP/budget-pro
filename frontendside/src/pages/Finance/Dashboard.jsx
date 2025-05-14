@@ -1,35 +1,25 @@
 import React, { useState, useEffect } from 'react';
-import { BarChart, Bar, XAxis, YAxis, Tooltip, Legend, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
-import { ChevronLeft, ChevronRight, ChevronDown, LogOut, Expand, Minimize } from 'lucide-react';
+import {BarChart, Bar, XAxis, YAxis, Tooltip, Legend, ResponsiveContainer, PieChart, Pie, Cell}
+from 'recharts';
+import { ChevronLeft, ChevronRight, ChevronDown, LogOut } from 'lucide-react';
 import { Link, useNavigate } from 'react-router-dom';
 import './Dashboard.css';
 
 function BudgetDashboard() {
   const [currentDate, setCurrentDate] = useState(new Date());
-  const [loading, setLoading] = useState(true);
-  const [expandedChart, setExpandedChart] = useState(false);
+
+useEffect(() => {
+  const interval = setInterval(() => {
+    setCurrentDate(new Date());
+  }, 1000);
+
+  return () => clearInterval(interval); // cleanup
+}, []);
+
   const [showBudgetDropdown, setShowBudgetDropdown] = useState(false);
   const [showExpenseDropdown, setShowExpenseDropdown] = useState(false);
   const [showProfileDropdown, setShowProfileDropdown] = useState(false);
-  const [timeFilter, setTimeFilter] = useState('monthly');
-  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const navigate = useNavigate();
-
-  useEffect(() => {
-    // Simulate data loading
-    const timer = setTimeout(() => {
-      setLoading(false);
-    }, 1000);
-
-    const interval = setInterval(() => {
-      setCurrentDate(new Date());
-    }, 1000);
-
-    return () => {
-      clearTimeout(timer);
-      clearInterval(interval);
-    };
-  }, []);
 
   // Format time with AM/PM
   const formattedTime = currentDate.toLocaleTimeString('en-US', {
@@ -129,26 +119,12 @@ function BudgetDashboard() {
     setShowBudgetDropdown(false);
     setShowExpenseDropdown(false);
     setShowProfileDropdown(false);
-    setMobileMenuOpen(false);
   };
 
   const handleLogout = () => {
+    // Navigate to login screen
     navigate('/login');
   };
-
-  const handleExport = () => {
-    // In a real app, this would generate a CSV or PDF
-    alert('Export functionality would be implemented here');
-  };
-
-  if (loading) {
-    return (
-      <div className="loading-container">
-        <div className="loading-spinner"></div>
-        <p>Loading dashboard data...</p>
-      </div>
-    );
-  }
 
   return (
     <div className="dashboard-container">
@@ -156,20 +132,7 @@ function BudgetDashboard() {
       <header className="dashboard-header">
         <div className="header-left">
           <h1 className="logo">BUDGETPRO</h1>
-          
-          {/* Mobile menu button */}
-          <button 
-            className="mobile-menu-button"
-            onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-            aria-expanded={mobileMenuOpen}
-            aria-label="Toggle menu"
-          >
-            <span className="menu-icon"></span>
-            <span className="menu-icon"></span>
-            <span className="menu-icon"></span>
-          </button>
-          
-          <nav className={`main-nav ${mobileMenuOpen ? 'mobile-open' : ''}`}>
+          <nav className="main-nav">
             <Link to="/dashboard" className="nav-link active">Dashboard</Link>
             
             {/* Budget Dropdown */}
@@ -177,8 +140,6 @@ function BudgetDashboard() {
               <button 
                 className="dropdown-toggle"
                 onClick={toggleBudgetDropdown}
-                aria-haspopup="true"
-                aria-expanded={showBudgetDropdown}
               >
                 Budget <ChevronDown size={14} />
               </button>
@@ -211,8 +172,6 @@ function BudgetDashboard() {
               <button 
                 className="dropdown-toggle"
                 onClick={toggleExpenseDropdown}
-                aria-haspopup="true"
-                aria-expanded={showExpenseDropdown}
               >
                 Expense <ChevronDown size={14} />
               </button>
@@ -234,20 +193,16 @@ function BudgetDashboard() {
             </div>
           </nav>
         </div>
-        
         {/* Time and Date Display */}
-        <div className="header-datetime">
-          <span className="formatted-date">{formattedDate}</span>
-          <span className="formatted-time">{formattedTime}</span>
-        </div>
-        
+<div className="header-datetime">
+  <span className="formatted-date">{formattedDate}</span>
+  <span className="formatted-time">{formattedTime}</span>
+</div>
         {/* User Profile */}
         <div className="user-profile dropdown">
           <button 
             className="avatar-button"
             onClick={toggleProfileDropdown}
-            aria-haspopup="true"
-            aria-expanded={showProfileDropdown}
           >
             <img src="/api/placeholder/32/32" alt="User avatar" />
           </button>
@@ -270,28 +225,6 @@ function BudgetDashboard() {
           </div>
           <button className="export-button" onClick={handleExport}>
             Export Report
-          </button>
-        </div>
-
-        {/* Time period filter */}
-        <div className="time-filter">
-          <button 
-            className={`filter-button ${timeFilter === 'monthly' ? 'active' : ''}`}
-            onClick={() => setTimeFilter('monthly')}
-          >
-            Monthly
-          </button>
-          <button 
-            className={`filter-button ${timeFilter === 'quarterly' ? 'active' : ''}`}
-            onClick={() => setTimeFilter('quarterly')}
-          >
-            Quarterly
-          </button>
-          <button 
-            className={`filter-button ${timeFilter === 'yearly' ? 'active' : ''}`}
-            onClick={() => setTimeFilter('yearly')}
-          >
-            Yearly
           </button>
         </div>
 
@@ -379,18 +312,9 @@ function BudgetDashboard() {
 
         {/* Monthly Budget vs Actual */}
         <div className="card chart-card">
-          <div className="chart-header">
-            <h3 className="card-title">Monthly Budget vs Actual</h3>
-            <button 
-              className="expand-button"
-              onClick={() => setExpandedChart(!expandedChart)}
-              aria-label={expandedChart ? 'Collapse chart' : 'Expand chart'}
-            >
-              {expandedChart ? <Minimize size={16} /> : <Expand size={16} />}
-            </button>
-          </div>
-          <div className="chart-container-large" style={{ height: expandedChart ? '500px' : '300px' }}>
-            <ResponsiveContainer width="100%" height="100%">
+          <h3 className="card-title">Monthly Budget vs Actual</h3>
+          <div className="chart-container-large">
+            <ResponsiveContainer width="100%" height={300}>
               <BarChart
                 data={monthlyData}
                 margin={{ top: 20, right: 30, left: 20, bottom: 5 }}
@@ -398,7 +322,15 @@ function BudgetDashboard() {
               >
                 <XAxis dataKey="name" axisLine={false} tickLine={false} />
                 <YAxis axisLine={false} tickLine={false} />
-                <Tooltip content={<CustomTooltip />} />
+                <Tooltip
+                  formatter={(value) => [`₱${value.toLocaleString()}`, 'Amount']}
+                  contentStyle={{
+                    backgroundColor: 'white',
+                    border: 'none',
+                    borderRadius: '4px',
+                    boxShadow: '0 1px 3px rgba(0,0,0,0.12)'
+                  }}
+                />
                 <Legend />
                 <Bar dataKey="Budget" fill="#16a34a" radius={[2, 2, 0, 0]} />
                 <Bar dataKey="Actual" fill="#86efac" radius={[2, 2, 0, 0]} />

@@ -4,3 +4,10 @@
 - frontend/login: Improve Ui for login and forget password.
 - frontend: Add protected routes
 - backend/frontend: Add phone number
+- Are proposals already approved and allocated? Because the Total Budget card might change
+- monthly budget vs actual: The implemented approach for the Monthly Budget vs Actual API distributes the total project or department budget evenly
+    across months within the fiscal year or specific project duration, enabling a clear comparison between planned and actual spending. 
+    This method was chosen for its simplicity, alignment with available data (annual allocations), and flexibility, supporting both department-wide and project-specific visualizations. 
+    It assumes uniform monthly distribution in the absence of fine-grained monthly planning, which is acceptable for initial reporting. 
+    However, if future business processes introduce detailed monthly allocations or varying disbursement schedules, 
+    this logic must be updated to reflect actual monthly planning or cash flow-based allocation strategies.

@@ -3,38 +3,8 @@ import { ChevronDown, Search, Filter, ArrowLeft, LogOut } from 'lucide-react';
 import { Link, useNavigate } from 'react-router-dom';
 import './BudgetProposal.css';
 
-
-const proposals = [
-  { 
-    id: 1, 
-    subject: 'Website Redesign Project',
-    department: 'IT', 
-    amount: '₱50,000.00', 
-    submittedBy: 'J.Tompson', 
-    status: 'pending', 
-    action: 'Review', 
-    description: 'Website Redesign Project', 
-    date: 'April 30, 2025',
-    projectSummary: 'This Budget Proposal provides necessary costs associated with the website redesign project (the "Project") which we would like to pursue due to increased mobile traffic and improved conversion rates from modern interfaces.',
-    projectDescription: 'Complete redesign of company website with responsive design, improved UI/UX, integration with CRM, and enhanced e-commerce capabilities to boost customer engagement and sales conversion.',
-    performancePeriod: 'The budget set forth in this Budget Proposal covers the period of performance for the project or 6 months of effort.',
-    costElements: [
-      { name: 'Hardware', description: 'Workstations, Servers, Testing Devices', amount: '₱25,000.00', color: 'hardware' },
-      { name: 'Software', description: 'Design Tools, Development Platforms, Licenses', amount: '₱25,000.00', color: 'software' },
-      { name: 'Transportation', description: 'Travel Expenses for Meetings, Site Visits, Logistics', amount: '₱50,000.00', color: 'transportation' },
-      { name: 'Store Operation Support', description: 'Temporary Staffing, Customer Support Continuity', amount: '₱50,000.00', color: 'support' }
-    ]
-  },
-  { id: 2, department: 'IT', amount: '₱60,000.00', submittedBy: 'A. Williams', status: 'approved', action: 'View', description: 'Software licenses renewal', date: '2025-04-15' },
-  { id: 3, department: 'Operations', amount: '₱50,000.00', submittedBy: 'L. Chen', status: 'rejected', action: 'Review', description: 'Office equipment replacement', date: '2025-04-20' },
-];
-
-// Adding more departments for scrollable demonstration
-const departments = ['IT', 'Security', 'DevOps', 'Operations', 'Finance', 'Marketing', 'HR', 'Sales', 'Customer Support', 'Legal'];
-const statuses = ['Pending', 'Approved', 'Rejected', 'Under Review', 'On Hold'];
-
 const BudgetProposal = () => {
-  const navigate = useNavigate();
+  // State management
   const [showBudgetDropdown, setShowBudgetDropdown] = useState(false);
   const [showExpenseDropdown, setShowExpenseDropdown] = useState(false);
   const [showProfileDropdown, setShowProfileDropdown] = useState(false);
@@ -44,8 +14,8 @@ const BudgetProposal = () => {
   const [showConfirmationPopup, setShowConfirmationPopup] = useState(false);
   const [reviewComment, setReviewComment] = useState('');
   const [reviewStatus, setReviewStatus] = useState('');
-  const [showDepartmentFilter, setShowDepartmentFilter] = useState(false);
-  const [showStatusFilter, setShowStatusFilter] = useState(false);
+  const [searchTerm, setSearchTerm] = useState('');
+  const navigate = useNavigate();
 
   // Date and time formatting
   const now = new Date();
@@ -109,22 +79,12 @@ const BudgetProposal = () => {
 
   const toggleExpenseDropdown = () => {
     setShowExpenseDropdown(!showExpenseDropdown);
-    if (showBudgetDropdown) setShowBudgetDropdown(false);
+    setShowBudgetDropdown(false);
+    setShowProfileDropdown(false);
   };
 
-  const toggleDepartmentFilter = () => {
-    setShowDepartmentFilter(!showDepartmentFilter);
-    if (showStatusFilter) setShowStatusFilter(false);
-  };
-
-  const toggleStatusFilter = () => {
-    setShowStatusFilter(!showStatusFilter);
-    if (showDepartmentFilter) setShowDepartmentFilter(false);
-  };
-
-  const handleNavigate = (path) => {
-    // Using React Router's navigate function instead of console.log
-    navigate(path);
+  const toggleProfileDropdown = () => {
+    setShowProfileDropdown(!showProfileDropdown);
     setShowBudgetDropdown(false);
     setShowExpenseDropdown(false);
   };
@@ -174,42 +134,32 @@ const BudgetProposal = () => {
   };
 
   const handleSubmitComment = () => {
-    console.log('Submitting comment:', {
-      proposalId: selectedProposal?.id,
-      comment: reviewComment
-    });
+    console.log('Comment submitted:', reviewComment);
     closeCommentPopup();
-    alert(`Comment submitted successfully for ${selectedProposal?.description}`);
   };
 
   const handleSubmitReview = () => {
-    console.log('Submitting review:', {
+    console.log('Review submitted:', {
       proposalId: selectedProposal?.id,
       newStatus: reviewStatus,
       comment: reviewComment
     });
     closeConfirmationPopup();
     closeReviewPopup();
-    alert(`Review submitted successfully. New status: ${reviewStatus}`);
   };
 
-  // Calculate total budget
-  const totalBudget = proposals.reduce((sum, proposal) => {
-    const amount = parseFloat(proposal.amount.replace('₱', '').replace(',', ''));
-    return sum + amount;
-  }, 0);
-
-  // Format budget as PHP with commas
-  const formattedTotalBudget = `₱${totalBudget.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})}`;
+  const pendingCount = proposals.filter(p => p.status === 'pending').length;
 
   return (
     <div className="app-container">
-      {/* Header/Navigation Bar - Updated to match screenshot */}
+      {/* Header/Navigation Bar */}
       <header className="dashboard-header">
         <div className="header-left">
           <h1 className="logo">BUDGETPRO</h1>
           <nav className="main-nav">
-            <div className="nav-item" onClick={() => handleNavigate('/dashboard')}>Dashboard</div>
+            <Link to="/dashboard" className="nav-link" onClick={closeAllDropdowns}>
+              Dashboard
+            </Link>
             
             {/* Budget Dropdown */}
             <div className="dropdown">
@@ -218,26 +168,24 @@ const BudgetProposal = () => {
               </button>
               {showBudgetDropdown && (
                 <div className="dropdown-menu">
-                  {/* Budget Items */}
-                  <h4 className="dropdown-category">Budget</h4>
-                  <div className="dropdown-item" onClick={() => handleNavigate('/finance/budget-proposal')}>
+                  <div className="dropdown-header">Budget</div>
+                  <Link to="/finance/budget-proposal" className="dropdown-item" onClick={closeAllDropdowns}>
                     Budget Proposal
-                  </div>
-                  <div className="dropdown-item" onClick={() => handleNavigate('/finance/proposal-history')}>
+                  </Link>
+                  <Link to="/finance/proposal-history" className="dropdown-item" onClick={closeAllDropdowns}>
                     Proposal History
-                  </div>
-
-                  {/* Account Items */}
-                  <h4 className="dropdown-category">Account</h4>
-                  <div className="dropdown-item" onClick={() => handleNavigate('/finance/account-setup')}>
+                  </Link>
+                  
+                  <div className="dropdown-header">Account</div>
+                  <Link to="/finance/account-setup" className="dropdown-item" onClick={closeAllDropdowns}>
                     Account Setup
-                  </div>
-                  <div className="dropdown-item" onClick={() => handleNavigate('/finance/ledger-view')}>
+                  </Link>
+                  <Link to="/finance/ledger-view" className="dropdown-item" onClick={closeAllDropdowns}>
                     Ledger View
-                  </div>
-                  <div className="dropdown-item" onClick={() => handleNavigate('/finance/journal-entry')}>
+                  </Link>
+                  <Link to="/finance/journal-entry" className="dropdown-item" onClick={closeAllDropdowns}>
                     Journal Entries
-                  </div>
+                  </Link>
                 </div>
               )}
             </div>
@@ -249,20 +197,19 @@ const BudgetProposal = () => {
               </button>
               {showExpenseDropdown && (
                 <div className="dropdown-menu">
-                  <div className="dropdown-item" onClick={() => handleNavigate('/finance/expense-tracking')}>
+                  <Link to="/finance/expense-tracking" className="dropdown-item" onClick={closeAllDropdowns}>
                     Expense Tracking
-                  </div>
-                  <div className="dropdown-item" onClick={() => handleNavigate('/finance/expense-history')}>
+                  </Link>
+                  <Link to="/finance/expense-history" className="dropdown-item" onClick={closeAllDropdowns}>
                     Expense History
-                  </div>
+                  </Link>
                 </div>
               )}
             </div>
             
-            {/* User Management - Simple Navigation Item */}
-            <div className="nav-item" onClick={() => handleNavigate('/finance/user-management')}>
+            <Link to="/finance/user-management" className="nav-link" onClick={closeAllDropdowns}>
               User Management
-            </div>
+            </Link>
           </nav>
         </div>
         
@@ -287,7 +234,9 @@ const BudgetProposal = () => {
 
       {/* Main Content */}
       <main className="main-content">
-        {/* Search and Filter Section - Updated to match screenshot */}
+        <h1 className="page-title">Budget Proposal</h1>
+        
+        {/* Search and Filter */}
         <div className="search-filter-section">
           <div className="search-container">
             <input 
@@ -306,21 +255,21 @@ const BudgetProposal = () => {
           </button>
         </div>
 
-        {/* Summary Cards - Updated to match screenshot */}
+        {/* Summary Cards */}
         <div className="summary-cards">
-          <div className="summary-card">
+          <div className="card">
             <div className="card-content">
               <div className="card-title">Total Proposals</div>
               <div className="card-value">{proposals.length}</div>
             </div>
           </div>
-          <div className="summary-card">
+          <div className="card">
             <div className="card-content">
               <div className="card-title">Pending Approval</div>
               <div className="card-value">{pendingCount}</div>
             </div>
           </div>
-          <div className="summary-card budget-total">
+          <div className="card budget-total">
             <div className="card-content">
               <div className="card-title">Budget Total</div>
               <div className="card-value">₱3,326,025.75</div>
@@ -330,7 +279,6 @@ const BudgetProposal = () => {
 
         {/* Proposal Table */}
         <div className="table-container">
-          <h2 className="table-title">Budget Proposal</h2>
           <table className="proposal-table">
             <thead>
               <tr>
@@ -343,11 +291,12 @@ const BudgetProposal = () => {
               </tr>
             </thead>
             <tbody>
-              {proposals.map((item) => (
-                <tr key={item.id}>
-                  <td>{item.subject}</td>
-                  <td>{item.department}</td>
-                  <td>{item.submittedBy}</td>
+              {proposals.map((proposal) => (
+                <tr key={proposal.id}>
+                  <td>{proposal.subject}</td>
+                  <td>{proposal.department}</td>
+                  <td>{proposal.submittedBy}</td>
+                  <td className="amount-column">{proposal.amount}</td>
                   <td>
                     <span className={`status-badge ${proposal.status}`}>
                       {proposal.status === 'pending' ? 'Pending' : 
@@ -356,8 +305,8 @@ const BudgetProposal = () => {
                   </td>
                   <td>
                     <button 
-                      className={`action-button ${item.action === 'Review' ? 'review' : 'view'}`}
-                      onClick={() => item.action === "Review" ? handleReviewClick(item) : null}
+                      className={`action-button ${proposal.action.toLowerCase()}`}
+                      onClick={() => handleReviewClick(proposal)}
                     >
                       {proposal.action}
                     </button>
@@ -366,23 +315,25 @@ const BudgetProposal = () => {
               ))}
             </tbody>
           </table>
+          
+          {/* Pagination */}
           <div className="pagination">
-            <button className="pagination-button prev">{'< Prev'}</button>
+            <button className="pagination-prev">
+              &lt; Prev
+            </button>
             <div className="pagination-numbers">
               <button className="pagination-number active">1</button>
+              <button className="pagination-number">2</button>
+              <button className="pagination-number">3</button>
             </div>
-            <button className="pagination-button next">{'Next >'}</button>
+            <button className="pagination-next">
+              Next &gt;
+            </button>
           </div>
-        </div>
-        
-        <div className="pagination">
-          <button className="pagination-prev">&lt; Prev</button>
-          <button className="pagination-number active">1</button>
-          <button className="pagination-next">Next &gt;</button>
         </div>
       </main>
 
-      {/* Improved Review Popup */}
+      {/* Review Popup */}
       {showReviewPopup && selectedProposal && (
         <div className="popup-overlay">
           <div className="review-popup">
@@ -405,21 +356,7 @@ const BudgetProposal = () => {
               <div className="proposal-section">
                 <h4 className="section-title">PROJECT SUMMARY</h4>
                 <p className="section-content">
-                  {selectedProposal.projectSummary || "This Budget Proposal provides necessary costs associated with the website redesign project (the \"Project\") which we would like to pursue due to increased mobile traffic and improved conversion rates from modern interfaces."}
-                </p>
-              </div>
-              
-              <div className="proposal-section">
-                <h4 className="section-title">PROJECT DESCRIPTION:</h4>
-                <p className="section-content">
-                  {selectedProposal.projectDescription || "Complete redesign of company website with responsive design, improved UI/UX, integration with CRM, and enhanced e-commerce capabilities to boost customer engagement and sales conversion."}
-                </p>
-              </div>
-              
-              <div className="proposal-section">
-                <h4 className="section-title">PERIOD OF PERFORMANCE:</h4>
-                <p className="section-content">
-                  {selectedProposal.performancePeriod || "The budget set forth in this Budget Proposal covers the period of performance for the project or 6 months of effort."}
+                  This budget proposal outlines the costs for the {selectedProposal.subject.toLowerCase()}.
                 </p>
               </div>
               
@@ -432,37 +369,45 @@ const BudgetProposal = () => {
                     <div>ESTIMATED COST</div>
                   </div>
                   
-                  {(selectedProposal.costElements || [
-                    { name: 'Hardware', description: 'Workstations, Servers, Testing Devices', amount: '₱25,000.00', color: 'hardware' },
-                    { name: 'Software', description: 'Design Tools, Development Platforms, Licenses', amount: '₱25,000.00', color: 'software' },
-                    { name: 'Transportation', description: 'Travel Expenses for Meetings, Site Visits, Logistics', amount: '₱50,000.00', color: 'transportation' },
-                    { name: 'Store Operation Support', description: 'Temporary Staffing, Customer Support Continuity', amount: '₱50,000.00', color: 'support' }
-                  ]).map((item, index) => (
-                    <div className="cost-table-row" key={index}>
-                      <div className="cost-item-name">
-                        <span className={`cost-bullet ${item.color}`}></span>
-                        {item.name}
-                      </div>
-                      <div className="cost-item-description">{item.description}</div>
-                      <div className="cost-item-amount">{item.amount}</div>
+                  <div className="cost-table-row">
+                    <div className="cost-item-name">
+                      <span className="cost-bullet hardware"></span>
+                      Hardware
                     </div>
-                  ))}
+                    <div className="cost-item-description">Required equipment</div>
+                    <div className="cost-item-amount">₱25,000.00</div>
+                  </div>
+                  
+                  <div className="cost-table-row">
+                    <div className="cost-item-name">
+                      <span className="cost-bullet software"></span>
+                      Software
+                    </div>
+                    <div className="cost-item-description">Licenses and tools</div>
+                    <div className="cost-item-amount">₱25,000.00</div>
+                  </div>
                 </div>
               </div>
             </div>
             
             <div className="popup-footer">
               <div className="action-buttons">
-                <button className="action-button comment-button" onClick={handleCommentClick}>Comment</button>
-                <button className="action-button reject-button" onClick={() => handleStatusChange('rejected')}>Reject</button>
-                <button className="action-button approve-button" onClick={() => handleStatusChange('approved')}>Approve</button>
+                <button className="action-button comment-button" onClick={handleCommentClick}>
+                  Comment
+                </button>
+                <button className="action-button reject-button" onClick={() => handleStatusChange('rejected')}>
+                  Reject
+                </button>
+                <button className="action-button approve-button" onClick={() => handleStatusChange('approved')}>
+                  Approve
+                </button>
               </div>
             </div>
           </div>
         </div>
       )}
 
-      {/* Improved Comment Popup */}
+      {/* Comment Popup */}
       {showCommentPopup && selectedProposal && (
         <div className="popup-overlay">
           <div className="comment-popup">
@@ -485,12 +430,12 @@ const BudgetProposal = () => {
                 <div className="approval-date">May 14, 2025 • Finance Department</div>
               </div>
               
-              <h3 className="proposal-name">{selectedProposal.description || 'IT Equipment Purchase'}</h3>
+              <h3 className="proposal-name">{selectedProposal.subject}</h3>
               
               <ul className="proposal-details">
                 <li>• {selectedProposal.amount}</li>
                 <li>• Requested by: {selectedProposal.department} Department</li>
-                <li>• {selectedProposal.date}</li>
+                <li>• Submitted by: {selectedProposal.submittedBy}</li>
               </ul>
               
               <div className="comment-section">
@@ -505,13 +450,15 @@ const BudgetProposal = () => {
             </div>
             
             <div className="comment-popup-footer">
-              <button className="save-button" onClick={handleSubmitComment}>Save</button>
+              <button className="save-button" onClick={handleSubmitComment}>
+                Save
+              </button>
             </div>
           </div>
         </div>
       )}
 
-      {/* New Confirmation Popup for Approve/Reject */}
+      {/* Confirmation Popup */}
       {showConfirmationPopup && selectedProposal && (
         <div className="popup-overlay">
           <div className="confirmation-popup">
@@ -538,7 +485,7 @@ const BudgetProposal = () => {
               </h3>
               
               <div className="proposal-summary">
-                <h4 className="proposal-name">{selectedProposal.description}</h4>
+                <h4 className="proposal-name">{selectedProposal.subject}</h4>
                 <ul className="proposal-details">
                   <li>• Budget Amount: {selectedProposal.amount}</li>
                   <li>• Department: {selectedProposal.department}</li>
@@ -558,7 +505,9 @@ const BudgetProposal = () => {
             </div>
             
             <div className="confirmation-footer">
-              <button className="cancel-button" onClick={closeConfirmationPopup}>Cancel</button>
+              <button className="cancel-button" onClick={closeConfirmationPopup}>
+                Cancel
+              </button>
               <button 
                 className={`confirm-button ${reviewStatus}`} 
                 onClick={handleSubmitReview}

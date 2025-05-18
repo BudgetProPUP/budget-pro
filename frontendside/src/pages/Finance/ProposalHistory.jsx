@@ -6,56 +6,52 @@ import { ChevronDown, ChevronRight } from 'lucide-react';
 const ProposalHistory = () => {
   const [showBudgetDropdown, setShowBudgetDropdown] = useState(false);
   const [showExpenseDropdown, setShowExpenseDropdown] = useState(false);
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const navigate = useNavigate();
-  const [searchTerm, setSearchTerm] = useState('');
-  const [currentPage, setCurrentPage] = useState(1);
-  const [selectedFilter, setSelectedFilter] = useState('Proposal ID');
-  const [showFilterDropdown, setShowFilterDropdown] = useState(false);
-  
-  // Sample data for demonstration - updated to match the image exactly
+
   const [proposals] = useState([
     {
       id: 'FP-2025-042',
       title: 'IT Infrastructure Upgrade',
       lastModified: '04-12-2025',
       modifiedBy: 'J.Thompson',
-      status: 'approved'
+      status: 'approved',
     },
     {
       id: 'FP-2025-942',
       title: 'Facility Expansion Plan',
       lastModified: '04-12-2025',
       modifiedBy: 'A.Williams',
-      status: 'approved'
+      status: 'approved',
     },
     {
       id: 'FP-2025-128',
       title: 'DevOps Certification',
       lastModified: '03-25-2025',
       modifiedBy: 'L.Chen',
-      status: 'rejected'
+      status: 'rejected',
     },
     {
       id: 'FP-2025-367',
       title: 'IT Budget',
       lastModified: '02-14-2025',
       modifiedBy: 'K.Thomas',
-      status: 'approved'
+      status: 'approved',
     },
     {
       id: 'FP-2025-002',
       title: 'Server Racks',
       lastModified: '01-25-2025',
       modifiedBy: 'A.Ford',
-      status: 'approved'
+      status: 'approved',
     },
     {
       id: 'FP-2024-042',
       title: 'Company Laptops',
       lastModified: '12-12-2024',
       modifiedBy: 'A.Ford',
-      status: 'approved'
-    }
+      status: 'approved',
+    },
   ]);
 
   const toggleBudgetDropdown = () => {
@@ -68,127 +64,91 @@ const ProposalHistory = () => {
     if (showBudgetDropdown) setShowBudgetDropdown(false);
   };
 
-  const toggleFilterDropdown = () => {
-    setShowFilterDropdown(!showFilterDropdown);
-  };
-
   const handleNavigate = (path) => {
     navigate(path);
     setShowBudgetDropdown(false);
     setShowExpenseDropdown(false);
-  };
-
-  const handleSearch = (e) => {
-    e.preventDefault();
-    // Search functionality - filter proposals based on search term
-    const filteredResults = proposals.filter(proposal => 
-      proposal.id.toLowerCase().includes(searchTerm.toLowerCase()) || 
-      proposal.title.toLowerCase().includes(searchTerm.toLowerCase())
-    );
-    
-    console.log("Search results:", filteredResults);
-    // In a real app, you would update the state with the filtered results
-  };
-
-  const handleFilterSelect = (filter) => {
-    setSelectedFilter(filter);
-    setShowFilterDropdown(false);
-  };
-
-  const handleNextPage = () => {
-    setCurrentPage(currentPage + 1);
-  };
-
-  const handlePrevPage = () => {
-    if (currentPage > 1) {
-      setCurrentPage(currentPage - 1);
-    }
+    setMobileMenuOpen(false);
   };
 
   return (
     <div className="app-container">
-      {/* Header - Updated to match Dashboard navigation */}
+      {/* Header */}
       <header className="dashboard-header">
         <div className="header-left">
           <h1 className="logo">BUDGETPRO</h1>
-          <nav className="main-nav">
-            <Link to="/dashboard" className="nav-item">Dashboard</Link>
-            
+
+          <button
+            className="mobile-menu-button"
+            onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+            aria-expanded={mobileMenuOpen}
+            aria-label="Toggle menu"
+          >
+            <span className="menu-icon"></span>
+            <span className="menu-icon"></span>
+            <span className="menu-icon"></span>
+          </button>
+
+          <nav className={`main-nav ${mobileMenuOpen ? 'mobile-open' : ''}`}>
+            <Link to="/dashboard" className="nav-link">Dashboard</Link>
+
             {/* Budget Dropdown */}
-            <div className="dropdown-container">
-              <div className="nav-item dropdown-toggle" onClick={toggleBudgetDropdown}>
+            <div className="dropdown">
+              <button
+                className="dropdown-toggle"
+                onClick={toggleBudgetDropdown}
+                aria-haspopup="true"
+                aria-expanded={showBudgetDropdown}
+              >
                 Budget <ChevronDown size={14} />
-              </div>
+              </button>
               {showBudgetDropdown && (
                 <div className="dropdown-menu">
-                  {/* Budget Items */}
-                  <h4 className="dropdown-category">Budget</h4>
-                  <div 
-                    className="dropdown-item" 
-                    onClick={() => handleNavigate('/finance/budget-proposal')}
-                  >
+                  <div className="dropdown-header">Budget</div>
+                  <div className="dropdown-item" onClick={() => handleNavigate('/finance/budget-proposal')}>
                     Budget Proposal
                   </div>
-                 
-                  <div 
-                    className="dropdown-item active" 
-                    onClick={() => handleNavigate('/finance/proposal-history')}
-                  >
+                  <div className="dropdown-item active" onClick={() => handleNavigate('/finance/proposal-history')}>
                     Proposal History
                   </div>
-
-                  {/* Account Items */}
-                  <h4 className="dropdown-category">Account</h4>
-                  <div 
-                    className="dropdown-item" 
-                    onClick={() => handleNavigate('/finance/account-setup')}
-                  >
+                  <div className="dropdown-header">Account</div>
+                  <div className="dropdown-item" onClick={() => handleNavigate('/finance/account-setup')}>
                     Account Setup
                   </div>
-                  <div 
-                    className="dropdown-item" 
-                    onClick={() => handleNavigate('/finance/ledger-view')}
-                  >
+                  <div className="dropdown-item" onClick={() => handleNavigate('/finance/ledger-view')}>
                     Ledger View
                   </div>
-                  <div 
-                    className="dropdown-item" 
-                    onClick={() => handleNavigate('/finance/journal-entry')}
-                  >
+                  <div className="dropdown-item" onClick={() => handleNavigate('/finance/journal-entry')}>
                     Journal Entries
                   </div>
                 </div>
               )}
             </div>
-            
+
             {/* Expense Dropdown */}
-            <div className="dropdown-container">
-              <div className="nav-item dropdown-toggle" onClick={toggleExpenseDropdown}>
+            <div className="dropdown">
+              <button
+                className="dropdown-toggle"
+                onClick={toggleExpenseDropdown}
+                aria-haspopup="true"
+                aria-expanded={showExpenseDropdown}
+              >
                 Expense <ChevronDown size={14} />
-              </div>
+              </button>
               {showExpenseDropdown && (
                 <div className="dropdown-menu">
-                  <div 
-                    className="dropdown-item" 
-                    onClick={() => handleNavigate('/finance/expense-tracking')}
-                  >
+                  <div className="dropdown-item" onClick={() => handleNavigate('/finance/expense-tracking')}>
                     Expense Tracking
                   </div>
-                  <div 
-                    className="dropdown-item" 
-                    onClick={() => handleNavigate('/finance/expense-history')}
-                  >
+                  <div className="dropdown-item" onClick={() => handleNavigate('/finance/expense-history')}>
                     Expense History
                   </div>
                 </div>
               )}
             </div>
-            
-            {/* User Management - Simple Navigation Item */}
-            <div 
-              className="nav-item"
-              onClick={() => handleNavigate('/finance/user-management')}
-            >
+
+            {/* User Management */}
+            <div className="nav-link" onClick={() => handleNavigate('/finance/user-management')}>
               User Management
             </div>
           </nav>
@@ -240,8 +200,8 @@ const ProposalHistory = () => {
                   </td>
                   <td>
                     <span className={`status-badge ${proposal.status}`}>
-                      {proposal.status === 'approved' ? 'Approved' : 
-                       proposal.status === 'rejected' ? 'Rejected' : 'Pending'}
+                      {proposal.status === 'approved' ? 'Approved' :
+                        proposal.status === 'rejected' ? 'Rejected' : 'Pending'}
                     </span>
                   </td>
                 </tr>

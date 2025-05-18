@@ -1,16 +1,16 @@
 /* ProposalHistory.css */
 
-/* General Reset */
+/* Base styles */
 * {
   margin: 0;
   padding: 0;
   box-sizing: border-box;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
 }
 
 body {
-  font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-  background-color: #f9fafb;
-  color: #374151;
+  background-color: #f8f9fa;
+  color: #333;
   line-height: 1.5;
 }
 

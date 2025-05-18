@@ -159,7 +159,7 @@ function JournalEntry() {
           {/* Search and Filters Row */}
           <div className="actions-container">
             <div className="search-box">
-              <input type="text" placeholder="Search by project or budget" />
+              <input type="text" placeholder="Search by project or budget" className="search-input" />
               <button className="search-button">
                 <Search size={16} />
               </button>
@@ -181,7 +181,7 @@ function JournalEntry() {
                 
                 <div className="dropdown-filter">
                   <select className="filter-select">
-                    <option value="">Type</option>
+                    <option value="">Category</option>
                     <option value="expenses">Expenses</option>
                     <option value="assets">Assets</option>
                   </select>

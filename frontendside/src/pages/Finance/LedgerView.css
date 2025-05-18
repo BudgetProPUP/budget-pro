@@ -1,18 +1,234 @@
-/* LedgerView.css */
+/* LedgerView.css - Updated */
 
 .ledger-container {
   font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
-  max-width: 1200px;
-  margin: 20px auto;
-  padding: 20px;
+  max-width: 100%;
+  margin: 0 auto;
+  padding: 0;
 }
 
-/* Search and Filter Bar */
+/* Header and Navigation Styles */
+.dashboard-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 16px 24px;
+  background-color: white;
+  border-bottom: 1px solid #e2e8f0;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  width: 100%;
+}
+
+.header-left {
+  display: flex;
+  align-items: center;
+  gap: 40px;
+}
+
+.logo {
+  font-size: 18px;
+  font-weight: 700;
+  color: #0284c7;
+  margin: 0;
+  letter-spacing: 0.5px;
+}
+
+.main-nav {
+  display: flex;
+  align-items: center;
+  gap: 24px;
+}
+
+.nav-link {
+  font-size: 14px;
+  font-weight: 500;
+  color: #475569;
+  text-decoration: none;
+  cursor: pointer;
+  transition: color 0.2s ease;
+}
+
+.nav-link:hover, .nav-link.active {
+  color: #0284c7;
+}
+
+.dropdown {
+  position: relative;
+}
+
+.dropdown-toggle {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 14px;
+  font-weight: 500;
+  color: #475569;
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 4px 0;
+  transition: color 0.2s ease;
+}
+
+.dropdown-toggle:hover {
+  color: #0284c7;
+}
+
+.dropdown-menu {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  min-width: 200px;
+  background-color: white;
+  border-radius: 8px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  padding: 8px 0;
+  z-index: 100;
+  margin-top: 8px;
+}
+
+.dropdown-header {
+  font-size: 12px;
+  font-weight: 600;
+  color: #94a3b8;
+  padding: 8px 16px;
+  margin-top: 4px;
+}
+
+.dropdown-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 14px;
+  color: #475569;
+  padding: 8px 16px;
+  cursor: pointer;
+  transition: background-color 0.2s ease;
+}
+
+.dropdown-item:hover {
+  background-color: #f1f5f9;
+}
+
+.header-datetime {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+}
+
+.formatted-date, .formatted-time {
+  font-size: 12px;
+  color: #64748b;
+}
+
+.formatted-time {
+  font-weight: 600;
+}
+
+.user-profile {
+  position: relative;
+}
+
+.avatar-button {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  cursor: pointer;
+  background: none;
+  border: none;
+  padding: 0;
+  overflow: hidden;
+}
+
+.avatar-button img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.profile-dropdown {
+  right: 0;
+  left: auto;
+}
+
+.icon {
+  display: inline-block;
+  vertical-align: middle;
+  margin-right: 4px;
+}
+
+/* Mobile menu styles */
+.mobile-menu-button {
+  display: none;
+  flex-direction: column;
+  justify-content: space-between;
+  width: 24px;
+  height: 20px;
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 0;
+}
+
+.menu-icon {
+  width: 100%;
+  height: 2px;
+  background-color: #475569;
+  transition: transform 0.3s ease;
+}
+
+/* Media queries for responsive design */
+@media (max-width: 1024px) {
+  .header-datetime {
+    display: none;
+  }
+}
+
+@media (max-width: 768px) {
+  .mobile-menu-button {
+    display: flex;
+  }
+  
+  .main-nav {
+    display: none;
+    position: absolute;
+    top: 100%;
+    left: 0;
+    right: 0;
+    background-color: white;
+    flex-direction: column;
+    align-items: flex-start;
+    padding: 16px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+    gap: 16px;
+  }
+  
+  .main-nav.mobile-open {
+    display: flex;
+  }
+  
+  .dropdown-menu {
+    position: static;
+    box-shadow: none;
+    width: 100%;
+    margin-top: 8px;
+    padding: 0;
+    border-left: 2px solid #e2e8f0;
+  }
+}
+
+/* Search and Filter Bar - updated styles */
 .search-filter-container {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 20px;
+  margin: 20px 24px;
+  flex-wrap: wrap;
+  gap: 16px;
 }
 
 .search-bar {
@@ -44,33 +260,101 @@
   justify-content: center;
 }
 
-.filter-options {
+/* New filter group container */
+.filter-group-container {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 12px;
+  flex-wrap: wrap;
 }
 
-.filter-button {
+.filter-button-container {
+  display: flex;
+  align-items: center;
+}
+
+/* Filter button styles */
+.filter-btn {
   display: flex;
   align-items: center;
   gap: 8px;
+  background-color: #f8fafc;
+  color: #0f172a;
+  border: 1px solid #e2e8f0;
+  border-radius: 24px;
+  padding: 8px 16px;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.filter-btn:hover {
+  background-color: #f1f5f9;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+}
+
+.blue-btn {
   background-color: #0284c7;
   color: white;
   border: none;
-  border-radius: 24px;
-  padding: 8px 16px;
-  font-size: 14px;
-  cursor: pointer;
 }
 
-.category-dropdown select {
-  padding: 8px 16px;
-  border: 1px solid #e2e8f0;
-  border-radius: 24px;
+.blue-btn:hover {
+  background-color: #0369a1;
+}
+
+.filter-icon {
+  color: white;
+}
+
+.category-btn, .transaction-btn {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+/* Filter dropdown styles */
+.filter-dropdown {
+  position: relative;
+}
+
+.filter-dropdown-menu {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  min-width: 220px;
   background-color: white;
+  border-radius: 8px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  padding: 8px 0;
+  z-index: 100;
+  margin-top: 8px;
+  display: none;
+}
+
+.filter-dropdown-menu.open {
+  display: block;
+}
+
+.filter-option {
+  display: flex;
+  align-items: center;
+  gap: 8px;
   font-size: 14px;
-  outline: none;
+  color: #475569;
+  padding: 8px 16px;
   cursor: pointer;
+  transition: background-color 0.2s ease;
+}
+
+.filter-option:hover {
+  background-color: #f1f5f9;
+}
+
+.filter-option.selected {
+  color: #0284c7;
+  font-weight: 500;
 }
 
 .export-button {
@@ -82,14 +366,55 @@
   font-size: 14px;
   cursor: pointer;
   font-weight: 500;
+  transition: background-color 0.2s ease;
 }
 
-/* Ledger View */
+.export-button:hover {
+  background-color: #0369a1;
+}
+
+/* Active filter indicator */
+.active-filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 0 24px 16px;
+}
+
+.filter-tag {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background-color: #e0f2fe;
+  color: #0284c7;
+  border-radius: 16px;
+  padding: 4px 12px;
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+}
+
+.filter-tag-remove {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  height: 16px;
+  background-color: #0284c7;
+  color: white;
+  border-radius: 50%;
+  font-size: 10px;
+  cursor: pointer;
+}
+
+/* Ledger View - expanded full width */
 .ledger-view-container {
   background-color: white;
   border-radius: 16px;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
   padding: 20px;
+  margin: 0 24px 24px;
+  width: calc(100% - 48px);
 }
 
 .ledger-view-container h2 {
@@ -144,6 +469,14 @@
   background-color: #f8fafc;
 }
 
+/* No results styling */
+.no-results {
+  padding: 32px 16px;
+  text-align: center;
+  color: #64748b;
+  font-size: 14px;
+}
+
 /* Pagination */
 .pagination {
   display: flex;
@@ -159,6 +492,11 @@
   color: #0284c7;
   cursor: pointer;
   font-size: 14px;
+  transition: color 0.2s ease;
+}
+
+.pagination-button:hover:not(:disabled) {
+  color: #0369a1;
 }
 
 .pagination-button:disabled {
@@ -176,4 +514,35 @@
   color: white;
   border-radius: 50%;
   font-size: 14px;
+}
+
+/* Additional responsive adjustments */
+@media (max-width: 580px) {
+  .search-filter-container {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  
+  .search-bar {
+    flex: 1 0 auto;
+  }
+  
+  .filter-group-container {
+    width: 100%;
+    justify-content: space-between;
+    margin-top: 12px;
+  }
+  
+  .export-button {
+    width: 100%;
+    margin-top: 12px;
+  }
+  
+  .ledger-header, .ledger-row {
+    font-size: 12px;
+  }
+  
+  .header-cell, .cell {
+    padding: 12px 8px;
+  }
 }

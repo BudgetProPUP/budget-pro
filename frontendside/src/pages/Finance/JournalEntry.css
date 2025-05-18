@@ -10,6 +10,7 @@
 .journal-container {
   background-color: #f9fafb;
   min-height: 100vh;
+  width: 100%;
   display: flex;
   flex-direction: column;
 }
@@ -23,6 +24,7 @@
   background-color: #ffffff;
   border-bottom: 1px solid #e5e7eb;
   height: 64px;
+  width: 100%;
 }
 
 .header-left {
@@ -124,10 +126,11 @@
 .main-content {
   padding: 24px 40px;
   flex-grow: 1;
+  width: 100%;
 }
 
 .journal-interface {
-  max-width: 1200px;
+  width: 100%;
   margin: 0 auto;
 }
 
@@ -137,6 +140,7 @@
   justify-content: space-between;
   align-items: center;
   margin-bottom: 24px;
+  width: 100%;
 }
 
 .search-box {
@@ -149,16 +153,17 @@
   width: 320px;
 }
 
-.search-box input {
+.search-input {
   border: none;
   padding: 10px 0;
   width: 100%;
   outline: none;
   font-size: 14px;
-  color: #ffffff;
+  color: #000000; /* Changed to black */
+  background-color: transparent;
 }
 
-.search-box input::placeholder {
+.search-input::placeholder {
   color: #9ca3af;
 }
 
@@ -231,6 +236,7 @@
   border-radius: 12px;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
   overflow: hidden;
+  width: 100%;
 }
 
 .journal-header {
@@ -245,17 +251,6 @@
   font-size: 18px;
   font-weight: 500;
   color: #4b5563;
-}
-
-.code-icon {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 32px;
-  height: 32px;
-  border-radius: 6px;
-  background-color: #ecfdf5;
-  color: #10b981;
 }
 
 /* Table styling - updated to match the design */
@@ -374,34 +369,6 @@
 
 .modal-actions {
   margin-top: 24px;
-}
-
-.modal-row {
-  margin-bottom: 16px;
-}
-
-.row-display {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-}
-
-.row-label {
-  font-size: 14px;
-  font-weight: 500;
-  color: #4b5563;
-  min-width: 40px;
-}
-
-.row-option-box {
-  background-color: #ffffff;
-  border: 1px solid #d1d5db;
-  border-radius: 6px;
-  padding: 8px 16px;
-  font-size: 14px;
-  color: #4b5563;
-  text-align: center;
-  flex: 1;
 }
 
 .button-row {

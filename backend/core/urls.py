@@ -3,7 +3,7 @@ from rest_framework_simplejwt.views import TokenRefreshView
 from rest_framework.routers import DefaultRouter
 from .views_usermanagement import UserManagementViewSet, DepartmentViewSet
 from . import views_expense, views_dashboard #,TokenObtainPairView
-
+from .views_dashboard import MonthlyBudgetActualViewSet
 from .views import (
     LoginView,
     LogoutView,
@@ -17,9 +17,11 @@ from .views_password_reset import (
     PasswordChangeView
 )
 
+
 user_management_router = DefaultRouter()
 user_management_router.register(r'users', UserManagementViewSet, basename='user-management')
 user_management_router.register(r'departments', DepartmentViewSet, basename='department')
+user_management_router.register(r'monthly-budget-actual', MonthlyBudgetActualViewSet, basename='monthly-budget-actual')
 
 
 urlpatterns = [
@@ -46,4 +48,7 @@ urlpatterns = [
     
     # API endpoints for dashboard elements
     path('department-budget/', views_dashboard.DepartmentBudgetView.as_view(), name='department-budget'),
+    path('dashboard/project/', views_dashboard.get_project_status_list, name='project-table'),
+    path('dashboard/budget-summary/', views_dashboard.get_dashboard_budget_summary, name='dashboard-budget-summary'),
+    path('dashboard/department-actual/', views_dashboard.get_department_budget_status, name='dashboard-budget-summary'),
 ]

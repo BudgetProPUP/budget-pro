@@ -13,7 +13,7 @@ class Department(models.Model):
     is_active = models.BooleanField(default=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
-
+    
     def get_budget_summary(self, fiscal_year):
         """Get budget vs actual summary for this department"""
         allocations = BudgetAllocation.objects.filter(
@@ -21,29 +21,29 @@ class Department(models.Model):
             fiscal_year=fiscal_year,
             is_active=True
         )
-
-        total_budget = allocations.aggregate(
-            total=models.Sum('amount'))['total'] or 0
-
+        
+        total_budget = allocations.aggregate(total=models.Sum('amount'))['total'] or 0
+        
         # Get all approved expenses for these allocations
         expenses = Expense.objects.filter(
             budget_allocation__in=allocations,
             status='APPROVED'
         )
-
-        total_spent = expenses.aggregate(
-            total=models.Sum('amount'))['total'] or 0
-
+        
+        total_spent = expenses.aggregate(total=models.Sum('amount'))['total'] or 0
+        
         return {
             'total_budget': total_budget,
             'total_spent': total_spent,
             'remaining': total_budget - total_spent,
             'percentage_used': (total_spent / total_budget * 100) if total_budget > 0 else 0
         }
-
+        
+        
+    
     def __str__(self):
         return self.name
-
+    
 
 class AccountType(models.Model):
     name = models.CharField(max_length=100)
@@ -84,10 +84,8 @@ class User(AbstractBaseUser, PermissionsMixin):
     first_name = models.CharField(max_length=100)
     last_name = models.CharField(max_length=100)
     role = models.CharField(max_length=20, choices=ROLE_CHOICES)
-    department = models.ForeignKey(
-        Department, on_delete=models.SET_NULL, null=True, blank=True)
-    phone_number = models.CharField(
-        max_length=20, unique=True, null=True, blank=True)
+    department = models.ForeignKey(Department, on_delete=models.SET_NULL, null=True, blank=True)
+    phone_number = models.CharField(max_length=20, unique=True, null=True, blank=True)
 
     is_active = models.BooleanField(default=True)
     is_staff = models.BooleanField(default=False)
@@ -95,6 +93,8 @@ class User(AbstractBaseUser, PermissionsMixin):
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
     last_login = models.DateTimeField(null=True, blank=True)
+    
+    
 
     objects = CustomUserManager()
 
@@ -108,9 +108,9 @@ class User(AbstractBaseUser, PermissionsMixin):
         return f"{self.first_name} {self.last_name}"
 
 
+
 class LoginAttempt(models.Model):
-    user = models.ForeignKey(
-        User, on_delete=models.CASCADE, null=True, blank=True)
+    user = models.ForeignKey(User, on_delete=models.CASCADE, null=True, blank=True)
     ip_address = models.GenericIPAddressField()
     user_agent = models.CharField(max_length=255)
     success = models.BooleanField()
@@ -127,8 +127,8 @@ class Account(models.Model):
     name = models.CharField(max_length=100)
     description = models.TextField(blank=True)
     account_type = models.ForeignKey(AccountType, on_delete=models.PROTECT)
-    parent_account = models.ForeignKey('self', on_delete=models.SET_NULL, null=True, blank=True,
-                                       related_name='child_accounts')
+    parent_account = models.ForeignKey('self', on_delete=models.SET_NULL, null=True, blank=True, 
+                                      related_name='child_accounts')
     created_by = models.ForeignKey(User, on_delete=models.PROTECT)
     is_active = models.BooleanField(default=True)
     created_at = models.DateTimeField(auto_now_add=True)
@@ -165,65 +165,58 @@ class BudgetProposal(models.Model):
         ('APPROVED', 'Approved'),
         ('REJECTED', 'Rejected'),
     ]
-
+    
     SYNC_STATUS_CHOICES = [
-        ('SYNCED', 'Synced'),
-        ('FAILED', 'Failed'),
-        ('PENDING', 'Pending'),
-        ('RETRYING', 'Retrying'),
+    ('SYNCED', 'Synced'),
+    ('FAILED', 'Failed'),
+    ('PENDING', 'Pending'),
+    ('RETRYING', 'Retrying'),
     ]
-
+    
+   
     title = models.CharField(max_length=200)
     project_summary = models.TextField()
     project_description = models.TextField()
     department = models.ForeignKey(Department, on_delete=models.PROTECT)
     fiscal_year = models.ForeignKey(FiscalYear, on_delete=models.PROTECT)
     submitted_by = models.ForeignKey(User, on_delete=models.PROTECT)
-    status = models.CharField(
-        max_length=20, choices=STATUS_CHOICES, default='DRAFT')
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='DRAFT')
     performance_start_date = models.DateField()
     performance_end_date = models.DateField()
     submitted_at = models.DateTimeField(null=True, blank=True)
     last_modified = models.DateTimeField(auto_now=True)
     is_deleted = models.BooleanField(default=False)
-    approved_by = models.ForeignKey(
-        User, on_delete=models.PROTECT, null=True, blank=True, related_name='approved_proposals')
+    approved_by = models.ForeignKey(User, on_delete=models.PROTECT, null=True, blank=True, related_name='approved_proposals')
     approval_date = models.DateTimeField(null=True, blank=True)
-    rejected_by = models.ForeignKey(
-        User, on_delete=models.PROTECT, null=True, blank=True, related_name='rejected_proposals')
+    rejected_by = models.ForeignKey(User, on_delete=models.PROTECT, null=True, blank=True, related_name='rejected_proposals')
     rejection_date = models.DateTimeField(null=True, blank=True)
-
-    external_system_id = models.CharField(
-        max_length=100, unique=True, help_text="ID reference from the external help desk system")
-    last_sync_timestamp = models.DateTimeField(
-        null=True, blank=True, help_text="When this proposal was last synced with the external system")
+    
+    
+    external_system_id = models.CharField(max_length=100, unique=True, help_text="ID reference from the external help desk system")
+    last_sync_timestamp = models.DateTimeField(null=True, blank=True, help_text="When this proposal was last synced with the external system")
     sync_status = models.CharField(
         max_length=50,
         choices=SYNC_STATUS_CHOICES,
         default='PENDING',  # Default to "Pending" until first sync
     )
-
+    
     def __str__(self):
         return self.title
 
     class Meta:
-        default_permissions = ('change', 'view')
         constraints = [
             models.CheckConstraint(
-                check=models.Q(performance_end_date__gt=models.F(
-                    'performance_start_date')),
+                check=models.Q(performance_end_date__gt=models.F('performance_start_date')),
                 name='check_performance_end_date_after_start_date'
             )
         ]
 
 
 class BudgetProposalItem(models.Model):
-    proposal = models.ForeignKey(
-        BudgetProposal, on_delete=models.CASCADE, related_name='items')
+    proposal = models.ForeignKey(BudgetProposal, on_delete=models.CASCADE, related_name='items')
     cost_element = models.CharField(max_length=100)
     description = models.TextField()
-    estimated_cost = models.DecimalField(
-        max_digits=15, decimal_places=2, validators=[MinValueValidator(0)])
+    estimated_cost = models.DecimalField(max_digits=15, decimal_places=2, validators=[MinValueValidator(0)])
     account = models.ForeignKey(Account, on_delete=models.PROTECT)
     notes = models.TextField(blank=True)
 
@@ -233,31 +226,10 @@ class BudgetProposalItem(models.Model):
 
 class BudgetAllocation(models.Model):
     fiscal_year = models.ForeignKey(FiscalYear, on_delete=models.PROTECT)
-    department = models.ForeignKey(
-        'Department',
-        on_delete=models.PROTECT,
-        related_name='allocations',
-        help_text='The department receiving this budget allocation.'
-    )
-    account = models.ForeignKey(
-        'ChartOfAccount',
-        on_delete=models.PROTECT,
-        related_name='allocations',
-        help_text='The chart‐of‐account entry this allocation funds.'
-    )
-    proposal = models.ForeignKey(
-        'BudgetProposal',
-        on_delete=models.SET_NULL,
-        null=True, blank=True,
-        related_name='allocations',
-        help_text=(
-            'Optional link back to the originating proposal '
-            '(if this allocation was approved from one).'
-        )
-    )
+    department = models.ForeignKey(Department, on_delete=models.PROTECT)
+    account = models.ForeignKey(Account, on_delete=models.PROTECT)
     created_by = models.ForeignKey(User, on_delete=models.PROTECT)
-    amount = models.DecimalField(
-        max_digits=15, decimal_places=2, validators=[MinValueValidator(0)])
+    amount = models.DecimalField(max_digits=15, decimal_places=2, validators=[MinValueValidator(0)])
     is_active = models.BooleanField(default=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
@@ -272,22 +244,23 @@ class BudgetAllocation(models.Model):
                 name='unique_budget_allocation'
             )
         ]
-
+        
+    
     def get_total_expenses(self):
         """Calculate total approved expenses for this allocation"""
         return self.expense_set.filter(status='APPROVED').aggregate(
             total=models.Sum('amount'))['total'] or 0
-
+    
     def get_remaining_budget(self):
         """Calculate remaining available budget"""
         return self.amount - self.get_total_expenses()
-
+    
     def get_usage_percentage(self):
         """Calculate percentage of budget used"""
         if self.amount == 0:
             return 0
         return (self.get_total_expenses() / self.amount) * 100
-
+    
     def get_monthly_expenses(self, year, month):
         """Get expenses for a specific month"""
         return self.expense_set.filter(
@@ -305,47 +278,42 @@ class BudgetTransfer(models.Model):
     ]
 
     fiscal_year = models.ForeignKey(FiscalYear, on_delete=models.PROTECT)
-    source_allocation = models.ForeignKey(
-        BudgetAllocation, on_delete=models.PROTECT, related_name='transfers_from')
-    destination_allocation = models.ForeignKey(
-        BudgetAllocation, on_delete=models.PROTECT, related_name='transfers_to')
+    source_allocation = models.ForeignKey(BudgetAllocation, on_delete=models.PROTECT, related_name='transfers_from')
+    destination_allocation = models.ForeignKey(BudgetAllocation, on_delete=models.PROTECT, related_name='transfers_to')
     transferred_by = models.ForeignKey(User, on_delete=models.PROTECT)
-    amount = models.DecimalField(
-        max_digits=15, decimal_places=2, validators=[MinValueValidator(0)])
+    amount = models.DecimalField(max_digits=15, decimal_places=2, validators=[MinValueValidator(0)])
     reason = models.TextField()
     transferred_at = models.DateTimeField(auto_now_add=True)
-    status = models.CharField(
-        max_length=20, choices=STATUS_CHOICES, default='PENDING')
-    approved_by = models.ForeignKey(
-        User, on_delete=models.PROTECT, null=True, blank=True, related_name='approved_transfers')
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='PENDING')
+    approved_by = models.ForeignKey(User, on_delete=models.PROTECT, null=True, blank=True, related_name='approved_transfers')
     approval_date = models.DateTimeField(null=True, blank=True)
-    rejected_by = models.ForeignKey(
-        User, on_delete=models.PROTECT, null=True, blank=True, related_name='rejected_transfers')
+    rejected_by = models.ForeignKey(User, on_delete=models.PROTECT, null=True, blank=True, related_name='rejected_transfers')
     rejection_date = models.DateTimeField(null=True, blank=True)
 
     def __str__(self):
         return f"Transfer of {self.amount} from {self.source_allocation.department.name} to {self.destination_allocation.department.name}"
-
+    
     def validate_sufficient_funds(self):
         # Get total allocated
         allocated = self.source_allocation.amount
-
+        
         # Get total spent
         expenses = Expense.objects.filter(
             budget_allocation=self.source_allocation,
             status='APPROVED'
         ).aggregate(total=models.Sum('amount'))['total'] or 0
-
+        
         # Get already transferred amount
         transferred = BudgetTransfer.objects.filter(
             source_allocation=self.source_allocation,
             status='APPROVED'
         ).aggregate(total=models.Sum('amount'))['total'] or 0
-
+        
         # Calculate available
         available = allocated - expenses - transferred
-
+        
         return available >= self.amount
+
 
 
 class JournalEntry(models.Model):
@@ -363,10 +331,8 @@ class JournalEntry(models.Model):
     ])
     description = models.TextField()
     date = models.DateField()
-    total_amount = models.DecimalField(
-        max_digits=15, decimal_places=2, validators=[MinValueValidator(0)])
-    status = models.CharField(
-        max_length=20, choices=STATUS_CHOICES, default='DRAFT')
+    total_amount = models.DecimalField(max_digits=15, decimal_places=2, validators=[MinValueValidator(0)])
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='DRAFT')
     created_by = models.ForeignKey(User, on_delete=models.PROTECT)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
@@ -378,8 +344,7 @@ class JournalEntry(models.Model):
         if not self.entry_id:
             # Generate a unique entry ID format
             year = self.date.year
-            last_entry = JournalEntry.objects.filter(
-                entry_id__startswith=f'JE-{year}-').order_by('-entry_id').first()
+            last_entry = JournalEntry.objects.filter(entry_id__startswith=f'JE-{year}-').order_by('-entry_id').first()
             if last_entry:
                 last_number = int(last_entry.entry_id.split('-')[-1])
                 new_number = last_number + 1
@@ -394,52 +359,47 @@ class JournalEntryLine(models.Model):
         ('DEBIT', 'Debit'),
         ('CREDIT', 'Credit'),
     ]
-
+    
     JOURNAL_TRANSACTION_TYPES = [
         ('CAPITAL_EXPENDITURE', 'Capital Expenditure'),
         ('OPERATIONAL_EXPENDITURE', 'Operational Expenditure'),
         ('TRANSFER', 'Transfer'),
     ]
 
-    journal_entry = models.ForeignKey(
-        JournalEntry, on_delete=models.CASCADE, related_name='lines')
+    journal_entry = models.ForeignKey(JournalEntry, on_delete=models.CASCADE, related_name='lines')
     account = models.ForeignKey(Account, on_delete=models.PROTECT)
     description = models.TextField()
-    transaction_type = models.CharField(
-        max_length=10, choices=TRANSACTION_TYPE_CHOICES)
-    journal_transaction_type = models.CharField(
-        max_length=30, choices=JOURNAL_TRANSACTION_TYPES)
-    amount = models.DecimalField(
-        max_digits=15, decimal_places=2, validators=[MinValueValidator(0)])
+    transaction_type = models.CharField(max_length=10, choices=TRANSACTION_TYPE_CHOICES)
+    journal_transaction_type = models.CharField(max_length=30, choices=JOURNAL_TRANSACTION_TYPES)
+    amount = models.DecimalField(max_digits=15, decimal_places=2, validators=[MinValueValidator(0)])
 
     def __str__(self):
         return f"{self.transaction_type} {self.amount} to {self.account.name}"
-
 
 class ExpenseCategory(models.Model):
     code = models.CharField(max_length=20, unique=True)
     name = models.CharField(max_length=100)
     description = models.TextField(blank=True)
-    parent_category = models.ForeignKey('self', on_delete=models.SET_NULL,
-                                        null=True, blank=True, related_name='subcategories')
-    level = models.IntegerField(
-        validators=[MinValueValidator(1), MaxValueValidator(3)])
+    parent_category = models.ForeignKey('self', on_delete=models.SET_NULL, 
+                                       null=True, blank=True, related_name='subcategories')
+    level = models.IntegerField(validators=[MinValueValidator(1), MaxValueValidator(3)])
     is_active = models.BooleanField(default=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
-
+    
     def __str__(self):
         return self.name
-
+    
+    
     @classmethod
     def get_top_category_with_percentage(cls, fiscal_year=None, department=None):
         """
         Get the top expense category with amount and percentage of total expenses.
-
+        
         Parameters:
         - fiscal_year: Optional FiscalYear to filter expenses by fiscal year
         - department: Optional Department to filter expenses by department
-
+        
         Returns:
         {
             'category': ExpenseCategory instance,
@@ -448,48 +408,48 @@ class ExpenseCategory(models.Model):
         }
         """
         from django.db.models import Sum, F
-
+        
         # Base query for approved expenses
         expenses_query = Expense.objects.filter(status='APPROVED')
-
+        
         # Apply optional filters
         if fiscal_year:
             expenses_query = expenses_query.filter(
                 budget_allocation__fiscal_year=fiscal_year
             )
-
+        
         if department:
             expenses_query = expenses_query.filter(department=department)
-
+        
         # Get total approved expenses
         total_expenses = expenses_query.aggregate(
             total=Sum('amount')
         )['total'] or 0
-
+        
         if total_expenses == 0:
             return None
-
+        
         # Group by category, sum amounts, and order by highest amount
         categories = expenses_query.values(
             'category', 'category__name'
         ).annotate(
             total_amount=Sum('amount')
         ).order_by('-total_amount')
-
+        
         if not categories:
             return None
-
+        
         # Get the top category
         top_category = categories[0]
         category_obj = cls.objects.get(pk=top_category['category'])
-
+        
         return {
             'category': category_obj,
             'amount': top_category['total_amount'],
             'percentage': (top_category['total_amount'] / total_expenses) * 100
         }
-
-
+    
+    
 class Expense(models.Model):
     STATUS_CHOICES = [
         ('DRAFT', 'Draft'),
@@ -497,68 +457,55 @@ class Expense(models.Model):
         ('APPROVED', 'Approved'),
         ('REJECTED', 'Rejected'),
     ]
-    project = models.ForeignKey(
-        'Project',
-        on_delete=models.PROTECT,
-        null=True, blank=True,
-        related_name='expenses',
-        help_text='If this expense is specific to a project, link it here.'
-    )
-    transaction_id = models.CharField(
-        max_length=50, unique=True, editable=False)
+    transaction_id = models.CharField(max_length=50, unique=True, editable=False)
     date = models.DateField()
-    amount = models.DecimalField(
-        max_digits=15, decimal_places=2, validators=[MinValueValidator(0)])
+    amount = models.DecimalField(max_digits=15, decimal_places=2, validators=[MinValueValidator(0)])
     description = models.TextField()
     vendor = models.CharField(max_length=200)
     notes = models.TextField(blank=True)
     receipt = models.FileField(upload_to='receipts/', null=True, blank=True)
     account = models.ForeignKey(Account, on_delete=models.PROTECT)
     department = models.ForeignKey(Department, on_delete=models.PROTECT)
-    budget_allocation = models.ForeignKey(
-        BudgetAllocation, on_delete=models.PROTECT)
-    submitted_by = models.ForeignKey(
-        User, on_delete=models.PROTECT, related_name='submitted_expenses')
-    approved_by = models.ForeignKey(
-        User, on_delete=models.PROTECT, null=True, blank=True, related_name='approved_expenses')
+    budget_allocation = models.ForeignKey(BudgetAllocation, on_delete=models.PROTECT)
+    submitted_by = models.ForeignKey(User, on_delete=models.PROTECT, related_name='submitted_expenses')
+    approved_by = models.ForeignKey(User, on_delete=models.PROTECT, null=True, blank=True, related_name='approved_expenses')
     submitted_at = models.DateTimeField(auto_now_add=True)
     posting_date = models.DateField(null=True, blank=True)
     approved_at = models.DateTimeField(null=True, blank=True)
-    status = models.CharField(
-        max_length=20, choices=STATUS_CHOICES, default='DRAFT')
-    category = models.ForeignKey(ExpenseCategory, on_delete=models.PROTECT,
-                                 related_name='expenses')
-
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='DRAFT')
+    category = models.ForeignKey(ExpenseCategory, on_delete=models.PROTECT, 
+                                related_name='expenses')
+    
     def __str__(self):
         return f"{self.description} - {self.date}"
-
+    
     def clean(self):
         super().clean()
         # Skip validation for non-approved expenses
         if self.status != 'APPROVED':
             return
-
+            
         # Check if this expense would exceed the budget allocation
         allocated = self.budget_allocation.amount
         spent = Expense.objects.filter(
             budget_allocation=self.budget_allocation,
             status='APPROVED'
         ).exclude(pk=self.pk).aggregate(total=models.Sum('amount'))['total'] or 0
-
+        
         if spent + self.amount > allocated:
             raise ValidationError({
                 'amount': f"This expense of {self.amount} would exceed the remaining budget of {allocated - spent}."
             })
-
+            
     @classmethod
     def get_top_category_with_percentage(cls, fiscal_year=None, department=None):
         """
         Get the top expense category with amount and percentage of total expenses.
-
+        
         Parameters:
         - fiscal_year: Optional FiscalYear to filter expenses by fiscal year
         - department: Optional Department to filter expenses by department
-
+        
         Returns:
         {
             'category': ExpenseCategory instance,
@@ -567,48 +514,50 @@ class Expense(models.Model):
         }
         """
         from django.db.models import Sum, F
-
+        
         # Base query for approved expenses
         expenses_query = Expense.objects.filter(status='APPROVED')
-
+        
         # Apply optional filters
         if fiscal_year:
             expenses_query = expenses_query.filter(
                 budget_allocation__fiscal_year=fiscal_year
             )
-
+        
         if department:
             expenses_query = expenses_query.filter(department=department)
-
+        
         # Get total approved expenses
         total_expenses = expenses_query.aggregate(
             total=Sum('amount')
         )['total'] or 0
-
+        
         if total_expenses == 0:
             return None
-
+        
         # Group by category, sum amounts, and order by highest amount
         categories = expenses_query.values(
             'category', 'category__name'
         ).annotate(
             total_amount=Sum('amount')
         ).order_by('-total_amount')
-
+        
         if not categories:
             return None
-
+        
         # Get the top category
         top_category = categories[0]
         category_obj = cls.objects.get(pk=top_category['category'])
-
+        
         return {
             'category': category_obj,
             'amount': top_category['total_amount'],
             'percentage': (top_category['total_amount'] / total_expenses) * 100
         }
 
+    
 
+    
 class Document(models.Model):
     DOCUMENT_TYPES = [
         ('RECEIPT', 'Receipt'),
@@ -616,30 +565,22 @@ class Document(models.Model):
         ('CONTRACT', 'Contract'),
         ('OTHER', 'Other'),
     ]
-    project = models.ForeignKey(
-        'Project',
-        on_delete=models.CASCADE,
-        null=True, blank=True,
-        related_name='documents',
-        help_text='Optional link for project-specific docs.'
-    )
+    
     file = models.FileField(upload_to='documents/')
     document_type = models.CharField(max_length=20, choices=DOCUMENT_TYPES)
     name = models.CharField(max_length=255)
     uploaded_by = models.ForeignKey(User, on_delete=models.PROTECT)
     uploaded_at = models.DateTimeField(auto_now_add=True)
-    department = models.ForeignKey(
-        Department, on_delete=models.SET_NULL, null=True, blank=True)
-    proposal = models.ForeignKey(BudgetProposal, on_delete=models.CASCADE,
-                                 null=True, blank=True, related_name='documents')
-    expense = models.ForeignKey(Expense, on_delete=models.CASCADE,
+    department = models.ForeignKey(Department, on_delete=models.SET_NULL, null=True, blank=True)
+    proposal = models.ForeignKey(BudgetProposal, on_delete=models.CASCADE, 
                                 null=True, blank=True, related_name='documents')
+    expense = models.ForeignKey(Expense, on_delete=models.CASCADE, 
+                               null=True, blank=True, related_name='documents')
     metadata = models.JSONField(blank=True, null=True)
-
+    
     def __str__(self):
         return self.name
-
-
+   
 class ProposalHistory(models.Model):
     ACTION_CHOICES = [
         ('CREATED', 'Created'),
@@ -650,8 +591,7 @@ class ProposalHistory(models.Model):
         ('UPDATED', 'Updated'),
     ]
 
-    proposal = models.ForeignKey(
-        BudgetProposal, on_delete=models.CASCADE, related_name='history')
+    proposal = models.ForeignKey(BudgetProposal, on_delete=models.CASCADE, related_name='history')
     action = models.CharField(max_length=20, choices=ACTION_CHOICES)
     action_by = models.ForeignKey(User, on_delete=models.PROTECT)
     action_at = models.DateTimeField(auto_now_add=True)
@@ -668,8 +608,7 @@ class ProposalHistory(models.Model):
 
 
 class ProposalComment(models.Model):
-    proposal = models.ForeignKey(
-        BudgetProposal, on_delete=models.CASCADE, related_name='comments')
+    proposal = models.ForeignKey(BudgetProposal, on_delete=models.CASCADE, related_name='comments')
     user = models.ForeignKey(User, on_delete=models.PROTECT)
     comment = models.TextField()
     created_at = models.DateTimeField(auto_now_add=True)
@@ -693,8 +632,7 @@ class TransactionAudit(models.Model):
         ('REJECTED', 'Rejected'),
     ]
 
-    transaction_type = models.CharField(
-        max_length=20, choices=TRANSACTION_TYPE_CHOICES)
+    transaction_type = models.CharField(max_length=20, choices=TRANSACTION_TYPE_CHOICES)
     transaction_id = models.IntegerField()
     user = models.ForeignKey(User, on_delete=models.PROTECT)
     action = models.CharField(max_length=20, choices=ACTION_CHOICES)
@@ -703,23 +641,23 @@ class TransactionAudit(models.Model):
 
     def __str__(self):
         return f"{self.transaction_type} {self.transaction_id} {self.action} by {self.user.username}"
-
+    
     @receiver(post_save, sender=Expense)
     def expense_audit_log(sender, instance, created, **kwargs):
         """Create audit entry when expense is created or updated"""
         action = 'CREATED' if created else 'UPDATED'
-
+        
         # Get the user from the current request if available
         user = None
         if hasattr(instance, 'submitted_by'):
             user = instance.submitted_by
         elif hasattr(instance, 'approved_by') and instance.approved_by:
             user = instance.approved_by
-
+        
         if not user:
             # If we can't determine the user, we can't create the audit
             return
-
+            
         # Create transaction audit record
         TransactionAudit.objects.create(
             transaction_type='EXPENSE',
@@ -744,22 +682,15 @@ class Project(models.Model):
         ('COMPLETED', 'Completed'),
         ('CANCELLED', 'Cancelled'),
     ]
-    fiscal_years = models.ManyToManyField(
-        'FiscalYear',
-        through='ProjectFiscalYear',
-        related_name='projects'
-    )  # Allow to query project.fiscal_years.all()
+
     name = models.CharField(max_length=200)
     description = models.TextField()
     start_date = models.DateField()
     end_date = models.DateField()
     department = models.ForeignKey(Department, on_delete=models.PROTECT)
-    budget_proposal = models.ForeignKey(
-        BudgetProposal, on_delete=models.PROTECT)
-    status = models.CharField(
-        max_length=20, choices=STATUS_CHOICES, default='PLANNING')
-    completion_percentage = models.IntegerField(
-        default=0, validators=[MinValueValidator(0), MaxValueValidator(100)])
+    budget_proposal = models.ForeignKey(BudgetProposal, on_delete=models.PROTECT)
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='PLANNING')
+    completion_percentage = models.IntegerField(default=0, validators=[MinValueValidator(0), MaxValueValidator(100)])
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
@@ -780,40 +711,27 @@ class Project(models.Model):
     #     milestones = self.milestones.all()
     #     if not milestones.exists():
     #         return 0
-
+        
     #     total_milestones = milestones.count()
     #     completed_weight = sum(m.completion_percentage for m in milestones)
     #     return completed_weight / total_milestones
-
-
-class ProjectFiscalYear(models.Model):
-    project = models.ForeignKey('Project', on_delete=models.CASCADE)
-    fiscal_year = models.ForeignKey('FiscalYear', on_delete=models.PROTECT)
-
-    class Meta:
-        unique_together = ('project', 'fiscal_year')
-
-
+        
 class DashboardMetric(models.Model):
     metric_type = models.CharField(max_length=100)
     value = models.DecimalField(max_digits=15, decimal_places=2)
-    percentage = models.DecimalField(
-        max_digits=5, decimal_places=2, null=True, blank=True)
+    percentage = models.DecimalField(max_digits=5, decimal_places=2, null=True, blank=True)
     status = models.CharField(max_length=50)
     fiscal_year = models.ForeignKey(FiscalYear, on_delete=models.CASCADE)
-    department = models.ForeignKey(
-        Department, on_delete=models.CASCADE, null=True, blank=True)
+    department = models.ForeignKey(Department, on_delete=models.CASCADE, null=True, blank=True)
     last_updated = models.DateTimeField(auto_now=True)
-    warning_threshold = models.DecimalField(
-        max_digits=5, decimal_places=2, null=True, blank=True)
-    critical_threshold = models.DecimalField(
-        max_digits=5, decimal_places=2, null=True, blank=True)
+    warning_threshold = models.DecimalField(max_digits=5, decimal_places=2, null=True, blank=True)
+    critical_threshold = models.DecimalField(max_digits=5, decimal_places=2, null=True, blank=True)
 
     def __str__(self):
         dept_str = f" - {self.department.name}" if self.department else ""
         return f"{self.metric_type}{dept_str} - {self.fiscal_year.name}"
-
-
+    
+    
 class RiskMetric(models.Model):
     RISK_TYPE_CHOICES = [
         ('BUDGET', 'Budget'),
@@ -821,20 +739,17 @@ class RiskMetric(models.Model):
         ('RESOURCES', 'Resources'),
         ('QUALITY', 'Quality'),
     ]
-
-    project = models.ForeignKey(
-        Project, on_delete=models.CASCADE, related_name='risk_metrics')
+    
+    project = models.ForeignKey(Project, on_delete=models.CASCADE, related_name='risk_metrics')
     risk_type = models.CharField(max_length=20, choices=RISK_TYPE_CHOICES)
-    risk_level = models.IntegerField(
-        validators=[MinValueValidator(0), MaxValueValidator(100)])
+    risk_level = models.IntegerField(validators=[MinValueValidator(0), MaxValueValidator(100)])
     description = models.TextField(blank=True)
     updated_at = models.DateTimeField(auto_now=True)
     updated_by = models.ForeignKey(User, on_delete=models.PROTECT)
-
+    
     class Meta:
-        unique_together = ('project', 'risk_type')
-
-
+        unique_together = ('project', 'risk_type')   
+        
 class UserActivityLog(models.Model):
     LOG_TYPE_CHOICES = [
         ('LOGIN', 'Login'),
@@ -845,19 +760,21 @@ class UserActivityLog(models.Model):
         ('PROCESS', 'Process'),
         ('ERROR', 'Error'),
     ]
-
+    
     STATUS_CHOICES = [
         ('SUCCESS', 'Success'),
         ('FAILED', 'Failed'),
         ('IN_PROGRESS', 'In Progress'),
     ]
-
+    
     user = models.ForeignKey(User, on_delete=models.PROTECT)
     timestamp = models.DateTimeField(auto_now_add=True)
     log_type = models.CharField(max_length=20, choices=LOG_TYPE_CHOICES)
     action = models.CharField(max_length=255)
     status = models.CharField(max_length=20, choices=STATUS_CHOICES)
     details = models.JSONField(null=True, blank=True)
-
+    
     def __str__(self):
         return f"{self.user.username} - {self.action} - {self.timestamp}"
+    
+    

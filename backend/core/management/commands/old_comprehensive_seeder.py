@@ -5,7 +5,7 @@ from django.utils import timezone
 from datetime import datetime, timedelta
 from decimal import Decimal
 import random
-from core.models import (
+from backend.core.models import (
     User, Department, AccountType, Account, FiscalYear,
     BudgetAllocation, DashboardMetric, Project, ExpenseCategory
 )

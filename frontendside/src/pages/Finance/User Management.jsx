@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { ChevronDown, X } from 'lucide-react';
+import { Search, ChevronDown, X } from 'lucide-react';
 import { Link, useNavigate } from 'react-router-dom';
 import './User Management.css';
 
@@ -7,6 +7,7 @@ const UserManagement = () => {
   const [currentDate] = useState(new Date('2025-05-06T10:45:00'));
   const [showBudgetDropdown, setShowBudgetDropdown] = useState(false);
   const [showExpenseDropdown, setShowExpenseDropdown] = useState(false);
+  const [showCategoryDropdown, setShowCategoryDropdown] = useState(false);
   const navigate = useNavigate();
   
   const [users, setUsers] = useState([
@@ -50,11 +51,19 @@ const UserManagement = () => {
   const toggleBudgetDropdown = () => {
     setShowBudgetDropdown(!showBudgetDropdown);
     if (showExpenseDropdown) setShowExpenseDropdown(false);
+    if (showCategoryDropdown) setShowCategoryDropdown(false);
   };
 
   const toggleExpenseDropdown = () => {
     setShowExpenseDropdown(!showExpenseDropdown);
     if (showBudgetDropdown) setShowBudgetDropdown(false);
+    if (showCategoryDropdown) setShowCategoryDropdown(false);
+  };
+
+  const toggleCategoryDropdown = () => {
+    setShowCategoryDropdown(!showCategoryDropdown);
+    if (showBudgetDropdown) setShowBudgetDropdown(false);
+    if (showExpenseDropdown) setShowExpenseDropdown(false);
   };
 
   const handleNavigate = (path) => {
@@ -147,53 +156,50 @@ const UserManagement = () => {
   };
 
   return (
-    <div className="user-management-container">
-      {/* Header - Copied from Dashboard.jsx */}
-      <header className="dashboard-header">
+    <div className="app-container">
+      {/* Header - Copied from ExpenseHistory.jsx */}
+      <header className="app-header">
         <div className="header-left">
-          <h1 className="logo">BUDGETPRO</h1>
-          <nav className="main-nav">
+          <h1 className="app-logo">BUDGETPRO</h1>
+          <nav className="nav-menu">
             <Link to="/dashboard" className="nav-item">Dashboard</Link>
-            
+
             {/* Budget Dropdown */}
-            <div className="dropdown-container">
-              <div className="nav-item dropdown-toggle" onClick={toggleBudgetDropdown}>
+            <div className="nav-dropdown">
+              <div 
+                className={`nav-item ${showBudgetDropdown ? 'active' : ''}`} 
+                onClick={toggleBudgetDropdown}
+              >
                 Budget <ChevronDown size={14} />
               </div>
               {showBudgetDropdown && (
                 <div className="dropdown-menu">
-                  {/* Budget Items */}
-                  <h4 className="dropdown-category">Budget</h4>
-                  <div 
-                    className="dropdown-item" 
+                  <div
+                    className="dropdown-item"
                     onClick={() => handleNavigate('/finance/budget-proposal')}
                   >
                     Budget Proposal
                   </div>
-                 
-                  <div 
-                    className="dropdown-item" 
+                  <div
+                    className="dropdown-item"
                     onClick={() => handleNavigate('/finance/proposal-history')}
                   >
                     Proposal History
                   </div>
-
-                  {/* Account Items */}
-                  <h4 className="dropdown-category">Account</h4>
-                  <div 
-                    className="dropdown-item" 
+                  <div
+                    className="dropdown-item"
                     onClick={() => handleNavigate('/finance/account-setup')}
                   >
                     Account Setup
                   </div>
-                  <div 
-                    className="dropdown-item" 
+                  <div
+                    className="dropdown-item"
                     onClick={() => handleNavigate('/finance/ledger-view')}
                   >
                     Ledger View
                   </div>
-                  <div 
-                    className="dropdown-item" 
+                  <div
+                    className="dropdown-item"
                     onClick={() => handleNavigate('/finance/journal-entry')}
                   >
                     Journal Entries
@@ -201,22 +207,25 @@ const UserManagement = () => {
                 </div>
               )}
             </div>
-            
+
             {/* Expense Dropdown */}
-            <div className="dropdown-container">
-              <div className="nav-item dropdown-toggle" onClick={toggleExpenseDropdown}>
+            <div className="nav-dropdown">
+              <div 
+                className={`nav-item ${showExpenseDropdown ? 'active' : ''}`} 
+                onClick={toggleExpenseDropdown}
+              >
                 Expense <ChevronDown size={14} />
               </div>
               {showExpenseDropdown && (
                 <div className="dropdown-menu">
-                  <div 
-                    className="dropdown-item" 
+                  <div
+                    className="dropdown-item"
                     onClick={() => handleNavigate('/finance/expense-tracking')}
                   >
                     Expense Tracking
                   </div>
-                  <div 
-                    className="dropdown-item" 
+                  <div
+                    className="dropdown-item"
                     onClick={() => handleNavigate('/finance/expense-history')}
                   >
                     Expense History
@@ -224,9 +233,9 @@ const UserManagement = () => {
                 </div>
               )}
             </div>
-            
+
             {/* User Management - Simple Navigation Item */}
-            <div 
+            <div
               className="nav-item active"
               onClick={() => handleNavigate('/finance/user-management')}
             >
@@ -241,319 +250,317 @@ const UserManagement = () => {
         </div>
       </header>
 
-      {/* Timestamp */}
-      <div className="dashboard-timestamp">
-        <div className="timestamp-container">
-          <p>{formattedDate} | {formattedTime}</p>
-        </div>
-      </div>
-
-      {/* Main User Management Content */}
-      <header className="page-header">
-        <h1>User Management</h1>
+      <div className="content-container">
+        <h2 className="page-title">User Management</h2>
         <p className="page-description">
           Manage user accounts and permissions for the financial system
         </p>
-      </header>
 
-      <div className="controls-container">
-        <div className="search-filter">
-          <input
-            type="text"
-            placeholder="Search users..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            className="search-input"
-          />
+        <div className="controls-row">
+          <div className="search-box">
+            <input
+              type="text"
+              placeholder="Search users..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="search-input"
+            />
+            <button className="search-icon-btn">
+              <Search size={18} />
+            </button>
+          </div>
           
-          <select 
-            value={selectedRole} 
-            onChange={(e) => setSelectedRole(e.target.value)}
-            className="role-filter"
-          >
-            <option value="All">All Roles</option>
-            <option value="Admin">Admin</option>
-            <option value="Finance Manager">Finance Manager</option>
-            <option value="Accountant">Accountant</option>
-            <option value="Viewer">Viewer</option>
-          </select>
+          <div className="filter-controls">
+            <div className="filter-dropdown">
+              <select 
+                value={selectedRole} 
+                onChange={(e) => setSelectedRole(e.target.value)}
+                className="role-filter"
+              >
+                <option value="All">All Roles</option>
+                <option value="Admin">Admin</option>
+                <option value="Finance Manager">Finance Manager</option>
+                <option value="Accountant">Accountant</option>
+                <option value="Viewer">Viewer</option>
+              </select>
+            </div>
+            <button className="add-user-btn" onClick={() => setShowAddUserModal(true)}>
+              Add New User
+            </button>
+          </div>
+        </div>
+
+        <div className="users-table-wrapper">
+          <table className="users-table">
+            <thead>
+              <tr>
+                <th>Name</th>
+                <th>Email</th>
+                <th>Role</th>
+                <th>Status</th>
+                <th>Last Active</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              {filteredUsers.map(user => (
+                <tr key={user.id}>
+                  <td>{user.name}</td>
+                  <td>{user.email}</td>
+                  <td>
+                    <span className={`role-badge ${user.role.toLowerCase().replace(' ', '-')}`}>
+                      {user.role}
+                    </span>
+                  </td>
+                  <td>
+                    <span className={`status-badge ${user.status.toLowerCase()}`}>
+                      {user.status}
+                    </span>
+                  </td>
+                  <td>{formatDate(user.lastActive)}</td>
+                  <td className="action-buttons">
+                    <button className="edit-btn" onClick={() => openEditUserModal(user)}>Edit</button>
+                    <button 
+                      className={`toggle-btn ${user.status === 'Active' ? 'deactivate' : 'activate'}`}
+                      onClick={() => toggleUserStatus(user.id)}
+                    >
+                      {user.status === 'Active' ? 'Deactivate' : 'Activate'}
+                    </button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
         </div>
         
-        <button className="add-user-btn" onClick={() => setShowAddUserModal(true)}>
-          Add New User
-        </button>
-      </div>
+        <div className="pagination-controls">
+          <button className="pagination-btn">Previous</button>
+          <span className="page-indicator">Page 1 of 1</span>
+          <button className="pagination-btn">Next</button>
+        </div>
 
-      <div className="users-table-container">
-        <table className="users-table">
-          <thead>
-            <tr>
-              <th>Name</th>
-              <th>Email</th>
-              <th>Role</th>
-              <th>Status</th>
-              <th>Last Active</th>
-              <th>Actions</th>
-            </tr>
-          </thead>
-          <tbody>
-            {filteredUsers.map(user => (
-              <tr key={user.id}>
-                <td>{user.name}</td>
-                <td>{user.email}</td>
-                <td>
-                  <span className={`role-badge ${user.role.toLowerCase().replace(' ', '-')}`}>
-                    {user.role}
-                  </span>
-                </td>
-                <td>
-                  <span className={`status-badge ${user.status.toLowerCase()}`}>
-                    {user.status}
-                  </span>
-                </td>
-                <td>{user.lastActive}</td>
-                <td className="action-buttons">
-                  <button className="edit-btn" onClick={() => openEditUserModal(user)}>Edit</button>
-                  <button 
-                    className={`toggle-btn ${user.status === 'Active' ? 'deactivate' : 'activate'}`}
-                    onClick={() => toggleUserStatus(user.id)}
-                  >
-                    {user.status === 'Active' ? 'Deactivate' : 'Activate'}
-                  </button>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
-      
-      <div className="pagination">
-        <button className="pagination-btn">Previous</button>
-        <span className="page-indicator">Page 1 of 1</span>
-        <button className="pagination-btn">Next</button>
-      </div>
-
-      {/* Add User Modal */}
-      {showAddUserModal && (
-        <div className="modal-overlay">
-          <div className="user-modal">
-            <div className="modal-header">
-              <h2><i className="info-icon">i</i> Add New User</h2>
-              <button className="close-btn" onClick={() => setShowAddUserModal(false)}>
-                <X size={24} />
-              </button>
-            </div>
-            <div className="modal-body">
-              <div className="form-row">
-                <div className="form-group">
-                  <label>Full Name:</label>
-                  <input
-                    type="text"
-                    name="name"
-                    value={newUser.name}
-                    onChange={handleInputChange}
-                    required
-                  />
-                </div>
-                <div className="form-group">
-                  <label>Last Active:</label>
-                  <span className="readonly-field">N/A (New User)</span>
-                </div>
+        {/* Add User Modal */}
+        {showAddUserModal && (
+          <div className="modal-overlay">
+            <div className="user-modal">
+              <div className="modal-header">
+                <h2><i className="info-icon">i</i> Add New User</h2>
+                <button className="close-btn" onClick={() => setShowAddUserModal(false)}>
+                  <X size={24} />
+                </button>
               </div>
-
-              <div className="form-row">
-                <div className="form-group">
-                  <label>Username:</label>
-                  <input
-                    type="text"
-                    name="username"
-                    value={newUser.username}
-                    onChange={handleInputChange}
-                    required
-                  />
-                </div>
-                <div className="form-group">
-                  <label>Role:</label>
-                  <select
-                    name="role"
-                    value={newUser.role}
-                    onChange={handleInputChange}
-                  >
-                    <option value="Admin">Admin</option>
-                    <option value="Finance Manager">Finance Manager</option>
-                    <option value="Accountant">Accountant</option>
-                    <option value="Viewer">Viewer</option>
-                  </select>
-                </div>
-              </div>
-
-              <div className="form-row">
-                <div className="form-group">
-                  <label>Email:</label>
-                  <input
-                    type="email"
-                    name="email"
-                    value={newUser.email}
-                    onChange={handleInputChange}
-                    required
-                  />
-                </div>
-                <div className="form-group">
-                  <label>Date Added:</label>
-                  <span className="readonly-field">{formatDate(new Date())}</span>
-                </div>
-              </div>
-
-              <div className="form-row">
-                <div className="form-group">
-                  <label>Department:</label>
-                  <select
-                    name="department"
-                    value={newUser.department}
-                    onChange={handleInputChange}
-                  >
-                    <option value="Finance">Finance</option>
-                    <option value="Accounting">Accounting</option>
-                    <option value="IT">IT</option>
-                    <option value="HR">HR</option>
-                    <option value="Operations">Operations</option>
-                  </select>
-                </div>
-                <div className="form-group status-toggle">
-                  <label>Account Active</label>
-                  <div className="toggle-switch">
+              <div className="modal-body">
+                <div className="form-row">
+                  <div className="form-group">
+                    <label>Full Name:</label>
                     <input
-                      type="checkbox"
-                      id="status-toggle-add"
-                      checked={newUser.status === 'Active'}
-                      onChange={(e) => setNewUser({
-                        ...newUser,
-                        status: e.target.checked ? 'Active' : 'Inactive'
-                      })}
+                      type="text"
+                      name="name"
+                      value={newUser.name}
+                      onChange={handleInputChange}
+                      required
                     />
-                    <label htmlFor="status-toggle-add"></label>
+                  </div>
+                  <div className="form-group">
+                    <label>Last Active:</label>
+                    <span className="readonly-field">N/A (New User)</span>
+                  </div>
+                </div>
+
+                <div className="form-row">
+                  <div className="form-group">
+                    <label>Username:</label>
+                    <input
+                      type="text"
+                      name="username"
+                      value={newUser.username}
+                      onChange={handleInputChange}
+                      required
+                    />
+                  </div>
+                  <div className="form-group">
+                    <label>Role:</label>
+                    <select
+                      name="role"
+                      value={newUser.role}
+                      onChange={handleInputChange}
+                    >
+                      <option value="Admin">Admin</option>
+                      <option value="Finance Manager">Finance Manager</option>
+                      <option value="Accountant">Accountant</option>
+                      <option value="Viewer">Viewer</option>
+                    </select>
+                  </div>
+                </div>
+
+                <div className="form-row">
+                  <div className="form-group">
+                    <label>Email:</label>
+                    <input
+                      type="email"
+                      name="email"
+                      value={newUser.email}
+                      onChange={handleInputChange}
+                      required
+                    />
+                  </div>
+                  <div className="form-group">
+                    <label>Date Added:</label>
+                    <span className="readonly-field">{formatDate(new Date())}</span>
+                  </div>
+                </div>
+
+                <div className="form-row">
+                  <div className="form-group">
+                    <label>Department:</label>
+                    <select
+                      name="department"
+                      value={newUser.department}
+                      onChange={handleInputChange}
+                    >
+                      <option value="Finance">Finance</option>
+                      <option value="Accounting">Accounting</option>
+                      <option value="IT">IT</option>
+                      <option value="HR">HR</option>
+                      <option value="Operations">Operations</option>
+                    </select>
+                  </div>
+                  <div className="form-group status-toggle">
+                    <label>Account Active</label>
+                    <div className="toggle-switch">
+                      <input
+                        type="checkbox"
+                        id="status-toggle-add"
+                        checked={newUser.status === 'Active'}
+                        onChange={(e) => setNewUser({
+                          ...newUser,
+                          status: e.target.checked ? 'Active' : 'Inactive'
+                        })}
+                      />
+                      <label htmlFor="status-toggle-add"></label>
+                    </div>
                   </div>
                 </div>
               </div>
-            </div>
-            <div className="modal-footer">
-              <button className="cancel-btn" onClick={() => setShowAddUserModal(false)}>Cancel</button>
-              <button className="confirm-btn" onClick={handleAddUser}>Confirm</button>
+              <div className="modal-footer">
+                <button className="cancel-btn" onClick={() => setShowAddUserModal(false)}>Cancel</button>
+                <button className="confirm-btn" onClick={handleAddUser}>Confirm</button>
+              </div>
             </div>
           </div>
-        </div>
-      )}
+        )}
 
-      {/* Edit User Modal */}
-      {showEditUserModal && currentUser && (
-        <div className="modal-overlay">
-          <div className="user-modal">
-            <div className="modal-header">
-              <h2><i className="info-icon">i</i> Edit User Info</h2>
-              <button className="close-btn" onClick={() => setShowEditUserModal(false)}>
-                <X size={24} />
-              </button>
-            </div>
-            <div className="modal-body">
-              <div className="form-row">
-                <div className="form-group">
-                  <label>Full Name:</label>
-                  <input
-                    type="text"
-                    name="name"
-                    value={currentUser.name}
-                    onChange={handleInputChange}
-                    required
-                  />
-                </div>
-                <div className="form-group">
-                  <label>Last Active:</label>
-                  <span className="readonly-field">{formatDate(currentUser.lastActive)}</span>
-                </div>
+        {/* Edit User Modal */}
+        {showEditUserModal && currentUser && (
+          <div className="modal-overlay">
+            <div className="user-modal">
+              <div className="modal-header">
+                <h2><i className="info-icon">i</i> Edit User Info</h2>
+                <button className="close-btn" onClick={() => setShowEditUserModal(false)}>
+                  <X size={24} />
+                </button>
               </div>
-
-              <div className="form-row">
-                <div className="form-group">
-                  <label>Username:</label>
-                  <input
-                    type="text"
-                    name="username"
-                    value={currentUser.username}
-                    onChange={handleInputChange}
-                    required
-                  />
-                </div>
-                <div className="form-group">
-                  <label>Role:</label>
-                  <select
-                    name="role"
-                    value={currentUser.role}
-                    onChange={handleInputChange}
-                  >
-                    <option value="Admin">Admin</option>
-                    <option value="Finance Manager">Finance Manager</option>
-                    <option value="Accountant">Accountant</option>
-                    <option value="Viewer">Viewer</option>
-                  </select>
-                </div>
-              </div>
-
-              <div className="form-row">
-                <div className="form-group">
-                  <label>Email:</label>
-                  <input
-                    type="email"
-                    name="email"
-                    value={currentUser.email}
-                    onChange={handleInputChange}
-                    required
-                  />
-                </div>
-                <div className="form-group">
-                  <label>Date Added:</label>
-                  <span className="readonly-field">January 1, 2024</span>
-                </div>
-              </div>
-
-              <div className="form-row">
-                <div className="form-group">
-                  <label>Department:</label>
-                  <select
-                    name="department"
-                    value={currentUser.department}
-                    onChange={handleInputChange}
-                  >
-                    <option value="Finance">Finance</option>
-                    <option value="Accounting">Accounting</option>
-                    <option value="IT">IT</option>
-                    <option value="HR">HR</option>
-                    <option value="Operations">Operations</option>
-                  </select>
-                </div>
-                <div className="form-group status-toggle">
-                  <label>Account Active</label>
-                  <div className="toggle-switch">
+              <div className="modal-body">
+                <div className="form-row">
+                  <div className="form-group">
+                    <label>Full Name:</label>
                     <input
-                      type="checkbox"
-                      id="status-toggle-edit"
-                      checked={currentUser.status === 'Active'}
-                      onChange={(e) => setCurrentUser({
-                        ...currentUser,
-                        status: e.target.checked ? 'Active' : 'Inactive'
-                      })}
+                      type="text"
+                      name="name"
+                      value={currentUser.name}
+                      onChange={handleInputChange}
+                      required
                     />
-                    <label htmlFor="status-toggle-edit"></label>
+                  </div>
+                  <div className="form-group">
+                    <label>Last Active:</label>
+                    <span className="readonly-field">{formatDate(currentUser.lastActive)}</span>
+                  </div>
+                </div>
+
+                <div className="form-row">
+                  <div className="form-group">
+                    <label>Username:</label>
+                    <input
+                      type="text"
+                      name="username"
+                      value={currentUser.username}
+                      onChange={handleInputChange}
+                      required
+                    />
+                  </div>
+                  <div className="form-group">
+                    <label>Role:</label>
+                    <select
+                      name="role"
+                      value={currentUser.role}
+                      onChange={handleInputChange}
+                    >
+                      <option value="Admin">Admin</option>
+                      <option value="Finance Manager">Finance Manager</option>
+                      <option value="Accountant">Accountant</option>
+                      <option value="Viewer">Viewer</option>
+                    </select>
+                  </div>
+                </div>
+
+                <div className="form-row">
+                  <div className="form-group">
+                    <label>Email:</label>
+                    <input
+                      type="email"
+                      name="email"
+                      value={currentUser.email}
+                      onChange={handleInputChange}
+                      required
+                    />
+                  </div>
+                  <div className="form-group">
+                    <label>Date Added:</label>
+                    <span className="readonly-field">January 1, 2024</span>
+                  </div>
+                </div>
+
+                <div className="form-row">
+                  <div className="form-group">
+                    <label>Department:</label>
+                    <select
+                      name="department"
+                      value={currentUser.department}
+                      onChange={handleInputChange}
+                    >
+                      <option value="Finance">Finance</option>
+                      <option value="Accounting">Accounting</option>
+                      <option value="IT">IT</option>
+                      <option value="HR">HR</option>
+                      <option value="Operations">Operations</option>
+                    </select>
+                  </div>
+                  <div className="form-group status-toggle">
+                    <label>Account Active</label>
+                    <div className="toggle-switch">
+                      <input
+                        type="checkbox"
+                        id="status-toggle-edit"
+                        checked={currentUser.status === 'Active'}
+                        onChange={(e) => setCurrentUser({
+                          ...currentUser,
+                          status: e.target.checked ? 'Active' : 'Inactive'
+                        })}
+                      />
+                      <label htmlFor="status-toggle-edit"></label>
+                    </div>
                   </div>
                 </div>
               </div>
-            </div>
-            <div className="modal-footer">
-              <button className="cancel-btn" onClick={() => setShowEditUserModal(false)}>Cancel</button>
-              <button className="confirm-btn" onClick={handleEditUser}>Confirm</button>
+              <div className="modal-footer">
+                <button className="cancel-btn" onClick={() => setShowEditUserModal(false)}>Cancel</button>
+                <button className="confirm-btn" onClick={handleEditUser}>Confirm</button>
+              </div>
             </div>
           </div>
-        </div>
-      )}
+        )}
+      </div>
     </div>
   );
 };

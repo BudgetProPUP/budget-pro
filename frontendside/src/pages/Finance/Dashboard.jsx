@@ -1,23 +1,34 @@
-import React, { useState } from 'react';
-import { BarChart, Bar, XAxis, YAxis, Tooltip, Legend, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
-import { ChevronLeft, ChevronRight, ChevronDown } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { BarChart, Bar, XAxis, YAxis, Tooltip, Legend, ResponsiveContainer } from 'recharts';
+import { ChevronLeft, ChevronRight, ChevronDown, Search, ArrowLeft, Expand, Minimize } from 'lucide-react';
 import { Link, useNavigate } from 'react-router-dom';
 import './Dashboard.css';
 
-function Dashboard() {
-  const [currentDate] = useState(new Date('2025-04-14T10:45:00'));
+function BudgetDashboard() {
+  const [currentDate, setCurrentDate] = useState(new Date());
+  const [loading, setLoading] = useState(true);
+  const [expandedChart, setExpandedChart] = useState(false);
   const [showBudgetDropdown, setShowBudgetDropdown] = useState(false);
   const [showExpenseDropdown, setShowExpenseDropdown] = useState(false);
+  const [timeFilter, setTimeFilter] = useState('monthly');
   const navigate = useNavigate();
-  
-  // Format date and time
-  const formattedDate = currentDate.toLocaleDateString('en-US', {
-    weekday: 'long',
-    month: 'long',
-    day: 'numeric',
-    year: 'numeric',
-  });
-  
+
+  useEffect(() => {
+    // Simulate data loading
+    const timer = setTimeout(() => {
+      setLoading(false);
+    }, 1000);
+
+    const interval = setInterval(() => {
+      setCurrentDate(new Date());
+    }, 1000);
+
+    return () => {
+      clearTimeout(timer);
+      clearInterval(interval);
+    };
+  }, []);
+
   // Format time with AM/PM
   const formattedTime = currentDate.toLocaleTimeString('en-US', {
     hour: 'numeric',
@@ -25,26 +36,34 @@ function Dashboard() {
     hour12: true,
   });
 
-  // Format date in a more compact way for the timestamp display
-  const compactDate = `${currentDate.toLocaleDateString('en-US', {
+  // Format date for display
+  const formattedDate = currentDate.toLocaleDateString('en-US', {
     weekday: 'long',
-  })}, April ${currentDate.getDate()}, ${currentDate.getFullYear()} | ${formattedTime}`;
+    year: 'numeric',
+    month: 'long',
+    day: 'numeric'
+  });
 
   // Budget data
-  const totalBudget = 90000;
-  const allocatedBudget = 100000;
+  const totalBudget = 800025.75;
   const remainingBudget = 50000;
-  const allocatedPercentage = 47;
   const planCompletion = 84.4;
+  const allocatedPercentage = 47;
 
   // Monthly data
   const monthlyData = [
-    { name: 'Jan', Budget: 26000, Actual: 24000 },
-    { name: 'Feb', Budget: 26000, Actual: 25000 },
+    { name: 'Jan', Budget: 26000, Actual: 14000 },
+    { name: 'Feb', Budget: 26000, Actual: 5000 },
     { name: 'Mar', Budget: 26000, Actual: 26000 },
-    { name: 'Apr', Budget: 26000, Actual: 21000 },
+    { name: 'Apr', Budget: 26000, Actual: 9500 },
     { name: 'May', Budget: 26000, Actual: 24000 },
-    { name: 'Jun', Budget: 26000, Actual: 25000 },
+    { name: 'Jun', Budget: 26000, Actual: 20000 },
+    { name: 'Jul', Budget: 26000, Actual: 20000 },
+    { name: 'Aug', Budget: 26000, Actual: 24500 },
+    { name: 'Sep', Budget: 26000, Actual: 25200 },
+    { name: 'Oct', Budget: 26000, Actual: 24800 },
+    { name: 'Nov', Budget: 26000, Actual: 25500 },
+    { name: 'Dec', Budget: 26000, Actual: 24200 },
   ];
 
   // Department data
@@ -61,21 +80,22 @@ function Dashboard() {
     { name: 'Product Launch', budget: 50000, spent: 40000, remaining: 10000, status: 'Warning', progress: 80 },
   ];
 
-  // Timeline steps
-  const timelineSteps = [
-    { name: 'Review', status: 'Completed' },
-    { name: 'Analysis', status: 'Completed' },
-    { name: 'Mid-year Review', status: 'Completed' },
-    { name: 'Budget Planning', status: 'Current' },
-    { name: 'Annual Report', status: 'Pending' },
-  ];
-
-  // Pie chart data
-  const pieData = [
-    { name: 'Marketing', value: 50, color: '#16a34a' },
-    { name: 'Development', value: 20, color: '#22c55e' },
-    { name: 'Operations', value: 30, color: '#4ade80' },
-  ];
+  // Custom Tooltip for charts
+  const CustomTooltip = ({ active, payload, label }) => {
+    if (active && payload && payload.length) {
+      return (
+        <div className="custom-tooltip">
+          <p className="label">{label}</p>
+          {payload.map((item, index) => (
+            <p key={index} className="data-item" style={{ color: item.color }}>
+              {item.name}: ₱{item.value.toLocaleString()}
+            </p>
+          ))}
+        </div>
+      );
+    }
+    return null;
+  };
 
   const toggleBudgetDropdown = () => {
     setShowBudgetDropdown(!showBudgetDropdown);
@@ -93,54 +113,60 @@ function Dashboard() {
     setShowExpenseDropdown(false);
   };
 
+  if (loading) {
+    return (
+      <div className="loading-container">
+        <div className="loading-spinner"></div>
+        <p>Loading dashboard data...</p>
+      </div>
+    );
+  }
+
   return (
-    <div className="dashboard-container">
-      {/* Header */}
-      <header className="dashboard-header">
+    <div className="app-container">
+      {/* Header - Using ExpenseHistory Nav Structure */}
+      <header className="app-header">
         <div className="header-left">
-          <h1 className="logo">BUDGETPRO</h1>
-          <nav className="main-nav">
-            <Link to="/dashboard" className="nav-item active">Dashboard</Link>
-            
+          <h1 className="app-logo">BUDGETPRO</h1>
+          <nav className="nav-menu">
+            <Link to="/dashboard" className="nav-item">Dashboard</Link>
+
             {/* Budget Dropdown */}
-            <div className="dropdown-container">
-              <div className="nav-item dropdown-toggle" onClick={toggleBudgetDropdown}>
+            <div className="nav-dropdown">
+              <div 
+                className={`nav-item ${showBudgetDropdown ? 'active' : ''}`} 
+                onClick={toggleBudgetDropdown}
+              >
                 Budget <ChevronDown size={14} />
               </div>
               {showBudgetDropdown && (
                 <div className="dropdown-menu">
-                  {/* Budget Items */}
-                  <h4 className="dropdown-category">Budget</h4>
-                  <div 
-                    className="dropdown-item" 
+                  <div
+                    className="dropdown-item"
                     onClick={() => handleNavigate('/finance/budget-proposal')}
                   >
                     Budget Proposal
                   </div>
-                 
-                  <div 
-                    className="dropdown-item" 
+                  <div
+                    className="dropdown-item"
                     onClick={() => handleNavigate('/finance/proposal-history')}
                   >
                     Proposal History
                   </div>
-
-                  {/* Account Items */}
-                  <h4 className="dropdown-category">Account</h4>
-                  <div 
-                    className="dropdown-item" 
+                  <div
+                    className="dropdown-item"
                     onClick={() => handleNavigate('/finance/account-setup')}
                   >
                     Account Setup
                   </div>
-                  <div 
-                    className="dropdown-item" 
+                  <div
+                    className="dropdown-item"
                     onClick={() => handleNavigate('/finance/ledger-view')}
                   >
                     Ledger View
                   </div>
-                  <div 
-                    className="dropdown-item" 
+                  <div
+                    className="dropdown-item"
                     onClick={() => handleNavigate('/finance/journal-entry')}
                   >
                     Journal Entries
@@ -148,22 +174,25 @@ function Dashboard() {
                 </div>
               )}
             </div>
-            
+
             {/* Expense Dropdown */}
-            <div className="dropdown-container">
-              <div className="nav-item dropdown-toggle" onClick={toggleExpenseDropdown}>
+            <div className="nav-dropdown">
+              <div 
+                className={`nav-item ${showExpenseDropdown ? 'active' : ''}`} 
+                onClick={toggleExpenseDropdown}
+              >
                 Expense <ChevronDown size={14} />
               </div>
               {showExpenseDropdown && (
                 <div className="dropdown-menu">
-                  <div 
-                    className="dropdown-item" 
+                  <div
+                    className="dropdown-item"
                     onClick={() => handleNavigate('/finance/expense-tracking')}
                   >
                     Expense Tracking
                   </div>
-                  <div 
-                    className="dropdown-item" 
+                  <div
+                    className="dropdown-item"
                     onClick={() => handleNavigate('/finance/expense-history')}
                   >
                     Expense History
@@ -171,9 +200,9 @@ function Dashboard() {
                 </div>
               )}
             </div>
-            
+
             {/* User Management - Simple Navigation Item */}
-            <div 
+            <div
               className="nav-item"
               onClick={() => handleNavigate('/finance/user-management')}
             >
@@ -189,109 +218,123 @@ function Dashboard() {
       </header>
 
       {/* Main Content */}
-      <main className="dashboard-main">
-        {/* Enhanced Timestamp section with styled display */}
-        <div className="timestamp-section">
-          <div className="timestamp-container">
-            <p>Monday, April 14, 2025 | 10:45 AM</p>
+      <div className="content-container">
+        {/* Date display - Modified to show only timestamp */}
+        <div className="date-display">
+          <div className="date-time-badge">
+            {formattedDate} | {formattedTime}
           </div>
+          {/* Export button removed and timestamp is already displayed above */}
         </div>
-        
-        {/* Top Budget Cards Row */}
-        <div className="budget-cards-row">
-          {/* Total Budget Card */}
-          <div className="budget-card">
-            <h3>Total Budget</h3>
-            <p className="budget-amount">₱{totalBudget.toLocaleString()}</p>
-            <p className="budget-label">Allocated</p>
-            <div className="progress-bar">
-              <div className="progress-fill" style={{ width: `${allocatedPercentage}%` }}></div>
-            </div>
-            <p className="percentage-text">{allocatedPercentage}%</p>
-          </div>
 
-          {/* Allocated Budget Card */}
-          <div className="budget-card">
-            <h3>Allocated Budget</h3>
-            <p className="budget-amount">₱{allocatedBudget.toLocaleString()}</p>
-            <p className="budget-label">47% of Total Budget</p>
-            <div className="budget-status on-target">on target</div>
-          </div>
+        {/* Time period filter - UPDATED TO BLUE */}
+        <div className="time-filter">
+          <button 
+            className={`filter-button ${timeFilter === 'monthly' ? 'active' : ''}`}
+            onClick={() => setTimeFilter('monthly')}
+            style={{ backgroundColor: timeFilter === 'monthly' ? '#2563eb' : '#3b82f6', color: 'white' }}
+          >
+            Monthly
+          </button>
+          <button 
+            className={`filter-button ${timeFilter === 'quarterly' ? 'active' : ''}`}
+            onClick={() => setTimeFilter('quarterly')}
+            style={{ backgroundColor: timeFilter === 'quarterly' ? '#2563eb' : '#3b82f6', color: 'white' }}
+          >
+            Quarterly
+          </button>
+          <button 
+            className={`filter-button ${timeFilter === 'yearly' ? 'active' : ''}`}
+            onClick={() => setTimeFilter('yearly')}
+            style={{ backgroundColor: timeFilter === 'yearly' ? '#2563eb' : '#3b82f6', color: 'white' }}
+          >
+            Yearly
+          </button>
+        </div>
 
-          {/* Budget Allocation Chart */}
-          <div className="budget-card allocation-card">
-            <h3>Budget Allocation by Department</h3>
-            <div className="allocation-chart-container">
-              <div className="pie-chart">
-                <ResponsiveContainer width="100%" height="100%">
-                  <PieChart>
-                    <Pie
-                      data={pieData}
-                      cx="50%"
-                      cy="50%"
-                      innerRadius={60}
-                      outerRadius={80}
-                      paddingAngle={0}
-                      dataKey="value"
-                    >
-                      {pieData.map((entry, index) => (
-                        <Cell key={`cell-${index}`} fill={entry.color} />
-                      ))}
-                    </Pie>
-                  </PieChart>
-                </ResponsiveContainer>
-              </div>
-              <div className="allocation-legend">
-                {departmentData.map((dept, index) => (
-                  <div key={index} className="legend-item">
-                    <div className="legend-color" style={{ backgroundColor: dept.color }}></div>
-                    <div className="legend-name">{dept.name}</div>
-                    <div className="legend-bar">
-                      <div 
-                        className="legend-bar-fill" 
-                        style={{ backgroundColor: dept.color }}
-                      ></div>
-                    </div>
-                    <div className="legend-value">₱{dept.budget.toLocaleString()}</div>
+        {/* Top Cards */}
+        <div className="stats-grid">
+          {/* Department Allocation - Pie Chart Removed */}
+          <div className="card">
+            <h3 className="card-title">Budget Allocation by Department</h3>
+            <div className="dept-list">
+              {departmentData.map((dept, index) => (
+                <div key={index} className="dept-item">
+                  <div className="color-indicator" style={{ backgroundColor: dept.color }}></div>
+                  <span className="dept-name">{dept.name}</span>
+                  <div className="progress-container">
+                    <div 
+                      className="progress-bar" 
+                      style={{ width: `${dept.percentage}%`, backgroundColor: dept.color }}
+                    ></div>
                   </div>
-                ))}
-              </div>
+                  <span className="dept-budget">₱{dept.budget.toLocaleString()}</span>
+                </div>
+              ))}
             </div>
           </div>
 
-          {/* Remaining Budget Card */}
-          <div className="budget-card">
-            <h3>Remaining Budget</h3>
-            <p className="budget-amount">₱{remainingBudget.toLocaleString()}</p>
-            <p className="budget-label">56% of Total Budget</p>
-            <div className="budget-status available">available to allocate</div>
+          {/* Plan Completion */}
+          <div className="card">
+            <h3 className="card-title">Plan Completion</h3>
+            <p className="stat-value">{planCompletion}%</p>
+            <p className="stat-label">Overall Status of Plan</p>
+            <div className="progress-container">
+              <div 
+                className="progress-bar blue" 
+                style={{ width: `${planCompletion}%` }}
+              ></div>
+            </div>
           </div>
 
-          {/* Plan Completion Card has been removed */}
+          {/* Total Budget */}
+          <div className="card">
+            <h3 className="card-title">Total Budget</h3>
+            <p className="stat-value">₱{totalBudget.toLocaleString()}</p>
+            <p className="stat-label">Allocated</p>
+            <div className="progress-container">
+              <div 
+                className="progress-bar green" 
+                style={{ width: `${allocatedPercentage}%` }}
+              ></div>
+            </div>
+            <p className="percentage">{allocatedPercentage}%</p>
+          </div>
+
+          {/* Remaining Budget */}
+          <div className="card">
+            <h3 className="card-title">Remaining Budget</h3>
+            <p className="stat-value">₱{remainingBudget.toLocaleString()}</p>
+            <p className="stat-label">56% of Total Budget</p>
+            <span className="badge badge-success">
+              Available for Allocation
+            </span>
+          </div>
         </div>
 
-        {/* Monthly Budget vs Actual Chart */}
-        <div className="chart-section">
-          <h3>Monthly Budget vs Actual</h3>
-          <div className="chart-container">
-            <ResponsiveContainer width="100%" height={300}>
+        {/* Monthly Budget vs Actual */}
+        <div className="card chart-card">
+          <div className="chart-header">
+            <h3 className="card-title">Monthly Budget vs Actual</h3>
+            <button 
+              className="expand-button"
+              onClick={() => setExpandedChart(!expandedChart)}
+              aria-label={expandedChart ? 'Collapse chart' : 'Expand chart'}
+              style={{ color: '#3b82f6' }}
+            >
+              {expandedChart ? <Minimize size={16} /> : <Expand size={16} />}
+            </button>
+          </div>
+          <div className="chart-container-large" style={{ height: expandedChart ? '500px' : '300px' }}>
+            <ResponsiveContainer width="100%" height="100%">
               <BarChart
                 data={monthlyData}
                 margin={{ top: 20, right: 30, left: 20, bottom: 5 }}
-                barGap={8}
-                barSize={20}
+                barSize={12}
               >
                 <XAxis dataKey="name" axisLine={false} tickLine={false} />
                 <YAxis axisLine={false} tickLine={false} />
-                <Tooltip 
-                  formatter={(value) => [`₱${value.toLocaleString()}`, 'Amount']}
-                  contentStyle={{
-                    backgroundColor: 'white',
-                    border: 'none',
-                    borderRadius: '4px',
-                    boxShadow: '0 1px 3px rgba(0,0,0,0.12)'
-                  }}
-                />
+                <Tooltip content={<CustomTooltip />} />
                 <Legend />
                 <Bar dataKey="Budget" fill="#16a34a" radius={[2, 2, 0, 0]} />
                 <Bar dataKey="Actual" fill="#86efac" radius={[2, 2, 0, 0]} />
@@ -301,49 +344,50 @@ function Dashboard() {
         </div>
 
         {/* Project Status */}
-        <div className="section-card">
-          <h3>Project Status</h3>
+        <div className="card">
+          <h3 className="card-title">Project Status</h3>
           <div className="table-container">
-            <table className="project-table">
+            <table className="data-table">
               <thead>
                 <tr>
-                  <th>PROJECT NAME</th>
-                  <th>BUDGET</th>
-                  <th>SPENT</th>
-                  <th>REMAINING</th>
-                  <th>STATUS</th>
-                  <th>PROGRESS</th>
+                  <th>Project Name</th>
+                  <th>Budget</th>
+                  <th>Spent</th>
+                  <th>Remaining</th>
+                  <th>Status</th>
+                  <th>Progress</th>
                 </tr>
               </thead>
               <tbody>
                 {projectData.map((project, index) => (
                   <tr key={index}>
-                    <td>{project.name}</td>
+                    <td className="project-name">{project.name}</td>
                     <td>₱{project.budget.toLocaleString()}</td>
                     <td>₱{project.spent.toLocaleString()}</td>
                     <td>₱{project.remaining.toLocaleString()}</td>
                     <td>
-                      <span className={`status-badge ${
-                        project.status === 'On Track' ? 'on-track' :
-                        project.status === 'At Risk' ? 'at-risk' :
-                        'warning'
-                      }`}>
+                      <span className={`badge ${
+                        project.status === 'On Track' ? 'badge-success' :
+                        project.status === 'At Risk' ? 'badge-danger' :
+                        'badge-warning'
+                      }`}
+                      >
                         {project.status}
                       </span>
                     </td>
                     <td>
-                      <div className="progress-container">
-                        <div className="progress-bar">
+                      <div className="progress-with-label">
+                        <div className="progress-container">
                           <div 
-                            className={`progress-fill ${
+                            className={`progress-bar ${
                               project.status === 'On Track' ? 'green' :
                               project.status === 'At Risk' ? 'red' :
                               'yellow'
-                            }`} 
+                            }`}
                             style={{ width: `${project.progress}%` }}
                           ></div>
                         </div>
-                        <span>{project.progress}%</span>
+                        <span className="progress-label">{project.progress}%</span>
                       </div>
                     </td>
                   </tr>
@@ -351,60 +395,43 @@ function Dashboard() {
               </tbody>
             </table>
           </div>
-          <div className="pagination-controls">
-            <button className="pagination-btn"><ChevronLeft size={16} /></button>
-            <button className="pagination-btn"><ChevronRight size={16} /></button>
-          </div>
-        </div>
-
-        {/* Project Timeline */}
-        <div className="section-card">
-          <h3>Project Timeline</h3>
-          <div className="timeline-container">
-            <div className="timeline-steps">
-              {timelineSteps.map((step, index) => (
-                <div key={index} className="timeline-step">
-                  <div className={`step-circle ${
-                    step.status === 'Completed' ? 'completed' :
-                    step.status === 'Current' ? 'current' : 'pending'
-                  }`}></div>
-                  <div className="step-info">
-                    <div className="step-name">{step.name}</div>
-                    <div className="step-status">{step.status}</div>
-                  </div>
-                </div>
-              ))}
-            </div>
+          <div className="pagination">
+            <button className="page-button" style={{ backgroundColor: '#3b82f6', color: 'white' }}>
+              <ChevronLeft size={16} />
+            </button>
+            <button className="page-button" style={{ backgroundColor: '#3b82f6', color: 'white' }}>
+              <ChevronRight size={16} />
+            </button>
           </div>
         </div>
 
         {/* Department Budget vs Actual */}
-        <div className="section-card">
-          <h3>Department Budget vs Actual</h3>
-          {departmentData.map((dept, index) => (
-            <div key={index} className="dept-budget-item">
-              <div className="dept-header">
-                <h4>{dept.name}</h4>
-                <p className="dept-percentage">{dept.percentage}% of budget used</p>
-              </div>
-              <div className="dept-progress">
-                <div className="progress-bar">
+        <div className="card">
+          <h3 className="card-title">Department Budget vs Actual</h3>
+          <div className="dept-budget-list">
+            {departmentData.map((dept, index) => (
+              <div key={index} className={`dept-budget-item ${index < departmentData.length - 1 ? "with-border" : ""}`}>
+                <div className="dept-budget-header">
+                  <h4 className="dept-budget-title">{dept.name}</h4>
+                  <p className="dept-budget-percentage">{dept.percentage}% of budget used</p>
+                </div>
+                <div className="progress-container">
                   <div 
-                    className="progress-fill green" 
+                    className="progress-bar green" 
                     style={{ width: `${dept.percentage}%` }}
                   ></div>
                 </div>
+                <div className="dept-budget-details">
+                  <p>Budget: ₱{dept.budget.toLocaleString()}</p>
+                  <p>Spent: ₱{dept.spent.toLocaleString()}</p>
+                </div>
               </div>
-              <div className="dept-values">
-                <p>Budget: ₱{dept.budget.toLocaleString()}</p>
-                <p>Spent: ₱{dept.spent.toLocaleString()}</p>
-              </div>
-            </div>
-          ))}
+            ))}
+          </div>
         </div>
-      </main>
+      </div>
     </div>
   );
 }
 
-export default Dashboard;
+export default BudgetDashboard;

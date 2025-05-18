@@ -1,22 +1,73 @@
 import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { ChevronDown, Search, Filter } from 'lucide-react';
+import { Search, ChevronDown, ChevronLeft, ChevronRight } from 'lucide-react';
 import './AccountSetup.css';
 
-function AccountSetup() {
+const AccountSetup = () => {
   const [showBudgetDropdown, setShowBudgetDropdown] = useState(false);
   const [showExpenseDropdown, setShowExpenseDropdown] = useState(false);
+  const [selectedAccounts, setSelectedAccounts] = useState([]);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [showAccountTypeFilter, setShowAccountTypeFilter] = useState(false);
+  const [showStatusFilter, setShowStatusFilter] = useState(false);
+  const [selectedAccountType, setSelectedAccountType] = useState('All');
+  const [selectedStatus, setSelectedStatus] = useState('All');
+  const [searchQuery, setSearchQuery] = useState('');
+  const itemsPerPage = 5; // Number of accounts per page
   const navigate = useNavigate();
   
-  // Sample account data matching the UI in the image
-  const accounts = [
-    { id: 1, code: '0001', type: 'Assets (Current)', description: 'Cash and Cash Equivalents', active: true, accomplished: true },
-    { id: 2, code: '0002', type: 'Assets (Current)', description: 'Accounts Receivable', active: true, accomplished: false },
-    { id: 3, code: '0003', type: 'Assets (Noncurrent)', description: 'Accounts Receivable', active: true, accomplished: true },
-    { id: 4, code: '0004', type: 'Liabilities (Current)', description: 'Accounts Receivable', active: true, accomplished: false },
-    { id: 5, code: '0005', type: 'Expenses', description: 'Cash and Cash Equivalents', active: true, accomplished: false },
-    { id: 6, code: '0006', type: 'Equity', description: 'Accounts Receivable', active: true, accomplished: true },
-  ];
+  // Account type options
+  const accountTypes = ['All', 'Assets', 'Liabilities', 'Expenses'];
+  
+  // Status filter options
+  const statusOptions = ['All', 'Active', 'Inactive'];
+
+  // Sample account data
+  const [accounts] = useState([
+    { id: 1, code: '1001', type: 'Assets', description: 'Accounts Receivable', active: true, accomplished: false, date: '-' },
+    { id: 2, code: '1002', type: 'Assets', description: 'Cash on Hand', active: true, accomplished: false, date: '-' },
+    { id: 3, code: '2000', type: 'Liabilities', description: 'Accounts Payable', active: true, accomplished: false, date: '-' },
+    { id: 4, code: '3014', type: 'Assets', description: 'Office Equipment', active: true, accomplished: true, date: '05-11-25' },
+    { id: 5, code: '5210', type: 'Expenses', description: 'Rent Expense', active: false, accomplished: true, date: '04-24-25' },
+  ]);
+
+  // Filter accounts based on selected filters and search query
+  const filteredAccounts = accounts.filter(account => {
+    // Account type filter
+    if (selectedAccountType !== 'All' && account.type !== selectedAccountType) {
+      return false;
+    }
+    
+    // Status filter
+    if (selectedStatus === 'Active' && !account.active) {
+      return false;
+    }
+    if (selectedStatus === 'Inactive' && account.active) {
+      return false;
+    }
+    
+    // Search query
+    if (searchQuery) {
+      const query = searchQuery.toLowerCase();
+      return (
+        account.code.toLowerCase().includes(query) ||
+        account.type.toLowerCase().includes(query) ||
+        account.description.toLowerCase().includes(query)
+      );
+    }
+    
+    return true;
+  });
+
+  // Pagination logic
+  const indexOfLastItem = currentPage * itemsPerPage;
+  const indexOfFirstItem = indexOfLastItem - itemsPerPage;
+  const currentAccounts = filteredAccounts.slice(indexOfFirstItem, indexOfLastItem);
+  const totalPages = Math.ceil(filteredAccounts.length / itemsPerPage);
+
+  const paginate = (pageNumber) => setCurrentPage(pageNumber);
+  const nextPage = () => setCurrentPage(prev => Math.min(prev + 1, totalPages));
+  const prevPage = () => setCurrentPage(prev => Math.max(prev - 1, 1));
 
   const toggleBudgetDropdown = () => {
     setShowBudgetDropdown(!showBudgetDropdown);
@@ -28,60 +79,92 @@ function AccountSetup() {
     if (showBudgetDropdown) setShowBudgetDropdown(false);
   };
 
+  const toggleAccountTypeFilter = () => {
+    setShowAccountTypeFilter(!showAccountTypeFilter);
+    if (showStatusFilter) setShowStatusFilter(false);
+  };
+
+  const toggleStatusFilter = () => {
+    setShowStatusFilter(!showStatusFilter);
+    if (showAccountTypeFilter) setShowAccountTypeFilter(false);
+  };
+
   const handleNavigate = (path) => {
     navigate(path);
     setShowBudgetDropdown(false);
     setShowExpenseDropdown(false);
   };
 
+  const handleAccountSelect = (id) => {
+    if (selectedAccounts.includes(id)) {
+      setSelectedAccounts(selectedAccounts.filter(accountId => accountId !== id));
+    } else {
+      setSelectedAccounts([...selectedAccounts, id]);
+    }
+  };
+
+  const handleAccountTypeSelect = (type) => {
+    setSelectedAccountType(type);
+    setShowAccountTypeFilter(false);
+    setCurrentPage(1); // Reset to first page when filter changes
+  };
+
+  const handleStatusSelect = (status) => {
+    setSelectedStatus(status);
+    setShowStatusFilter(false);
+    setCurrentPage(1); // Reset to first page when filter changes
+  };
+
+  const handleSearch = (e) => {
+    setSearchQuery(e.target.value);
+    setCurrentPage(1); // Reset to first page when search changes
+  };
+
   return (
-    <div className="account-setup-container">
+    <div className="app-container">
       {/* Header */}
-      <header className="dashboard-header">
+      <header className="app-header">
         <div className="header-left">
-          <h1 className="logo">BUDGETPRO</h1>
-          <nav className="main-nav">
+          <h1 className="app-logo">BUDGETPRO</h1>
+          <nav className="nav-menu">
             <Link to="/dashboard" className="nav-item">Dashboard</Link>
-            
+
             {/* Budget Dropdown */}
-            <div className="dropdown-container">
-              <div className="nav-item dropdown-toggle active" onClick={toggleBudgetDropdown}>
+            <div className="nav-dropdown">
+              <div 
+                className={`nav-item ${showBudgetDropdown ? 'active' : ''}`} 
+                onClick={toggleBudgetDropdown}
+              >
                 Budget <ChevronDown size={14} />
               </div>
               {showBudgetDropdown && (
                 <div className="dropdown-menu">
-                  {/* Budget Items */}
-                  <h4 className="dropdown-category">Budget</h4>
-                  <div 
-                    className="dropdown-item" 
+                  <div
+                    className="dropdown-item"
                     onClick={() => handleNavigate('/finance/budget-proposal')}
                   >
                     Budget Proposal
                   </div>
-                  
-                  <div 
-                    className="dropdown-item" 
+                  <div
+                    className="dropdown-item"
                     onClick={() => handleNavigate('/finance/proposal-history')}
                   >
                     Proposal History
                   </div>
-
-                  {/* Account Items */}
-                  <h4 className="dropdown-category">Account</h4>
-                  <div 
-                    className="dropdown-item active" 
+                  <div
+                    className="dropdown-item active"
                     onClick={() => handleNavigate('/finance/account-setup')}
                   >
                     Account Setup
                   </div>
-                  <div 
-                    className="dropdown-item" 
+                  <div
+                    className="dropdown-item"
                     onClick={() => handleNavigate('/finance/ledger-view')}
                   >
                     Ledger View
                   </div>
-                  <div 
-                    className="dropdown-item" 
+                  <div
+                    className="dropdown-item"
                     onClick={() => handleNavigate('/finance/journal-entry')}
                   >
                     Journal Entries
@@ -89,22 +172,25 @@ function AccountSetup() {
                 </div>
               )}
             </div>
-            
+
             {/* Expense Dropdown */}
-            <div className="dropdown-container">
-              <div className="nav-item dropdown-toggle" onClick={toggleExpenseDropdown}>
+            <div className="nav-dropdown">
+              <div 
+                className={`nav-item ${showExpenseDropdown ? 'active' : ''}`} 
+                onClick={toggleExpenseDropdown}
+              >
                 Expense <ChevronDown size={14} />
               </div>
               {showExpenseDropdown && (
                 <div className="dropdown-menu">
-                  <div 
-                    className="dropdown-item" 
+                  <div
+                    className="dropdown-item"
                     onClick={() => handleNavigate('/finance/expense-tracking')}
                   >
                     Expense Tracking
                   </div>
-                  <div 
-                    className="dropdown-item" 
+                  <div
+                    className="dropdown-item"
                     onClick={() => handleNavigate('/finance/expense-history')}
                   >
                     Expense History
@@ -112,9 +198,9 @@ function AccountSetup() {
                 </div>
               )}
             </div>
-            
+
             {/* User Management - Simple Navigation Item */}
-            <div 
+            <div
               className="nav-item"
               onClick={() => handleNavigate('/finance/user-management')}
             >
@@ -129,43 +215,93 @@ function AccountSetup() {
         </div>
       </header>
 
-      {/* Main Content */}
-      <main className="account-setup-main">
+      <div className="content-container">
         <h2 className="page-title">Account Setup</h2>
-        
-        {/* Search Bar */}
-        <div className="search-bar-container">
+
+        <div className="controls-row">
           <div className="search-box">
-            <input type="text" placeholder="Search by project or budget" className="search-input" />
-            <Search size={16} className="search-icon" />
+            <input
+              type="text"
+              placeholder="Search by account code or description"
+              value={searchQuery}
+              onChange={handleSearch}
+              className="search-input"
+            />
+            <button className="search-icon-btn">
+              <Search size={18} />
+            </button>
           </div>
-          <button className="filter-button">
-            <Filter size={16} />
-            Filter
-          </button>
+
+          <div className="filter-controls">
+            {/* Account Type Filter */}
+            <div className="filter-dropdown">
+              <button className="filter-dropdown-btn" onClick={toggleAccountTypeFilter}>
+                <span>{selectedAccountType}</span>
+                <ChevronDown size={14} />
+              </button>
+              {showAccountTypeFilter && (
+                <div className="category-dropdown-menu">
+                  {accountTypes.map((type, index) => (
+                    <div
+                      key={index}
+                      className={`category-dropdown-item ${selectedAccountType === type ? 'active' : ''}`}
+                      onClick={() => handleAccountTypeSelect(type)}
+                    >
+                      {type}
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+            
+            {/* Status Filter */}
+            <div className="filter-dropdown">
+              <button className="filter-dropdown-btn" onClick={toggleStatusFilter}>
+                <span>Status: {selectedStatus}</span>
+                <ChevronDown size={14} />
+              </button>
+              {showStatusFilter && (
+                <div className="category-dropdown-menu">
+                  {statusOptions.map((status, index) => (
+                    <div
+                      key={index}
+                      className={`category-dropdown-item ${selectedStatus === status ? 'active' : ''}`}
+                      onClick={() => handleStatusSelect(status)}
+                    >
+                      {status}
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
         </div>
 
-        {/* Account Table */}
-        <div className="account-table-container">
-          <table className="accounts-table">
+        <div className="transactions-table-wrapper">
+          <table className="transactions-table">
             <thead>
-              <tr className="header-row">
+              <tr>
                 <th>Account Code</th>
                 <th>Account Type</th>
-                <th>Account Description</th>
-                <th>Active</th>
+                <th>Account Title</th>
+                <th>Status</th>
                 <th>Accomplished</th>
+                <th>Accomplishment Date</th>
               </tr>
             </thead>
             <tbody>
-              {accounts.map((account) => (
-                <tr key={account.id}>
+              {currentAccounts.map((account) => (
+                <tr
+                  key={account.id}
+                  onClick={() => handleAccountSelect(account.id)}
+                  style={{ cursor: 'pointer' }}
+                >
                   <td>{account.code}</td>
                   <td>{account.type}</td>
                   <td>{account.description}</td>
                   <td>
                     <div className={`status-pill ${account.active ? 'active' : 'inactive'}`}>
-                      {account.active ? 'Yes' : 'No'}
+                      {account.active ? 'Active' : 'Inactive'}
                     </div>
                   </td>
                   <td>
@@ -173,14 +309,46 @@ function AccountSetup() {
                       {account.accomplished ? 'Yes' : 'No'}
                     </div>
                   </td>
+                  <td>{account.date}</td>
                 </tr>
               ))}
             </tbody>
           </table>
+          
+          {/* Pagination using the same style as ExpenseHistory */}
+          <div className="pagination-controls">
+            <button 
+              className={`pagination-btn ${currentPage === 1 ? 'disabled' : ''}`} 
+              onClick={prevPage}
+              disabled={currentPage === 1}
+            >
+              <ChevronLeft size={14} />
+            </button>
+            
+            <div className="pagination-numbers">
+              {Array.from({ length: totalPages }, (_, i) => (
+                <button
+                  key={i + 1}
+                  className={`pagination-number ${currentPage === i + 1 ? 'active' : ''}`}
+                  onClick={() => paginate(i + 1)}
+                >
+                  {i + 1}
+                </button>
+              ))}
+            </div>
+            
+            <button 
+              className={`pagination-btn ${currentPage === totalPages ? 'disabled' : ''}`}
+              onClick={nextPage}
+              disabled={currentPage === totalPages}
+            >
+              <ChevronRight size={14} />
+            </button>
+          </div>
         </div>
-      </main>
+      </div>
     </div>
   );
-}
+};
 
 export default AccountSetup;

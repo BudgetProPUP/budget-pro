@@ -1,405 +1,424 @@
 /* Base styles */
 .user-management-container {
-    padding: 0 0 40px;
-    background-color: #f9fafb;
-    min-height: 100vh;
-  }
-  
-  /* Header styles (already in your dashboard CSS) */
-  
-  /* Page Header */
-  .page-header {
-    padding: 20px 40px;
-    background-color: #fff;
-    border-bottom: 1px solid #e5e7eb;
-  }
-  
-  .page-header h1 {
-    font-size: 24px;
-    font-weight: 600;
-    color: #111827;
-    margin-bottom: 8px;
-  }
-  
-  .page-description {
-    color: #6b7280;
-    font-size: 14px;
-  }
-  
-  /* Controls container */
-  .controls-container {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    padding: 20px 40px;
-    background-color: #fff;
-    border-bottom: 1px solid #e5e7eb;
-  }
-  
-  .search-filter {
-    display: flex;
-    gap: 12px;
-  }
-  
-  .search-input {
-    width: 240px;
-    padding: 8px 12px;
-    border: 1px solid #d1d5db;
-    border-radius: 4px;
-    font-size: 14px;
-  }
-  
-  .role-filter {
-    padding: 8px 12px;
-    border: 1px solid #d1d5db;
-    border-radius: 4px;
-    font-size: 14px;
-  }
-  
-  .add-user-btn {
-    padding: 8px 16px;
-    background-color: #2563eb;
-    color: white;
-    border: none;
-    border-radius: 4px;
-    font-size: 14px;
-    font-weight: 500;
-    cursor: pointer;
-    transition: background-color 0.2s;
-  }
-  
-  .add-user-btn:hover {
-    background-color: #1d4ed8;
-  }
-  
-  /* Users table */
-  .users-table-container {
-    padding: 20px 40px;
-    background-color: #fff;
-    margin-top: 20px;
-  }
-  
-  .users-table {
-    width: 100%;
-    border-collapse: collapse;
-  }
-  
-  .users-table th {
-    text-align: left;
-    padding: 12px 16px;
-    background-color: #f9fafb;
-    border-bottom: 1px solid #e5e7eb;
-    color: #374151;
-    font-weight: 500;
-    font-size: 14px;
-  }
-  
-  .users-table td {
-    padding: 12px 16px;
-    border-bottom: 1px solid #e5e7eb;
-    color: #111827;
-    font-size: 14px;
-  }
-  
-  /* Role badges */
-  .role-badge {
-    display: inline-block;
-    padding: 4px 8px;
-    border-radius: 9999px;
-    font-size: 12px;
-    font-weight: 500;
-  }
-  
-  .role-badge.admin {
-    background-color: #fee2e2;
-    color: #b91c1c;
-  }
-  
-  .role-badge.finance-manager {
-    background-color: #e0e7ff;
-    color: #4338ca;
-  }
-  
-  .role-badge.accountant {
-    background-color: #dbeafe;
-    color: #1e40af;
-  }
-  
-  .role-badge.viewer {
-    background-color: #e5e7eb;
-    color: #4b5563;
-  }
-  
-  /* Status badges */
-  .status-badge {
-    display: inline-block;
-    padding: 4px 8px;
-    border-radius: 9999px;
-    font-size: 12px;
-    font-weight: 500;
-  }
-  
-  .status-badge.active {
-    background-color: #d1fae5;
-    color: #065f46;
-  }
-  
-  .status-badge.inactive {
-    background-color: #fef3c7;
-    color: #92400e;
-  }
-  
-  /* Action buttons */
-  .action-buttons {
-    display: flex;
-    gap: 8px;
-  }
-  
-  .edit-btn, .toggle-btn {
-    padding: 6px 12px;
-    border-radius: 4px;
-    font-size: 12px;
-    font-weight: 500;
-    cursor: pointer;
-    border: none;
-    transition: background-color 0.2s;
-  }
-  
-  .edit-btn {
-    background-color: #e5e7eb;
-    color: #374151;
-  }
-  
-  .edit-btn:hover {
-    background-color: #d1d5db;
-  }
-  
-  .toggle-btn.deactivate {
-    background-color: #fee2e2;
-    color: #b91c1c;
-  }
-  
-  .toggle-btn.deactivate:hover {
-    background-color: #fecaca;
-  }
-  
-  .toggle-btn.activate {
-    background-color: #d1fae5;
-    color: #065f46;
-  }
-  
-  .toggle-btn.activate:hover {
-    background-color: #a7f3d0;
-  }
-  
-  /* Pagination */
-  .pagination {
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    padding: 20px 0;
-    gap: 16px;
-  }
-  
-  .pagination-btn {
-    padding: 8px 16px;
-    background-color: #f3f4f6;
-    border: 1px solid #d1d5db;
-    border-radius: 4px;
-    font-size: 14px;
-    font-weight: 500;
-    cursor: pointer;
-    transition: background-color 0.2s;
-  }
-  
-  .pagination-btn:hover {
-    background-color: #e5e7eb;
-  }
-  
-  .page-indicator {
-    color: #4b5563;
-    font-size: 14px;
-  }
-  
-  /* Modal Styles */
-  .modal-overlay {
-    position: fixed;
-    top: 0;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    background-color: rgba(0, 0, 0, 0.5);
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    z-index: 1000;
-  }
-  
-  .user-modal {
-    background-color: white;
-    border-radius: 8px;
-    width: 600px;
-    max-width: 90%;
-    box-shadow: 0 10px 25px rgba(0, 0, 0, 0.2);
-  }
-  
-  .modal-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    padding: 16px 24px;
-    border-bottom: 1px solid #e5e7eb;
-  }
-  
-  .modal-header h2 {
-    margin: 0;
-    font-size: 18px;
-    font-weight: 600;
-    color: #111827;
-    display: flex;
-    align-items: center;
-  }
-  
-  .info-icon {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    width: 24px;
-    height: 24px;
-    border-radius: 50%;
-    background-color: #e5e7eb;
-    color: #4b5563;
-    font-style: normal;
-    margin-right: 10px;
-  }
-  
-  .close-btn {
-    background: none;
-    border: none;
-    cursor: pointer;
-    color: #6b7280;
-  }
-  
-  .modal-body {
-    padding: 24px;
-  }
-  
-  .form-row {
-    display: flex;
-    margin-bottom: 20px;
-    gap: 20px;
-  }
-  
-  .form-group {
-    flex: 1;
-    display: flex;
-    flex-direction: column;
-  }
-  
-  .form-group label {
-    font-size: 14px;
-    color: #4b5563;
-    margin-bottom: 6px;
-  }
-  
-  .form-group input,
-  .form-group select {
-    padding: 8px 12px;
-    border: 1px solid #d1d5db;
-    border-radius: 4px;
-    font-size: 14px;
-  }
-  
-  .readonly-field {
-    padding: 8px 0;
-    color: #6b7280;
-    font-size: 14px;
-  }
-  
-  .status-toggle {
-    display: flex;
-    flex-direction: column;
-  }
-  
-  .toggle-switch {
-    position: relative;
-    display: inline-block;
-    width: 60px;
-    height: 34px;
-    margin-top: 8px;
-  }
-  
-  .toggle-switch input {
-    opacity: 0;
-    width: 0;
-    height: 0;
-  }
-  
-  .toggle-switch label {
-    position: absolute;
-    cursor: pointer;
-    top: 0;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    background-color: #ccc;
-    transition: .4s;
-    border-radius: 34px;
-  }
-  
-  .toggle-switch label:before {
-    position: absolute;
-    content: "";
-    height: 26px;
-    width: 26px;
-    left: 4px;
-    bottom: 4px;
-    background-color: white;
-    transition: .4s;
-    border-radius: 50%;
-  }
-  
-  .toggle-switch input:checked + label {
-    background-color: #10b981;
-  }
-  
-  .toggle-switch input:checked + label:before {
-    transform: translateX(26px);
-  }
-  
-  .modal-footer {
-    display: flex;
-    justify-content: flex-end;
-    padding: 16px 24px;
-    border-top: 1px solid #e5e7eb;
-    gap: 12px;
-  }
-  
-  .cancel-btn {
-    padding: 8px 16px;
-    background-color: #f3f4f6;
-    border: 1px solid #d1d5db;
-    border-radius: 4px;
-    font-size: 14px;
-    font-weight: 500;
-    cursor: pointer;
-  }
-  
-  .cancel-btn:hover {
-    background-color: #e5e7eb;
-  }
-  
-  .confirm-btn {
-    padding: 8px 16px;
-    background-color: #2563eb;
-    color: white;
-    border: none;
-    border-radius: 4px;
-    font-size: 14px;
-    font-weight: 500;
-    cursor: pointer;
-  }
-  
-  .confirm-btn:hover {
-    background-color: #1d4ed8;
-  }
+  padding: 0 0 40px;
+  background-color: #f9fafb;
+  min-height: 100vh;
+}
+
+/* Header styles (already in your dashboard CSS) */
+
+/* Page Header */
+.page-header {
+  padding: 20px 40px;
+  background-color: #fff;
+  border-bottom: 1px solid #e5e7eb;
+}
+
+.page-header h1 {
+  font-size: 24px;
+  font-weight: 600;
+  color: #111827;
+  margin-bottom: 8px;
+}
+
+.page-description {
+  color: #6b7280;
+  font-size: 14px;
+}
+
+/* Controls container */
+.controls-container {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 20px 40px;
+  background-color: #fff;
+  border-bottom: 1px solid #e5e7eb;
+}
+
+.search-filter {
+  display: flex;
+  gap: 12px;
+}
+
+/* Updated: White background and black text */
+.search-input {
+  width: 240px;
+  padding: 8px 12px;
+  border: 1px solid #d1d5db;
+  border-radius: 4px;
+  font-size: 14px;
+  background-color: #ffffff;
+  color: #000000;
+}
+
+/* Updated: White background and black text */
+.role-filter {
+  padding: 8px 12px;
+  border: 1px solid #d1d5db;
+  border-radius: 4px;
+  font-size: 14px;
+  background-color: #ffffff;
+  color: #000000;
+}
+
+.add-user-btn {
+  padding: 8px 16px;
+  background-color: #2563eb;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+
+.add-user-btn:hover {
+  background-color: #1d4ed8;
+}
+
+/* Users table */
+.users-table-container {
+  padding: 20px 40px;
+  background-color: #fff;
+  margin-top: 20px;
+}
+
+.users-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.users-table th {
+  text-align: left;
+  padding: 12px 16px;
+  background-color: #f9fafb;
+  border-bottom: 1px solid #e5e7eb;
+  color: #374151;
+  font-weight: 500;
+  font-size: 14px;
+}
+
+.users-table td {
+  padding: 12px 16px;
+  border-bottom: 1px solid #e5e7eb;
+  color: #111827;
+  font-size: 14px;
+}
+
+/* Role badges */
+.role-badge {
+  display: inline-block;
+  padding: 4px 8px;
+  border-radius: 9999px;
+  font-size: 12px;
+  font-weight: 500;
+}
+
+.role-badge.admin {
+  background-color: #fee2e2;
+  color: #b91c1c;
+}
+
+.role-badge.finance-manager {
+  background-color: #e0e7ff;
+  color: #4338ca;
+}
+
+.role-badge.accountant {
+  background-color: #dbeafe;
+  color: #1e40af;
+}
+
+.role-badge.viewer {
+  background-color: #e5e7eb;
+  color: #4b5563;
+}
+
+/* Status badges */
+.status-badge {
+  display: inline-block;
+  padding: 4px 8px;
+  border-radius: 9999px;
+  font-size: 12px;
+  font-weight: 500;
+}
+
+.status-badge.active {
+  background-color: #d1fae5;
+  color: #065f46;
+}
+
+.status-badge.inactive {
+  background-color: #fef3c7;
+  color: #92400e;
+}
+
+/* Action buttons */
+.action-buttons {
+  display: flex;
+  gap: 8px;
+}
+
+.edit-btn, .toggle-btn {
+  padding: 6px 12px;
+  border-radius: 4px;
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+  border: none;
+  transition: background-color 0.2s;
+}
+
+.edit-btn {
+  background-color: #e5e7eb;
+  color: #374151;
+}
+
+.edit-btn:hover {
+  background-color: #d1d5db;
+}
+
+.toggle-btn.deactivate {
+  background-color: #fee2e2;
+  color: #b91c1c;
+}
+
+.toggle-btn.deactivate:hover {
+  background-color: #fecaca;
+}
+
+.toggle-btn.activate {
+  background-color: #d1fae5;
+  color: #065f46;
+}
+
+.toggle-btn.activate:hover {
+  background-color: #a7f3d0;
+}
+
+/* Pagination */
+.pagination {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  padding: 20px 0;
+  gap: 16px;
+}
+
+.pagination-btn {
+  padding: 8px 16px;
+  background-color: #f3f4f6;
+  border: 1px solid #d1d5db;
+  border-radius: 4px;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+
+.pagination-btn:hover {
+  background-color: #e5e7eb;
+}
+
+.page-indicator {
+  color: #4b5563;
+  font-size: 14px;
+}
+
+/* Modal Styles */
+.modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(0, 0, 0, 0.5);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 1000;
+}
+
+.user-modal {
+  background-color: white;
+  border-radius: 8px;
+  width: 600px;
+  max-width: 90%;
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.2);
+}
+
+.modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 16px 24px;
+  border-bottom: 1px solid #e5e7eb;
+}
+
+.modal-header h2 {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 600;
+  color: #111827;
+  display: flex;
+  align-items: center;
+}
+
+.info-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background-color: #e5e7eb;
+  color: #4b5563;
+  font-style: normal;
+  margin-right: 10px;
+}
+
+.close-btn {
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: #6b7280;
+}
+
+.modal-body {
+  padding: 24px;
+}
+
+.form-row {
+  display: flex;
+  margin-bottom: 20px;
+  gap: 20px;
+}
+
+.form-group {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+}
+
+.form-group label {
+  font-size: 14px;
+  color: #4b5563;
+  margin-bottom: 6px;
+}
+
+/* Updated: White background and black text for inputs */
+.form-group input,
+.form-group select {
+  padding: 8px 12px;
+  border: 1px solid #d1d5db;
+  border-radius: 4px;
+  font-size: 14px;
+  background-color: #ffffff;
+  color: #000000;
+}
+
+/* Add focus styles to make active inputs stand out */
+.form-group input:focus,
+.form-group select:focus,
+.search-input:focus,
+.role-filter:focus {
+  outline: none;
+  border-color: #2563eb;
+  box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.2);
+}
+
+.readonly-field {
+  padding: 8px 0;
+  color: #6b7280;
+  font-size: 14px;
+}
+
+.status-toggle {
+  display: flex;
+  flex-direction: column;
+}
+
+.toggle-switch {
+  position: relative;
+  display: inline-block;
+  width: 60px;
+  height: 34px;
+  margin-top: 8px;
+}
+
+.toggle-switch input {
+  opacity: 0;
+  width: 0;
+  height: 0;
+}
+
+.toggle-switch label {
+  position: absolute;
+  cursor: pointer;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: #ccc;
+  transition: .4s;
+  border-radius: 34px;
+}
+
+.toggle-switch label:before {
+  position: absolute;
+  content: "";
+  height: 26px;
+  width: 26px;
+  left: 4px;
+  bottom: 4px;
+  background-color: white;
+  transition: .4s;
+  border-radius: 50%;
+}
+
+.toggle-switch input:checked + label {
+  background-color: #10b981;
+}
+
+.toggle-switch input:checked + label:before {
+  transform: translateX(26px);
+}
+
+.modal-footer {
+  display: flex;
+  justify-content: flex-end;
+  padding: 16px 24px;
+  border-top: 1px solid #e5e7eb;
+  gap: 12px;
+}
+
+.cancel-btn {
+  padding: 8px 16px;
+  background-color: #f3f4f6;
+  border: 1px solid #d1d5db;
+  border-radius: 4px;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+}
+
+.cancel-btn:hover {
+  background-color: #e5e7eb;
+}
+
+.confirm-btn {
+  padding: 8px 16px;
+  background-color: #2563eb;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+}
+
+.confirm-btn:hover {
+  background-color: #1d4ed8;
+}

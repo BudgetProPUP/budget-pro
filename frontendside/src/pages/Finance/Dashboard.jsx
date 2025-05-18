@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { BarChart, Bar, XAxis, YAxis, Tooltip, Legend, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
-import { ChevronLeft, ChevronRight, ChevronDown, LogOut, Expand, Minimize } from 'lucide-react';
+import { BarChart, Bar, XAxis, YAxis, Tooltip, Legend, ResponsiveContainer } from 'recharts';
+import { ChevronLeft, ChevronRight, ChevronDown, Search, ArrowLeft, Expand, Minimize } from 'lucide-react';
 import { Link, useNavigate } from 'react-router-dom';
 import './Dashboard.css';
 
@@ -10,9 +10,7 @@ function BudgetDashboard() {
   const [expandedChart, setExpandedChart] = useState(false);
   const [showBudgetDropdown, setShowBudgetDropdown] = useState(false);
   const [showExpenseDropdown, setShowExpenseDropdown] = useState(false);
-  const [showProfileDropdown, setShowProfileDropdown] = useState(false);
   const [timeFilter, setTimeFilter] = useState('monthly');
-  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -82,13 +80,6 @@ function BudgetDashboard() {
     { name: 'Product Launch', budget: 50000, spent: 40000, remaining: 10000, status: 'Warning', progress: 80 },
   ];
 
-  // Pie chart data for department allocation
-  const pieData = [
-    { name: 'Marketing', value: 50, color: '#16a34a' },
-    { name: 'Development', value: 20, color: '#22c55e' },
-    { name: 'Operations', value: 30, color: '#4ade80' },
-  ];
-
   // Custom Tooltip for charts
   const CustomTooltip = ({ active, payload, label }) => {
     if (active && payload && payload.length) {
@@ -109,36 +100,17 @@ function BudgetDashboard() {
   const toggleBudgetDropdown = () => {
     setShowBudgetDropdown(!showBudgetDropdown);
     if (showExpenseDropdown) setShowExpenseDropdown(false);
-    if (showProfileDropdown) setShowProfileDropdown(false);
   };
 
   const toggleExpenseDropdown = () => {
     setShowExpenseDropdown(!showExpenseDropdown);
     if (showBudgetDropdown) setShowBudgetDropdown(false);
-    if (showProfileDropdown) setShowProfileDropdown(false);
-  };
-
-  const toggleProfileDropdown = () => {
-    setShowProfileDropdown(!showProfileDropdown);
-    if (showBudgetDropdown) setShowBudgetDropdown(false);
-    if (showExpenseDropdown) setShowExpenseDropdown(false);
   };
 
   const handleNavigate = (path) => {
     navigate(path);
     setShowBudgetDropdown(false);
     setShowExpenseDropdown(false);
-    setShowProfileDropdown(false);
-    setMobileMenuOpen(false);
-  };
-
-  const handleLogout = () => {
-    navigate('/login');
-  };
-
-  const handleExport = () => {
-    // In a real app, this would generate a CSV or PDF
-    alert('Export functionality would be implemented here');
   };
 
   if (loading) {
@@ -151,145 +123,130 @@ function BudgetDashboard() {
   }
 
   return (
-    <div className="dashboard-container">
-      {/* Header */}
-      <header className="dashboard-header">
+    <div className="app-container">
+      {/* Header - Using ExpenseHistory Nav Structure */}
+      <header className="app-header">
         <div className="header-left">
-          <h1 className="logo">BUDGETPRO</h1>
-          
-          {/* Mobile menu button */}
-          <button 
-            className="mobile-menu-button"
-            onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-            aria-expanded={mobileMenuOpen}
-            aria-label="Toggle menu"
-          >
-            <span className="menu-icon"></span>
-            <span className="menu-icon"></span>
-            <span className="menu-icon"></span>
-          </button>
-          
-          <nav className={`main-nav ${mobileMenuOpen ? 'mobile-open' : ''}`}>
-            <Link to="/dashboard" className="nav-link active">Dashboard</Link>
-            
+          <h1 className="app-logo">BUDGETPRO</h1>
+          <nav className="nav-menu">
+            <Link to="/dashboard" className="nav-item">Dashboard</Link>
+
             {/* Budget Dropdown */}
-            <div className="dropdown">
-              <button 
-                className="dropdown-toggle"
+            <div className="nav-dropdown">
+              <div 
+                className={`nav-item ${showBudgetDropdown ? 'active' : ''}`} 
                 onClick={toggleBudgetDropdown}
-                aria-haspopup="true"
-                aria-expanded={showBudgetDropdown}
               >
                 Budget <ChevronDown size={14} />
-              </button>
+              </div>
               {showBudgetDropdown && (
                 <div className="dropdown-menu">
-                  <div className="dropdown-header">Budget</div>
-                  <div className="dropdown-item" onClick={() => handleNavigate('/finance/budget-proposal')}>
+                  <div
+                    className="dropdown-item"
+                    onClick={() => handleNavigate('/finance/budget-proposal')}
+                  >
                     Budget Proposal
                   </div>
-                  <div className="dropdown-item" onClick={() => handleNavigate('/finance/proposal-history')}>
+                  <div
+                    className="dropdown-item"
+                    onClick={() => handleNavigate('/finance/proposal-history')}
+                  >
                     Proposal History
                   </div>
-                  
-                  <div className="dropdown-header">Account</div>
-                  <div className="dropdown-item" onClick={() => handleNavigate('/finance/account-setup')}>
+                  <div
+                    className="dropdown-item"
+                    onClick={() => handleNavigate('/finance/account-setup')}
+                  >
                     Account Setup
                   </div>
-                  <div className="dropdown-item" onClick={() => handleNavigate('/finance/ledger-view')}>
+                  <div
+                    className="dropdown-item"
+                    onClick={() => handleNavigate('/finance/ledger-view')}
+                  >
                     Ledger View
                   </div>
-                  <div className="dropdown-item" onClick={() => handleNavigate('/finance/journal-entry')}>
+                  <div
+                    className="dropdown-item"
+                    onClick={() => handleNavigate('/finance/journal-entry')}
+                  >
                     Journal Entries
                   </div>
                 </div>
               )}
             </div>
-            
+
             {/* Expense Dropdown */}
-            <div className="dropdown">
-              <button 
-                className="dropdown-toggle"
+            <div className="nav-dropdown">
+              <div 
+                className={`nav-item ${showExpenseDropdown ? 'active' : ''}`} 
                 onClick={toggleExpenseDropdown}
-                aria-haspopup="true"
-                aria-expanded={showExpenseDropdown}
               >
                 Expense <ChevronDown size={14} />
-              </button>
+              </div>
               {showExpenseDropdown && (
                 <div className="dropdown-menu">
-                  <div className="dropdown-item" onClick={() => handleNavigate('/finance/expense-tracking')}>
+                  <div
+                    className="dropdown-item"
+                    onClick={() => handleNavigate('/finance/expense-tracking')}
+                  >
                     Expense Tracking
                   </div>
-                  <div className="dropdown-item" onClick={() => handleNavigate('/finance/expense-history')}>
+                  <div
+                    className="dropdown-item"
+                    onClick={() => handleNavigate('/finance/expense-history')}
+                  >
                     Expense History
                   </div>
                 </div>
               )}
             </div>
-            
-            {/* User Management */}
-            <div className="nav-link" onClick={() => handleNavigate('/finance/user-management')}>
+
+            {/* User Management - Simple Navigation Item */}
+            <div
+              className="nav-item"
+              onClick={() => handleNavigate('/finance/user-management')}
+            >
               User Management
             </div>
           </nav>
         </div>
-        
-        {/* Time and Date Display */}
-        <div className="header-datetime">
-          <span className="formatted-date">{formattedDate}</span>
-          <span className="formatted-time">{formattedTime}</span>
-        </div>
-        
-        {/* User Profile */}
-        <div className="user-profile dropdown">
-          <button 
-            className="avatar-button"
-            onClick={toggleProfileDropdown}
-            aria-haspopup="true"
-            aria-expanded={showProfileDropdown}
-          >
-            <img src="/api/placeholder/32/32" alt="User avatar" />
-          </button>
-          {showProfileDropdown && (
-            <div className="dropdown-menu profile-dropdown">
-              <div className="dropdown-item" onClick={handleLogout}>
-                <LogOut size={11} className="icon" /> Logout
-              </div>
-            </div>
-          )}
+        <div className="header-right">
+          <div className="user-avatar">
+            <img src="/api/placeholder/36/36" alt="User avatar" className="avatar-img" />
+          </div>
         </div>
       </header>
 
       {/* Main Content */}
-      <main className="dashboard-content">
-        {/* Date display */}
+      <div className="content-container">
+        {/* Date display - Modified to show only timestamp */}
         <div className="date-display">
           <div className="date-time-badge">
             {formattedDate} | {formattedTime}
           </div>
-          <button className="export-button" onClick={handleExport}>
-            Export Report
-          </button>
+          {/* Export button removed and timestamp is already displayed above */}
         </div>
 
-        {/* Time period filter */}
+        {/* Time period filter - UPDATED TO BLUE */}
         <div className="time-filter">
           <button 
             className={`filter-button ${timeFilter === 'monthly' ? 'active' : ''}`}
             onClick={() => setTimeFilter('monthly')}
+            style={{ backgroundColor: timeFilter === 'monthly' ? '#2563eb' : '#3b82f6', color: 'white' }}
           >
             Monthly
           </button>
           <button 
             className={`filter-button ${timeFilter === 'quarterly' ? 'active' : ''}`}
             onClick={() => setTimeFilter('quarterly')}
+            style={{ backgroundColor: timeFilter === 'quarterly' ? '#2563eb' : '#3b82f6', color: 'white' }}
           >
             Quarterly
           </button>
           <button 
             className={`filter-button ${timeFilter === 'yearly' ? 'active' : ''}`}
             onClick={() => setTimeFilter('yearly')}
+            style={{ backgroundColor: timeFilter === 'yearly' ? '#2563eb' : '#3b82f6', color: 'white' }}
           >
             Yearly
           </button>
@@ -297,45 +254,23 @@ function BudgetDashboard() {
 
         {/* Top Cards */}
         <div className="stats-grid">
-          {/* Department Allocation */}
+          {/* Department Allocation - Pie Chart Removed */}
           <div className="card">
             <h3 className="card-title">Budget Allocation by Department</h3>
-            <div className="allocation-chart-container">
-              <div className="pie-chart">
-                <ResponsiveContainer width="100%" height="100%">
-                  <PieChart>
-                    <Pie
-                      data={pieData}
-                      cx="50%"
-                      cy="50%"
-                      innerRadius={60}
-                      outerRadius={80}
-                      paddingAngle={0}
-                      dataKey="value"
-                    >
-                      {pieData.map((entry, index) => (
-                        <Cell key={`cell-${index}`} fill={entry.color} />
-                      ))}
-                    </Pie>
-                    <Tooltip content={<CustomTooltip />} />
-                  </PieChart>
-                </ResponsiveContainer>
-              </div>
-              <div className="dept-list">
-                {departmentData.map((dept, index) => (
-                  <div key={index} className="dept-item">
-                    <div className="color-indicator" style={{ backgroundColor: dept.color }}></div>
-                    <span className="dept-name">{dept.name}</span>
-                    <div className="progress-container">
-                      <div 
-                        className="progress-bar" 
-                        style={{ width: `${dept.percentage}%`, backgroundColor: dept.color }}
-                      ></div>
-                    </div>
-                    <span className="dept-budget">₱{dept.budget.toLocaleString()}</span>
+            <div className="dept-list">
+              {departmentData.map((dept, index) => (
+                <div key={index} className="dept-item">
+                  <div className="color-indicator" style={{ backgroundColor: dept.color }}></div>
+                  <span className="dept-name">{dept.name}</span>
+                  <div className="progress-container">
+                    <div 
+                      className="progress-bar" 
+                      style={{ width: `${dept.percentage}%`, backgroundColor: dept.color }}
+                    ></div>
                   </div>
-                ))}
-              </div>
+                  <span className="dept-budget">₱{dept.budget.toLocaleString()}</span>
+                </div>
+              ))}
             </div>
           </div>
 
@@ -385,6 +320,7 @@ function BudgetDashboard() {
               className="expand-button"
               onClick={() => setExpandedChart(!expandedChart)}
               aria-label={expandedChart ? 'Collapse chart' : 'Expand chart'}
+              style={{ color: '#3b82f6' }}
             >
               {expandedChart ? <Minimize size={16} /> : <Expand size={16} />}
             </button>
@@ -460,10 +396,10 @@ function BudgetDashboard() {
             </table>
           </div>
           <div className="pagination">
-            <button className="page-button">
+            <button className="page-button" style={{ backgroundColor: '#3b82f6', color: 'white' }}>
               <ChevronLeft size={16} />
             </button>
-            <button className="page-button">
+            <button className="page-button" style={{ backgroundColor: '#3b82f6', color: 'white' }}>
               <ChevronRight size={16} />
             </button>
           </div>
@@ -493,7 +429,7 @@ function BudgetDashboard() {
             ))}
           </div>
         </div>
-      </main>
+      </div>
     </div>
   );
 }

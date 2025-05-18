@@ -1,19 +1,19 @@
 import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { ChevronDown, Search, Filter, ChevronLeft, ChevronRight, LogOut } from 'lucide-react';
+import { Link, useNavigate } from 'react-router-dom';
+import { Search, ChevronDown, ChevronLeft, ChevronRight } from 'lucide-react';
 import './AccountSetup.css';
 
-function AccountSetup() {
+const AccountSetup = () => {
   const [showBudgetDropdown, setShowBudgetDropdown] = useState(false);
   const [showExpenseDropdown, setShowExpenseDropdown] = useState(false);
-  const [showProfileDropdown, setShowProfileDropdown] = useState(false);
   const [selectedAccounts, setSelectedAccounts] = useState([]);
   const [currentPage, setCurrentPage] = useState(1);
-  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [showAccountTypeFilter, setShowAccountTypeFilter] = useState(false);
   const [showStatusFilter, setShowStatusFilter] = useState(false);
   const [selectedAccountType, setSelectedAccountType] = useState('All');
   const [selectedStatus, setSelectedStatus] = useState('All');
+  const [searchQuery, setSearchQuery] = useState('');
+  const itemsPerPage = 5; // Number of accounts per page
   const navigate = useNavigate();
   
   // Account type options
@@ -22,35 +22,61 @@ function AccountSetup() {
   // Status filter options
   const statusOptions = ['All', 'Active', 'Inactive'];
 
-  // Sample account data matching the UI in the image
-  const accounts = [
+  // Sample account data
+  const [accounts] = useState([
     { id: 1, code: '1001', type: 'Assets', description: 'Accounts Receivable', active: true, accomplished: false, date: '-' },
-    { id: 2, code: '1001', type: 'Assets', description: 'Accounts Receivable', active: true, accomplished: false, date: '-' },
-    { id: 3, code: '2000', type: 'Liabilities', description: 'Accounts Receivable', active: true, accomplished: false, date: '-' },
-    { id: 4, code: '3014', type: 'Assets', description: 'Accounts Receivable', active: true, accomplished: true, date: '05-11-25' },
-    { id: 5, code: '5210', type: 'Expenses', description: 'Rent Expense', active: true, accomplished: true, date: '04-24-25' },
-    { id: 6, code: '1002', type: 'Assets', description: 'Cash', active: true, accomplished: false, date: '-' },
-    { id: 7, code: '2001', type: 'Liabilities', description: 'Accounts Payable', active: true, accomplished: false, date: '-' },
-    { id: 8, code: '3015', type: 'Assets', description: 'Inventory', active: false, accomplished: true, date: '05-11-25' },
-    { id: 9, code: '5211', type: 'Expenses', description: 'Utilities Expense', active: false, accomplished: true, date: '04-24-25' },
-  ];
+    { id: 2, code: '1002', type: 'Assets', description: 'Cash on Hand', active: true, accomplished: false, date: '-' },
+    { id: 3, code: '2000', type: 'Liabilities', description: 'Accounts Payable', active: true, accomplished: false, date: '-' },
+    { id: 4, code: '3014', type: 'Assets', description: 'Office Equipment', active: true, accomplished: true, date: '05-11-25' },
+    { id: 5, code: '5210', type: 'Expenses', description: 'Rent Expense', active: false, accomplished: true, date: '04-24-25' },
+  ]);
+
+  // Filter accounts based on selected filters and search query
+  const filteredAccounts = accounts.filter(account => {
+    // Account type filter
+    if (selectedAccountType !== 'All' && account.type !== selectedAccountType) {
+      return false;
+    }
+    
+    // Status filter
+    if (selectedStatus === 'Active' && !account.active) {
+      return false;
+    }
+    if (selectedStatus === 'Inactive' && account.active) {
+      return false;
+    }
+    
+    // Search query
+    if (searchQuery) {
+      const query = searchQuery.toLowerCase();
+      return (
+        account.code.toLowerCase().includes(query) ||
+        account.type.toLowerCase().includes(query) ||
+        account.description.toLowerCase().includes(query)
+      );
+    }
+    
+    return true;
+  });
+
+  // Pagination logic
+  const indexOfLastItem = currentPage * itemsPerPage;
+  const indexOfFirstItem = indexOfLastItem - itemsPerPage;
+  const currentAccounts = filteredAccounts.slice(indexOfFirstItem, indexOfLastItem);
+  const totalPages = Math.ceil(filteredAccounts.length / itemsPerPage);
+
+  const paginate = (pageNumber) => setCurrentPage(pageNumber);
+  const nextPage = () => setCurrentPage(prev => Math.min(prev + 1, totalPages));
+  const prevPage = () => setCurrentPage(prev => Math.max(prev - 1, 1));
 
   const toggleBudgetDropdown = () => {
     setShowBudgetDropdown(!showBudgetDropdown);
     if (showExpenseDropdown) setShowExpenseDropdown(false);
-    if (showProfileDropdown) setShowProfileDropdown(false);
   };
 
   const toggleExpenseDropdown = () => {
     setShowExpenseDropdown(!showExpenseDropdown);
     if (showBudgetDropdown) setShowBudgetDropdown(false);
-    if (showProfileDropdown) setShowProfileDropdown(false);
-  };
-
-  const toggleProfileDropdown = () => {
-    setShowProfileDropdown(!showProfileDropdown);
-    if (showBudgetDropdown) setShowBudgetDropdown(false);
-    if (showExpenseDropdown) setShowExpenseDropdown(false);
   };
 
   const toggleAccountTypeFilter = () => {
@@ -67,8 +93,6 @@ function AccountSetup() {
     navigate(path);
     setShowBudgetDropdown(false);
     setShowExpenseDropdown(false);
-    setShowProfileDropdown(false);
-    setMobileMenuOpen(false);
   };
 
   const handleAccountSelect = (id) => {
@@ -79,266 +103,148 @@ function AccountSetup() {
     }
   };
 
-  const goToNextPage = () => {
-    setCurrentPage(currentPage + 1);
-  };
-
-  // Duplicate declaration removed
-
-  const handleLogout = () => {
-    navigate('/login');
-  };
-
   const handleAccountTypeSelect = (type) => {
     setSelectedAccountType(type);
     setShowAccountTypeFilter(false);
+    setCurrentPage(1); // Reset to first page when filter changes
   };
 
-  const goToPrevPage = () => {
-    if (currentPage > 1) {
-      setCurrentPage(currentPage - 1);
-    }
-  };
   const handleStatusSelect = (status) => {
     setSelectedStatus(status);
     setShowStatusFilter(false);
+    setCurrentPage(1); // Reset to first page when filter changes
   };
 
-  // Filter accounts based on selected filters
-  const filteredAccounts = accounts.filter(account => {
-    const matchesType = selectedAccountType === 'All' || account.type === selectedAccountType;
-    const matchesStatus = selectedStatus === 'All' || 
-      (selectedStatus === 'Active' && account.active) ||
-      (selectedStatus === 'Inactive' && !account.active);
-    
-    return matchesType && matchesStatus;
-  });
+  const handleSearch = (e) => {
+    setSearchQuery(e.target.value);
+    setCurrentPage(1); // Reset to first page when search changes
+  };
 
   return (
     <div className="app-container">
       {/* Header */}
-      <header className="dashboard-header">
+      <header className="app-header">
         <div className="header-left">
-          <h1 className="logo">BUDGETPRO</h1>
-          
-          {/* Mobile menu button */}
-          <button 
-            className="mobile-menu-button"
-            onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-            aria-expanded={mobileMenuOpen}
-            aria-label="Toggle menu"
-          >
-            <span className="menu-icon"></span>
-            <span className="menu-icon"></span>
-            <span className="menu-icon"></span>
-          </button>
-          
-          <nav className={`main-nav ${mobileMenuOpen ? 'mobile-open' : ''}`}>
-            <div 
-              className="nav-link"
-              onClick={() => handleNavigate('/dashboard')}
-            >
-              Dashboard
-            </div>
-            
+          <h1 className="app-logo">BUDGETPRO</h1>
+          <nav className="nav-menu">
+            <Link to="/dashboard" className="nav-item">Dashboard</Link>
+
             {/* Budget Dropdown */}
-            <div className="dropdown">
-              <button 
-                className="dropdown-toggle active"
+            <div className="nav-dropdown">
+              <div 
+                className={`nav-item ${showBudgetDropdown ? 'active' : ''}`} 
                 onClick={toggleBudgetDropdown}
-                aria-haspopup="true"
-                aria-expanded={showBudgetDropdown}
               >
                 Budget <ChevronDown size={14} />
-              </button>
+              </div>
               {showBudgetDropdown && (
                 <div className="dropdown-menu">
-                  <div className="dropdown-header">Budget</div>
-                  <div className="dropdown-item" onClick={() => handleNavigate('/finance/budget-proposal')}>
+                  <div
+                    className="dropdown-item"
+                    onClick={() => handleNavigate('/finance/budget-proposal')}
+                  >
                     Budget Proposal
                   </div>
-                  <div className="dropdown-item" onClick={() => handleNavigate('/finance/proposal-history')}>
+                  <div
+                    className="dropdown-item"
+                    onClick={() => handleNavigate('/finance/proposal-history')}
+                  >
                     Proposal History
                   </div>
-                  
-                  <div className="dropdown-header">Account</div>
-                  <div className="dropdown-item active" onClick={() => handleNavigate('/finance/account-setup')}>
+                  <div
+                    className="dropdown-item active"
+                    onClick={() => handleNavigate('/finance/account-setup')}
+                  >
                     Account Setup
                   </div>
-                  <div className="dropdown-item" onClick={() => handleNavigate('/finance/ledger-view')}>
+                  <div
+                    className="dropdown-item"
+                    onClick={() => handleNavigate('/finance/ledger-view')}
+                  >
                     Ledger View
                   </div>
-                  <div className="dropdown-item" onClick={() => handleNavigate('/finance/journal-entry')}>
+                  <div
+                    className="dropdown-item"
+                    onClick={() => handleNavigate('/finance/journal-entry')}
+                  >
                     Journal Entries
                   </div>
                 </div>
               )}
             </div>
-            
+
             {/* Expense Dropdown */}
-            <div className="dropdown">
-              <button 
-                className="dropdown-toggle"
+            <div className="nav-dropdown">
+              <div 
+                className={`nav-item ${showExpenseDropdown ? 'active' : ''}`} 
                 onClick={toggleExpenseDropdown}
-                aria-haspopup="true"
-                aria-expanded={showExpenseDropdown}
               >
                 Expense <ChevronDown size={14} />
-              </button>
+              </div>
               {showExpenseDropdown && (
                 <div className="dropdown-menu">
-                  <div className="dropdown-item" onClick={() => handleNavigate('/finance/expense-tracking')}>
+                  <div
+                    className="dropdown-item"
+                    onClick={() => handleNavigate('/finance/expense-tracking')}
+                  >
                     Expense Tracking
                   </div>
-                  <div className="dropdown-item" onClick={() => handleNavigate('/finance/expense-history')}>
+                  <div
+                    className="dropdown-item"
+                    onClick={() => handleNavigate('/finance/expense-history')}
+                  >
                     Expense History
                   </div>
                 </div>
               )}
             </div>
-            
-            {/* User Management */}
-            <div className="nav-link" onClick={() => handleNavigate('/finance/user-management')}>
+
+            {/* User Management - Simple Navigation Item */}
+            <div
+              className="nav-item"
+              onClick={() => handleNavigate('/finance/user-management')}
+            >
               User Management
             </div>
           </nav>
         </div>
-        
-        {/* User Profile */}
-        <div className="user-profile dropdown">
-          <button 
-            className="avatar-button"
-            onClick={toggleProfileDropdown}
-            aria-haspopup="true"
-            aria-expanded={showProfileDropdown}
-          >
-            <img src="/api/placeholder/32/32" alt="User avatar" />
-          </button>
-          {showProfileDropdown && (
-            <div className="dropdown-menu profile-dropdown">
-              <div className="dropdown-item" onClick={handleLogout}>
-                <LogOut size={11} className="icon" /> Logout
-              </div>
-            </div>
-          )}
+        <div className="header-right">
+          <div className="user-avatar">
+            <img src="/api/placeholder/36/36" alt="User avatar" className="avatar-img" />
+          </div>
         </div>
       </header>
 
-      {/* Main Content */}
-      <main className="account-setup-main">
-        {/* Search Bar */}
-        <div className="search-filter-container"></div>
-        {/* Search Bar and Filter Controls */}
-        <div className="search-filter-container">
-          <div className="search-box">
-            <input 
-              type="text" 
-              placeholder="Search by project or budget" 
-              className="search-input" 
-            />
-            <Search size={18} className="search-icon" />
-          </div>
-          <div className="filter-controls">
-            <button className="filter-button">
-              <Filter size={16} />
-              Filter by:
-            </button>
-            <div className="filter-dropdown">
-              <button className="filter-option">
-                Account Type <ChevronDown size={16} />
-              </button>
-            </div>
-            <div className="filter-dropdown">
-              <button className="filter-option">
-                Date <ChevronDown size={16} />
-              </button>
-            </div>
-          </div>
-        </div>
+      <div className="content-container">
+        <h2 className="page-title">Account Setup</h2>
 
-        {/* Account Table Card */}
-        <div className="account-card">
-          <div className="account-card-header">
-            <h2 className="account-card-title">Account Setup</h2>
-          </div>
-          
-          {/* Account Table */}
-          <div className="account-table-container">
-            <table className="accounts-table">
-              <thead>
-                <tr>
-                  <th>Account Code</th>
-                  <th>Account Type</th>
-                  <th>Account Title</th>
-                  <th>Status</th>
-                  <th>Accomplished</th>
-                  <th>Accomplishment Date</th>
-                </tr>
-              </thead>
-              <tbody>
-                {accounts.map((account) => (
-                  <tr key={account.id}>
-                    <td>{account.code}</td>
-                    <td>{account.type}</td>
-                    <td>{account.description}</td>
-                    <td>
-                      <div className={`status-pill ${account.active ? 'active' : 'inactive'}`}>
-                        {account.active ? 'Active' : 'Inactive'}
-                      </div>
-                    </td>
-                    <td>
-                      <div className={`status-pill ${account.accomplished ? 'accomplished' : 'not-accomplished'}`}>
-                        {account.accomplished ? 'Yes' : 'No'}
-                      </div>
-                    </td>
-                    <td>{account.date}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-          
-          {/* Pagination */}
-          <div className="pagination">
-            <button 
-              className="pagination-button prev" 
-              onClick={goToPrevPage}
-              disabled={currentPage === 1}
-            >
-              <ChevronLeft size={16} /> Prev
-            </button>
-            <div className="pagination-numbers">
-              <button className="pagination-number active">1</button>
-            </div>
-            <button 
-              className="pagination-button next" 
-              onClick={goToNextPage}
-            >
-              Next <ChevronRight size={16} />
+        <div className="controls-row">
+          <div className="search-box">
+            <input
+              type="text"
+              placeholder="Search by account code or description"
+              value={searchQuery}
+              onChange={handleSearch}
+              className="search-input"
+            />
+            <button className="search-icon-btn">
+              <Search size={18} />
             </button>
           </div>
+
           <div className="filter-controls">
-            <button className="filter-button">
-              <Filter size={16} />
-              Filter by:
-            </button>
-            
             {/* Account Type Filter */}
             <div className="filter-dropdown">
-              <button 
-                className="filter-option"
-                onClick={toggleAccountTypeFilter}
-                aria-haspopup="true"
-                aria-expanded={showAccountTypeFilter}
-              >
-                Account Type: {selectedAccountType} <ChevronDown size={16} />
+              <button className="filter-dropdown-btn" onClick={toggleAccountTypeFilter}>
+                <span>{selectedAccountType}</span>
+                <ChevronDown size={14} />
               </button>
               {showAccountTypeFilter && (
-                <div className="filter-dropdown-menu scrollable-menu">
+                <div className="category-dropdown-menu">
                   {accountTypes.map((type, index) => (
-                    <div 
-                      key={index} 
-                      className={`filter-item ${selectedAccountType === type ? 'active' : ''}`}
+                    <div
+                      key={index}
+                      className={`category-dropdown-item ${selectedAccountType === type ? 'active' : ''}`}
                       onClick={() => handleAccountTypeSelect(type)}
                     >
                       {type}
@@ -350,20 +256,16 @@ function AccountSetup() {
             
             {/* Status Filter */}
             <div className="filter-dropdown">
-              <button 
-                className="filter-option"
-                onClick={toggleStatusFilter}
-                aria-haspopup="true"
-                aria-expanded={showStatusFilter}
-              >
-                Status: {selectedStatus} <ChevronDown size={16} />
+              <button className="filter-dropdown-btn" onClick={toggleStatusFilter}>
+                <span>Status: {selectedStatus}</span>
+                <ChevronDown size={14} />
               </button>
               {showStatusFilter && (
-                <div className="filter-dropdown-menu scrollable-menu">
+                <div className="category-dropdown-menu">
                   {statusOptions.map((status, index) => (
-                    <div 
-                      key={index} 
-                      className={`filter-item ${selectedStatus === status ? 'active' : ''}`}
+                    <div
+                      key={index}
+                      className={`category-dropdown-item ${selectedStatus === status ? 'active' : ''}`}
                       onClick={() => handleStatusSelect(status)}
                     >
                       {status}
@@ -375,95 +277,78 @@ function AccountSetup() {
           </div>
         </div>
 
-        {/* Account Table Card */}
-        <div className="account-card">
-          <div className="account-card-header">
-            <h2 className="account-card-title">Account Setup</h2>
-            <div className="filter-badges">
-              {selectedAccountType !== 'All' && (
-                <div className="filter-badge">
-                  Type: {selectedAccountType}
-                  <button 
-                    className="badge-remove"
-                    onClick={() => setSelectedAccountType('All')}
-                  >
-                    ×
-                  </button>
-                </div>
-              )}
-              {selectedStatus !== 'All' && (
-                <div className="filter-badge">
-                  Status: {selectedStatus}
-                  <button 
-                    className="badge-remove"
-                    onClick={() => setSelectedStatus('All')}
-                  >
-                    ×
-                  </button>
-                </div>
-              )}
-            </div>
-          </div>
-          
-          {/* Account Table */}
-          <div className="account-table-container">
-            <table className="accounts-table">
-              <thead>
-                <tr>
-                  <th>Account Code</th>
-                  <th>Account Type</th>
-                  <th>Account Title</th>
-                  <th>Status</th>
-                  <th>Accomplished</th>
-                  <th>Accomplishment Date</th>
+        <div className="transactions-table-wrapper">
+          <table className="transactions-table">
+            <thead>
+              <tr>
+                <th>Account Code</th>
+                <th>Account Type</th>
+                <th>Account Title</th>
+                <th>Status</th>
+                <th>Accomplished</th>
+                <th>Accomplishment Date</th>
+              </tr>
+            </thead>
+            <tbody>
+              {currentAccounts.map((account) => (
+                <tr
+                  key={account.id}
+                  onClick={() => handleAccountSelect(account.id)}
+                  style={{ cursor: 'pointer' }}
+                >
+                  <td>{account.code}</td>
+                  <td>{account.type}</td>
+                  <td>{account.description}</td>
+                  <td>
+                    <div className={`status-pill ${account.active ? 'active' : 'inactive'}`}>
+                      {account.active ? 'Active' : 'Inactive'}
+                    </div>
+                  </td>
+                  <td>
+                    <div className={`status-pill ${account.accomplished ? 'accomplished' : 'not-accomplished'}`}>
+                      {account.accomplished ? 'Yes' : 'No'}
+                    </div>
+                  </td>
+                  <td>{account.date}</td>
                 </tr>
-              </thead>
-              <tbody>
-                {filteredAccounts.map((account) => (
-                  <tr key={account.id} onClick={() => handleAccountSelect(account.id)}>
-                    <td>{account.code}</td>
-                    <td>{account.type}</td>
-                    <td>{account.description}</td>
-                    <td>
-                      <div className={`status-pill ${account.active ? 'active' : 'inactive'}`}>
-                        {account.active ? 'Active' : 'Inactive'}
-                      </div>
-                    </td>
-                    <td>
-                      <div className={`status-pill ${account.accomplished ? 'accomplished' : 'not-accomplished'}`}>
-                        {account.accomplished ? 'Yes' : 'No'}
-                      </div>
-                    </td>
-                    <td>{account.date}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+              ))}
+            </tbody>
+          </table>
           
-          {/* Pagination */}
-          <div className="pagination">
+          {/* Pagination using the same style as ExpenseHistory */}
+          <div className="pagination-controls">
             <button 
-              className="pagination-button prev" 
-              onClick={goToPrevPage}
+              className={`pagination-btn ${currentPage === 1 ? 'disabled' : ''}`} 
+              onClick={prevPage}
               disabled={currentPage === 1}
             >
-              <ChevronLeft size={16} /> Prev
+              <ChevronLeft size={14} />
             </button>
+            
             <div className="pagination-numbers">
-              <button className="pagination-number active">1</button>
+              {Array.from({ length: totalPages }, (_, i) => (
+                <button
+                  key={i + 1}
+                  className={`pagination-number ${currentPage === i + 1 ? 'active' : ''}`}
+                  onClick={() => paginate(i + 1)}
+                >
+                  {i + 1}
+                </button>
+              ))}
             </div>
+            
             <button 
-              className="pagination-button next" 
-              onClick={goToNextPage}
+              className={`pagination-btn ${currentPage === totalPages ? 'disabled' : ''}`}
+              onClick={nextPage}
+              disabled={currentPage === totalPages}
             >
-              Next <ChevronRight size={16} />
+              <ChevronRight size={14} />
             </button>
           </div>
         </div>
-      </main>
+      </div>
     </div>
   );
-}
+};
 
 export default AccountSetup;

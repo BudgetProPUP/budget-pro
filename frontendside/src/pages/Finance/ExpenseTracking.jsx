@@ -1,22 +1,168 @@
 import React, { useState } from 'react';
-import { Search, ChevronDown, ArrowLeft } from 'lucide-react';
+import { Search, ChevronDown, ArrowLeft, ChevronLeft, ChevronRight, Plus, Calendar, FileText } from 'lucide-react';
 import { Link, useNavigate } from 'react-router-dom';
 import './ExpenseTracking.css';
 
 const ExpenseTracking = () => {
-  // Navigation state and functions
   const [showBudgetDropdown, setShowBudgetDropdown] = useState(false);
   const [showExpenseDropdown, setShowExpenseDropdown] = useState(false);
+  const [showCategoryDropdown, setShowCategoryDropdown] = useState(false);
+  const [showDateDropdown, setShowDateDropdown] = useState(false);
+  const [selectedCategory, setSelectedCategory] = useState('All Categories');
+  const [selectedDate, setSelectedDate] = useState('All Time');
+  const [showAddExpenseModal, setShowAddExpenseModal] = useState(false);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [newExpense, setNewExpense] = useState({
+    description: '',
+    category: '',
+    amount: '',
+    date: new Date().toISOString().split('T')[0],
+    projectSummary: '',
+    dueDate: ''
+  });
+  const itemsPerPage = 5; // Number of transactions per page
   const navigate = useNavigate();
+
+  // Sample data for expense tracking
+  const [expenses, setExpenses] = useState([
+    {
+      id: 1,
+      date: '04-12-2025',
+      description: 'Website Redesign Project',
+      category: 'IT Team',
+      amount: '₱50,000.00',
+      status: 'pending',
+      projectSummary: 'This Budget Proposal provides necessary costs associated with the website redesign project.',
+      dueDate: 'April 30, 2025'
+    },
+    {
+      id: 2,
+      date: '03-20-2025',
+      description: 'Software Subscription',
+      category: 'Software',
+      amount: '₱15,750.00',
+      status: 'approved',
+      projectSummary: 'Annual subscription for productivity software suite.',
+      dueDate: 'March 31, 2025'
+    },
+    {
+      id: 3,
+      date: '03-15-2025',
+      description: 'Cloud Hosting',
+      category: 'DevOps',
+      amount: '₱12,500.00',
+      status: 'paid',
+      projectSummary: 'Monthly cloud infrastructure costs for all company applications.',
+      dueDate: 'March 20, 2025'
+    },
+    {
+      id: 4,
+      date: '02-25-2025',
+      description: 'Company Laptops',
+      category: 'Hardware',
+      amount: '₱450,000.00',
+      status: 'approved',
+      projectSummary: 'Purchase of new laptops for the engineering team.',
+      dueDate: 'February 28, 2025'
+    },
+    {
+      id: 5,
+      date: '01-25-2025',
+      description: 'Office Printers',
+      category: 'Hardware',
+      amount: '₱180,000.00',
+      status: 'paid',
+      projectSummary: 'Acquisition of networked printers for all departments.',
+      dueDate: 'January 30, 2025'
+    },
+    {
+      id: 6,
+      date: '12-19-2024',
+      description: 'AI Workshop Series',
+      category: 'IT',
+      amount: '₱25,000.00',
+      status: 'rejected',
+      projectSummary: 'Training program for staff on AI technologies and applications.',
+      dueDate: 'December 31, 2024'
+    }
+  ]);
+
+  // Budget summary data
+  const budgetData = {
+    remaining: '₱3,326,025.75',
+    expensesThisMonth: '₱800,025.75'
+  };
+
+  // Get unique categories for the filter dropdown
+  const categories = ['All Categories', ...new Set(expenses.map(t => t.category))];
   
+  // Date filter options
+  const dateOptions = ['All Time', 'This Month', 'Last Month', 'Last 3 Months', 'This Year'];
+
+  const handleSearch = (e) => {
+    setSearchQuery(e.target.value);
+    setCurrentPage(1); // Reset to first page when search changes
+  };
+
+  // Filter expenses based on search query, selected category, and date
+  const filteredExpenses = expenses.filter(expense => {
+    const matchesSearch = expense.description.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                         expense.category.toLowerCase().includes(searchQuery.toLowerCase());
+    const matchesCategory = selectedCategory === 'All Categories' || expense.category === selectedCategory;
+    // In a real app, you would implement date filtering logic here
+    const matchesDate = true; // Simplified for now
+    return matchesSearch && matchesCategory && matchesDate;
+  });
+
+  // Pagination logic
+  const indexOfLastItem = currentPage * itemsPerPage;
+  const indexOfFirstItem = indexOfLastItem - itemsPerPage;
+  const currentExpenses = filteredExpenses.slice(indexOfFirstItem, indexOfLastItem);
+  const totalPages = Math.ceil(filteredExpenses.length / itemsPerPage);
+
+  const paginate = (pageNumber) => setCurrentPage(pageNumber);
+  const nextPage = () => setCurrentPage(prev => Math.min(prev + 1, totalPages));
+  const prevPage = () => setCurrentPage(prev => Math.max(prev - 1, 1));
+
   const toggleBudgetDropdown = () => {
     setShowBudgetDropdown(!showBudgetDropdown);
     if (showExpenseDropdown) setShowExpenseDropdown(false);
+    if (showCategoryDropdown) setShowCategoryDropdown(false);
+    if (showDateDropdown) setShowDateDropdown(false);
   };
 
   const toggleExpenseDropdown = () => {
     setShowExpenseDropdown(!showExpenseDropdown);
     if (showBudgetDropdown) setShowBudgetDropdown(false);
+    if (showCategoryDropdown) setShowCategoryDropdown(false);
+    if (showDateDropdown) setShowDateDropdown(false);
+  };
+
+  const toggleCategoryDropdown = () => {
+    setShowCategoryDropdown(!showCategoryDropdown);
+    if (showBudgetDropdown) setShowBudgetDropdown(false);
+    if (showExpenseDropdown) setShowExpenseDropdown(false);
+    if (showDateDropdown) setShowDateDropdown(false);
+  };
+
+  const toggleDateDropdown = () => {
+    setShowDateDropdown(!showDateDropdown);
+    if (showBudgetDropdown) setShowBudgetDropdown(false);
+    if (showExpenseDropdown) setShowExpenseDropdown(false);
+    if (showCategoryDropdown) setShowCategoryDropdown(false);
+  };
+
+  const handleCategorySelect = (category) => {
+    setSelectedCategory(category);
+    setCurrentPage(1); // Reset to first page when category changes
+    setShowCategoryDropdown(false);
+  };
+
+  const handleDateSelect = (date) => {
+    setSelectedDate(date);
+    setCurrentPage(1); // Reset to first page when date changes
+    setShowDateDropdown(false);
   };
 
   const handleNavigate = (path) => {
@@ -24,176 +170,155 @@ const ExpenseTracking = () => {
     setShowBudgetDropdown(false);
     setShowExpenseDropdown(false);
   };
-  
-  // Expense data
-  const [expenses, setExpenses] = useState([
-    { 
-      id: 1, 
-      date: '04-12-2025', 
-      description: 'Website Redesign Project', 
-      category: 'IT Team', 
-      amount: 50000.00,
-    },
-    { 
-      id: 2, 
-      date: '03-15-2025', 
-      description: 'Cloud Hosting', 
-      category: 'DevOps', 
-      amount: 12500.00,
-    },
-    { 
-      id: 3, 
-      date: '02-25-2025', 
-      description: 'Company Laptops', 
-      category: 'Hardware', 
-      amount: 450000.00,
-    },
-    { 
-      id: 4, 
-      date: '12-19-2024', 
-      description: 'AI Workshop Series', 
-      category: 'IT', 
-      amount: 25000.00,
-    },
-  ]);
 
-  // Budget data
-  const BUDGET_REMAINING = 3326025.75;
-  const TOTAL_EXPENSES = 800025.75;
-  const currentDate = 'May 12, 2025 at 1:06pm';
-  
-  // Search functionality
-  const [searchQuery, setSearchQuery] = useState('');
-  
-  // Popup states
-  const [showAddExpensePopup, setShowAddExpensePopup] = useState(false);
-  const [showAddBudgetPopup, setShowAddBudgetPopup] = useState(false);
-  
-  // Form states
-  const [newExpense, setNewExpense] = useState({
-    description: '',
-    amount: '',
-    date: '',
-    category: ''
-  });
-  
-  const [newBudget, setNewBudget] = useState({
-    amount: ''
-  });
-  
-  // Expense functions
-  const openAddExpensePopup = () => setShowAddExpensePopup(true);
-  
-  const closeAddExpensePopup = () => {
-    setShowAddExpensePopup(false);
+  const handleAddExpense = () => {
+    setShowAddExpenseModal(true);
+  };
+
+  const handleCloseModal = () => {
+    setShowAddExpenseModal(false);
+    // Reset form
     setNewExpense({
       description: '',
+      category: '',
       amount: '',
-      date: '',
-      category: ''
+      date: new Date().toISOString().split('T')[0],
+      projectSummary: '',
+      dueDate: ''
     });
   };
-  
-  // Budget functions
-  const openAddBudgetPopup = () => setShowAddBudgetPopup(true);
-  
-  const closeAddBudgetPopup = () => {
-    setShowAddBudgetPopup(false);
-    setNewBudget({ amount: '' });
-  };
-  
-  const handleBudgetInputChange = (e) => {
-    const { name, value } = e.target;
-    setNewBudget({
-      ...newBudget,
-      [name]: value
-    });
-  };
-  
-  const handleSaveBudget = () => {
-    console.log('New budget amount:', newBudget.amount);
-    closeAddBudgetPopup();
-  };
-  
+
   const handleInputChange = (e) => {
     const { name, value } = e.target;
-    setNewExpense({
-      ...newExpense,
+    setNewExpense(prev => ({
+      ...prev,
       [name]: value
-    });
+    }));
   };
-  
-  const handleSubmit = () => {
-    const newId = expenses.length > 0 ? Math.max(...expenses.map(e => e.id)) + 1 : 1;
-    const formattedExpense = {
-      id: newId,
-      date: newExpense.date,
+
+  const handleSubmitExpense = (e) => {
+    e.preventDefault();
+    
+    // Format date to match the existing format
+    const dateParts = newExpense.date.split('-');
+    const formattedDate = `${dateParts[1]}-${dateParts[2]}-${dateParts[0]}`;
+    
+    // Add new expense to the list
+    const newExpenseEntry = {
+      id: expenses.length + 1,
+      date: formattedDate,
       description: newExpense.description,
       category: newExpense.category,
-      amount: parseFloat(newExpense.amount) || 0
+      amount: `₱${parseFloat(newExpense.amount).toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})}`,
+      status: 'pending',
+      projectSummary: newExpense.projectSummary,
+      dueDate: newExpense.dueDate
     };
     
-    setExpenses([...expenses, formattedExpense]);
-    closeAddExpensePopup();
+    setExpenses([newExpenseEntry, ...expenses]);
+    handleCloseModal();
+  };
+
+  // Get status class for styling based on status
+  const getStatusClass = (status) => {
+    switch(status) {
+      case 'approved': return 'status-approved';
+      case 'pending': return 'status-pending';
+      case 'rejected': return 'status-rejected';
+      case 'paid': return 'status-paid';
+      default: return '';
+    }
+  };
+
+  // Get status label for display
+  const getStatusLabel = (status) => {
+    return status.charAt(0).toUpperCase() + status.slice(1);
   };
 
   return (
-    <div className="app-container expanded-view">
+    <div className="app-container">
       {/* Header */}
-      <header className="dashboard-header">
+      <header className="app-header">
         <div className="header-left">
-          <h1 className="logo">BUDGETPRO</h1>
-          <nav className="main-nav">
+          <h1 className="app-logo">BUDGETPRO</h1>
+          <nav className="nav-menu">
             <Link to="/dashboard" className="nav-item">Dashboard</Link>
-            
+
             {/* Budget Dropdown */}
-            <div className="dropdown-container">
-              <div className="nav-item dropdown-toggle" onClick={toggleBudgetDropdown}>
+            <div className="nav-dropdown">
+              <div 
+                className={`nav-item ${showBudgetDropdown ? 'active' : ''}`} 
+                onClick={toggleBudgetDropdown}
+              >
                 Budget <ChevronDown size={14} />
               </div>
               {showBudgetDropdown && (
                 <div className="dropdown-menu">
-                  <h4 className="dropdown-category">Budget</h4>
-                  <div className="dropdown-item" onClick={() => handleNavigate('/finance/budget-proposal')}>
+                  <div
+                    className="dropdown-item"
+                    onClick={() => handleNavigate('/finance/budget-proposal')}
+                  >
                     Budget Proposal
                   </div>
-                  <div className="dropdown-item" onClick={() => handleNavigate('/finance/proposal-history')}>
+                  <div
+                    className="dropdown-item"
+                    onClick={() => handleNavigate('/finance/proposal-history')}
+                  >
                     Proposal History
                   </div>
-
-                  <h4 className="dropdown-category">Account</h4>
-                  <div className="dropdown-item" onClick={() => handleNavigate('/finance/account-setup')}>
+                  <div
+                    className="dropdown-item"
+                    onClick={() => handleNavigate('/finance/account-setup')}
+                  >
                     Account Setup
                   </div>
-                  <div className="dropdown-item" onClick={() => handleNavigate('/finance/ledger-view')}>
+                  <div
+                    className="dropdown-item"
+                    onClick={() => handleNavigate('/finance/ledger-view')}
+                  >
                     Ledger View
                   </div>
-                  <div className="dropdown-item" onClick={() => handleNavigate('/finance/journal-entry')}>
+                  <div
+                    className="dropdown-item"
+                    onClick={() => handleNavigate('/finance/journal-entry')}
+                  >
                     Journal Entries
                   </div>
                 </div>
               )}
             </div>
-            
+
             {/* Expense Dropdown */}
-            <div className="dropdown-container">
-              <div className="nav-item dropdown-toggle active" onClick={toggleExpenseDropdown}>
+            <div className="nav-dropdown">
+              <div 
+                className={`nav-item ${showExpenseDropdown ? 'active' : ''}`} 
+                onClick={toggleExpenseDropdown}
+              >
                 Expense <ChevronDown size={14} />
               </div>
               {showExpenseDropdown && (
                 <div className="dropdown-menu">
-                  <div className="dropdown-item" onClick={() => handleNavigate('/finance/expense-tracking')}>
+                  <div
+                    className="dropdown-item active"
+                    onClick={() => handleNavigate('/finance/expense-tracking')}
+                  >
                     Expense Tracking
                   </div>
-                  <div className="dropdown-item" onClick={() => handleNavigate('/finance/expense-history')}>
+                  <div
+                    className="dropdown-item"
+                    onClick={() => handleNavigate('/finance/expense-history')}
+                  >
                     Expense History
                   </div>
                 </div>
               )}
             </div>
-            
-            {/* User Management */}
-            <div className="nav-item" onClick={() => handleNavigate('/finance/user-management')}>
+
+            {/* User Management - Simple Navigation Item */}
+            <div
+              className="nav-item"
+              onClick={() => handleNavigate('/finance/user-management')}
+            >
               User Management
             </div>
           </nav>
@@ -205,209 +330,260 @@ const ExpenseTracking = () => {
         </div>
       </header>
 
-      <div className="page-content-wrapper expanded-content">
-        <div className="expense-tracking-container wide-view">
-          {/* Action Bar */}
-          <div className="action-bar">
-            <div className="search-container expanded-search">
-              <div className="search-bar">
-                <Search className="search-icon" size={18} />
-                <input 
-                  type="text" 
-                  placeholder="Search by project or budget"
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                />
-              </div>
-              
-              <div className="filters">
-                <button className="filter-btn">
-                  <span>Filter by:</span>
-                </button>
-                <button className="category-btn">
-                  <span>Category</span>
-                  <ChevronDown size={14} />
-                </button>
-                <button className="date-btn">
-                  <span>Date</span>
-                  <ChevronDown size={14} />
-                </button>
-              </div>
-            </div>
-            
-            <button className="filter-btn add-expense-btn" onClick={openAddExpensePopup}>
-              + Add Expense
+      <div className="content-container">
+        <h2 className="page-title">Expense Tracking</h2>
+
+        {/* Search and Filters - Moved to the top */}
+        <div className="controls-row">
+          <div className="search-box">
+            <input
+              type="text"
+              placeholder="Search by project or budget"
+              value={searchQuery}
+              onChange={handleSearch}
+              className="search-input"
+            />
+            <button className="search-icon-btn">
+              <Search size={18} />
             </button>
           </div>
 
-          {/* Summary Cards */}
-          <div className="summary-cards horizontal">
-            <div className="summary-card budget-card" onClick={openAddBudgetPopup}>
-              <div className="budget-amount">
-                <span className="currency">₱</span>{BUDGET_REMAINING.toLocaleString('en-US', { minimumFractionDigits: 2 })}
-              </div>
-              <div className="budget-label">Budget Remaining</div>
-              <div className="budget-date">As of now: {currentDate}</div>
+          <div className="filter-controls">
+            {/* Category Filter */}
+            <div className="filter-dropdown">
+              <button className="filter-dropdown-btn" onClick={toggleCategoryDropdown}>
+                <span>Category</span>
+                <ChevronDown size={14} />
+              </button>
+              {showCategoryDropdown && (
+                <div className="category-dropdown-menu">
+                  {categories.map((category, index) => (
+                    <div
+                      key={index}
+                      className={`category-dropdown-item ${selectedCategory === category ? 'active' : ''}`}
+                      onClick={() => handleCategorySelect(category)}
+                    >
+                      {category}
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
-            
-            <div className="summary-card expense-card">
-              <div className="expense-amount">
-                <span className="currency">₱</span>{TOTAL_EXPENSES.toLocaleString('en-US', { minimumFractionDigits: 2 })}
-              </div>
-              <div className="expense-label">Total Expenses</div>
-              <div className="expense-period">This month</div>
+
+            {/* Date Filter */}
+            <div className="filter-dropdown">
+              <button className="filter-dropdown-btn" onClick={toggleDateDropdown}>
+                <span>Date</span>
+                <ChevronDown size={14} />
+              </button>
+              {showDateDropdown && (
+                <div className="category-dropdown-menu">
+                  {dateOptions.map((date, index) => (
+                    <div
+                      key={index}
+                      className={`category-dropdown-item ${selectedDate === date ? 'active' : ''}`}
+                      onClick={() => handleDateSelect(date)}
+                    >
+                      {date}
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
+
+            {/* Add Expense Button */}
+            <button className="add-expense-btn" onClick={handleAddExpense}>
+              <Plus size={16} />
+              <span>Add Expense</span>
+            </button>
+          </div>
+        </div>
+        
+        {/* Budget Summary Cards - Moved below the search/filter controls */}
+        <div className="budget-summary">
+          <div className="budget-card">
+            <div className="budget-card-label">
+              <p>As of now: May 12, 2025 at 1:05pm</p>
+            </div>
+            <div className="budget-card-amount">{budgetData.remaining}</div>
+            <div className="budget-card-footer">Budget Remaining</div>
           </div>
 
-          {/* Expense Table Section */}
-          <div className="expense-section">
-            <div className="section-header">
-              <h2>Expense Tracking</h2>
-              <div className="code-indicator">
-                <span className="code-icon">&lt;/&gt;</span>
-              </div>
+          <div className="budget-card">
+            <div className="budget-card-label">
+              <p>This month</p>
+            </div>
+            <div className="budget-card-amount">{budgetData.expensesThisMonth}</div>
+            <div className="budget-card-footer">Total Expenses</div>
+          </div>
+        </div>
+
+        <div className="transactions-table-wrapper">
+          <table className="transactions-table">
+            <thead>
+              <tr>
+                <th style={{ width: '16%' }}>Date</th>
+                <th style={{ width: '25%' }}>Description</th>
+                <th style={{ width: '15%' }}>Category</th>
+                <th style={{ width: '20%', textAlign: 'right' }}>Amount</th>
+                <th style={{ width: '14%', textAlign: 'center' }}>Status</th>
+                <th style={{ width: '10%', textAlign: 'center' }}>Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              {currentExpenses.map((expense) => (
+                <tr key={expense.id}>
+                  <td>{expense.date}</td>
+                  <td>{expense.description}</td>
+                  <td>{expense.category}</td>
+                  <td style={{ textAlign: 'right' }}>{expense.amount}</td>
+                  <td style={{ textAlign: 'center' }}>
+                    <span className={`status-badge ${getStatusClass(expense.status)}`}>
+                      {getStatusLabel(expense.status)}
+                    </span>
+                  </td>
+                  <td style={{ textAlign: 'center' }}>
+                    <div className="action-buttons">
+                      <button className="action-btn view-btn" title="View Details">
+                        <FileText size={16} />
+                      </button>
+                    </div>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+  
+          {/* Pagination */}
+          <div className="pagination-controls">
+            <button 
+              className={`pagination-btn ${currentPage === 1 ? 'disabled' : ''}`} 
+              onClick={prevPage}
+              disabled={currentPage === 1}
+            >
+              <ChevronLeft size={14} />
+            </button>
+            
+            <div className="pagination-numbers">
+              {Array.from({ length: totalPages }, (_, i) => (
+                <button
+                  key={i + 1}
+                  className={`pagination-number ${currentPage === i + 1 ? 'active' : ''}`}
+                  onClick={() => paginate(i + 1)}
+                >
+                  {i + 1}
+                </button>
+              ))}
             </div>
             
-            <div className="expense-table-container">
-              <table className="expense-table wide">
-                <thead>
-                  <tr>
-                    <th className="header-cell date-cell">Date</th>
-                    <th className="header-cell desc-cell">Description</th>
-                    <th className="header-cell category-cell">Category</th>
-                    <th className="header-cell amount-cell">Amount</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {expenses.map((expense) => (
-                    <tr className="table-row" key={expense.id}>
-                      <td className="table-cell date-cell">{expense.date}</td>
-                      <td className="table-cell desc-cell">{expense.description}</td>
-                      <td className="table-cell category-cell">{expense.category}</td>
-                      <td className="table-cell amount-cell">₱{expense.amount.toLocaleString('en-US', {minimumFractionDigits: 2})}</td>
-                    </tr>
-                  ))}
-                  <tr className="table-row empty-row">
-                    <td className="table-cell" colSpan="3"></td>
-                    <td className="table-cell">₱0.00</td>
-                  </tr>
-                </tbody>
-              </table>
-            </div>
-            
-            {/* Pagination */}
-            <div className="pagination">
-              <button className="pagination-btn prev-btn">
-                &lt; Prev
-              </button>
-              <div className="page-numbers">
-                <button className="page-number active">1</button>
-              </div>
-              <button className="pagination-btn next-btn">
-                Next &gt;
-              </button>
-            </div>
+            <button 
+              className={`pagination-btn ${currentPage === totalPages ? 'disabled' : ''}`}
+              onClick={nextPage}
+              disabled={currentPage === totalPages}
+            >
+              <ChevronRight size={14} />
+            </button>
           </div>
         </div>
       </div>
 
-      {/* Add Expense Popup */}
-      {showAddExpensePopup && (
-        <div className="popup-overlay">
-          <div className="popup-container">
-            <div className="popup-header">
-              <div className="popup-back" onClick={closeAddExpensePopup}>
-                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                  <path d="M19 12H5" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-                  <path d="M12 19L5 12L12 5" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-                </svg>
-              </div>
-              <div className="popup-title">Add Expense</div>
-              <div></div>
+      {/* Add Expense Modal */}
+      {showAddExpenseModal && (
+        <div className="modal-overlay" onClick={handleCloseModal}>
+          <div className="modal-container" onClick={e => e.stopPropagation()}>
+            <div className="modal-header">
+              <h3>Add New Expense</h3>
+              <button className="modal-close-btn" onClick={handleCloseModal}>×</button>
             </div>
-            
-            <div className="popup-content">
-              <div className="form-group">
-                <label>Description</label>
-                <input 
-                  type="text" 
-                  placeholder="Type here" 
-                  name="description"
-                  value={newExpense.description}
-                  onChange={handleInputChange}
-                />
-              </div>
-              
-              <div className="form-row">
-                <div className="form-group half">
-                  <label>Amount</label>
+            <div className="modal-content">
+              <form onSubmit={handleSubmitExpense}>
+                <div className="form-group">
+                  <label htmlFor="description">Description</label>
                   <input 
                     type="text" 
-                    placeholder="Type here" 
-                    name="amount"
-                    value={newExpense.amount}
+                    id="description" 
+                    name="description"
+                    value={newExpense.description}
                     onChange={handleInputChange}
+                    placeholder="Enter expense description"
+                    required
                   />
                 </div>
-                
-                <div className="form-group half">
-                  <label>Date</label>
-                  <input 
-                    type="text" 
-                    placeholder="Type here" 
-                    name="date"
-                    value={newExpense.date}
-                    onChange={handleInputChange}
-                  />
-                </div>
-              </div>
-              
-              <div className="form-group">
-                <label>Category</label>
-                <input 
-                  type="text" 
-                  placeholder="Type here" 
-                  name="category"
-                  value={newExpense.category}
-                  onChange={handleInputChange}
-                />
-              </div>
-              
-              <button className="submit-btn" onClick={handleSubmit}>Submit</button>
-            </div>
-          </div>
-        </div>
-      )}
 
-      {/* Add Budget Popup */}
-      {showAddBudgetPopup && (
-        <div className="popup-overlay">
-          <div className="popup-container add-budget-popup">
-            <div className="popup-header">
-              <div className="popup-back" onClick={closeAddBudgetPopup}>
-                <ArrowLeft size={20} />
-              </div>
-              <div className="popup-title">Add Budget</div>
-              <div></div>
-            </div>
-            
-            <div className="popup-content">
-              <div className="budget-date-display">
-                {currentDate}
-              </div>
-              
-              <div className="form-group">
-                <label>Amount</label>
-                <input 
-                  type="text" 
-                  placeholder="₱0.00"
-                  name="amount"
-                  value={newBudget.amount}
-                  onChange={handleBudgetInputChange}
-                />
-              </div>
-              
-              <button className="save-budget-btn" onClick={handleSaveBudget}>Save</button>
+                <div className="form-group">
+                  <label htmlFor="category">Category</label>
+                  <select 
+                    id="category" 
+                    name="category"
+                    value={newExpense.category}
+                    onChange={handleInputChange}
+                    required
+                  >
+                    <option value="">Select a category</option>
+                    {categories.filter(cat => cat !== 'All Categories').map((cat, idx) => (
+                      <option key={idx} value={cat}>{cat}</option>
+                    ))}
+                  </select>
+                </div>
+
+                <div className="form-row">
+                  <div className="form-group">
+                    <label htmlFor="amount">Amount (₱)</label>
+                    <input 
+                      type="number" 
+                      id="amount" 
+                      name="amount"
+                      value={newExpense.amount}
+                      onChange={handleInputChange}
+                      placeholder="0.00"
+                      step="0.01"
+                      min="0"
+                      required
+                    />
+                  </div>
+
+                  <div className="form-group">
+                    <label htmlFor="date">Date</label>
+                    <input 
+                      type="date" 
+                      id="date" 
+                      name="date"
+                      value={newExpense.date}
+                      onChange={handleInputChange}
+                      required
+                    />
+                  </div>
+                </div>
+
+                <div className="form-group">
+                  <label htmlFor="projectSummary">Project Summary</label>
+                  <textarea 
+                    id="projectSummary" 
+                    name="projectSummary"
+                    value={newExpense.projectSummary}
+                    onChange={handleInputChange}
+                    placeholder="Brief summary of the expense"
+                    rows="3"
+                  ></textarea>
+                </div>
+
+                <div className="form-group">
+                  <label htmlFor="dueDate">Due Date (optional)</label>
+                  <input 
+                    type="text" 
+                    id="dueDate" 
+                    name="dueDate"
+                    value={newExpense.dueDate}
+                    onChange={handleInputChange}
+                    placeholder="e.g., April 30, 2025"
+                  />
+                </div>
+
+                <div className="form-actions">
+                  <button type="button" className="cancel-btn" onClick={handleCloseModal}>Cancel</button>
+                  <button type="submit" className="submit-btn">Add Expense</button>
+                </div>
+              </form>
             </div>
           </div>
         </div>

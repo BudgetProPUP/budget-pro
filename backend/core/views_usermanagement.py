@@ -24,10 +24,10 @@ from .serializers import UserTableSerializer, UserModalSerializer, DepartmentSer
             ),
             OpenApiParameter(
                 name="role",
-                description="Filter users by role (FINANCE_HEAD, FINANCE_OPERATOR)",
+                description="Filter users by role (FINANCE_HEAD, ADMIN)",
                 required=False,
                 type=OpenApiTypes.STR,
-                enum=["FINANCE_HEAD", "FINANCE_OPERATOR"]
+                enum=["FINANCE_HEAD", "ADMIN"]
             ),
             OpenApiParameter(
                 name="is_active",
@@ -60,7 +60,7 @@ from .serializers import UserTableSerializer, UserModalSerializer, DepartmentSer
                     "last_name": "Doe",
                     "username": "johndoe",
                     "email": "john.doe@example.com",
-                    "role": "FINANCE_OPERATOR",
+                    "role": "FINANCE_HEAD",
                     "department_id": 1,
                     "is_active": True
                 },

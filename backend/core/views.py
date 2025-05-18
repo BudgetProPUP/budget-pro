@@ -13,7 +13,7 @@ from rest_framework import serializers
 from django.contrib.auth import get_user_model
 from drf_spectacular.utils import extend_schema, OpenApiExample, OpenApiResponse, inline_serializer, extend_schema_field
 
-from core.permissions import IsFinanceHead
+from core.permissions import IsFinanceHead, IsAdmin
 
 
 # from django.utils import timezone
@@ -139,7 +139,9 @@ class LoginView(APIView):
                 status='SUCCESS',
                 details={
                     'ip_address': ip_address,
-                    'user_agent': user_agent
+                    'user_agent': user_agent,
+                    'role': user.role,
+                    'department': user.department.name if user.department else None
                 }
             )
 
@@ -173,7 +175,8 @@ class LoginView(APIView):
                     status='FAILED',
                     details={
                         'ip_address': ip_address,
-                        'user_agent': user_agent
+                        'user_agent': user_agent,
+                        
                     }
                 )
 
@@ -447,7 +450,7 @@ class UserProfileView(generics.RetrieveUpdateAPIView):
 
 
 class LoginAttemptsView(generics.ListAPIView):
-    permission_classes = [IsAuthenticated, IsFinanceHead]
+    permission_classes = [IsAuthenticated, IsFinanceHead | IsAdmin]
     serializer_class = LoginAttemptSerializer
 
     @extend_schema(

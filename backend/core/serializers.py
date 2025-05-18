@@ -140,24 +140,29 @@ class UserModalSerializer(serializers.ModelSerializer):
         user.save()
         return user
 
-    def update(self, validated_data):
+    def update(self, instance, validated_data):  
         department_id = validated_data.pop('department_id', None)
         
+       
         for attr, value in validated_data.items():
-            setattr(self.instance, attr, value)
+            setattr(instance, attr, value)  # Use passed 'instance' instead of self.instance
         
-        if department_id:
+        # Handle department assignment
+        if department_id is not None:
             try:
                 department = Department.objects.get(id=department_id)
-                self.instance.department = department
+                instance.department = department
             except Department.DoesNotExist:
                 raise serializers.ValidationError({'department_id': 'Department not found'})
         elif department_id is None and 'department_id' in self.initial_data:
-            # If department_id was explicitly set to null/None
-            self.instance.department = None
+            instance.department = None
         
-        self.instance.save()
-        return self.instance
+        # Save password only if it's being updated
+        if 'password' in validated_data:
+            instance.set_password(validated_data['password'])
+        
+        instance.save()
+        return instance
 
 
 class LoginSerializer(serializers.Serializer):

@@ -674,7 +674,7 @@ class Command(BaseCommand):
         # Get the current fiscal year
         current_year = datetime.now().year
         current_fy = next((fy for fy in fiscal_years if fy.name ==
-                          f'FY {current_year}'), fiscal_years[0])
+                        f'FY {current_year}'), fiscal_years[0])
 
         # Get a finance user to be the submitter
         finance_user = next(
@@ -682,13 +682,14 @@ class Command(BaseCommand):
 
         # Create proposals for each department
         proposals = []
-        statuses = ['DRAFT', 'SUBMITTED',
-                    'UNDER_REVIEW', 'APPROVED', 'REJECTED']
+        
+        
+        status = 'APPROVED'
 
         for i, department in enumerate(departments):
-            # Create multiple proposals for each department with different statuses
-            for j, status in enumerate(statuses):
-                start_date = current_fy.start_date + timedelta(days=30*j)
+            # Create multiple proposals for each department (all with APPROVED status)
+            for j in range(4):  # Create 4 quarterly proposals for each department
+                start_date = current_fy.start_date + timedelta(days=90*j)
                 # 3-month performance period
                 end_date = start_date + timedelta(days=90)
 
@@ -696,29 +697,23 @@ class Command(BaseCommand):
                 external_id = f"EXT-{department.code}-{current_year}-{i+1}{j+1}"
 
                 proposal_data = {
-                    'title': f"{department.name} {['Q1', 'Q2', 'Q3', 'Q4'][j % 4]} Budget {random.choice(['Initiative', 'Plan', 'Project'])}",
-                    'project_summary': f"Budget proposal for {department.name} {['Q1', 'Q2', 'Q3', 'Q4'][j % 4]} operations",
-                    'project_description': f"This budget covers all planned activities for {department.name} during {['Q1', 'Q2', 'Q3', 'Q4'][j % 4]} including staffing, equipment, and operational expenses.",
+                    'title': f"{department.name} {['Q1', 'Q2', 'Q3', 'Q4'][j]} Budget {random.choice(['Initiative', 'Plan', 'Project'])}",
+                    'project_summary': f"Budget proposal for {department.name} {['Q1', 'Q2', 'Q3', 'Q4'][j]} operations",
+                    'project_description': f"This budget covers all planned activities for {department.name} during {['Q1', 'Q2', 'Q3', 'Q4'][j]} including staffing, equipment, and operational expenses.",
                     'department': department,
                     'fiscal_year': current_fy,
                     'submitted_by': finance_user,
                     'status': status,
                     'performance_start_date': start_date,
                     'performance_end_date': end_date,
-                    'submitted_at': timezone.now() if status != 'DRAFT' else None,
+                    'submitted_at': timezone.now(),  # All are submitted since they're APPROVED
                     'external_system_id': external_id,
                     'sync_status': random.choice(['SYNCED', 'PENDING', 'FAILED']),
                 }
 
-                # Add approval/rejection info for relevant statuses
-                if status == 'APPROVED':
-                    proposal_data['approved_by'] = users[0]  # Admin user
-                    proposal_data['approval_date'] = timezone.now(
-                    ) - timedelta(days=random.randint(1, 10))
-                elif status == 'REJECTED':
-                    proposal_data['rejected_by'] = users[0]  # Admin user
-                    proposal_data['rejection_date'] = timezone.now(
-                    ) - timedelta(days=random.randint(1, 10))
+                # Add approval info since all proposals are APPROVED
+                proposal_data['approved_by'] = users[0]  # Admin user
+                proposal_data['approval_date'] = timezone.now() - timedelta(days=random.randint(1, 10))
 
                 proposal, created = BudgetProposal.objects.update_or_create(
                     title=proposal_data['title'],
@@ -744,40 +739,39 @@ class Command(BaseCommand):
 
         items_created = 0
 
-        # For each proposal in DRAFT, SUBMITTED, or UNDER_REVIEW status, create items
+        # Since all proposals are now APPROVED, we'll create items for all of them
         for proposal in proposals:
-            if proposal.status in ['DRAFT', 'SUBMITTED', 'UNDER_REVIEW', 'APPROVED']:
-                # Number of items for this proposal (3-7)
-                num_items = random.randint(3, 7)
+            # Number of items for this proposal (3-7)
+            num_items = random.randint(3, 7)
 
-                for i in range(num_items):
-                    account = random.choice(expense_accounts)
-                    cost_element = f"CE-{random.randint(1000, 9999)}"
+            for i in range(num_items):
+                account = random.choice(expense_accounts)
+                cost_element = f"CE-{random.randint(1000, 9999)}"
 
-                    # Generate cost that makes sense for the account
-                    if 'Salaries' in account.name:
-                        cost = Decimal(random.randint(500000, 2000000))
-                    elif 'Equipment' in account.name:
-                        cost = Decimal(random.randint(50000, 500000))
-                    else:
-                        cost = Decimal(random.randint(10000, 100000))
+                # Generate cost that makes sense for the account
+                if 'Salaries' in account.name:
+                    cost = Decimal(random.randint(500000, 2000000))
+                elif 'Equipment' in account.name:
+                    cost = Decimal(random.randint(50000, 500000))
+                else:
+                    cost = Decimal(random.randint(10000, 100000))
 
-                    item, created = BudgetProposalItem.objects.update_or_create(
-                        proposal=proposal,
-                        cost_element=cost_element,
-                        defaults={
-                            'description': f"{account.name} expenses for {proposal.department.name}",
-                            'estimated_cost': cost,
-                            'account': account,
-                            'notes': f"Based on {proposal.fiscal_year.name} projections"
-                        }
-                    )
+                item, created = BudgetProposalItem.objects.update_or_create(
+                    proposal=proposal,
+                    cost_element=cost_element,
+                    defaults={
+                        'description': f"{account.name} expenses for {proposal.department.name}",
+                        'estimated_cost': cost,
+                        'account': account,
+                        'notes': f"Based on {proposal.fiscal_year.name} projections"
+                    }
+                )
 
-                    items_created += 1
+                items_created += 1
 
         self.stdout.write(self.style.SUCCESS(
             f'Created/Updated {items_created} budget proposal items'))
-
+        
     def create_budget_allocations(self, projects, accounts, created_by):
         """
         Creates BudgetAllocations for Projects, ensuring uniqueness constraints are respected.
@@ -936,10 +930,19 @@ class Command(BaseCommand):
     def create_expenses(self, departments, accounts, budget_allocations, users, expense_categories):
         """
         Creates Expense records against budget allocations.
+        
+        Since we're working with a system that only receives APPROVED budget proposals,
+        our expenses should reflect appropriate workflow states that happen AFTER
+        the proposals are approved.
         """
         self.stdout.write('Creating expenses...')
         expenses = []
+        
+        # We should still have a variety of expense statuses as these represent 
+        # the expense approval workflow, not the proposal workflow
+        # In a real system, expenses would start as DRAFT and move through a workflow
         STATUS_CHOICES = ['DRAFT', 'SUBMITTED', 'APPROVED', 'REJECTED']
+        STATUS_WEIGHTS = [3, 4, 8, 1]  # Weight more toward APPROVED for realism
 
         # Skip if there are no allocations
         if not budget_allocations:
@@ -949,7 +952,9 @@ class Command(BaseCommand):
         for i in range(100):  # Create 100 expenses across all allocations
             alloc = random.choice(budget_allocations)
             txn_id = f"TXN-{datetime.now().strftime('%Y%m%d')}-{i+1:04d}"
-            status = random.choice(STATUS_CHOICES)
+            
+            # Use weighted choice for more realistic status distribution
+            status = random.choices(STATUS_CHOICES, weights=STATUS_WEIGHTS, k=1)[0]
             
             # Select an appropriate expense category
             category = random.choice(expense_categories)

@@ -453,21 +453,23 @@ class ExpenseCategory(models.Model):
             'percentage': Float percentage of total expenses (0-100)
         }
         """
-        from django.db.models import Sum, F
+        from django.db.models import Sum
 
-        # Base query for approved expenses
+        # Start with approved expenses only
         expenses_query = Expense.objects.filter(status='APPROVED')
 
-        # Apply optional filters
+        # Use correct relationships: Expense → BudgetAllocation → Project → BudgetProposal
         if fiscal_year:
             expenses_query = expenses_query.filter(
-                budget_allocation__fiscal_year=fiscal_year
+                budget_allocation__project__budget_proposal__fiscal_year=fiscal_year
             )
 
         if department:
-            expenses_query = expenses_query.filter(department=department)
+            expenses_query = expenses_query.filter(
+                budget_allocation__project__budget_proposal__department=department
+            )
 
-        # Get total approved expenses
+        # Total approved expenses
         total_expenses = expenses_query.aggregate(
             total=Sum('amount')
         )['total'] or 0
@@ -475,7 +477,7 @@ class ExpenseCategory(models.Model):
         if total_expenses == 0:
             return None
 
-        # Group by category, sum amounts, and order by highest amount
+        # Aggregate by category
         categories = expenses_query.values(
             'category', 'category__name'
         ).annotate(
@@ -485,7 +487,6 @@ class ExpenseCategory(models.Model):
         if not categories:
             return None
 
-        # Get the top category
         top_category = categories[0]
         category_obj = cls.objects.get(pk=top_category['category'])
 
@@ -494,6 +495,7 @@ class ExpenseCategory(models.Model):
             'amount': top_category['total_amount'],
             'percentage': (top_category['total_amount'] / total_expenses) * 100
         }
+
 
 
 class Expense(models.Model):

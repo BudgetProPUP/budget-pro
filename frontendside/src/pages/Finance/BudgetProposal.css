@@ -23,11 +23,43 @@
   box-sizing: border-box;
 }
 
+/* Hide scrollbars globally while keeping scroll functionality */
+* {
+  scrollbar-width: none; /* Firefox */
+  -ms-overflow-style: none; /* Internet Explorer 10+ */
+}
+
+*::-webkit-scrollbar {
+  width: 0; /* Remove scrollbar space */
+  background: transparent; /* Optional: just to be sure */
+}
+
+/* Also hide scrollbars for specific webkit browsers */
+*::-webkit-scrollbar-track {
+  display: none;
+}
+
+*::-webkit-scrollbar-thumb {
+  display: none;
+}
+
+*::-webkit-scrollbar-corner {
+  display: none;
+}
+
 body {
   font-family: var(--font-family);
   background-color: var(--background-color);
   color: var(--dark-color);
   line-height: 1.5;
+  /* Hide body scrollbar */
+  overflow-x: hidden;
+  scrollbar-width: none; /* Firefox */
+  -ms-overflow-style: none; /* IE and Edge */
+}
+
+body::-webkit-scrollbar {
+  display: none; /* Chrome, Safari and Opera */
 }
 
 .app-container {
@@ -101,6 +133,14 @@ body {
   border-radius: 0.375rem;
   box-shadow: var(--shadow-md);
   border: 1px solid var(--border-color);
+  /* Hide dropdown scrollbar if needed */
+  overflow-y: auto;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+.dropdown-menu::-webkit-scrollbar {
+  display: none;
 }
 
 .dropdown-item {
@@ -236,6 +276,14 @@ body {
   border-radius: 0.375rem;
   box-shadow: var(--shadow-md);
   border: 1px solid var(--border-color);
+  /* Hide dropdown scrollbar if needed */
+  overflow-y: auto;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+.category-dropdown-menu::-webkit-scrollbar {
+  display: none;
 }
 
 .category-dropdown-item {
@@ -319,6 +367,14 @@ body {
   padding: 1.5rem;
   box-shadow: var(--shadow-sm);
   border: 1px solid var(--border-color);
+  /* Hide table wrapper scrollbar if needed */
+  overflow-x: auto;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+.transactions-table-wrapper::-webkit-scrollbar {
+  display: none;
 }
 
 .transactions-table {
@@ -505,6 +561,15 @@ body {
   padding: 1.5rem;
   overflow-y: auto;
   flex: 1;
+  /* Hide popup content scrollbars */
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+.popup-content::-webkit-scrollbar,
+.comment-popup-content::-webkit-scrollbar,
+.confirmation-content::-webkit-scrollbar {
+  display: none;
 }
 
 .proposal-project-title {
@@ -711,6 +776,13 @@ body {
   outline: none;
   background-color: var(--white);
   color: var(--dark-color);
+  /* Hide textarea scrollbar */
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+.comment-input::-webkit-scrollbar {
+  display: none;
 }
 
 .comment-input:focus {
@@ -722,6 +794,13 @@ textarea[placeholder="Add your comment or reason here..."] {
   background-color: var(--white);
   color: var(--dark-color);
   border: 1px solid var(--border-color);
+  /* Hide confirmation textarea scrollbar */
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+textarea[placeholder="Add your comment or reason here..."]::-webkit-scrollbar {
+  display: none;
 }
 
 .save-btn {
@@ -805,6 +884,15 @@ textarea[placeholder="Add your comment or reason here..."] {
   transition: border-color 0.2s ease;
   background-color: var(--white);
   color: var(--dark-color);
+  /* Hide form inputs scrollbars */
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+.form-input::-webkit-scrollbar,
+.form-select::-webkit-scrollbar,
+.form-textarea::-webkit-scrollbar {
+  display: none;
 }
 
 .form-input:focus,

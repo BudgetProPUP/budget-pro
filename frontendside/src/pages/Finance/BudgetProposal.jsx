@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { ChevronDown, Search, ArrowLeft, Plus, ChevronLeft, ChevronRight } from 'lucide-react';
+import { ChevronDown, Search, ArrowLeft, ChevronLeft, ChevronRight } from 'lucide-react';
 import { Link, useNavigate } from 'react-router-dom';
 import './BudgetProposal.css';
 
@@ -11,7 +11,6 @@ const BudgetProposal = () => {
   const [showReviewPopup, setShowReviewPopup] = useState(false);
   const [showCommentPopup, setShowCommentPopup] = useState(false);
   const [showConfirmationPopup, setShowConfirmationPopup] = useState(false);
-  const [showNewProposalPopup, setShowNewProposalPopup] = useState(false);
   const [reviewComment, setReviewComment] = useState('');
   const [reviewStatus, setReviewStatus] = useState('');
   const [searchTerm, setSearchTerm] = useState('');
@@ -209,15 +208,6 @@ const BudgetProposal = () => {
     closeReviewPopup();
   };
 
-  // New proposal functions
-  const handleNewProposal = () => {
-    setShowNewProposalPopup(true);
-  };
-
-  const closeNewProposalPopup = () => {
-    setShowNewProposalPopup(false);
-  };
-
   const pendingCount = proposals.filter(p => p.status === 'pending').length;
 
   return (
@@ -375,10 +365,6 @@ const BudgetProposal = () => {
                 </div>
               )}
             </div>
-            
-            <button className="blue-button add-proposal-btn" onClick={handleNewProposal}>
-              <Plus size={16} /> New Proposal
-            </button>
           </div>
         </div>
 
@@ -669,94 +655,6 @@ const BudgetProposal = () => {
                 onClick={handleSubmitReview}
               >
                 {reviewStatus === 'approved' ? 'Confirm Approval' : 'Confirm Rejection'}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* New Proposal Popup */}
-      {showNewProposalPopup && (
-        <div className="popup-overlay">
-          <div className="new-proposal-popup">
-            <div className="popup-header">
-              <button className="back-button" onClick={closeNewProposalPopup}>
-                <ArrowLeft size={20} />
-              </button>
-              <h2 className="popup-title">New Budget Proposal</h2>
-            </div>
-            
-            <div className="popup-content">
-              <div className="form-group">
-                <label className="form-label">Subject</label>
-                <input type="text" className="form-input" placeholder="Enter proposal subject" />
-              </div>
-              
-              <div className="form-group">
-                <label className="form-label">Department</label>
-                <select className="form-select">
-                  <option value="">Select Department</option>
-                  <option value="IT">IT</option>
-                  <option value="Security">Security</option>
-                  <option value="DevOps">DevOps</option>
-                  <option value="Marketing">Marketing</option>
-                  <option value="Finance">Finance</option>
-                </select>
-              </div>
-              
-              <div className="form-group">
-                <label className="form-label">Total Amount</label>
-                <div className="amount-input-container">
-                  <span className="currency-symbol">₱</span>
-                  <input type="text" className="form-input amount-input" placeholder="0.00" />
-                </div>
-              </div>
-              
-              <div className="form-group">
-                <label className="form-label">Description</label>
-                <textarea 
-                  className="form-textarea" 
-                  placeholder="Enter proposal description"
-                  rows={4}
-                ></textarea>
-              </div>
-              
-              <div className="cost-items-section">
-                <div className="cost-items-header">
-                  <h3 className="subsection-title">Cost Items</h3>
-                  <button className="blue-button add-item-btn">
-                    <Plus size={14} /> Add Item
-                  </button>
-                </div>
-                
-                <div className="cost-item-form">
-                  <div className="cost-item-row">
-                    <div className="form-group item-name">
-                      <label className="form-label">Item</label>
-                      <input type="text" className="form-input" placeholder="Item name" />
-                    </div>
-                    <div className="form-group item-desc">
-                      <label className="form-label">Description</label>
-                      <input type="text" className="form-input" placeholder="Item description" />
-                    </div>
-                    <div className="form-group item-amount">
-                      <label className="form-label">Amount</label>
-                      <div className="amount-input-container small">
-                        <span className="currency-symbol">₱</span>
-                        <input type="text" className="form-input amount-input" placeholder="0.00" />
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
-            
-            <div className="popup-footer">
-              <button className="blue-button cancel-btn" onClick={closeNewProposalPopup}>
-                Cancel
-              </button>
-              <button className="blue-button save-btn">
-                Save Proposal
               </button>
             </div>
           </div>

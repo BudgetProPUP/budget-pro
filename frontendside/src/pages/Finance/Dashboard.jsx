@@ -3,6 +3,8 @@ import { BarChart, Bar, XAxis, YAxis, Tooltip, Legend, ResponsiveContainer } fro
 import { ChevronLeft, ChevronRight, ChevronDown, Search, ArrowLeft, Expand, Minimize } from 'lucide-react';
 import { Link, useNavigate } from 'react-router-dom';
 import './Dashboard.css';
+import { getBudgetSummary, getExpensesList } from "../../API/budget";
+
 
 function BudgetDashboard() {
   const [currentDate, setCurrentDate] = useState(new Date());
@@ -11,20 +13,39 @@ function BudgetDashboard() {
   const [showBudgetDropdown, setShowBudgetDropdown] = useState(false);
   const [showExpenseDropdown, setShowExpenseDropdown] = useState(false);
   const [timeFilter, setTimeFilter] = useState('monthly');
+  const [summary, setSummary] = useState(null);
+  const [expenses, setExpenses] = useState([]);
   const navigate = useNavigate();
 
   useEffect(() => {
-    // Simulate data loading
-    const timer = setTimeout(() => {
-      setLoading(false);
-    }, 1000);
+    // Fetch data from API
+    const fetchData = async () => {
+      try {
+        const [summaryRes, expensesRes] = await Promise.all([
+          getBudgetSummary(),
+          getExpensesList()
+        ]);
+        
+        setSummary(summaryRes.data);
+        setExpenses(expensesRes.data);
+        
+        // Simulate data loading
+        setTimeout(() => {
+          setLoading(false);
+        }, 500);
+      } catch (err) {
+        console.error('Error fetching data:', err);
+        setLoading(false);
+      }
+    };
+
+    fetchData();
 
     const interval = setInterval(() => {
       setCurrentDate(new Date());
     }, 1000);
 
     return () => {
-      clearTimeout(timer);
       clearInterval(interval);
     };
   }, []);
@@ -44,11 +65,11 @@ function BudgetDashboard() {
     day: 'numeric'
   });
 
-  // Budget data
-  const totalBudget = 800025.75;
-  const remainingBudget = 50000;
-  const planCompletion = 84.4;
-  const allocatedPercentage = 47;
+  // Use API data or fallback to mock data
+  const totalBudget = summary?.totalBudget || 800025.75;
+  const remainingBudget = summary?.remainingBudget || 50000;
+  const planCompletion = summary?.planCompletion || 84.4;
+  const allocatedPercentage = summary?.allocatedPercentage || 47;
 
   // Monthly data
   const monthlyData = [
@@ -68,9 +89,9 @@ function BudgetDashboard() {
 
   // Department data
   const departmentData = [
-    { name: 'Marketing', budget: 50000, spent: 45000, percentage: 90, color: '#16a34a' },
-    { name: 'Development', budget: 20000, spent: 18000, percentage: 90, color: '#22c55e' },
-    { name: 'Operations', budget: 30000, spent: 21600, percentage: 72, color: '#4ade80' },
+    { name: 'DevOps', budget: 50000, spent: 45000, percentage: 90, color: '#0047AB' },
+    { name: 'IT Team', budget: 20000, spent: 18000, percentage: 90, color: '#4169E1' },
+    { name: 'Assets', budget: 30000, spent: 21600, percentage: 72, color: '#6495ED' },
   ];
 
   // Project data
@@ -224,7 +245,6 @@ function BudgetDashboard() {
           <div className="date-time-badge">
             {formattedDate} | {formattedTime}
           </div>
-          {/* Export button removed and timestamp is already displayed above */}
         </div>
 
         {/* Time period filter - UPDATED TO BLUE */}
@@ -320,7 +340,7 @@ function BudgetDashboard() {
               className="expand-button"
               onClick={() => setExpandedChart(!expandedChart)}
               aria-label={expandedChart ? 'Collapse chart' : 'Expand chart'}
-              style={{ color: '#3b82f6' }}
+              style={{ color: '#0047AB' }}
             >
               {expandedChart ? <Minimize size={16} /> : <Expand size={16} />}
             </button>
@@ -336,8 +356,8 @@ function BudgetDashboard() {
                 <YAxis axisLine={false} tickLine={false} />
                 <Tooltip content={<CustomTooltip />} />
                 <Legend />
-                <Bar dataKey="Budget" fill="#16a34a" radius={[2, 2, 0, 0]} />
-                <Bar dataKey="Actual" fill="#86efac" radius={[2, 2, 0, 0]} />
+                <Bar dataKey="Budget" fill="#0047AB" radius={[2, 2, 0, 0]} />
+                <Bar dataKey="Actual" fill="#0096FF" radius={[2, 2, 0, 0]} />
               </BarChart>
             </ResponsiveContainer>
           </div>
@@ -428,6 +448,20 @@ function BudgetDashboard() {
               </div>
             ))}
           </div>
+        </div>
+
+        {/* Expenses List from API */}
+        <div className="card">
+          <h3 className="card-title">Recent Expenses</h3>
+          <ul className="expense-list">
+            {expenses.map((expense, index) => (
+              <li key={index} className="expense-item">
+                <div className="expense-name">{expense.name}</div>
+                <div className="expense-amount">₱{expense.amount.toLocaleString()}</div>
+                <div className="expense-date">{new Date(expense.date).toLocaleDateString()}</div>
+              </li>
+            ))}
+          </ul>
         </div>
       </div>
     </div>

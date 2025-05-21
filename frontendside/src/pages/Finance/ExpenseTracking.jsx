@@ -219,22 +219,6 @@ const ExpenseTracking = () => {
     handleCloseModal();
   };
 
-  // Get status class for styling based on status
-  const getStatusClass = (status) => {
-    switch(status) {
-      case 'approved': return 'status-approved';
-      case 'pending': return 'status-pending';
-      case 'rejected': return 'status-rejected';
-      case 'paid': return 'status-paid';
-      default: return '';
-    }
-  };
-
-  // Get status label for display
-  const getStatusLabel = (status) => {
-    return status.charAt(0).toUpperCase() + status.slice(1);
-  };
-
   return (
     <div className="app-container">
       {/* Header */}
@@ -394,7 +378,7 @@ const ExpenseTracking = () => {
             {/* Add Expense Button */}
             <button className="add-expense-btn" onClick={handleAddExpense}>
               <Plus size={16} />
-              <span>Add Expense</span>
+              <span>Add Budget</span>
             </button>
           </div>
         </div>
@@ -422,12 +406,10 @@ const ExpenseTracking = () => {
           <table className="transactions-table">
             <thead>
               <tr>
-                <th style={{ width: '16%' }}>Date</th>
-                <th style={{ width: '25%' }}>Description</th>
-                <th style={{ width: '15%' }}>Category</th>
-                <th style={{ width: '20%', textAlign: 'right' }}>Amount</th>
-                <th style={{ width: '14%', textAlign: 'center' }}>Status</th>
-                <th style={{ width: '10%', textAlign: 'center' }}>Actions</th>
+                <th style={{ width: '20%' }}>Date</th>
+                <th style={{ width: '35%' }}>Description</th>
+                <th style={{ width: '20%' }}>Category</th>
+                <th style={{ width: '25%', textAlign: 'right' }}>Amount</th>
               </tr>
             </thead>
             <tbody>
@@ -437,18 +419,6 @@ const ExpenseTracking = () => {
                   <td>{expense.description}</td>
                   <td>{expense.category}</td>
                   <td style={{ textAlign: 'right' }}>{expense.amount}</td>
-                  <td style={{ textAlign: 'center' }}>
-                    <span className={`status-badge ${getStatusClass(expense.status)}`}>
-                      {getStatusLabel(expense.status)}
-                    </span>
-                  </td>
-                  <td style={{ textAlign: 'center' }}>
-                    <div className="action-buttons">
-                      <button className="action-btn view-btn" title="View Details">
-                        <FileText size={16} />
-                      </button>
-                    </div>
-                  </td>
                 </tr>
               ))}
             </tbody>
@@ -492,7 +462,7 @@ const ExpenseTracking = () => {
         <div className="modal-overlay" onClick={handleCloseModal}>
           <div className="modal-container" onClick={e => e.stopPropagation()}>
             <div className="modal-header">
-              <h3>Add New Expense</h3>
+              <h3>Add Budget</h3>
               <button className="modal-close-btn" onClick={handleCloseModal}>×</button>
             </div>
             <div className="modal-content">
@@ -555,33 +525,10 @@ const ExpenseTracking = () => {
                   </div>
                 </div>
 
-                <div className="form-group">
-                  <label htmlFor="projectSummary">Project Summary</label>
-                  <textarea 
-                    id="projectSummary" 
-                    name="projectSummary"
-                    value={newExpense.projectSummary}
-                    onChange={handleInputChange}
-                    placeholder="Brief summary of the expense"
-                    rows="3"
-                  ></textarea>
-                </div>
-
-                <div className="form-group">
-                  <label htmlFor="dueDate">Due Date (optional)</label>
-                  <input 
-                    type="text" 
-                    id="dueDate" 
-                    name="dueDate"
-                    value={newExpense.dueDate}
-                    onChange={handleInputChange}
-                    placeholder="e.g., April 30, 2025"
-                  />
-                </div>
 
                 <div className="form-actions">
                   <button type="button" className="cancel-btn" onClick={handleCloseModal}>Cancel</button>
-                  <button type="submit" className="submit-btn">Add Expense</button>
+                  <button type="submit" className="submit-btn">Add Budget</button>
                 </div>
               </form>
             </div>

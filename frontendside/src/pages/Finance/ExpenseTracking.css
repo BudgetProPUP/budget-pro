@@ -585,26 +585,7 @@ body {
   font-size: 0.875rem;
 }
 
-/* New styles for Project Summary textarea */
-.form-group textarea {
-  width: 100%;
-  padding: 0.625rem;
-  border: 1px solid var(--gray-300);
-  border-radius: 4px;
-  font-size: 0.875rem;
-  background-color: white;  /* Explicitly set background to white */
-  color: var(--gray-900);   /* Set text color to dark (black) */
-}
 
-.form-group textarea::placeholder {
-  color: var(--gray-500);  /* Make placeholder text lighter */
-}
-
-.form-group textarea:focus {
-  border-color: var(--primary-color);
-  outline: none;
-  background-color: white;  /* Maintain white background when focused */
-}
 
 .form-group input:focus,
 .form-group select:focus {

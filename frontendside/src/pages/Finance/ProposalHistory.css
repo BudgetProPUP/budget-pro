@@ -216,9 +216,9 @@ body {
 }
 
 .status-dropdown-container .filter-dropdown-btn {
-  background-color: #0099ff;
-  color: white;
-  border-color: #0099ff;
+  background-color: white;
+  color: #666;
+  border-color: #ddd;
 }
 
 .status-dropdown-menu {
@@ -254,14 +254,16 @@ body {
 .transactions-table-wrapper {
   background-color: white;
   border-radius: 6px;
-  overflow: hidden;
+  overflow-x: auto; /* Added to allow horizontal scrolling if needed */
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
   margin-bottom: 20px;
+  width: 100%; /* Ensure it takes full width */
 }
 
 .transactions-table {
   width: 100%;
   border-collapse: collapse;
+  table-layout: fixed; /* Added for equal column widths */
 }
 
 .transactions-table th {
@@ -273,12 +275,18 @@ body {
   border-bottom: 1px solid #eee;
   background-color: #f9f9f9;
   text-transform: uppercase;
+  width: 25%; /* Each column gets 25% of table width */
 }
 
 .transactions-table td {
   padding: 16px;
   font-size: 0.875rem;
   border-bottom: 1px solid #eee;
+  width: 25%; /* Each column gets 25% of table width */
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: normal; /* Changed from nowrap to allow text wrapping */
+  vertical-align: top; /* Align content to top for better readability */
 }
 
 .modified-info {

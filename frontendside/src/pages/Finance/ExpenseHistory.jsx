@@ -19,7 +19,7 @@ const ExpenseHistory = () => {
       id: 1,
       date: '04-12-2025',
       description: 'Website Redesign Project',
-      category: 'IT Team',
+      category: 'Training & Development',
       amount: '₱50,000.00',
       projectSummary: 'This Budget Proposal provides necessary costs associated with the website redesign project (the "Project") which we would like to pursue due to increased mobile traffic and improved conversion rates from modern interfaces.',
       projectDescription: 'Complete redesign of company website with responsive design, improved UI/UX, integration with CRM, and enhanced e-commerce capabilities to boost customer engagement and sales conversion.',
@@ -33,7 +33,7 @@ const ExpenseHistory = () => {
       id: 2,
       date: '03-20-2025',
       description: 'Software Subscription',
-      category: 'Software',
+      category: 'Professional Services',
       amount: '₱15,750.00',
       projectSummary: 'Annual subscription for productivity software suite.',
       projectDescription: 'Renewal of organization-wide productivity software licenses including project management tools, communication platforms, and development environments.',
@@ -46,7 +46,7 @@ const ExpenseHistory = () => {
       id: 3,
       date: '03-15-2025',
       description: 'Cloud Hosting',
-      category: 'DevOps',
+      category: 'Professional Services',
       amount: '₱25,500.00',
       projectSummary: 'Monthly cloud infrastructure costs for all company applications.',
       projectDescription: 'Cloud hosting services including compute instances, database services, storage, and networking components to support our application ecosystem.',
@@ -59,7 +59,7 @@ const ExpenseHistory = () => {
       id: 4,
       date: '02-25-2025',
       description: 'Company Laptops',
-      category: 'Hardware',
+      category: 'Equipment & Maintenance',
       amount: '₱480,000.00',
       projectSummary: 'Purchase of new laptops for the engineering team.',
       projectDescription: 'Replacement of outdated hardware with high-performance laptops for the development and design teams to improve productivity.',
@@ -73,7 +73,7 @@ const ExpenseHistory = () => {
       id: 5,
       date: '01-25-2025',
       description: 'Office Printers',
-      category: 'Hardware',
+      category: 'Equipment & Maintenance',
       amount: '₱180,000.00',
       projectSummary: 'Acquisition of networked printers for all departments.',
       projectDescription: 'Purchase of high-capacity networked printers to replace aging equipment and reduce maintenance costs.',
@@ -87,7 +87,7 @@ const ExpenseHistory = () => {
       id: 6,
       date: '12-19-2024',
       description: 'AI Workshop Series',
-      category: 'IT',
+      category: 'Training & Development',
       amount: '₱25,000.00',
       projectSummary: 'Training program for staff on AI technologies and applications.',
       projectDescription: 'Series of workshops designed to upskill technical and non-technical staff on artificial intelligence concepts, tools, and practical applications.',
@@ -101,8 +101,18 @@ const ExpenseHistory = () => {
 
   const [searchQuery, setSearchQuery] = useState('');
 
-  // Get unique categories for the filter dropdown
-  const categories = ['All Categories', ...new Set(transactions.map(t => t.category))];
+  // Define all categories including the requested new ones
+  const categories = [
+    'All Categories', 
+    'Travel',
+    'Office Supplies',
+    'Utilities',
+    'Marketing & Advertising',
+    'Professional Services',
+    'Training & Development',
+    'Equipment & Maintenance',
+    'Miscellaneous'
+  ];
 
   const handleSearch = (e) => {
     setSearchQuery(e.target.value);

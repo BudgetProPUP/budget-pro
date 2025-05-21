@@ -14,7 +14,7 @@ const LedgerView = () => {
     { 
       reference: 'EX-001', 
       date: '05-12-2025', 
-      category: 'Expenses', 
+      category: 'Miscellaneous', 
       description: 'Internet Bill', 
       amount: '₱8,300',
       type: 'Operational Expenditure' 
@@ -22,7 +22,7 @@ const LedgerView = () => {
     { 
       reference: 'AS-001', 
       date: '05-03-2025', 
-      category: 'Assets', 
+      category: 'Equipment & Maintenance', 
       description: 'Company Laptops', 
       amount: '₱250,000',
       type: 'Capital Expenditure' 
@@ -30,7 +30,7 @@ const LedgerView = () => {
     { 
       reference: 'AS-002', 
       date: '04-27-2025', 
-      category: 'Assets', 
+      category: 'Equipment & Maintenance', 
       description: 'Office Printer', 
       amount: '₱12,500',
       type: 'Capital Expenditure' 
@@ -38,7 +38,7 @@ const LedgerView = () => {
     { 
       reference: 'EX-002', 
       date: '04-12-2025', 
-      category: 'Expenses', 
+      category: 'Miscellaneous', 
       description: 'Internet Bill', 
       amount: '₱9,200',
       type: 'Operational Expenditure' 
@@ -46,7 +46,7 @@ const LedgerView = () => {
     { 
       reference: 'AS-003', 
       date: '03-20-2025', 
-      category: 'Assets', 
+      category: 'Professional Services', 
       description: 'Cloud Hosting', 
       amount: '₱5,800',
       type: 'Operational Expenditure' 
@@ -54,7 +54,7 @@ const LedgerView = () => {
     { 
       reference: 'PR-001', 
       date: '03-15-2025', 
-      category: 'Projects', 
+      category: 'Training & Development', 
       description: 'Website Redesign', 
       amount: '₱45,000',
       type: 'Capital Expenditure' 
@@ -62,18 +62,10 @@ const LedgerView = () => {
     { 
       reference: 'VC-001', 
       date: '03-10-2025', 
-      category: 'Vendor & Contracts', 
+      category: 'Professional Services', 
       description: 'Annual Software License', 
       amount: '₱65,000',
       type: 'Operational Expenditure'
-    },
-    { 
-      reference: 'TR-001', 
-      date: '02-28-2025', 
-      category: 'Transaction Types', 
-      description: 'Department Transfer', 
-      amount: '₱120,000',
-      type: 'Transfers' 
     },
   ]);
 
@@ -89,8 +81,17 @@ const LedgerView = () => {
   // Filtered transactions based on search and filters
   const [filteredTransactions, setFilteredTransactions] = useState(transactions);
 
-  // Filter options
-  const categoryOptions = ['Expenses', 'Assets', 'Projects', 'Vendor & Contracts', 'Transaction Types'];
+  // Filter options - Updated with new categories
+  const categoryOptions = [
+    'Travel',
+    'Office Supplies',
+    'Utilities',
+    'Marketing & Advertising',
+    'Professional Services',
+    'Training & Development',
+    'Equipment & Maintenance',
+    'Miscellaneous'
+  ];
 
   useEffect(() => {
     // Update current date/time

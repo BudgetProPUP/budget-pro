@@ -27,16 +27,24 @@ function JournalEntry() {
 
   // Sample journal entries data
   const journalEntries = [
-    { id: 'EX-001', date: '05-12-2025', category: 'Expenses', description: 'Internet Bill', amount: 'P8,300' },
-    { id: 'AS-001', date: '05-03-2025', category: 'Assets', description: 'Company Laptops', amount: 'P250,000' },
-    { id: 'LI-001', date: '04-21-2025', category: 'Liabilities', description: 'Office Rent', amount: 'P45,000' },
-    { id: 'EX-002', date: '04-15-2025', category: 'Expenses', description: 'Electricity Bill', amount: 'P12,750' },
-    { id: 'AS-002', date: '04-10-2025', category: 'Assets', description: 'Office Furniture', amount: 'P85,000' },
-    { id: 'LI-002', date: '03-25-2025', category: 'Liabilities', description: 'Equipment Lease', amount: 'P35,000' },
+    { id: 'EX-001', date: '05-12-2025', category: 'Miscellaneous', description: 'Internet Bill', amount: 'P8,300' },
+    { id: 'AS-001', date: '05-03-2025', category: 'Equipment & Maintenance', description: 'Company Laptops', amount: 'P250,000' },
+    { id: 'LI-001', date: '04-21-2025', category: 'Miscellaneous', description: 'Office Rent', amount: 'P45,000' },
+    { id: 'EX-002', date: '04-15-2025', category: 'Miscellaneous', description: 'Electricity Bill', amount: 'P12,750' },
+    { id: 'AS-002', date: '04-10-2025', category: 'Equipment & Maintenance', description: 'Office Furniture', amount: 'P85,000' },
   ];
 
   // Get unique categories for the filter dropdown
-  const categories = ['All Categories', ...new Set(journalEntries.map(entry => entry.category))];
+  const categories = [
+    'All Categories', 
+    ...new Set(journalEntries.map(entry => entry.category)),
+    'Travel',
+    'Office Supplies',
+    'Utilities',
+    'Marketing & Advertising',
+    'Professional Services',
+    'Training & Development',
+  ];
 
   const handleSearch = (e) => {
     setSearchQuery(e.target.value);
@@ -352,6 +360,14 @@ function JournalEntry() {
                     <option value="Liabilities">Liabilities</option>
                     <option value="Expenses">Expenses</option>
                     <option value="Revenue">Revenue</option>
+                    <option value="Travel">Travel</option>
+                    <option value="Office Supplies">Office Supplies</option>
+                    <option value="Utilities">Utilities</option>
+                    <option value="Marketing & Advertising">Marketing & Advertising</option>
+                    <option value="Professional Services">Professional Services</option>
+                    <option value="Training & Development">Training & Development</option>
+                    <option value="Equipment & Maintenance">Equipment & Maintenance</option>
+                    <option value="Miscellaneous">Miscellaneous</option>
                   </select>
                   <ChevronDown size={16} className="select-icon" />
                 </div>

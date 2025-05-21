@@ -30,7 +30,7 @@ const ExpenseTracking = () => {
       id: 1,
       date: '04-12-2025',
       description: 'Website Redesign Project',
-      category: 'IT Team',
+      category: 'Training & Development',
       amount: '₱50,000.00',
       status: 'pending',
       projectSummary: 'This Budget Proposal provides necessary costs associated with the website redesign project.',
@@ -40,7 +40,7 @@ const ExpenseTracking = () => {
       id: 2,
       date: '03-20-2025',
       description: 'Software Subscription',
-      category: 'Software',
+      category: 'Professional Services',
       amount: '₱15,750.00',
       status: 'approved',
       projectSummary: 'Annual subscription for productivity software suite.',
@@ -50,7 +50,7 @@ const ExpenseTracking = () => {
       id: 3,
       date: '03-15-2025',
       description: 'Cloud Hosting',
-      category: 'DevOps',
+      category: 'Professional Services',
       amount: '₱12,500.00',
       status: 'paid',
       projectSummary: 'Monthly cloud infrastructure costs for all company applications.',
@@ -60,7 +60,7 @@ const ExpenseTracking = () => {
       id: 4,
       date: '02-25-2025',
       description: 'Company Laptops',
-      category: 'Hardware',
+      category: 'Equipment & Maintenance',
       amount: '₱450,000.00',
       status: 'approved',
       projectSummary: 'Purchase of new laptops for the engineering team.',
@@ -70,7 +70,7 @@ const ExpenseTracking = () => {
       id: 5,
       date: '01-25-2025',
       description: 'Office Printers',
-      category: 'Hardware',
+      category: 'Equipment & Maintenance',
       amount: '₱180,000.00',
       status: 'paid',
       projectSummary: 'Acquisition of networked printers for all departments.',
@@ -80,7 +80,7 @@ const ExpenseTracking = () => {
       id: 6,
       date: '12-19-2024',
       description: 'AI Workshop Series',
-      category: 'IT',
+      category: 'Training & Development',
       amount: '₱25,000.00',
       status: 'rejected',
       projectSummary: 'Training program for staff on AI technologies and applications.',
@@ -94,8 +94,18 @@ const ExpenseTracking = () => {
     expensesThisMonth: '₱800,025.75'
   };
 
-  // Get unique categories for the filter dropdown
-  const categories = ['All Categories', ...new Set(expenses.map(t => t.category))];
+  // Define categories directly instead of extracting from expenses
+  const categories = [
+    'All Categories',
+    'Travel', 
+    'Office Supplies', 
+    'Utilities', 
+    'Marketing & Advertising', 
+    'Professional Services', 
+    'Training & Development', 
+    'Equipment & Maintenance', 
+    'Miscellaneous'
+  ];
   
   // Date filter options
   const dateOptions = ['All Time', 'This Month', 'Last Month', 'Last 3 Months', 'This Year'];

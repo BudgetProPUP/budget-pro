@@ -15,9 +15,9 @@ const BudgetProposal = () => {
   const [reviewStatus, setReviewStatus] = useState('');
   const [searchTerm, setSearchTerm] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
-  const [showDepartmentDropdown, setShowDepartmentDropdown] = useState(false);
+  const [showCategoryDropdown, setShowCategoryDropdown] = useState(false);
   const [showStatusDropdown, setShowStatusDropdown] = useState(false);
-  const [selectedDepartment, setSelectedDepartment] = useState('All Departments');
+  const [selectedCategory, setSelectedCategory] = useState('All Categories');
   const [selectedStatus, setSelectedStatus] = useState('All Status');
   const itemsPerPage = 5; // Number of proposals per page
   const navigate = useNavigate();
@@ -35,12 +35,12 @@ const BudgetProposal = () => {
     minute: '2-digit' 
   });
 
-  // Sample data
+  // Sample data with updated categories
   const proposals = [
     { 
       id: 1, 
       subject: 'Website Redesign Project',
-      department: 'IT', 
+      category: 'Training & Development', 
       amount: '₱50,000.00', 
       submittedBy: 'J.Tompson', 
       status: 'pending', 
@@ -49,7 +49,7 @@ const BudgetProposal = () => {
     { 
       id: 2, 
       subject: 'Cybersecurity Upgrade',
-      department: 'Security', 
+      category: 'Professional Services', 
       amount: '₱23,040.00', 
       submittedBy: 'A.Williams', 
       status: 'approved', 
@@ -58,7 +58,7 @@ const BudgetProposal = () => {
     { 
       id: 3, 
       subject: 'Cloud Storage Expansion',
-      department: 'DevOps', 
+      category: 'Professional Service', 
       amount: '₱30,000.00', 
       submittedBy: 'L.Chen', 
       status: 'approved', 
@@ -67,7 +67,7 @@ const BudgetProposal = () => {
     { 
       id: 4, 
       subject: 'AR Retail Solution',
-      department: 'IT', 
+      category: 'Professional Service', 
       amount: '₱47,079.00', 
       submittedBy: 'K.Thomas', 
       status: 'rejected', 
@@ -76,7 +76,7 @@ const BudgetProposal = () => {
     { 
       id: 5, 
       subject: 'Training Program Development',
-      department: 'HR', 
+      category: 'Training & Development', 
       amount: '₱35,600.00', 
       submittedBy: 'M.Johnson', 
       status: 'pending', 
@@ -85,7 +85,7 @@ const BudgetProposal = () => {
     { 
       id: 6, 
       subject: 'Office Renovation',
-      department: 'Facilities', 
+      category: 'Professional Service', 
       amount: '₱125,400.00', 
       submittedBy: 'R.Garcia', 
       status: 'pending', 
@@ -93,23 +93,33 @@ const BudgetProposal = () => {
     }
   ];
 
-  // Get unique departments
-  const departments = ['All Departments', ...new Set(proposals.map(p => p.department))];
+  // Define all available categories
+  const categories = [
+    'All Categories',
+    'Travel',
+    'Office Supplies',
+    'Utilities',
+    'Marketing & Advertising',
+    'Professional Services',
+    'Training & Development',
+    'Equipment & Maintenance',
+    'Miscellaneous'
+  ];
   
   // Status options
   const statusOptions = ['All Status', 'pending', 'approved', 'rejected'];
 
-  // Filter proposals based on search term, department and status
+  // Filter proposals based on search term, category and status
   const filteredProposals = proposals.filter(proposal => {
     const matchesSearch = proposal.subject.toLowerCase().includes(searchTerm.toLowerCase()) ||
-           proposal.department.toLowerCase().includes(searchTerm.toLowerCase()) ||
+           proposal.category.toLowerCase().includes(searchTerm.toLowerCase()) ||
            proposal.submittedBy.toLowerCase().includes(searchTerm.toLowerCase());
     
-    const matchesDepartment = selectedDepartment === 'All Departments' || proposal.department === selectedDepartment;
+    const matchesCategory = selectedCategory === 'All Categories' || proposal.category === selectedCategory;
     
     const matchesStatus = selectedStatus === 'All Status' || proposal.status === selectedStatus.toLowerCase();
     
-    return matchesSearch && matchesDepartment && matchesStatus;
+    return matchesSearch && matchesCategory && matchesStatus;
   });
 
   // Pagination logic
@@ -133,19 +143,19 @@ const BudgetProposal = () => {
     if (showBudgetDropdown) setShowBudgetDropdown(false);
   };
 
-  const toggleDepartmentDropdown = () => {
-    setShowDepartmentDropdown(!showDepartmentDropdown);
+  const toggleCategoryDropdown = () => {
+    setShowCategoryDropdown(!showCategoryDropdown);
     if (showStatusDropdown) setShowStatusDropdown(false);
   };
 
   const toggleStatusDropdown = () => {
     setShowStatusDropdown(!showStatusDropdown);
-    if (showDepartmentDropdown) setShowDepartmentDropdown(false);
+    if (showCategoryDropdown) setShowCategoryDropdown(false);
   };
 
-  const handleDepartmentSelect = (department) => {
-    setSelectedDepartment(department);
-    setShowDepartmentDropdown(false);
+  const handleCategorySelect = (category) => {
+    setSelectedCategory(category);
+    setShowCategoryDropdown(false);
     setCurrentPage(1); // Reset to first page when filter changes
   };
 
@@ -325,19 +335,19 @@ const BudgetProposal = () => {
 
           <div className="filter-controls">
             <div className="filter-dropdown">
-              <button className="filter-dropdown-btn" onClick={toggleDepartmentDropdown}>
-                <span>{selectedDepartment}</span>
+              <button className="filter-dropdown-btn" onClick={toggleCategoryDropdown}>
+                <span>{selectedCategory}</span>
                 <ChevronDown size={14} />
               </button>
-              {showDepartmentDropdown && (
+              {showCategoryDropdown && (
                 <div className="category-dropdown-menu">
-                  {departments.map((department, index) => (
+                  {categories.map((category, index) => (
                     <div
                       key={index}
-                      className={`category-dropdown-item ${selectedDepartment === department ? 'active' : ''}`}
-                      onClick={() => handleDepartmentSelect(department)}
+                      className={`category-dropdown-item ${selectedCategory === category ? 'active' : ''}`}
+                      onClick={() => handleCategorySelect(category)}
                     >
-                      {department}
+                      {category}
                     </div>
                   ))}
                 </div>
@@ -396,7 +406,7 @@ const BudgetProposal = () => {
             <thead>
               <tr>
                 <th style={{ width: '30%' }}>Subject</th>
-                <th style={{ width: '15%' }}>Department</th>
+                <th style={{ width: '15%' }}>Category</th>
                 <th style={{ width: '15%' }}>Submitted By</th>
                 <th style={{ width: '15%', textAlign: 'right' }}>Amount</th>
                 <th style={{ width: '15%' }}>Status</th>
@@ -411,7 +421,7 @@ const BudgetProposal = () => {
                   style={{ cursor: 'pointer' }}
                 >
                   <td>{proposal.subject}</td>
-                  <td>{proposal.department}</td>
+                  <td>{proposal.category}</td>
                   <td>{proposal.submittedBy}</td>
                   <td style={{ textAlign: 'right' }}>{proposal.amount}</td>
                   <td>
@@ -576,7 +586,7 @@ const BudgetProposal = () => {
               
               <ul className="proposal-details">
                 <li>• {selectedProposal.amount}</li>
-                <li>• Requested by: {selectedProposal.department} Department</li>
+                <li>• Category: {selectedProposal.category}</li>
                 <li>• Submitted by: {selectedProposal.submittedBy}</li>
               </ul>
               
@@ -630,7 +640,7 @@ const BudgetProposal = () => {
                 <h4 className="proposal-name">{selectedProposal.subject}</h4>
                 <ul className="proposal-details">
                   <li>• Budget Amount: {selectedProposal.amount}</li>
-                  <li>• Department: {selectedProposal.department}</li>
+                  <li>• Category: {selectedProposal.category}</li>
                   <li>• Submitted by: {selectedProposal.submittedBy}</li>
                 </ul>
               </div>

@@ -4,7 +4,7 @@ from django.contrib.auth import get_user_model
 from rest_framework.test import APIClient, APITestCase
 from rest_framework import status
 #from django.utils import timezone
-from core.models import LoginAttempt, Department
+from backend.core.models import LoginAttempt, Department
 
 User = get_user_model()
 

@@ -8,7 +8,13 @@ class IsFinanceHead(permissions.BasePermission):
     def has_permission(self, request, view):
         return request.user.is_authenticated and request.user.role == 'FINANCE_HEAD'
 
-
+class IsAdmin(permissions.BasePermission):
+   
+    # Permission check for Finance Operator role.
+   
+    def has_permission(self, request, view):
+        return request.user.is_authenticated and request.user.role == 'ADMIN'
+    
 class IsFinanceOperator(permissions.BasePermission):
    
     # Permission check for Finance Operator role.
@@ -22,7 +28,7 @@ class IsFinanceUser(permissions.BasePermission):
     # Permission check for any finance user (Head or Operator).
    
     def has_permission(self, request, view):
-        return request.user.is_authenticated and request.user.role in ['FINANCE_HEAD', 'FINANCE_OPERATOR']
+        return request.user.is_authenticated and request.user.role in ['FINANCE_HEAD', 'ADMIN']
 
 
 class IsOwnerOrFinanceHead(permissions.BasePermission):

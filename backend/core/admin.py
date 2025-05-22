@@ -8,7 +8,7 @@ from .models import (
     BudgetProposal, BudgetProposalItem, BudgetAllocation,
     BudgetTransfer, JournalEntry, JournalEntryLine, Expense,
     ProposalHistory, ProposalComment, TransactionAudit,
-    Project, ProjectMilestone, DashboardMetric, RiskMetric,
+    Project, DashboardMetric, RiskMetric,
     UserActivityLog, LoginAttempt
 )
 
@@ -71,7 +71,6 @@ admin.site.register(ProposalHistory)
 admin.site.register(ProposalComment)
 admin.site.register(TransactionAudit)
 admin.site.register(Project)
-admin.site.register(ProjectMilestone)
 admin.site.register(DashboardMetric)
 admin.site.register(RiskMetric)
 admin.site.register(UserActivityLog)

@@ -3,7 +3,7 @@ from django.conf import settings
 from rest_framework import status, generics  # , permissions
 from rest_framework.response import Response
 from rest_framework.views import APIView
-from rest_framework_simplejwt.tokens import RefreshToken
+from rest_framework_simplejwt.tokens import RefreshToken,AccessToken
 from rest_framework_simplejwt.exceptions import TokenError
 from rest_framework_simplejwt.views import TokenRefreshView
 from rest_framework_simplejwt.serializers import TokenObtainPairSerializer, TokenRefreshSerializer
@@ -11,15 +11,15 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.permissions import AllowAny  # TODO Remove Later
 from rest_framework import serializers
 from django.contrib.auth import get_user_model
-from drf_spectacular.utils import extend_schema, OpenApiExample, OpenApiResponse, inline_serializer, extend_schema_field
-
-from core.permissions import IsFinanceHead
-
+from drf_spectacular.utils import extend_schema, OpenApiExample, OpenApiResponse, OpenApiParameter, inline_serializer
+from core.pagination import StandardResultsSetPagination
+from core.permissions import IsFinanceHead, IsAdmin
+from .serializers_budget import LedgerViewSerializer
 
 # from django.utils import timezone
 
-from .serializers import UserSerializer, LoginSerializer, LoginAttemptSerializer
-from .models import LoginAttempt, UserActivityLog
+from .serializers import UserSerializer, LoginSerializer, LoginAttemptSerializer, ValidProjectAccountSerializer
+from .models import BudgetAllocation, JournalEntryLine, LoginAttempt, UserActivityLog
 
 User = get_user_model()
 
@@ -139,7 +139,9 @@ class LoginView(APIView):
                 status='SUCCESS',
                 details={
                     'ip_address': ip_address,
-                    'user_agent': user_agent
+                    'user_agent': user_agent,
+                    'role': user.role,
+                    'department': user.department.name if user.department else None
                 }
             )
 
@@ -173,7 +175,8 @@ class LoginView(APIView):
                     status='FAILED',
                     details={
                         'ip_address': ip_address,
-                        'user_agent': user_agent
+                        'user_agent': user_agent,
+                        
                     }
                 )
 
@@ -236,14 +239,14 @@ class LogoutView(APIView):
     def post(self, request):
         refresh_token = request.data.get('refresh')
         if not refresh_token:
-            return Response({"error": "Refresh token required"},
-                            status=status.HTTP_400_BAD_REQUEST)
+            return Response({"error": "Refresh token required"}, status=status.HTTP_400_BAD_REQUEST)
 
         try:
-            # Blacklist only the refresh token
-            RefreshToken(refresh_token).blacklist()
+            token = RefreshToken(refresh_token)
+            token.blacklist()
         except TokenError as e:
             return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
+
 
         # Log user activity
         UserActivityLog.objects.create(
@@ -447,7 +450,7 @@ class UserProfileView(generics.RetrieveUpdateAPIView):
 
 
 class LoginAttemptsView(generics.ListAPIView):
-    permission_classes = [IsAuthenticated, IsFinanceHead]
+    permission_classes = [IsAuthenticated, IsFinanceHead | IsAdmin]
     serializer_class = LoginAttemptSerializer
 
     @extend_schema(
@@ -542,3 +545,34 @@ class CustomTokenRefreshView(TokenRefreshView):
     )
     def post(self, request, *args, **kwargs):
         return super().post(request, *args, **kwargs)
+
+
+class ValidProjectAccountView(APIView):
+    """
+    API that returns valid projects and accounts with active budget allocations.
+    """
+    
+    @extend_schema(
+        tags=['Valid Projects and Accounts with Active Allocations'],
+        summary="Get valid projects and accounts with active allocations",
+        responses={200: ValidProjectAccountSerializer(many=True)},
+    )
+    def get(self, request):
+        allocations = BudgetAllocation.objects.filter(is_active=True).select_related(
+            'project', 'account', 'department', 'fiscal_year'
+        )
+
+        data = [
+            {
+                'project_id': a.project.id,
+                'project_title': a.project.name,
+                'account_id': a.account.id,
+                'account_code': a.account.code,
+                'account_title': a.account.name,
+                'department_name': a.department.name,
+                'fiscal_year_name': a.fiscal_year.name
+            }
+            for a in allocations
+        ]
+
+        return Response(data, status=status.HTTP_200_OK)

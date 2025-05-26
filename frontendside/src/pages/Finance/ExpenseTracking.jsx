@@ -135,31 +135,24 @@ const ExpenseTracking = () => {
   const nextPage = () => setCurrentPage(prev => Math.min(prev + 1, totalPages));
   const prevPage = () => setCurrentPage(prev => Math.max(prev - 1, 1));
 
+  // Navigation functions
   const toggleBudgetDropdown = () => {
     setShowBudgetDropdown(!showBudgetDropdown);
     if (showExpenseDropdown) setShowExpenseDropdown(false);
-    if (showCategoryDropdown) setShowCategoryDropdown(false);
-    if (showDateDropdown) setShowDateDropdown(false);
   };
 
   const toggleExpenseDropdown = () => {
     setShowExpenseDropdown(!showExpenseDropdown);
     if (showBudgetDropdown) setShowBudgetDropdown(false);
-    if (showCategoryDropdown) setShowCategoryDropdown(false);
-    if (showDateDropdown) setShowDateDropdown(false);
   };
 
   const toggleCategoryDropdown = () => {
     setShowCategoryDropdown(!showCategoryDropdown);
-    if (showBudgetDropdown) setShowBudgetDropdown(false);
-    if (showExpenseDropdown) setShowExpenseDropdown(false);
     if (showDateDropdown) setShowDateDropdown(false);
   };
 
   const toggleDateDropdown = () => {
     setShowDateDropdown(!showDateDropdown);
-    if (showBudgetDropdown) setShowBudgetDropdown(false);
-    if (showExpenseDropdown) setShowExpenseDropdown(false);
     if (showCategoryDropdown) setShowCategoryDropdown(false);
   };
 
@@ -278,6 +271,12 @@ const ExpenseTracking = () => {
                   >
                     Journal Entries
                   </div>
+                  <div
+                    className="dropdown-item"
+                    onClick={() => handleNavigate('/finance/budget-variance-report')}
+                  >
+                    Budget Variance Report
+                  </div>
                 </div>
               )}
             </div>
@@ -306,14 +305,6 @@ const ExpenseTracking = () => {
                   </div>
                 </div>
               )}
-            </div>
-
-            {/* User Management - Simple Navigation Item */}
-            <div
-              className="nav-item"
-              onClick={() => handleNavigate('/finance/user-management')}
-            >
-              User Management
             </div>
           </nav>
         </div>
@@ -476,69 +467,70 @@ const ExpenseTracking = () => {
               <button className="modal-close-btn" onClick={handleCloseModal}>×</button>
             </div>
             <div className="modal-content">
-              <form onSubmit={handleSubmitExpense}>
-                <div className="form-group">
-                  <label htmlFor="description">Description</label>
-                  <input 
-                    type="text" 
-                    id="description" 
-                    name="description"
-                    value={newExpense.description}
-                    onChange={handleInputChange}
-                    placeholder="Enter expense description"
-                    required
-                  />
-                </div>
-
-                <div className="form-group">
-                  <label htmlFor="category">Category</label>
-                  <select 
-                    id="category" 
-                    name="category"
-                    value={newExpense.category}
-                    onChange={handleInputChange}
-                    required
-                  >
-                    <option value="">Select a category</option>
-                    {categories.filter(cat => cat !== 'All Categories').map((cat, idx) => (
-                      <option key={idx} value={cat}>{cat}</option>
-                    ))}
-                  </select>
-                </div>
-
-                <div className="form-row">
+              <form onSubmit={handleSubmitExpense} className="budget-form">
+                <div className="form-section">
                   <div className="form-group">
-                    <label htmlFor="amount">Amount (₱)</label>
+                    <label htmlFor="description">Description</label>
                     <input 
-                      type="number" 
-                      id="amount" 
-                      name="amount"
-                      value={newExpense.amount}
+                      type="text" 
+                      id="description" 
+                      name="description"
+                      value={newExpense.description}
                       onChange={handleInputChange}
-                      placeholder="0.00"
-                      step="0.01"
-                      min="0"
+                      placeholder="Enter budget description"
                       required
                     />
                   </div>
 
                   <div className="form-group">
-                    <label htmlFor="date">Date</label>
-                    <input 
-                      type="date" 
-                      id="date" 
-                      name="date"
-                      value={newExpense.date}
+                    <label htmlFor="category">Category</label>
+                    <select 
+                      id="category" 
+                      name="category"
+                      value={newExpense.category}
                       onChange={handleInputChange}
                       required
-                    />
+                    >
+                      <option value="">Select a category</option>
+                      {categories.filter(cat => cat !== 'All Categories').map((cat, idx) => (
+                        <option key={idx} value={cat}>{cat}</option>
+                      ))}
+                    </select>
                   </div>
-                </div>
 
+                  <div className="form-row">
+                    <div className="form-group">
+                      <label htmlFor="amount">Amount (₱)</label>
+                      <input 
+                        type="number" 
+                        id="amount" 
+                        name="amount"
+                        value={newExpense.amount}
+                        onChange={handleInputChange}
+                        placeholder="0.00"
+                        step="0.01"
+                        min="0"
+                        required
+                      />
+                    </div>
 
-                <div className="form-actions">
-                  <button type="button" className="cancel-btn" onClick={handleCloseModal}>Cancel</button>
-                  <button type="submit" className="submit-btn">Add Budget</button>
+                    <div className="form-group">
+                      <label htmlFor="date">Date</label>
+                      <input 
+                        type="date" 
+                        id="date" 
+                        name="date"
+                        value={newExpense.date}
+                        onChange={handleInputChange}
+                        required
+                      />
+                    </div>
+                  </div>
+
+                  <div className="form-actions">
+                    <button type="button" className="cancel-btn" onClick={handleCloseModal}>Cancel</button>
+                    <button type="submit" className="submit-btn">Add Budget</button>
+                  </div>
                 </div>
               </form>
             </div>

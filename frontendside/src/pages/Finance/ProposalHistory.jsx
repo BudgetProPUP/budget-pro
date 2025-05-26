@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import './ProposalHistory.css';
 import { ChevronDown, Search, ArrowLeft, ChevronLeft, ChevronRight } from 'lucide-react';
+import './ProposalHistory.css';
 
 const ProposalHistory = () => {
   const [showBudgetDropdown, setShowBudgetDropdown] = useState(false);
@@ -145,7 +145,7 @@ const ProposalHistory = () => {
 
   return (
     <div className="app-container">
-      {/* Header - Updated to match ExpenseHistory */}
+      {/* Header */}
       <header className="app-header">
         <div className="header-left">
           <h1 className="app-logo">BUDGETPRO</h1>
@@ -192,6 +192,12 @@ const ProposalHistory = () => {
                   >
                     Journal Entries
                   </div>
+                  <div
+                    className="dropdown-item"
+                    onClick={() => handleNavigate('/finance/budget-variance-report')}
+                  >
+                    Budget Variance Report
+                  </div>
                 </div>
               )}
             </div>
@@ -220,14 +226,6 @@ const ProposalHistory = () => {
                   </div>
                 </div>
               )}
-            </div>
-
-            {/* User Management - Simple Navigation Item */}
-            <div
-              className="nav-item"
-              onClick={() => handleNavigate('/finance/user-management')}
-            >
-              User Management
             </div>
           </nav>
         </div>
@@ -336,7 +334,7 @@ const ProposalHistory = () => {
           </table>
         </div>
           
-        {/* Pagination - Updated to match ExpenseHistory */}
+        {/* Pagination */}
         <div className="pagination-controls">
           <button 
             className={`pagination-btn ${currentPage === 1 ? 'disabled' : ''}`} 

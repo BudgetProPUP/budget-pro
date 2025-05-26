@@ -169,6 +169,12 @@ const AccountSetup = () => {
                   >
                     Journal Entries
                   </div>
+                  <div
+                    className="dropdown-item"
+                    onClick={() => handleNavigate('/finance/budget-variance-report')}
+                  >
+                    Budget Variance Report
+                  </div>
                 </div>
               )}
             </div>
@@ -197,14 +203,6 @@ const AccountSetup = () => {
                   </div>
                 </div>
               )}
-            </div>
-
-            {/* User Management - Simple Navigation Item */}
-            <div
-              className="nav-item"
-              onClick={() => handleNavigate('/finance/user-management')}
-            >
-              User Management
             </div>
           </nav>
         </div>

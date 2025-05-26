@@ -11,6 +11,7 @@ const BudgetProposal = () => {
   const [showReviewPopup, setShowReviewPopup] = useState(false);
   const [showCommentPopup, setShowCommentPopup] = useState(false);
   const [showConfirmationPopup, setShowConfirmationPopup] = useState(false);
+  const [showPendingStatusPopup, setShowPendingStatusPopup] = useState(false);
   const [reviewComment, setReviewComment] = useState('');
   const [reviewStatus, setReviewStatus] = useState('');
   const [searchTerm, setSearchTerm] = useState('');
@@ -191,6 +192,15 @@ const BudgetProposal = () => {
     }
   };
 
+  // Updated pending button handler
+  const handlePendingClick = () => {
+    setShowPendingStatusPopup(true);
+  };
+
+  const closePendingStatusPopup = () => {
+    setShowPendingStatusPopup(false);
+  };
+
   const handleCommentClick = () => {
     setShowCommentPopup(true);
   };
@@ -216,6 +226,11 @@ const BudgetProposal = () => {
     });
     closeConfirmationPopup();
     closeReviewPopup();
+  };
+
+  const handleSubmitPendingStatus = () => {
+    console.log('Pending status comment submitted:', reviewComment);
+    closePendingStatusPopup();
   };
 
   const pendingCount = proposals.filter(p => p.status === 'pending').length;
@@ -269,6 +284,12 @@ const BudgetProposal = () => {
                   >
                     Journal Entries
                   </div>
+                  <div
+                    className="dropdown-item"
+                    onClick={() => handleNavigate('/finance/budget-variance-report')}
+                  >
+                    Budget Variance Report
+                  </div>
                 </div>
               )}
             </div>
@@ -297,14 +318,6 @@ const BudgetProposal = () => {
                   </div>
                 </div>
               )}
-            </div>
-
-            {/* User Management - Simple Navigation Item */}
-            <div
-              className="nav-item"
-              onClick={() => handleNavigate('/finance/user-management')}
-            >
-              User Management
             </div>
           </nav>
         </div>
@@ -479,10 +492,11 @@ const BudgetProposal = () => {
         </div>
       </div>
 
-      {/* Review Popup */}
+      {/* Review Popup - Updated UI */}
       {showReviewPopup && selectedProposal && (
         <div className="popup-overlay">
           <div className="review-popup">
+            {/* Header */}
             <div className="popup-header">
               <button className="back-button" onClick={closeReviewPopup}>
                 <ArrowLeft size={20} />
@@ -493,65 +507,87 @@ const BudgetProposal = () => {
               </div>
             </div>
             
+            {/* Content */}
             <div className="popup-content">
-              <div className="proposal-project-title">
-                <h3>{selectedProposal.subject}</h3>
+              {/* Title and Date */}
+              <div className="proposal-header">
+                <h3 className="proposal-project-title">{selectedProposal.subject}</h3>
                 <span className="proposal-date">April 30, 2025</span>
               </div>
               
+              {/* Project Summary */}
               <div className="proposal-section">
-                <h4 className="section-label">PROJECT SUMMARY</h4>
+                <h4 className="section-label">PROJECT SUMMARY:</h4>
                 <p className="section-content">
-                  This budget proposal outlines the costs for the {selectedProposal.subject.toLowerCase()}.
+                  This Budget Proposal provides necessary costs associated with the website redesign project (the "Project") which 
+                  we would like to pursue due to increased mobile traffic and improved conversion rates from modern interfaces.
                 </p>
               </div>
               
+              {/* Project Description */}
               <div className="proposal-section">
-                <h4 className="section-label">COST ELEMENTS</h4>
+                <h4 className="section-label">PROJECT DESCRIPTION:</h4>
+                <p className="section-content">
+                  Complete redesign of company website with responsive design, improved UI/UX, integration with CRM, and 
+                  enhanced e-commerce capabilities to boost customer engagement and sales conversion.
+                </p>
+              </div>
+              
+              {/* Period of Performance */}
+              <div className="proposal-section">
+                <h4 className="section-label">PERIOD OF PERFORMANCE:</h4>
+                <p className="section-content">
+                  The budget set forth in this Budget Proposal covers the period of performance for the project or 6 months of effort.
+                </p>
+              </div>
+              
+              {/* Cost Elements Table */}
+              <div className="proposal-section">
                 <div className="cost-table">
-                  <div className="cost-header">
-                    <div className="cost-type-header">TYPE</div>
-                    <div className="cost-desc-header">DESCRIPTION</div>
-                    <div className="cost-amount-header">ESTIMATED COST</div>
+                  <div className="cost-table-header">
+                    <div className="cost-header-cell">COST ELEMENTS</div>
+                    <div className="cost-header-cell">DESCRIPTION</div>
+                    <div className="cost-header-cell">ESTIMATED COST</div>
                   </div>
                   
-                  <div className="cost-row">
-                    <div className="cost-type">
-                      <span className="cost-bullet"></span>
+                  <div className="cost-table-row">
+                    <div className="cost-cell">
+                      <span className="cost-bullet green"></span>
                       Hardware
                     </div>
-                    <div className="cost-description">Required equipment</div>
-                    <div className="cost-amount">₱25,000.00</div>
+                    <div className="cost-cell">Workstations, Servers, Testing Devices</div>
+                    <div className="cost-cell">₱25,000.00</div>
                   </div>
                   
-                  <div className="cost-row">
-                    <div className="cost-type">
-                      <span className="cost-bullet"></span>
+                  <div className="cost-table-row">
+                    <div className="cost-cell">
+                      <span className="cost-bullet green"></span>
                       Software
                     </div>
-                    <div className="cost-description">Licenses and tools</div>
-                    <div className="cost-amount">₱25,000.00</div>
+                    <div className="cost-cell">Design Tools, Development Platforms, Licenses</div>
+                    <div className="cost-cell">₱25,000.00</div>
                   </div>
                   
-                  <div className="cost-row total">
-                    <div className="cost-type"></div>
-                    <div className="cost-description">TOTAL</div>
-                    <div className="cost-amount">{selectedProposal.amount}</div>
+                  <div className="cost-table-total">
+                    <div className="cost-cell"></div>
+                    <div className="cost-cell total-label">₱50,000.00</div>
+                    <div className="cost-cell total-amount"></div>
                   </div>
                 </div>
               </div>
             </div>
             
+            {/* Footer with Action Buttons */}
             <div className="popup-footer">
               <div className="action-buttons">
-                <button className="blue-button comment-btn" onClick={handleCommentClick}>
-                  Comment
+                <button className="action-btn approve-btn" onClick={() => handleStatusChange('approved')}>
+                  Approve
                 </button>
-                <button className="blue-button reject-btn" onClick={() => handleStatusChange('rejected')}>
+                <button className="action-btn reject-btn" onClick={() => handleStatusChange('rejected')}>
                   Reject
                 </button>
-                <button className="blue-button approve-btn" onClick={() => handleStatusChange('approved')}>
-                  Approve
+                <button className="action-btn pending-btn" onClick={handlePendingClick}>
+                  Pending
                 </button>
               </div>
             </div>
@@ -559,51 +595,136 @@ const BudgetProposal = () => {
         </div>
       )}
 
-      {/* Comment Popup */}
+      {/* NEW: Pending Status Popup */}
+      {showPendingStatusPopup && selectedProposal && (
+        <div className="popup-overlay">
+          <div className="pending-status-popup">
+            {/* Header */}
+            <div className="pending-status-header">
+              <button className="back-button" onClick={closePendingStatusPopup}>
+                <ArrowLeft size={20} />
+              </button>
+              <h2 className="pending-status-title">Pending Status</h2>
+            </div>
+            
+            <div className="pending-status-content">
+              {/* Status Indicator */}
+              <div className="status-section">
+                <div className="status-indicator">
+                  <div className="status-dot pending"></div>
+                  <span className="status-text">Review by Finance Department</span>
+                </div>
+                <div className="status-timestamp">
+                  Apr 01, 2025 at 16:00 - Alex Smith
+                </div>
+              </div>
+              
+              {/* Project Title */}
+              <h3 className="project-title-section">
+                {selectedProposal.subject}
+              </h3>
+              
+              {/* Project Details */}
+              <div className="project-info-section">
+                <div className="project-detail-row">
+                  <span className="detail-label">Budget Amount:</span>
+                  <span className="detail-value">100,000.00</span>
+                </div>
+                <div className="project-detail-row">
+                  <span className="detail-label">Category:</span>
+                  <span className="detail-value">Training and Development</span>
+                </div>
+                <div className="project-detail-row">
+                  <span className="detail-label">Requested by:</span>
+                  <span className="detail-value">IT Department</span>
+                </div>
+              </div>
+              
+              {/* Comment Section */}
+              <div className="comment-input-section">
+                <label className="comment-input-label">Comment:</label>
+                <textarea 
+                  className="comment-textarea-input" 
+                  value={reviewComment}
+                  onChange={(e) => setReviewComment(e.target.value)}
+                  placeholder=""
+                  rows="4"
+                ></textarea>
+              </div>
+            </div>
+            
+            {/* Footer */}
+            <div className="pending-status-footer">
+              <button className="submit-pending-button" onClick={handleSubmitPendingStatus}>
+                Submit
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Comment Popup - UPDATED to match the UI design */}
       {showCommentPopup && selectedProposal && (
         <div className="popup-overlay">
-          <div className="comment-popup">
-            <div className="comment-popup-header">
+          <div className="approval-status-popup">
+            {/* Header */}
+            <div className="approval-status-header">
               <button className="back-button" onClick={closeCommentPopup}>
                 <ArrowLeft size={20} />
               </button>
               <h2 className="approval-status-title">Approval Status</h2>
             </div>
             
-            <div className="comment-popup-content">
-              <div className="approval-info">
+            <div className="approval-status-content">
+              {/* Approval Status Indicator */}
+              <div className="status-section">
                 <div className="status-indicator">
-                  <span className={`status-dot ${selectedProposal.status}`}></span>
-                  <span className="status-text">
-                    {selectedProposal.status === 'pending' ? 'Pending Approval' : 
-                     selectedProposal.status === 'approved' ? 'Approved' : 'Rejected'}
-                  </span>
+                  <div className="status-dot approved"></div>
+                  <span className="status-text">Approved by Finance Department</span>
                 </div>
-                <div className="approval-date">May 18, 2025 • Finance Department</div>
+                <div className="status-timestamp">
+                  Apr 01, 2025 at 16:00 - Alex Smith
+                </div>
               </div>
               
-              <h3 className="proposal-name">{selectedProposal.subject}</h3>
+              {/* Project Title */}
+              <h3 className="project-title-section">
+                Website Redesign Project
+              </h3>
               
-              <ul className="proposal-details">
-                <li>• {selectedProposal.amount}</li>
-                <li>• Category: {selectedProposal.category}</li>
-                <li>• Submitted by: {selectedProposal.submittedBy}</li>
-              </ul>
+              {/* Project Details */}
+              <div className="project-info-section">
+                <div className="project-detail-row">
+                  <span className="detail-label">Budget Amount:</span>
+                  <span className="detail-value">100,000.00</span>
+                </div>
+                <div className="project-detail-row">
+                  <span className="detail-label">Category:</span>
+                  <span className="detail-value">Training and Development</span>
+                </div>
+                <div className="project-detail-row">
+                  <span className="detail-label">Requested by:</span>
+                  <span className="detail-value">IT Department</span>
+                </div>
+              </div>
               
-              <div className="comment-section">
-                <p className="comment-label">Comment:</p>
+              {/* Comment Section */}
+              <div className="comment-input-section">
+                <label className="comment-input-label">Comment:</label>
                 <textarea 
-                  className="comment-input" 
+                  className="comment-textarea-input" 
                   value={reviewComment}
                   onChange={(e) => setReviewComment(e.target.value)}
-                  placeholder="Enter your comment here..."
+                  placeholder=""
+                  rows="4"
                 ></textarea>
               </div>
             </div>
             
-            <div className="comment-popup-footer">
-              <button className="blue-button save-btn" onClick={handleSubmitComment}>
-                Save
+            {/* Footer */}
+            <div className="approval-status-footer">
+              <button className="submit-comment-button" onClick={handleSubmitComment}>
+                Submit
               </button>
             </div>
           </div>

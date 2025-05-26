@@ -1,4 +1,4 @@
-css/* Dashboard.css - Updated to match JSX */
+/* Dashboard.css - Updated with Blue Palette */
 
 /* Reset and base styles */
 * {
@@ -12,36 +12,16 @@ body {
   color: #333;
   background-color: #f9fafb;
   line-height: 1.5;
-  overflow: hidden; /* Prevent body scrolling */
 }
 
-/* Main App Layout */
+/* App Container - Matches the JSX class name */
 .app-container {
   display: flex;
+  flex-direction: column;
   min-height: 100vh;
 }
 
-/* Left Side - Fixed Width */
-.left-sidebar {
-  width: 280px; /* Fixed width for left menu */
-  background-color: #fff;
-  border-right: 1px solid #e5e7eb;
-  padding: 1.5rem;
-  overflow-y: auto; /* Scrollable if content exceeds height */
-  height: 100vh;
-  position: sticky;
-  top: 0;
-}
-
-/* Right Side - Scrollable Content */
-.content-container {
-  flex: 1;
-  padding: 1.5rem;
-  overflow-y: auto;
-  height: 100vh;
-}
-
-/* Header Styles */
+/* Header Styles - Updated to match JSX class names */
 .app-header {
   display: flex;
   justify-content: space-between;
@@ -49,11 +29,7 @@ body {
   padding: 0.75rem 1.5rem;
   background-color: #fff;
   border-bottom: 1px solid #e5e7eb;
-  position: sticky;
-  top: 0;
-  z-index: 10;
 }
-
 
 .header-left {
   display: flex;
@@ -64,7 +40,7 @@ body {
 .app-logo {
   font-size: 1.25rem;
   font-weight: bold;
-  color: #3b82f6;
+  color: #0096FF!important;
   margin: 0;
 }
 
@@ -145,7 +121,7 @@ body {
 .content-container {
   flex: 1;
   padding: 1.5rem;
-  overflow: visible;
+  overflow: auto;
 }
 
 /* Date Display */
@@ -181,7 +157,7 @@ body {
   background-color: #2563eb;
 }
 
-/* Time Filter */
+/* Time Filter - Updated to Blue */
 .time-filter {
   display: flex;
   gap: 0.5rem;
@@ -195,10 +171,17 @@ body {
   font-size: 0.875rem;
   cursor: pointer;
   transition: background-color 0.2s;
+  background-color: #3b82f6;
+  color: white;
+}
+
+.filter-button:hover {
+  background-color: #2563eb;
 }
 
 .filter-button.active {
   font-weight: 500;
+  background-color: #2563eb;
 }
 
 /* Cards and Stats Grid */
@@ -248,6 +231,11 @@ body {
   display: flex;
   align-items: center;
   justify-content: center;
+  color: #3b82f6;
+}
+
+.expand-button:hover {
+  color: #2563eb;
 }
 
 .card-title {
@@ -274,7 +262,7 @@ body {
   color: #6b7280;
 }
 
-/* Progress Bars */
+/* Progress Bars - Updated to Blue Palette */
 .progress-container {
   height: 0.25rem;
   background-color: #e5e7eb;
@@ -288,20 +276,34 @@ body {
   border-radius: 9999px;
 }
 
+/* Updated Progress Bar Colors to Blue Palette */
 .progress-bar.green {
-  background-color: #0096FF;
+  background-color: #3b82f6; /* Changed from green to blue */
 }
 
 .progress-bar.blue {
-  background-color: #3b82f6;
+  background-color: #2563eb; /* Darker blue */
 }
 
 .progress-bar.yellow {
-  background-color: #eab308;
+  background-color: #60a5fa; /* Light blue instead of yellow */
 }
 
 .progress-bar.red {
-  background-color: #dc2626;
+  background-color: #1d4ed8; /* Dark blue instead of red */
+}
+
+/* New Blue Progress Bar Variants */
+.progress-bar.light-blue {
+  background-color: #60a5fa;
+}
+
+.progress-bar.dark-blue {
+  background-color: #1d4ed8;
+}
+
+.progress-bar.medium-blue {
+  background-color: #3b82f6;
 }
 
 /* Charts */
@@ -381,7 +383,7 @@ body {
   margin: 0.125rem 0;
 }
 
-/* Badges */
+/* Badges - Updated with Blue Theme */
 .badge {
   display: inline-flex;
   padding: 0.25rem 0.5rem;
@@ -391,8 +393,8 @@ body {
 }
 
 .badge-success {
-  background-color: #dcfce7;
-  color: #166534;
+  background-color: #dbeafe; /* Blue background */
+  color: #1e40af; /* Blue text */
 }
 
 .badge-warning {
@@ -403,6 +405,22 @@ body {
 .badge-danger {
   background-color: #fee2e2;
   color: #b91c1c;
+}
+
+/* New Blue Badge Variants */
+.badge-blue {
+  background-color: #dbeafe;
+  color: #1e40af;
+}
+
+.badge-light-blue {
+  background-color: #e0f2fe;
+  color: #0369a1;
+}
+
+.badge-dark-blue {
+  background-color: #1e3a8a;
+  color: #ffffff;
 }
 
 /* Tables */
@@ -452,7 +470,7 @@ body {
   color: #6b7280;
 }
 
-/* Pagination */
+/* Pagination - Updated to Blue */
 .pagination {
   display: flex;
   justify-content: flex-end;
@@ -462,12 +480,19 @@ body {
 .page-button {
   padding: 0.25rem;
   border-radius: 0.25rem;
-  border: 1px solid #e5e7eb;
+  border: 1px solid #3b82f6;
   margin-left: 0.25rem;
   cursor: pointer;
   display: flex;
   align-items: center;
   justify-content: center;
+  background-color: #3b82f6;
+  color: white;
+  transition: background-color 0.2s;
+}
+
+.page-button:hover {
+  background-color: #2563eb;
 }
 
 /* Department Budget Details */
@@ -512,7 +537,7 @@ body {
   margin-top: 0.5rem;
 }
 
-/* Loading State */
+/* Loading State - Updated to Blue */
 .loading-container {
   display: flex;
   flex-direction: column;
@@ -534,4 +559,48 @@ body {
 @keyframes spin {
   0% { transform: rotate(0deg); }
   100% { transform: rotate(360deg); }
+}
+
+/* Additional Blue Theme Utilities */
+.text-blue-primary {
+  color: #3b82f6;
+}
+
+.text-blue-secondary {
+  color: #60a5fa;
+}
+
+.text-blue-dark {
+  color: #1d4ed8;
+}
+
+.bg-blue-primary {
+  background-color: #3b82f6;
+}
+
+.bg-blue-secondary {
+  background-color: #60a5fa;
+}
+
+.bg-blue-dark {
+  background-color: #1d4ed8;
+}
+
+.border-blue-primary {
+  border-color: #3b82f6;
+}
+
+/* Hover states for blue elements */
+.hover-blue-dark:hover {
+  background-color: #2563eb;
+}
+
+.hover-blue-light:hover {
+  background-color: #93c5fd;
+}
+
+/* Focus states for accessibility */
+.focus-blue:focus {
+  outline: 2px solid #3b82f6;
+  outline-offset: 2px;
 }

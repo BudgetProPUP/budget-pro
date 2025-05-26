@@ -137,16 +137,15 @@ const ExpenseHistory = () => {
   const nextPage = () => setCurrentPage(prev => Math.min(prev + 1, totalPages));
   const prevPage = () => setCurrentPage(prev => Math.max(prev - 1, 1));
 
+  // Navigation functions - Updated to match Budget Proposal
   const toggleBudgetDropdown = () => {
     setShowBudgetDropdown(!showBudgetDropdown);
     if (showExpenseDropdown) setShowExpenseDropdown(false);
-    if (showCategoryDropdown) setShowCategoryDropdown(false);
   };
 
   const toggleExpenseDropdown = () => {
     setShowExpenseDropdown(!showExpenseDropdown);
     if (showBudgetDropdown) setShowBudgetDropdown(false);
-    if (showCategoryDropdown) setShowCategoryDropdown(false);
   };
 
   const toggleCategoryDropdown = () => {
@@ -177,7 +176,7 @@ const ExpenseHistory = () => {
 
   return (
     <div className="app-container">
-      {/* Header */}
+      {/* Header - Updated to match Budget Proposal */}
       <header className="app-header">
         <div className="header-left">
           <h1 className="app-logo">BUDGETPRO</h1>
@@ -224,6 +223,12 @@ const ExpenseHistory = () => {
                   >
                     Journal Entries
                   </div>
+                  <div
+                    className="dropdown-item"
+                    onClick={() => handleNavigate('/finance/budget-variance-report')}
+                  >
+                    Budget Variance Report
+                  </div>
                 </div>
               )}
             </div>
@@ -231,7 +236,7 @@ const ExpenseHistory = () => {
             {/* Expense Dropdown */}
             <div className="nav-dropdown">
               <div 
-                className={`nav-item ${showExpenseDropdown || !selectedExpense ? 'active' : ''}`} 
+                className={`nav-item ${showExpenseDropdown ? 'active' : ''}`} 
                 onClick={toggleExpenseDropdown}
               >
                 Expense <ChevronDown size={14} />
@@ -252,14 +257,6 @@ const ExpenseHistory = () => {
                   </div>
                 </div>
               )}
-            </div>
-
-            {/* User Management - Simple Navigation Item */}
-            <div
-              className="nav-item"
-              onClick={() => handleNavigate('/finance/user-management')}
-            >
-              User Management
             </div>
           </nav>
         </div>
@@ -313,62 +310,62 @@ const ExpenseHistory = () => {
             </div>
 
             <div className="transactions-table-wrapper">
-  <table className="transactions-table">
-    <thead>
-      <tr>
-        <th style={{ width: '20%' }}>Date</th>
-        <th style={{ width: '35%' }}>Description</th>
-        <th style={{ width: '25%' }}>Category</th>
-        <th style={{ width: '20%', textAlign: 'right' }}>Amount</th>
-      </tr>
-    </thead>
-    <tbody>
-      {currentTransactions.map((transaction) => (
-        <tr 
-          key={transaction.id} 
-          onClick={() => handleRowClick(transaction)}
-          style={{ cursor: 'pointer' }}
-        >
-          <td>{transaction.date}</td>
-          <td>{transaction.description}</td>
-          <td>{transaction.category}</td>
-          <td style={{ textAlign: 'right' }}>{transaction.amount}</td>
-        </tr>
-      ))}
-    </tbody>
-  </table>
-  
-  {/* Updated Pagination */}
-  <div className="pagination-controls">
-    <button 
-      className={`pagination-btn ${currentPage === 1 ? 'disabled' : ''}`} 
-      onClick={prevPage}
-      disabled={currentPage === 1}
-    >
-      <ChevronLeft size={14} />
-    </button>
-    
-    <div className="pagination-numbers">
-      {Array.from({ length: totalPages }, (_, i) => (
-        <button
-          key={i + 1}
-          className={`pagination-number ${currentPage === i + 1 ? 'active' : ''}`}
-          onClick={() => paginate(i + 1)}
-        >
-          {i + 1}
-        </button>
-      ))}
-    </div>
-    
-    <button 
-      className={`pagination-btn ${currentPage === totalPages ? 'disabled' : ''}`}
-      onClick={nextPage}
-      disabled={currentPage === totalPages}
-    >
-      <ChevronRight size={14} />
-    </button>
-  </div>
-</div>
+              <table className="transactions-table">
+                <thead>
+                  <tr>
+                    <th style={{ width: '20%' }}>Date</th>
+                    <th style={{ width: '35%' }}>Description</th>
+                    <th style={{ width: '25%' }}>Category</th>
+                    <th style={{ width: '20%', textAlign: 'right' }}>Amount</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {currentTransactions.map((transaction) => (
+                    <tr 
+                      key={transaction.id} 
+                      onClick={() => handleRowClick(transaction)}
+                      style={{ cursor: 'pointer' }}
+                    >
+                      <td>{transaction.date}</td>
+                      <td>{transaction.description}</td>
+                      <td>{transaction.category}</td>
+                      <td style={{ textAlign: 'right' }}>{transaction.amount}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+              
+              {/* Pagination Controls */}
+              <div className="pagination-controls">
+                <button 
+                  className={`pagination-btn ${currentPage === 1 ? 'disabled' : ''}`} 
+                  onClick={prevPage}
+                  disabled={currentPage === 1}
+                >
+                  <ChevronLeft size={14} />
+                </button>
+                
+                <div className="pagination-numbers">
+                  {Array.from({ length: totalPages }, (_, i) => (
+                    <button
+                      key={i + 1}
+                      className={`pagination-number ${currentPage === i + 1 ? 'active' : ''}`}
+                      onClick={() => paginate(i + 1)}
+                    >
+                      {i + 1}
+                    </button>
+                  ))}
+                </div>
+                
+                <button 
+                  className={`pagination-btn ${currentPage === totalPages ? 'disabled' : ''}`}
+                  onClick={nextPage}
+                  disabled={currentPage === totalPages}
+                >
+                  <ChevronRight size={14} />
+                </button>
+              </div>
+            </div>
           </>
         ) : (
           <div className="budget-proposal-view">

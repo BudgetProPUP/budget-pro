@@ -3,8 +3,6 @@ import { BarChart, Bar, XAxis, YAxis, Tooltip, Legend, ResponsiveContainer } fro
 import { ChevronLeft, ChevronRight, ChevronDown, Search, ArrowLeft, Expand, Minimize } from 'lucide-react';
 import { Link, useNavigate } from 'react-router-dom';
 import './Dashboard.css';
-import { getBudgetSummary, getExpensesList } from "../../API/budget";
-
 
 function BudgetDashboard() {
   const [currentDate, setCurrentDate] = useState(new Date());
@@ -13,39 +11,20 @@ function BudgetDashboard() {
   const [showBudgetDropdown, setShowBudgetDropdown] = useState(false);
   const [showExpenseDropdown, setShowExpenseDropdown] = useState(false);
   const [timeFilter, setTimeFilter] = useState('monthly');
-  const [summary, setSummary] = useState(null);
-  const [expenses, setExpenses] = useState([]);
   const navigate = useNavigate();
 
   useEffect(() => {
-    // Fetch data from API
-    const fetchData = async () => {
-      try {
-        const [summaryRes, expensesRes] = await Promise.all([
-          getBudgetSummary(),
-          getExpensesList()
-        ]);
-        
-        setSummary(summaryRes.data);
-        setExpenses(expensesRes.data);
-        
-        // Simulate data loading
-        setTimeout(() => {
-          setLoading(false);
-        }, 500);
-      } catch (err) {
-        console.error('Error fetching data:', err);
-        setLoading(false);
-      }
-    };
-
-    fetchData();
+    // Simulate data loading
+    const timer = setTimeout(() => {
+      setLoading(false);
+    }, 1000);
 
     const interval = setInterval(() => {
       setCurrentDate(new Date());
     }, 1000);
 
     return () => {
+      clearTimeout(timer);
       clearInterval(interval);
     };
   }, []);
@@ -65,11 +44,11 @@ function BudgetDashboard() {
     day: 'numeric'
   });
 
-  // Use API data or fallback to mock data
-  const totalBudget = summary?.totalBudget || 800025.75;
-  const remainingBudget = summary?.remainingBudget || 50000;
-  const planCompletion = summary?.planCompletion || 84.4;
-  const allocatedPercentage = summary?.allocatedPercentage || 47;
+  // Budget data
+  const totalBudget = 800025.75;
+  const remainingBudget = 50000;
+  const planCompletion = 84.4;
+  const allocatedPercentage = 47;
 
   // Monthly data
   const monthlyData = [
@@ -89,9 +68,9 @@ function BudgetDashboard() {
 
   // Department data
   const departmentData = [
-    { name: 'DevOps', budget: 50000, spent: 45000, percentage: 90, color: '#0047AB' },
-    { name: 'IT Team', budget: 20000, spent: 18000, percentage: 90, color: '#4169E1' },
-    { name: 'Assets', budget: 30000, spent: 21600, percentage: 72, color: '#6495ED' },
+    { name: 'Marketing', budget: 50000, spent: 45000, percentage: 90, color: '#0047AB' },
+    { name: 'Development', budget: 20000, spent: 18000, percentage: 90, color: '#0096FF' },
+    { name: 'Operations', budget: 30000, spent: 21600, percentage: 72, color: '#89CFF0' },
   ];
 
   // Project data
@@ -192,6 +171,12 @@ function BudgetDashboard() {
                   >
                     Journal Entries
                   </div>
+                  <div
+                    className="dropdown-item"
+                    onClick={() => handleNavigate('/finance/budget-variance-report')}
+                  >
+                    Budget Variance Report
+                  </div>
                 </div>
               )}
             </div>
@@ -220,14 +205,6 @@ function BudgetDashboard() {
                   </div>
                 </div>
               )}
-            </div>
-
-            {/* User Management - Simple Navigation Item */}
-            <div
-              className="nav-item"
-              onClick={() => handleNavigate('/finance/user-management')}
-            >
-              User Management
             </div>
           </nav>
         </div>
@@ -340,7 +317,7 @@ function BudgetDashboard() {
               className="expand-button"
               onClick={() => setExpandedChart(!expandedChart)}
               aria-label={expandedChart ? 'Collapse chart' : 'Expand chart'}
-              style={{ color: '#0047AB' }}
+              style={{ color: '#3b82f6' }}
             >
               {expandedChart ? <Minimize size={16} /> : <Expand size={16} />}
             </button>
@@ -357,7 +334,7 @@ function BudgetDashboard() {
                 <Tooltip content={<CustomTooltip />} />
                 <Legend />
                 <Bar dataKey="Budget" fill="#0047AB" radius={[2, 2, 0, 0]} />
-                <Bar dataKey="Actual" fill="#0096FF" radius={[2, 2, 0, 0]} />
+                <Bar dataKey="Actual" fill="#6495ED" radius={[2, 2, 0, 0]} />
               </BarChart>
             </ResponsiveContainer>
           </div>
@@ -448,20 +425,6 @@ function BudgetDashboard() {
               </div>
             ))}
           </div>
-        </div>
-
-        {/* Expenses List from API */}
-        <div className="card">
-          <h3 className="card-title">Recent Expenses</h3>
-          <ul className="expense-list">
-            {expenses.map((expense, index) => (
-              <li key={index} className="expense-item">
-                <div className="expense-name">{expense.name}</div>
-                <div className="expense-amount">₱{expense.amount.toLocaleString()}</div>
-                <div className="expense-date">{new Date(expense.date).toLocaleDateString()}</div>
-              </li>
-            ))}
-          </ul>
         </div>
       </div>
     </div>

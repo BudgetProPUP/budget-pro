@@ -8,7 +8,7 @@ import BudgetProposal from './pages/Finance/BudgetProposal';
 import ProposalHistory from './pages/Finance/ProposalHistory';
 import ExpenseTracking from './pages/Finance/ExpenseTracking';
 import ExpenseHistory from './pages/Finance/ExpenseHistory';
-import UserManagement from './pages/Finance/User Management';
+import BudgetVarianceReport from './pages/Finance/BudgetVarianceReport';
 
 function App() {
   return (
@@ -27,7 +27,7 @@ function App() {
         <Route path="/finance/proposal-history" element={<ProposalHistory />} />
         <Route path="/finance/expense-tracking" element={<ExpenseTracking />} />
         <Route path="/finance/expense-history" element={<ExpenseHistory />} />
-        <Route path="/finance/user-management" element={<UserManagement />} />
+        <Route path="/finance/budget-variance-report" element={<BudgetVarianceReport />} />
 
         {/* Dashboard Route */}
         <Route path="/dashboard" element={<Dashboard />} />

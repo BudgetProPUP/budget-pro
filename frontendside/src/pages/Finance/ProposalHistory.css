@@ -1,43 +1,109 @@
-/* ProposalHistory.css - Updated with status dropdown styling and filter button fixes */
-
 /* General Reset */
 * {
   margin: 0;
   padding: 0;
   box-sizing: border-box;
-  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
 }
 
-body {
-  background-color: #f8f9fa;
-  color: #333;
-  line-height: 1.5;
-}
-
-/* App Container */
 .app-container {
-  display: flex;
-  flex-direction: column;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
   min-height: 100vh;
+  background-color: #f8fafc;
 }
 
 /* Header Styles */
 .app-header {
+  background: white;
+  border-bottom: 1px solid #e2e8f0;
+  padding: 0 2rem;
   display: flex;
-  align-items: center;
   justify-content: space-between;
-  padding: 0 20px;
-  height: 60px;
-  background-color: white;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+  align-items: center;
+  height: 64px;
   position: sticky;
   top: 0;
-  z-index: 10;
+  z-index: 100;
 }
 
 .header-left {
   display: flex;
   align-items: center;
+  gap: 2rem;
+}
+
+.app-logo {
+  font-size: 1.5rem;
+  font-weight: bold;
+  color: #2563eb;
+  margin: 0;
+}
+
+.nav-menu {
+  display: flex;
+  align-items: center;
+  gap: 1.5rem;
+}
+
+.nav-item {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  color: #475569;
+  text-decoration: none;
+  padding: 0.5rem 0.75rem;
+  border-radius: 0.375rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.nav-item:hover,
+.nav-item.active {
+  color: #2563eb;
+  background-color: #eff6ff;
+}
+
+.nav-dropdown {
+  position: relative;
+}
+
+.dropdown-menu {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  background: white;
+  border: 1px solid #e2e8f0;
+  border-radius: 0.5rem;
+  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+  min-width: 200px;
+  z-index: 50;
+  margin-top: 0.25rem;
+}
+
+.dropdown-item {
+  padding: 0.75rem 1rem;
+  color: #475569;
+  cursor: pointer;
+  transition: all 0.2s;
+  font-weight: 500;
+}
+
+.dropdown-item:hover {
+  background-color: #f8fafc;
+  color: #2563eb;
+}
+
+.dropdown-item.active {
+  background-color: #eff6ff;
+  color: #2563eb;
+}
+
+.dropdown-item:first-child {
+  border-radius: 0.5rem 0.5rem 0 0;
+}
+
+.dropdown-item:last-child {
+  border-radius: 0 0 0.5rem 0.5rem;
 }
 
 .header-right {
@@ -45,78 +111,11 @@ body {
   align-items: center;
 }
 
-.app-logo {
-  color: #0099ff;
-  font-size: 1.25rem;
-  font-weight: 700;
-  margin-right: 40px;
-}
-
-.nav-menu {
-  display: flex;
-  align-items: center;
-}
-
-.nav-item {
-  color: #666;
-  font-size: 0.9rem;
-  margin-right: 20px;
-  cursor: pointer;
-  text-decoration: none;
-  font-weight: 400;
-  display: flex;
-  align-items: center;
-}
-
-.nav-item.active {
-  color: #0099ff;
-}
-
-.nav-item:hover {
-  color: #0099ff;
-}
-
-.nav-dropdown {
-  position: relative;
-  margin-right: 20px;
-}
-
-.dropdown-menu {
-  position: absolute;
-  top: 100%;
-  left: 0;
-  width: 200px;
-  background-color: white;
-  border-radius: 8px;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
-  padding: 8px 0;
-  z-index: 20;
-  margin-top: 8px;
-}
-
-.dropdown-item {
-  padding: 8px 16px;
-  color: #666;
-  cursor: pointer;
-  font-size: 0.875rem;
-}
-
-.dropdown-item:hover {
-  background-color: #f8f9fa;
-}
-
-.dropdown-item.active {
-  color: #0099ff;
-  background-color: #e6f5ff;
-}
-
 .user-avatar {
   width: 36px;
   height: 36px;
   border-radius: 50%;
   overflow: hidden;
-  border: 2px solid #eee;
-  cursor: pointer;
 }
 
 .avatar-img {
@@ -127,23 +126,16 @@ body {
 
 /* Content Container */
 .content-container {
-  flex: 1;
-  padding: 20px;
+  padding: 2rem;
   max-width: 1200px;
   margin: 0 auto;
-  width: 100%;
 }
 
-/* Page Title */
 .page-title {
-  font-size: 1.25rem;
-  font-weight: 500;
-  color: #333;
-  margin-bottom: 20px;
-  padding: 12px 16px;
-  background-color: #fff;
-  border-radius: 6px;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+  font-size: 1.875rem;
+  font-weight: bold;
+  color: #1e293b;
+  margin: 0 0 2rem 0;
 }
 
 /* Search and Filter Controls */
@@ -151,63 +143,59 @@ body {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 20px;
-  gap: 10px;
+  margin-bottom: 2rem;
+  gap: 1rem;
 }
 
 .search-box {
-  position: relative;
-  width: 300px;
-  max-width: 100%;
   display: flex;
   align-items: center;
-  border: 1px solid #ddd;
-  border-radius: 4px;
-  background-color: white;
-  overflow: hidden;
+  background: white;
+  border: 1px solid #e2e8f0;
+  border-radius: 0.5rem;
+  padding: 0.5rem;
+  min-width: 300px;
 }
 
 .search-input {
-  flex: 1;
-  padding: 10px 12px;
   border: none;
   outline: none;
-  font-size: 14px;
-  color: #333;
-}
-
-.search-input::placeholder {
-  color: #aaa;
+  flex: 1;
+  padding: 0.25rem 0.5rem;
+  font-size: 0.875rem;
 }
 
 .search-icon-btn {
   background: none;
   border: none;
-  padding: 10px 12px;
-  color: #777;
+  color: #64748b;
   cursor: pointer;
-  display: flex;
-  align-items: center;
-  justify-content: center;
+  padding: 0.25rem;
 }
 
 .filter-controls {
   display: flex;
-  gap: 10px;
+  align-items: center;
+  gap: 1rem;
 }
 
 .filter-dropdown-btn {
   display: flex;
   align-items: center;
-  gap: 6px;
-  padding: 8px 16px;
-  background-color: white;
-  color: #666;
-  border: 1px solid #ddd;
-  border-radius: 4px;
-  font-size: 14px;
+  gap: 0.5rem;
+  background: white;
+  border: 1px solid #e2e8f0;
+  border-radius: 0.5rem;
+  padding: 0.5rem 1rem;
   cursor: pointer;
-  font-weight: 400;
+  font-size: 0.875rem;
+  color: #475569;
+  min-width: 150px;
+  justify-content: space-between;
+}
+
+.filter-dropdown-btn:hover {
+  border-color: #cbd5e1;
 }
 
 /* Status Dropdown Styling */
@@ -215,167 +203,220 @@ body {
   position: relative;
 }
 
-.status-dropdown-container .filter-dropdown-btn {
-  background-color: white;
-  color: #666;
-  border-color: #ddd;
-}
-
 .status-dropdown-menu {
   position: absolute;
   top: 100%;
-  right: 0;
-  width: 180px;
-  background-color: white;
-  border-radius: 8px;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
-  padding: 8px 0;
-  z-index: 20;
-  margin-top: 8px;
+  left: 0;
+  background: white;
+  border: 1px solid #e2e8f0;
+  border-radius: 0.5rem;
+  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+  min-width: 200px;
+  z-index: 50;
+  margin-top: 0.25rem;
+  max-height: 300px;
+  overflow-y: auto;
 }
 
 .status-dropdown-item {
-  padding: 8px 16px;
-  color: #666;
+  padding: 0.75rem 1rem;
+  color: #475569;
   cursor: pointer;
+  transition: all 0.2s;
   font-size: 0.875rem;
 }
 
 .status-dropdown-item:hover {
-  background-color: #f8f9fa;
+  background-color: #f8fafc;
+  color: #2563eb;
 }
 
 .status-dropdown-item.active {
-  color: #0099ff;
-  background-color: #e6f5ff;
+  background-color: #eff6ff;
+  color: #2563eb;
+  font-weight: 500;
 }
 
 /* Transactions Table */
 .transactions-table-wrapper {
-  background-color: white;
-  border-radius: 6px;
-  overflow-x: auto; /* Added to allow horizontal scrolling if needed */
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
-  margin-bottom: 20px;
-  width: 100%; /* Ensure it takes full width */
+  background: white;
+  border-radius: 0.75rem;
+  border: 1px solid #e2e8f0;
+  overflow: hidden;
+  margin-bottom: 2rem;
 }
 
 .transactions-table {
   width: 100%;
   border-collapse: collapse;
-  table-layout: fixed; /* Added for equal column widths */
 }
 
 .transactions-table th {
+  background: #f8fafc;
+  color: #475569;
+  font-weight: 600;
+  font-size: 0.875rem;
+  padding: 1rem;
   text-align: left;
-  padding: 16px;
-  color: #666;
-  font-weight: 500;
-  font-size: 0.75rem;
-  border-bottom: 1px solid #eee;
-  background-color: #f9f9f9;
-  text-transform: uppercase;
-  width: 25%; /* Each column gets 25% of table width */
+  border-bottom: 1px solid #e2e8f0;
 }
 
 .transactions-table td {
-  padding: 16px;
+  padding: 1rem;
+  color: #1e293b;
   font-size: 0.875rem;
-  border-bottom: 1px solid #eee;
-  width: 25%; /* Each column gets 25% of table width */
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: normal; /* Changed from nowrap to allow text wrapping */
-  vertical-align: top; /* Align content to top for better readability */
+  border-bottom: 1px solid #f1f5f9;
+}
+
+.transactions-table tbody tr:hover {
+  background-color: #fafafa;
+}
+
+.transactions-table tbody tr:last-child td {
+  border-bottom: none;
 }
 
 .modified-info {
-  line-height: 1.4;
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
 }
 
 .modified-by {
   font-size: 0.75rem;
-  color: #999;
-}
-
-/* No results message */
-.no-results {
-  text-align: center;
-  color: #999;
-  padding: 30px 0;
+  color: #64748b;
 }
 
 /* Status Badge Styles */
 .status-badge {
-  display: inline-block;
-  padding: 4px 12px;
-  border-radius: 9999px;
+  padding: 0.25rem 0.75rem;
+  border-radius: 1rem;
   font-size: 0.75rem;
   font-weight: 500;
-  color: white;
-  text-transform: capitalize;
+  text-transform: uppercase;
 }
 
 .status-badge.approved {
-  background-color: #b9febc;
+  background: #dcfce7;
+  color: #166534;
 }
 
 .status-badge.rejected {
-  background-color: #fba59f;
+  background: #fee2e2;
+  color: #dc2626;
 }
 
 .status-badge.pending {
-  background-color: #ff9800;
+  background: #fef3c7;
+  color: #d97706;
+}
+
+.no-results {
+  text-align: center;
+  color: #64748b;
+  font-style: italic;
+  padding: 2rem;
 }
 
 /* Pagination */
 .pagination-controls {
   display: flex;
-  justify-content: center;
   align-items: center;
-  padding: 20px 0;
-  gap: 10px;
+  justify-content: center;
+  gap: 0.5rem;
+  padding: 1rem 0;
 }
 
 .pagination-btn {
-  width: 32px;
-  height: 32px;
   display: flex;
   align-items: center;
   justify-content: center;
+  width: 32px;
+  height: 32px;
+  border: 1px solid #e2e8f0;
   background: white;
-  border: 1px solid #ddd;
-  border-radius: 4px;
-  color: #666;
+  border-radius: 0.375rem;
   cursor: pointer;
+  transition: all 0.2s;
+}
+
+.pagination-btn:hover:not(.disabled) {
+  background: #f8fafc;
+  border-color: #cbd5e1;
 }
 
 .pagination-btn.disabled {
-  color: #ccc;
+  color: #cbd5e1;
   cursor: not-allowed;
 }
 
 .pagination-numbers {
   display: flex;
-  gap: 5px;
+  gap: 0.25rem;
 }
 
 .pagination-number {
-  width: 32px;
-  height: 32px;
   display: flex;
   align-items: center;
   justify-content: center;
-  border-radius: 4px;
+  width: 32px;
+  height: 32px;
+  border: 1px solid #e2e8f0;
   background: white;
-  border: 1px solid #ddd;
-  font-size: 0.875rem;
-  color: #666;
+  border-radius: 0.375rem;
   cursor: pointer;
+  font-size: 0.875rem;
+  transition: all 0.2s;
+}
+
+.pagination-number:hover {
+  background: #f8fafc;
+  border-color: #cbd5e1;
 }
 
 .pagination-number.active {
-  background-color: #0099ff;
+  background: #2563eb;
   color: white;
-  border-color: #0099ff;
+  border-color: #2563eb;
+}
+
+/* Mobile Responsive Styles */
+@media (max-width: 768px) {
+  .app-header {
+    padding: 0 1rem;
+  }
+
+  .header-left {
+    gap: 1rem;
+  }
+
+  .nav-menu {
+    gap: 1rem;
+  }
+
+  .content-container {
+    padding: 1rem;
+  }
+
+  .controls-row {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 1rem;
+  }
+
+  .search-box {
+    min-width: auto;
+  }
+
+  .filter-controls {
+    justify-content: space-between;
+  }
+
+  .transactions-table-wrapper {
+    overflow-x: auto;
+  }
+
+  .transactions-table {
+    min-width: 600px;
+  }
 }

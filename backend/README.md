@@ -29,7 +29,7 @@ pip install -r requirements.txt
 ### 4. Create a `.env` file
 Create a .env file in the root of the backend directory and add your environment variables following the .env.example template:
 ```bash
-cp .env.example .env
+copy .env.example .env
 ```
 Then edit the `.env` file to set your environment variables. Make sure to set the `SECRET_KEY` and `DATABASE_URL` variables.
 

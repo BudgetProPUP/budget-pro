@@ -1048,3 +1048,8 @@ body::-webkit-scrollbar {
   -ms-overflow-style: none;
 }
 
+.total-amount {
+  text-align: right;
+  font-weight: bold;
+  color: var(--primary-color);
+}

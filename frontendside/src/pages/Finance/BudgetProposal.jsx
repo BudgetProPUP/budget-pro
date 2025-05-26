@@ -418,12 +418,12 @@ const BudgetProposal = () => {
           <table className="transactions-table">
             <thead>
               <tr>
-                <th style={{ width: '30%' }}>Subject</th>
-                <th style={{ width: '15%' }}>Category</th>
+                <th style={{ width: '20%' }}>Subject</th>
+                <th style={{ width: '20%' }}>Category</th>
                 <th style={{ width: '15%' }}>Submitted By</th>
-                <th style={{ width: '15%', textAlign: 'right' }}>Amount</th>
+                <th style={{ width: '20%', textAlign: 'left' }}>Amount</th>
                 <th style={{ width: '15%' }}>Status</th>
-                <th style={{ width: '10%' }}>Actions</th>
+                <th style={{ width: '15%' }}>Actions</th>
               </tr>
             </thead>
             <tbody>
@@ -569,9 +569,11 @@ const BudgetProposal = () => {
                   </div>
                   
                   <div className="cost-table-total">
-                    <div className="cost-cell"></div>
-                    <div className="cost-cell total-label">₱50,000.00</div>
-                    <div className="cost-cell total-amount"></div>
+  <div className="cost-cell"></div>
+  <div className="cost-cell"></div>
+  <div className="cost-cell total-amount" style={{ textAlign: 'right' }}>
+    ₽50,000.00  {/* This is the total amount */}
+  </div>
                   </div>
                 </div>
               </div>

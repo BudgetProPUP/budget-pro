@@ -668,9 +668,19 @@
   }
 }
 
-/* Force Poppins only for this specific report table */
-.report-table,
-.report-table th,
-.report-table td {
-  font-family: 'Poppins', sans-serif !important;
+/* Cost Table Total Row */
+.cost-table-total {
+  display: grid;
+  grid-template-columns: 1fr 2fr 1fr;
+  padding: 1rem 1.5rem;
+  border-top: 2px solid var(--border-color);
+  font-weight: 600;
+  background-color: var(--background-color);
+}
+
+/* Specifically target the amount cell */
+.total-amount {
+  text-align: right;
+  font-weight: bold;
+  color: var(--primary-color);
 }

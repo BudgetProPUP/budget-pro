@@ -51,6 +51,7 @@ body {
   display: flex;
   flex-direction: column;
   overflow: hidden;
+  font-family: Poppins, Poppins, 'Poppins', Poppins, Poppins;
 }
 
 /* ============== HEADER STYLES ============== */

@@ -66,6 +66,7 @@ body::-webkit-scrollbar {
   display: flex;
   flex-direction: column;
   min-height: 100vh;
+  font-family: Poppins, Poppins, 'Poppins', Poppins, Poppins;
 }
 
 /* Header/Navigation */
@@ -1046,3 +1047,4 @@ body::-webkit-scrollbar {
   scrollbar-width: none;
   -ms-overflow-style: none;
 }
+

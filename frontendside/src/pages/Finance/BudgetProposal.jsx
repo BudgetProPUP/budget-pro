@@ -736,6 +736,7 @@ const BudgetProposal = () => {
         <div className="popup-overlay">
           <div className="confirmation-popup">
             <div className="confirmation-header">
+              
               <button className="back-button" onClick={closeConfirmationPopup}>
                 <ArrowLeft size={20} />
               </button>

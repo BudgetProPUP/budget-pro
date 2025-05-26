@@ -6,10 +6,7 @@ import './BudgetVarianceReport.css';
 const BudgetVarianceReport = () => {
   const [showBudgetDropdown, setShowBudgetDropdown] = useState(false);
   const [showExpenseDropdown, setShowExpenseDropdown] = useState(false);
-  const [currentPage, setCurrentPage] = useState(1);
   const navigate = useNavigate();
-
-  const itemsPerPage = 5; // Number of items per page
 
   const budgetData = [
     {
@@ -98,18 +95,58 @@ const BudgetVarianceReport = () => {
       isPositive: false,
       isSubcategory: true,
       indent: true
+    },
+    {
+      id: 14,
+      category: 'OPERATIONS',
+      budget: '₱1,200,000',
+      actual: '₱1,350,000',
+      available: '-₱150,000',
+      isPositive: false,
+      percentage: '18% of budget',
+      isSubcategory: true
+    },
+    {
+      id: 15,
+      category: 'Office Supplies',
+      budget: '₱150,000',
+      actual: '₱200,000',
+      available: '-₱50,000',
+      isPositive: false,
+      isSubcategory: true,
+      indent: true
+    },
+    {
+      id: 16,
+      category: 'Equipment',
+      budget: '₱500,000',
+      actual: '₱600,000',
+      available: '-₱100,000',
+      isPositive: false,
+      isSubcategory: true,
+      indent: true
+    },
+    {
+      id: 17,
+      category: 'Maintenance',
+      budget: '₱300,000',
+      actual: '₱300,000',
+      available: '₱0.00',
+      isPositive: true,
+      isSubcategory: true,
+      indent: true
+    },
+    {
+      id: 18,
+      category: 'Transportation',
+      budget: '₱250,000',
+      actual: '₱250,000',
+      available: '₱0.00',
+      isPositive: true,
+      isSubcategory: true,
+      indent: true
     }
   ];
-
-  // Pagination logic
-  const indexOfLastItem = currentPage * itemsPerPage;
-  const indexOfFirstItem = indexOfLastItem - itemsPerPage;
-  const currentItems = budgetData.slice(indexOfFirstItem, indexOfLastItem);
-  const totalPages = Math.ceil(budgetData.length / itemsPerPage);
-
-  const paginate = (pageNumber) => setCurrentPage(pageNumber);
-  const nextPage = () => setCurrentPage(prev => Math.min(prev + 1, totalPages));
-  const prevPage = () => setCurrentPage(prev => Math.max(prev - 1, 1));
 
   const toggleBudgetDropdown = () => {
     setShowBudgetDropdown(!showBudgetDropdown);
@@ -129,7 +166,7 @@ const BudgetVarianceReport = () => {
 
   return (
     <div className="app-container">
-      {/* Header - Copied from Dashboard */}
+      {/* Header */}
       <header className="app-header">
         <div className="header-left">
           <h1 className="app-logo">BUDGETPRO</h1>
@@ -222,66 +259,47 @@ const BudgetVarianceReport = () => {
 
       {/* Main Content */}
       <div className="content-container">
-        <h2 className="page-title">Budget Variance Report</h2>
+        <div className="page-header">
+          <h2 className="page-title">Budget Variance Report</h2>
+        </div>
 
-        <div className="transactions-table-wrapper">
-          <table className="transactions-table">
-            <thead>
-              <tr>
-                <th style={{ width: '25%' }}>Category</th>
-                <th style={{ width: '25%' }}>Budget</th>
-                <th style={{ width: '25%' }}>Actual</th>
-                <th style={{ width: '25%', textAlign: 'right' }}>Available</th>
-              </tr>
-            </thead>
-            <tbody>
-              {currentItems.map((item) => (
-                <tr key={item.id} className={`${item.isHeader ? 'header-row' : ''} ${item.isSubcategory ? 'subcategory-row' : ''} ${item.indent ? 'indent-row' : ''}`}>
-                  <td>
-                    <span className="category-name">{item.category}</span>
-                    {item.percentage && (
-                      <span className="percentage-badge">{item.percentage}</span>
-                    )}
-                  </td>
-                  <td>{item.budget}</td>
-                  <td>{item.actual}</td>
-                  <td style={{ textAlign: 'right' }} className={item.isPositive ? 'positive' : 'negative'}>
-                    {item.available}
-                  </td>
+        {/* Report Background Container */}
+        <div className="report-background-container">
+          {/* Report Table Container */}
+          <div className="report-table-container">
+            <table className="report-table">
+              <thead>
+                <tr>
+                  <th className="category-header">CATEGORY</th>
+                  <th className="budget-header">BUDGET</th>
+                  <th className="actual-header">ACTUAL</th>
+                  <th className="available-header">AVAILABLE</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
-  
-          {/* Pagination */}
-          <div className="pagination-controls">
-            <button 
-              className={`pagination-btn ${currentPage === 1 ? 'disabled' : ''}`} 
-              onClick={prevPage}
-              disabled={currentPage === 1}
-            >
-              <ChevronLeft size={14} />
-            </button>
-            
-            <div className="pagination-numbers">
-              {Array.from({ length: totalPages }, (_, i) => (
-                <button
-                  key={i + 1}
-                  className={`pagination-number ${currentPage === i + 1 ? 'active' : ''}`}
-                  onClick={() => paginate(i + 1)}
-                >
-                  {i + 1}
-                </button>
-              ))}
-            </div>
-            
-            <button 
-              className={`pagination-btn ${currentPage === totalPages ? 'disabled' : ''}`}
-              onClick={nextPage}
-              disabled={currentPage === totalPages}
-            >
-              <ChevronRight size={14} />
-            </button>
+              </thead>
+              <tbody>
+                {budgetData.map((item) => (
+                  <tr key={item.id} className={`
+                    ${item.isHeader ? 'header-row' : ''} 
+                    ${item.isSubcategory ? 'subcategory-row' : ''} 
+                    ${item.indent ? 'indent-row' : ''}
+                  `}>
+                    <td className="category-cell">
+                      <div className="category-content">
+                        <span className="category-name">{item.category}</span>
+                        {item.percentage && (
+                          <span className="percentage-badge">{item.percentage}</span>
+                        )}
+                      </div>
+                    </td>
+                    <td className="budget-cell">{item.budget}</td>
+                    <td className="actual-cell">{item.actual}</td>
+                    <td className={`available-cell ${item.isPositive ? 'positive' : 'negative'}`}>
+                      {item.available}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
           </div>
         </div>
       </div>

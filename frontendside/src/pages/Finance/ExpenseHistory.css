@@ -592,3 +592,10 @@
   margin-bottom: 0;
 }
 
+
+/* Force Poppins only for this specific report table */
+.report-table,
+.report-table th,
+.report-table td {
+  font-family: 'Poppins', sans-serif !important;
+}

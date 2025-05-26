@@ -68,16 +68,16 @@ function BudgetDashboard() {
 
   // Department data
   const departmentData = [
-    { name: 'Marketing', budget: 50000, spent: 45000, percentage: 90, color: '#0047AB' },
-    { name: 'Development', budget: 20000, spent: 18000, percentage: 90, color: '#0096FF' },
-    { name: 'Operations', budget: 30000, spent: 21600, percentage: 72, color: '#89CFF0' },
+    { name: 'Training & Development', budget: 50000, spent: 45000, percentage: 90, color: '#0047AB' },
+    { name: 'Professional Services', budget: 30000, spent: 18000, percentage: 90, color: '#0096FF' },
+    { name: 'Equipment & Maintenance', budget: 250000, spent: 21600, percentage: 72, color: '#89CFF0' },
   ];
 
   // Project data
   const projectData = [
-    { name: 'ERP Implementation', budget: 50000, spent: 25000, remaining: 25000, status: 'On Track', progress: 50 },
-    { name: 'Digital Marketing', budget: 50000, spent: 30000, remaining: 20000, status: 'At Risk', progress: 60 },
-    { name: 'Product Launch', budget: 50000, spent: 40000, remaining: 10000, status: 'Warning', progress: 80 },
+    { name: 'Website Redesign Project', budget: 50000, spent: 25000, remaining: 25000, status: 'On Track', progress: 50 },
+    { name: 'Cybersecurity Upgrade', budget: 50000, spent: 30000, remaining: 20000, status: 'At Risk', progress: 60 },
+    { name: 'AR Retail Solution', budget: 50000, spent: 40000, remaining: 10000, status: 'Warning', progress: 80 },
   ];
 
   // Custom Tooltip for charts
@@ -253,7 +253,7 @@ function BudgetDashboard() {
         <div className="stats-grid">
           {/* Department Allocation - Pie Chart Removed */}
           <div className="card">
-            <h3 className="card-title">Budget Allocation by Department</h3>
+            <h3 className="card-title">Budget Allocation by Categories</h3>
             <div className="dept-list">
               {departmentData.map((dept, index) => (
                 <div key={index} className="dept-item">
@@ -273,9 +273,9 @@ function BudgetDashboard() {
 
           {/* Plan Completion */}
           <div className="card">
-            <h3 className="card-title">Plan Completion</h3>
+            <h3 className="card-title">Budget Completion</h3>
             <p className="stat-value">{planCompletion}%</p>
-            <p className="stat-label">Overall Status of Plan</p>
+            <p className="stat-label">Overall Status of Budget Plan</p>
             <div className="progress-container">
               <div 
                 className="progress-bar blue" 
@@ -342,7 +342,7 @@ function BudgetDashboard() {
 
         {/* Project Status */}
         <div className="card">
-          <h3 className="card-title">Project Status</h3>
+          <h3 className="card-title">Proposal Timeline</h3>
           <div className="table-container">
             <table className="data-table">
               <thead>
@@ -404,7 +404,7 @@ function BudgetDashboard() {
 
         {/* Department Budget vs Actual */}
         <div className="card">
-          <h3 className="card-title">Department Budget vs Actual</h3>
+          <h3 className="card-title">Categories Budget vs Actual</h3>
           <div className="dept-budget-list">
             {departmentData.map((dept, index) => (
               <div key={index} className={`dept-budget-item ${index < departmentData.length - 1 ? "with-border" : ""}`}>

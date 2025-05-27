@@ -1,3 +1,4 @@
+from django.http import JsonResponse
 from django.shortcuts import render
 from django.conf import settings
 from rest_framework import status, generics  # , permissions
@@ -22,6 +23,10 @@ from .serializers import UserSerializer, LoginSerializer, LoginAttemptSerializer
 from .models import BudgetAllocation, JournalEntryLine, LoginAttempt, UserActivityLog
 
 User = get_user_model()
+
+def healthcheck_view(request):
+    return JsonResponse({"status": "ok"})
+
 
 
 class LoginView(APIView):

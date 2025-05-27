@@ -5,6 +5,7 @@ from drf_spectacular.views import SpectacularAPIView, SpectacularSwaggerView, Sp
 from django.conf import settings
 from django.conf import settings
 from django.conf.urls.static import static
+from core.views import healthcheck_view
 
 def health_check(request):
     return JsonResponse({"status": "healthy", "message": "Django is running"})
@@ -17,7 +18,7 @@ urlpatterns = [
     path('api/docs/', SpectacularSwaggerView.as_view(url_name='schema'), name='swagger-ui'),
     path('api/redoc/', SpectacularRedocView.as_view(url_name='schema'), name='redoc'),
     path('', health_check),  # Health check at root
-    path('health/', health_check),
+    path('health/', healthcheck_view),
 ]
 
 # Add debug toolbar URLs only in development

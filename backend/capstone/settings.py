@@ -27,9 +27,9 @@ load_dotenv(BASE_DIR / '.env')  # Explicit path
 FRONTEND_URL = os.getenv('FRONTEND_URL', 'http://localhost:5173')
 
 
-# Build paths inside the project like this: BASE_DIR / 'subdir'.
-BASE_DIR = Path(__file__).resolve().parent.parent
-
+# Fix the BASE_DIR and .env loading
+BASE_DIR = Path(__file__).resolve().parent.parent  # This should point to /backend
+load_dotenv(BASE_DIR.parent / 'backend' / 'capstone' / '.env')  # Load from capstone/.env
 
 # Quick-start development settings - unsuitable for production
 # See https://docs.djangoproject.com/en/5.2/howto/deployment/checklist/
@@ -271,7 +271,12 @@ USE_TZ = True
 # Static files (CSS, JavaScript, Images)
 # https://docs.djangoproject.com/en/5.2/howto/static-files/
 
-STATIC_URL = 'static/'
+# Add static files configuration for Railway
+STATIC_URL = '/static/'
+STATIC_ROOT = os.path.join(BASE_DIR, 'staticfiles')
+
+# For Railway deployment
+STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
 
 # Default primary key field type
 # https://docs.djangoproject.com/en/5.2/ref/settings/#default-auto-field

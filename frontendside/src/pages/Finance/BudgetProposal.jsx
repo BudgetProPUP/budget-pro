@@ -45,7 +45,9 @@ const BudgetProposal = () => {
       amount: '₱50,000.00', 
       submittedBy: 'J.Tompson', 
       status: 'pending', 
-      action: 'Review'
+      action: 'Review',
+      budgetAmount: '100,000.00',
+      requestedBy: 'IT Department'
     },
     { 
       id: 2, 
@@ -54,7 +56,9 @@ const BudgetProposal = () => {
       amount: '₱23,040.00', 
       submittedBy: 'A.Williams', 
       status: 'approved', 
-      action: 'View'
+      action: 'View',
+      budgetAmount: '23,040.00',
+      requestedBy: 'Security Department'
     },
     { 
       id: 3, 
@@ -63,7 +67,9 @@ const BudgetProposal = () => {
       amount: '₱30,000.00', 
       submittedBy: 'L.Chen', 
       status: 'approved', 
-      action: 'View'
+      action: 'View',
+      budgetAmount: '30,000.00',
+      requestedBy: 'Infrastructure Team'
     },
     { 
       id: 4, 
@@ -72,7 +78,9 @@ const BudgetProposal = () => {
       amount: '₱47,079.00', 
       submittedBy: 'K.Thomas', 
       status: 'rejected', 
-      action: 'Review'
+      action: 'Review',
+      budgetAmount: '47,079.00',
+      requestedBy: 'Retail Department'
     },
     { 
       id: 5, 
@@ -81,7 +89,9 @@ const BudgetProposal = () => {
       amount: '₱35,600.00', 
       submittedBy: 'M.Johnson', 
       status: 'pending', 
-      action: 'Review'
+      action: 'Review',
+      budgetAmount: '35,600.00',
+      requestedBy: 'HR Department'
     },
     { 
       id: 6, 
@@ -90,7 +100,9 @@ const BudgetProposal = () => {
       amount: '₱125,400.00', 
       submittedBy: 'R.Garcia', 
       status: 'pending', 
-      action: 'Review'
+      action: 'Review',
+      budgetAmount: '125,400.00',
+      requestedBy: 'Facilities Department'
     }
   ];
 
@@ -569,11 +581,11 @@ const BudgetProposal = () => {
                   </div>
                   
                   <div className="cost-table-total">
-  <div className="cost-cell"></div>
-  <div className="cost-cell"></div>
-  <div className="cost-cell total-amount" style={{ textAlign: 'right' }}>
-    ₽50,000.00  {/* This is the total amount */}
-  </div>
+                    <div className="cost-cell"></div>
+                    <div className="cost-cell"></div>
+                    <div className="cost-cell total-amount" style={{ textAlign: 'right' }}>
+                      ₽50,000.00
+                    </div>
                   </div>
                 </div>
               </div>
@@ -626,19 +638,16 @@ const BudgetProposal = () => {
                 {selectedProposal.subject}
               </h3>
               
-              {/* Project Details */}
+              {/* Project Details - Updated with inline format */}
               <div className="project-info-section">
-                <div className="project-detail-row">
-                  <span className="detail-label">Budget Amount:</span>
-                  <span className="detail-value">100,000.00</span>
+                <div className="project-detail-inline">
+                  <strong>Budget Amount:</strong> {selectedProposal.budgetAmount}
                 </div>
-                <div className="project-detail-row">
-                  <span className="detail-label">Category:</span>
-                  <span className="detail-value">Training and Development</span>
+                <div className="project-detail-inline">
+                  <strong>Category:</strong> {selectedProposal.category}
                 </div>
-                <div className="project-detail-row">
-                  <span className="detail-label">Requested by:</span>
-                  <span className="detail-value">IT Department</span>
+                <div className="project-detail-inline">
+                  <strong>Requested by:</strong> {selectedProposal.requestedBy}
                 </div>
               </div>
               
@@ -665,7 +674,78 @@ const BudgetProposal = () => {
         </div>
       )}
 
-      {/* Comment Popup - UPDATED to match the UI design */}
+      {/* UPDATED: Approval/Rejection Status Popup */}
+      {showConfirmationPopup && selectedProposal && (
+        <div className="popup-overlay">
+          <div className="approval-status-popup">
+            {/* Header */}
+            <div className="approval-status-header">
+              <button className="back-button" onClick={closeConfirmationPopup}>
+                <ArrowLeft size={20} />
+              </button>
+              <h2 className="approval-status-title">
+                {reviewStatus === 'approved' ? 'Approval Status' : 'Rejected Status'}
+              </h2>
+            </div>
+            
+            <div className="approval-status-content">
+              {/* Status Indicator */}
+              <div className="status-section">
+                <div className="status-indicator">
+                  <div className={`status-dot ${reviewStatus}`}></div>
+                  <span className="status-text">
+                    {reviewStatus === 'approved' 
+                      ? 'Approved by Finance Department' 
+                      : 'Rejected by Finance Department'}
+                  </span>
+                </div>
+                <div className="status-timestamp">
+                  Apr 01, 2025 at 16:00 - Alex Smith
+                </div>
+              </div>
+              
+              {/* Project Title */}
+              <h3 className="project-title-section">
+                {selectedProposal.subject}
+              </h3>
+              
+              {/* Project Details - Updated with inline format */}
+              <div className="project-info-section">
+                <div className="project-detail-inline">
+                  <strong>Budget Amount:</strong> {selectedProposal.budgetAmount}
+                </div>
+                <div className="project-detail-inline">
+                  <strong>Category:</strong> {selectedProposal.category}
+                </div>
+                <div className="project-detail-inline">
+                  <strong>Requested by:</strong> {selectedProposal.requestedBy}
+                </div>
+              </div>
+              
+              {/* Comment Section */}
+              <div className="comment-input-section">
+                <label className="comment-input-label">Comment:</label>
+                <textarea 
+                  className="comment-textarea-input" 
+                  value={reviewComment}
+                  onChange={(e) => setReviewComment(e.target.value)}
+                  placeholder=""
+                  rows="4"
+                ></textarea>
+              </div>
+            </div>
+            
+            {/* Footer */}
+            <div className="approval-status-footer">
+              <button className="submit-comment-button" onClick={handleSubmitReview}>
+                Submit
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Comment Popup - Updated with inline format */}
       {showCommentPopup && selectedProposal && (
         <div className="popup-overlay">
           <div className="approval-status-popup">
@@ -691,22 +771,19 @@ const BudgetProposal = () => {
               
               {/* Project Title */}
               <h3 className="project-title-section">
-                Website Redesign Project
+                {selectedProposal.subject}
               </h3>
               
-              {/* Project Details */}
+              {/* Project Details - Updated with inline format */}
               <div className="project-info-section">
-                <div className="project-detail-row">
-                  <span className="detail-label">Budget Amount:</span>
-                  <span className="detail-value">100,000.00</span>
+                <div className="project-detail-inline">
+                  <strong>Budget Amount:</strong> {selectedProposal.budgetAmount}
                 </div>
-                <div className="project-detail-row">
-                  <span className="detail-label">Category:</span>
-                  <span className="detail-value">Training and Development</span>
+                <div className="project-detail-inline">
+                  <strong>Category:</strong> {selectedProposal.category}
                 </div>
-                <div className="project-detail-row">
-                  <span className="detail-label">Requested by:</span>
-                  <span className="detail-value">IT Department</span>
+                <div className="project-detail-inline">
+                  <strong>Requested by:</strong> {selectedProposal.requestedBy}
                 </div>
               </div>
               
@@ -727,68 +804,6 @@ const BudgetProposal = () => {
             <div className="approval-status-footer">
               <button className="submit-comment-button" onClick={handleSubmitComment}>
                 Submit
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Confirmation Popup */}
-      {showConfirmationPopup && selectedProposal && (
-        <div className="popup-overlay">
-          <div className="confirmation-popup">
-            <div className="confirmation-header">
-              
-              <button className="back-button" onClick={closeConfirmationPopup}>
-                <ArrowLeft size={20} />
-              </button>
-              <h2 className="confirmation-title">
-                {reviewStatus === 'approved' ? 'Approve Budget' : 'Reject Budget'}
-              </h2>
-            </div>
-            
-            <div className="confirmation-content">
-              <div className="confirmation-icon-container">
-                <div className={`confirmation-icon ${reviewStatus}`}>
-                  {reviewStatus === 'approved' ? '✓' : '✕'}
-                </div>
-              </div>
-              
-              <h3 className="confirmation-message">
-                {reviewStatus === 'approved' 
-                  ? 'Are you sure you want to approve this budget proposal?' 
-                  : 'Are you sure you want to reject this budget proposal?'}
-              </h3>
-              
-              <div className="proposal-summary">
-                <h4 className="proposal-name">{selectedProposal.subject}</h4>
-                <ul className="proposal-details">
-                  <li>• Budget Amount: {selectedProposal.amount}</li>
-                  <li>• Category: {selectedProposal.category}</li>
-                  <li>• Submitted by: {selectedProposal.submittedBy}</li>
-                </ul>
-              </div>
-              
-              <div className="comment-section">
-                <p className="comment-label">Add Comment:</p>
-                <textarea 
-                  className="comment-input" 
-                  value={reviewComment}
-                  onChange={(e) => setReviewComment(e.target.value)}
-                  placeholder="Add your comment or reason here..."
-                ></textarea>
-              </div>
-            </div>
-            
-            <div className="confirmation-footer">
-              <button className="blue-button cancel-btn" onClick={closeConfirmationPopup}>
-                Cancel
-              </button>
-              <button 
-                className="blue-button confirm-btn" 
-                onClick={handleSubmitReview}
-              >
-                {reviewStatus === 'approved' ? 'Confirm Approval' : 'Confirm Rejection'}
               </button>
             </div>
           </div>

@@ -750,13 +750,13 @@ body::-webkit-scrollbar {
   color: var(--white);
   border: none;
   border-radius: 0.5rem;
-  padding: 0.75rem 1.5rem;
+  padding: 0.5rem 1rem;
   font-family: var(--font-family);
-  font-size: 0.875rem;
+  font-size: 0.75rem;
   font-weight: 600;
   cursor: pointer;
   transition: all 0.2s ease;
-  min-width: 100px;
+  min-width: 80px;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -773,13 +773,13 @@ body::-webkit-scrollbar {
   color: var(--white);
   border: none;
   border-radius: 0.5rem;
-  padding: 0.75rem 1.5rem;
+  padding: 0.5rem 1rem;
   font-family: var(--font-family);
-  font-size: 0.875rem;
+  font-size: 0.75rem;
   font-weight: 600;
   cursor: pointer;
   transition: all 0.2s ease;
-  min-width: 100px;
+  min-width: 80px;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -796,13 +796,13 @@ body::-webkit-scrollbar {
   color: var(--white);
   border: none;
   border-radius: 0.5rem;
-  padding: 0.75rem 1.5rem;
+  padding: 0.5rem 1rem;
   font-family: var(--font-family);
-  font-size: 0.875rem;
+  font-size: 0.75rem;
   font-weight: 600;
   cursor: pointer;
   transition: all 0.2s ease;
-  min-width: 100px;
+  min-width: 80px;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -876,18 +876,15 @@ body::-webkit-scrollbar {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 0.75rem 0;
-  border-bottom: 1px solid var(--border-color);
-  font-size: 0.875rem;
-}
-
-.project-detail-row:last-child {
-  border-bottom: none;
+  margin-bottom: 8px;
+  padding: 4px 0;
 }
 
 .detail-label {
-  font-weight: 500;
-  color: var(--secondary-color);
+  color: #6b7280;
+  font-size: 14px;
+  margin-right: 8px;
+  flex-shrink: 0;
 }
 
 .detail-value {
@@ -938,14 +935,17 @@ body::-webkit-scrollbar {
   background-color: var(--primary-color);
   color: var(--white);
   border: none;
-  border-radius: 0.5rem;
-  padding: 0.75rem 2rem;
+  border-radius: 0.375rem;
+  padding: 0.5rem 1rem;
   font-family: var(--font-family);
-  font-size: 0.875rem;
+  font-size: 0.75rem;
   font-weight: 600;
   cursor: pointer;
   transition: all 0.2s ease;
-  width: 100%;
+  width: auto;
+  min-width: 80px;
+  margin-left: auto;
+  display: block;
 }
 
 .submit-pending-button:hover {
@@ -957,14 +957,17 @@ body::-webkit-scrollbar {
   background-color: var(--primary-color);
   color: var(--white);
   border: none;
-  border-radius: 0.5rem;
-  padding: 0.75rem 2rem;
+  border-radius: 0.375rem;
+  padding: 0.5rem 1rem;
   font-family: var(--font-family);
-  font-size: 0.875rem;
+  font-size: 0.75rem;
   font-weight: 600;
   cursor: pointer;
   transition: all 0.2s ease;
-  width: 100%;
+  width: auto;
+  min-width: 80px;
+  margin-left: auto;
+  display: block;
 }
 
 .submit-comment-button:hover {
@@ -1004,6 +1007,11 @@ body::-webkit-scrollbar {
 
 .project-details-section {
   margin-bottom: 2rem;
+}
+
+.project-detail-inline {
+  margin-bottom: 8px;
+  font-size: 14px;
 }
 
 .detail-item {
@@ -1046,6 +1054,15 @@ body::-webkit-scrollbar {
   /* Hide textarea scrollbar */
   scrollbar-width: none;
   -ms-overflow-style: none;
+}
+
+.comment-textarea::-webkit-scrollbar {
+  display: none;
+}
+
+.comment-textarea:focus {
+  border-color: var(--primary-color);
+  box-shadow: 0 0 0 3px rgba(13, 110, 253, 0.1);
 }
 
 .total-amount {

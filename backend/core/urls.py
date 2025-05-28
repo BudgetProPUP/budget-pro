@@ -32,7 +32,7 @@ user_management_router.register(
     r'monthly-budget-actual', MonthlyBudgetActualViewSet, basename='monthly-budget-actual')
 
 router = DefaultRouter()
-router.register(r'External Budget Proposals', views_budget.BudgetProposalViewSet, basename='External Budget Proposals')
+router.register(r'external-budget-proposals', views_budget.BudgetProposalViewSet, basename='external-budget-proposals')
 
 urlpatterns = [
      path('', include(router.urls)),

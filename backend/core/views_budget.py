@@ -7,9 +7,11 @@ from rest_framework.response import Response
 from drf_spectacular.utils import extend_schema, OpenApiParameter, OpenApiResponse, OpenApiTypes, OpenApiExample
 from rest_framework.views import APIView
 from rest_framework import viewsets
+from rest_framework import filters
+from django_filters.rest_framework import DjangoFilterBackend
 import csv
 from .serializers import FiscalYearSerializer
-from .models import Account, AccountType, BudgetProposal, Department, FiscalYear, BudgetAllocation, Expense, JournalEntry, JournalEntryLine, Project
+from .models import User, Account, AccountType, BudgetProposal, Department, FiscalYear, BudgetAllocation, Expense, JournalEntry, JournalEntryLine, Project, ProposalComment, ProposalHistory
 from rest_framework.permissions import IsAuthenticated
 from django.utils import timezone
 from rest_framework.decorators import api_view, permission_classes, action
@@ -499,15 +501,38 @@ class AccountTypeDropdownView(generics.ListAPIView):
         return super().get(request, *args, **kwargs)
 
 
+@extend_schema(
+    methods=['POST'],
+    description="Reject a budget proposal with optional comments",
+    request=OpenApiTypes.OBJECT,
+    examples=[
+        OpenApiExample(
+            'Reject Proposal',
+            value={'comments': 'Needs more detailed cost breakdown'},
+            request_only=True
+        )
+    ],
+    tags=['Budget Proposal Actions']
+)
 class BudgetProposalViewSet(viewsets.ModelViewSet):
     """
     A viewset that provides `list`, `retrieve`, `create`, and `update` for BudgetProposal.
     """
 
     queryset = BudgetProposal.objects.filter(
-        is_deleted=False).order_by('-created_at')
+        Q(is_deleted=False) | Q(is_deleted__isnull=True)
+    ).order_by('-created_at')
     serializer_class = BudgetProposalSerializer
     permission_classes = [IsAuthenticated]
+    pagination_class = StandardResultsSetPagination
+    
+    # Optional: Add filtering capabilities
+    filter_backends = [DjangoFilterBackend, filters.SearchFilter, filters.OrderingFilter]
+    filterset_fields = ['status', 'department', 'fiscal_year']
+    search_fields = ['title', 'external_system_id', 'submitted_by_name']
+    ordering_fields = ['created_at', 'last_modified', 'title']
+    ordering = ['-created_at']
+
 
     @extend_schema(
         request=BudgetProposalSerializer,
@@ -628,3 +653,241 @@ class BudgetProposalViewSet(viewsets.ModelViewSet):
     )
     def retrieve(self, request, *args, **kwargs):
         return super().retrieve(request, *args, **kwargs)
+
+    # Replace the action methods in your BudgetProposalViewSet with these corrected versions:
+
+    @extend_schema(
+        methods=['POST'],
+        description="Approve a budget proposal with optional comments",
+        request=OpenApiTypes.OBJECT,
+        examples=[
+            OpenApiExample(
+                'Approve Proposal',
+                value={'comments': 'Approved after review'},
+                request_only=True
+            )
+        ],
+        tags=['Budget Proposal Actions']
+    )
+    @action(detail=True, methods=['post'])
+    def approve(self, request, pk=None):
+        proposal = self.get_object()
+        comments_text = request.data.get('comments', '')
+        
+        if proposal.status != 'APPROVED':
+            previous_status = proposal.status
+            proposal.status = 'APPROVED'
+            proposal.approval_date = timezone.now()
+            
+            # Handle the approved_by_name - use the authenticated user's name or a fallback
+            if hasattr(request.user, 'get_full_name') and request.user.get_full_name():
+                proposal.approved_by_name = request.user.get_full_name()
+            elif hasattr(request.user, 'username'):
+                proposal.approved_by_name = request.user.username
+            else:
+                proposal.approved_by_name = "System User"
+                
+            proposal.save()
+
+            # Create project without allocation
+            Project.objects.create(
+                budget_proposal=proposal,
+                name=proposal.title,
+                description=proposal.project_description,
+                start_date=proposal.performance_start_date,
+                end_date=proposal.performance_end_date,
+                department=proposal.department,
+            )
+
+            # Add to history
+            action_by_name = proposal.approved_by_name
+            ProposalHistory.objects.create(
+                proposal=proposal,
+                action='APPROVED',
+                action_by_name=action_by_name,
+                previous_status=previous_status,
+                new_status='APPROVED',
+                comments=comments_text
+            )
+            
+            # Create ProposalComment if comments provided and user is available
+            if comments_text and hasattr(request.user, 'id') and request.user.id:
+                try:
+                    ProposalComment.objects.create(
+                        proposal=proposal,
+                        user=request.user,
+                        comment=comments_text
+                    )
+                except Exception as e:
+                    # Log the error but don't fail the approval
+                    print(f"Failed to create comment: {e}")
+            
+        return Response({'status': 'approved'}, status=200)
+
+    @extend_schema(
+        methods=['POST'],
+        description="Reject a budget proposal with optional comments",
+        request=OpenApiTypes.OBJECT,
+        examples=[
+            OpenApiExample(
+                'Reject Proposal',
+                value={'comments': 'Needs more detailed cost breakdown'},
+                request_only=True
+            )
+        ],
+        tags=['Budget Proposal Actions']
+    )
+    @action(detail=True, methods=['post'])
+    def reject(self, request, pk=None):
+        proposal = self.get_object()
+        previous_status = proposal.status
+        comments_text = request.data.get('comments', '')
+        
+        if proposal.status != 'REJECTED':
+            proposal.status = 'REJECTED'
+            proposal.rejection_date = timezone.now()
+            
+            # Handle the rejected_by_name
+            if hasattr(request.user, 'get_full_name') and request.user.get_full_name():
+                proposal.rejected_by_name = request.user.get_full_name()
+            elif hasattr(request.user, 'username'):
+                proposal.rejected_by_name = request.user.username
+            else:
+                proposal.rejected_by_name = "System User"
+                
+            proposal.save()
+
+            # Add to history
+            action_by_name = proposal.rejected_by_name
+            ProposalHistory.objects.create(
+                proposal=proposal,
+                action='REJECTED',
+                action_by_name=action_by_name,
+                previous_status=previous_status,
+                new_status='REJECTED',
+                comments=comments_text
+            )
+            
+            # Create ProposalComment if comments provided and user is available
+            if comments_text and hasattr(request.user, 'id') and request.user.id:
+                try:
+                    ProposalComment.objects.create(
+                        proposal=proposal,
+                        user=request.user,
+                        comment=comments_text
+                    )
+                except Exception as e:
+                    # Log the error but don't fail the rejection
+                    print(f"Failed to create comment: {e}")
+                
+        return Response({'status': 'rejected'}, status=200)
+
+    @extend_schema(
+        methods=['POST'],
+        description="Mark a proposal as pending with optional comments",
+        request=OpenApiTypes.OBJECT,
+        examples=[
+            OpenApiExample(
+                'Mark Pending Request',
+                value={'comments': 'Needs more details'},
+                request_only=True
+            )
+        ],
+        tags=['Budget Proposal Actions']
+    )
+    @action(detail=True, methods=['post'])
+    def mark_pending(self, request, pk=None):
+        proposal = self.get_object()
+        previous_status = proposal.status
+        comments_text = request.data.get('comments', '')
+        
+        if proposal.status != 'PENDING':
+            proposal.status = 'PENDING'
+            proposal.save()
+
+            # Handle action_by_name
+            if hasattr(request.user, 'get_full_name') and request.user.get_full_name():
+                action_by_name = request.user.get_full_name()
+            elif hasattr(request.user, 'username'):
+                action_by_name = request.user.username
+            else:
+                action_by_name = "System User"
+
+            # Create ProposalHistory
+            ProposalHistory.objects.create(
+                proposal=proposal,
+                action='MARKED_PENDING',
+                action_by_name=action_by_name,
+                previous_status=previous_status,
+                new_status='PENDING',
+                comments=comments_text
+            )
+            
+            # Create ProposalComment if comments provided and user is available
+            if comments_text and hasattr(request.user, 'id') and request.user.id:
+                try:
+                    ProposalComment.objects.create(
+                        proposal=proposal,
+                        user=request.user,
+                        comment=comments_text
+                    )
+                except Exception as e:
+                    # Log the error but don't fail the action
+                    print(f"Failed to create comment: {e}")
+                
+        return Response({'status': 'pending'}, status=200)
+
+    @extend_schema(
+        methods=['POST'],
+        description="Request revision for a proposal with optional comments",
+        request=OpenApiTypes.OBJECT,
+        examples=[
+            OpenApiExample(
+                'Request Revision',
+                value={'comments': 'Please provide more budget details'},
+                request_only=True
+            )
+        ],
+        tags=['Budget Proposal Actions']
+    )
+    @action(detail=True, methods=['post'])
+    def request_revision(self, request, pk=None):
+        proposal = self.get_object()
+        previous_status = proposal.status
+        comments_text = request.data.get('comments', '')
+        
+        if proposal.status != 'REVISION_REQUESTED':
+            proposal.status = 'REVISION_REQUESTED'
+            proposal.save()
+
+            # Handle action_by_name
+            if hasattr(request.user, 'get_full_name') and request.user.get_full_name():
+                action_by_name = request.user.get_full_name()
+            elif hasattr(request.user, 'username'):
+                action_by_name = request.user.username
+            else:
+                action_by_name = "System User"
+
+            # Create ProposalHistory
+            ProposalHistory.objects.create(
+                proposal=proposal,
+                action='REVISION_REQUESTED',
+                action_by_name=action_by_name,
+                previous_status=previous_status,
+                new_status='REVISION_REQUESTED',
+                comments=comments_text
+            )
+            
+            # Create ProposalComment if comments provided and user is available
+            if comments_text and hasattr(request.user, 'id') and request.user.id:
+                try:
+                    ProposalComment.objects.create(
+                        proposal=proposal,
+                        user=request.user,
+                        comment=comments_text
+                    )
+                except Exception as e:
+                    # Log the error but don't fail the action
+                    print(f"Failed to create comment: {e}")
+                    
+        return Response({'status': 'revision requested'}, status=200)

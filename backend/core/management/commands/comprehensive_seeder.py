@@ -324,7 +324,8 @@ class Command(BaseCommand):
                     'account_type': acct_data['account_type'],
                     'parent_account': None,
                     'created_by': created_by,
-                    'is_active': True
+                    'is_active': True,
+                    'accomplished': False  # Add accomplished field
                 }
             )
             created_parents.append(account)
@@ -428,11 +429,12 @@ class Command(BaseCommand):
                     'account_type': acct_data['account_type'],
                     'parent_account': acct_data['parent_account'],
                     'created_by': created_by,
-                    'is_active': True
+                    'is_active': True,
+                    'accomplished': False  # Add accomplished field
                 }
             )
             created_children.append(account)
-
+            
         all_accounts = created_parents + created_children
         self.stdout.write(self.style.SUCCESS(
             f'Created/Updated {len(all_accounts)} accounts'))
@@ -674,7 +676,7 @@ class Command(BaseCommand):
         # Get the current fiscal year
         current_year = datetime.now().year
         current_fy = next((fy for fy in fiscal_years if fy.name ==
-                        f'FY {current_year}'), fiscal_years[0])
+                           f'FY {current_year}'), fiscal_years[0])
 
         # Get a finance user to be the submitter
         finance_user = next(
@@ -682,12 +684,11 @@ class Command(BaseCommand):
 
         # Create proposals for each department
         proposals = []
-        
-        
-        status = 'APPROVED'
+
+        status = 'SUBMITTED'
 
         for i, department in enumerate(departments):
-            # Create multiple proposals for each department (all with APPROVED status)
+
             for j in range(4):  # Create 4 quarterly proposals for each department
                 start_date = current_fy.start_date + timedelta(days=90*j)
                 # 3-month performance period
@@ -703,16 +704,18 @@ class Command(BaseCommand):
                     'department': department,
                     'fiscal_year': current_fy,
                     'submitted_by_name': finance_user.get_full_name(),  # String field
-                    'approved_by_name': users[0].get_full_name(),  # String field
+                    # String field
+                    'approved_by_name': users[0].get_full_name(),
                     'status': status,
                     'performance_start_date': start_date,
                     'performance_end_date': end_date,
-                    'submitted_at': timezone.now(),  # All are submitted since they're APPROVED
+                    'submitted_at': timezone.now() - timedelta(days=random.randint(1, 30)),  # Submitted 1-30 days ago
                     'external_system_id': external_id,
                     'sync_status': random.choice(['SYNCED', 'PENDING', 'FAILED']),
                 }
 
-                proposal_data['approval_date'] = timezone.now() - timedelta(days=random.randint(1, 10))
+                # proposal_data['approval_date'] = timezone.now(
+                # ) - timedelta(days=random.randint(1, 10))
 
                 proposal, created = BudgetProposal.objects.update_or_create(
                     title=proposal_data['title'],
@@ -770,7 +773,7 @@ class Command(BaseCommand):
 
         self.stdout.write(self.style.SUCCESS(
             f'Created/Updated {items_created} budget proposal items'))
-        
+
     def create_budget_allocations(self, projects, accounts, created_by):
         """
         Creates BudgetAllocations for Projects, ensuring uniqueness constraints are respected.
@@ -781,23 +784,25 @@ class Command(BaseCommand):
         expense_accounts = [
             acc for acc in accounts if acc.account_type.name == 'Expense'
         ]
-        
+
         if not expense_accounts:
-            self.stdout.write(self.style.WARNING('No expense accounts found, using all accounts'))
+            self.stdout.write(self.style.WARNING(
+                'No expense accounts found, using all accounts'))
             expense_accounts = accounts
 
         allocations = []
         allocation_keys = set()  # Track unique (fiscal_year, department, account) combinations
-        
+
         for project in projects:
             # Get fiscal_year & department from the linked BudgetProposal
             fy = project.budget_proposal.fiscal_year
             department = project.budget_proposal.department
-            
+
             # Find an account that doesn't cause a unique constraint violation
-            available_accounts = list(expense_accounts)  # Make a copy we can modify
+            # Make a copy we can modify
+            available_accounts = list(expense_accounts)
             random.shuffle(available_accounts)  # Randomize order
-            
+
             selected_account = None
             for account in available_accounts:
                 # Check if this combination already exists
@@ -806,13 +811,13 @@ class Command(BaseCommand):
                     selected_account = account
                     allocation_keys.add(key)
                     break
-                    
+
             if not selected_account:
                 self.stdout.write(self.style.WARNING(
                     f"Couldn't find unique account for project {project.id}. Skipping."
                 ))
                 continue
-                
+
             # Create allocation with the selected account
             try:
                 # Using created_by_name instead of created_by
@@ -823,11 +828,16 @@ class Command(BaseCommand):
                     department=department,
                     account=selected_account,
                     amount=Decimal(random.randint(100_000, 5_000_000)),
-                    created_by_name=created_by.get_full_name(),  # Use the string name instead of foreign key
-                    is_active=True
+                    # Use the string name instead of foreign key
+                    created_by_name=created_by.get_full_name(),
+                    is_active=True,
+                    funding_source=random.choice(
+                        [acc for acc in accounts if acc.account_type.name in ['Asset', 'Revenue']]),
+                    created_by=created_by,
                 )
                 allocations.append(alloc)
-                self.stdout.write(f"Created allocation for project {project.id}")
+                self.stdout.write(
+                    f"Created allocation for project {project.id}")
             except Exception as e:
                 self.stdout.write(self.style.ERROR(
                     f"Error creating allocation for project {project.id}: {str(e)}"
@@ -857,10 +867,10 @@ class Command(BaseCommand):
         for fy_id, allocs in fy_groups.items():
             if len(allocs) < 2:
                 continue  # Skip years with insufficient allocations
-                
+
             # Get the actual fiscal year object
             fy = allocs[0].fiscal_year
-                
+
             for _ in range(min(3, len(allocs))):  # Create up to 3 transfers per fiscal year
                 source = random.choice(allocs)
                 dest = random.choice([a for a in allocs if a != source])
@@ -931,32 +941,35 @@ class Command(BaseCommand):
     def create_expenses(self, departments, accounts, budget_allocations, users, expense_categories):
         """
         Creates Expense records against budget allocations.
-        
+
         Since we're working with a system that only receives APPROVED budget proposals,
         our expenses should reflect appropriate workflow states that happen AFTER
         the proposals are approved.
         """
         self.stdout.write('Creating expenses...')
         expenses = []
-        
-        # We should still have a variety of expense statuses as these represent 
+
+        # We should still have a variety of expense statuses as these represent
         # the expense approval workflow, not the proposal workflow
         # In a real system, expenses would start as DRAFT and move through a workflow
         STATUS_CHOICES = ['DRAFT', 'SUBMITTED', 'APPROVED', 'REJECTED']
-        STATUS_WEIGHTS = [3, 4, 8, 1]  # Weight more toward APPROVED for realism
+        # Weight more toward APPROVED for realism
+        STATUS_WEIGHTS = [3, 4, 8, 1]
 
         # Skip if there are no allocations
         if not budget_allocations:
-            self.stdout.write(self.style.WARNING("No budget allocations to create expenses for"))
+            self.stdout.write(self.style.WARNING(
+                "No budget allocations to create expenses for"))
             return []
 
         for i in range(100):  # Create 100 expenses across all allocations
             alloc = random.choice(budget_allocations)
             txn_id = f"TXN-{datetime.now().strftime('%Y%m%d')}-{i+1:04d}"
-            
+
             # Use weighted choice for more realistic status distribution
-            status = random.choices(STATUS_CHOICES, weights=STATUS_WEIGHTS, k=1)[0]
-            
+            status = random.choices(
+                STATUS_CHOICES, weights=STATUS_WEIGHTS, k=1)[0]
+
             # Select an appropriate expense category
             category = random.choice(expense_categories)
 
@@ -976,7 +989,8 @@ class Command(BaseCommand):
             )
 
             if status == 'APPROVED':
-                approvers = [u for u in users if u.role in ('ADMIN', 'FINANCE_HEAD')]
+                approvers = [u for u in users if u.role in (
+                    'ADMIN', 'FINANCE_HEAD')]
                 if approvers:
                     expense.approved_by = random.choice(approvers)
                     expense.approved_at = timezone.now()
@@ -1025,8 +1039,10 @@ class Command(BaseCommand):
 
         actions = []
         for proposal in proposals:
-            submitter = next((u for u in users if u.department == proposal.department), random.choice(users))
-            admin_user = next((u for u in users if u.is_staff), random.choice(users))
+            submitter = next((u for u in users if u.department ==
+                             proposal.department), random.choice(users))
+            admin_user = next((u for u in users if u.is_staff),
+                              random.choice(users))
 
             # Simulate approval
             actions.append(ProposalHistory(
@@ -1087,7 +1103,7 @@ class Command(BaseCommand):
         used_proposals = set()
         projects = []
         status_weights = [('PLANNING', 2), ('IN_PROGRESS', 5),
-                        ('COMPLETED', 2), ('ON_HOLD', 1)]
+                          ('COMPLETED', 2), ('ON_HOLD', 1)]
         statuses = [s for s, w in status_weights for _ in range(w)]
 
         for dept in departments:
@@ -1096,7 +1112,7 @@ class Command(BaseCommand):
             ]
 
             selected = random.sample(available_proposals,
-                                    min(3, len(available_proposals))) if available_proposals else []
+                                     min(3, len(available_proposals))) if available_proposals else []
 
             for proposal in selected:
                 used_proposals.add(proposal.id)
@@ -1114,7 +1130,8 @@ class Command(BaseCommand):
                 )
                 projects.append(project)
 
-        self.stdout.write(self.style.SUCCESS(f'Created {len(projects)} projects'))
+        self.stdout.write(self.style.SUCCESS(
+            f'Created {len(projects)} projects'))
         return projects
 
     def create_risk_metrics(self, projects, users):

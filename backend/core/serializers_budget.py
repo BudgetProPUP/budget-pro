@@ -1,8 +1,7 @@
-from core.models import Account, AccountType, BudgetProposal, BudgetProposalItem, Department, FiscalYear, JournalEntry, JournalEntryLine, ProposalHistory
+from core.models import Account, AccountType, BudgetProposal, BudgetProposalItem, Department, FiscalYear, JournalEntry, JournalEntryLine, Project, ProposalComment, ProposalHistory
 from rest_framework import serializers 
 from django.db.models import Sum
 from django.utils import timezone
-
 
 class BudgetProposalSummarySerializer(serializers.Serializer):
     total_proposals = serializers.IntegerField()
@@ -26,6 +25,7 @@ class BudgetProposalListSerializer(serializers.ModelSerializer):
         
     def get_total_cost(self, obj):
         return obj.items.aggregate(total=Sum('estimated_cost'))['total'] or 0
+
         
 class BudgetProposalItemSerializer(serializers.ModelSerializer):
     account_code = serializers.CharField(source='account.code', read_only=True)
@@ -77,7 +77,6 @@ class ProposalHistorySerializer(serializers.ModelSerializer):
             'last_modified_by',
             'status'
         ]
-
 
 class AccountSetupSerializer(serializers.ModelSerializer):
     account_type = serializers.CharField(source='account_type.name')
@@ -227,13 +226,24 @@ class BudgetProposalItemSerializer(serializers.ModelSerializer):
             'notes',
         ]
         read_only_fields = ['id']
+class ProjectSummarySerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Project
+        fields = ['id', 'name', 'status', 'start_date', 'end_date']
+class ProposalCommentSerializer(serializers.ModelSerializer):
+    commenter = serializers.CharField(source='user.get_full_name', read_only=True)
+
+    class Meta:
+        model = ProposalComment
+        fields = ['commenter', 'comment', 'created_at']
 
 
 class BudgetProposalSerializer(serializers.ModelSerializer):
     """
     Serializer for creating/updating BudgetProposal, including nested items.
     """
-
+    comments = ProposalCommentSerializer(many=True, read_only=True)
+    project = ProjectSummarySerializer(read_only=True, allow_null=True)
     # The external system will supply department (PK), fiscal_year (PK).
     department = serializers.PrimaryKeyRelatedField(
         queryset=Department.objects.filter(is_active=True),
@@ -274,15 +284,22 @@ class BudgetProposalSerializer(serializers.ModelSerializer):
             'external_system_id',
             'document',                # Optional FileField (e.g. an Excel sheet)
             'items',                   # Custom write‐only nested field
+            'project',                 # Read-only related project
             # Read-only metadata:
             'submitted_at',
             'last_modified',
             'sync_status',
             'last_sync_timestamp',
+            'comments',
         ]
         read_only_fields = [
-            'submitted_at', 'last_modified',
-            'sync_status', 'last_sync_timestamp',
+            'id',
+            'submitted_at', 
+            'last_modified',
+            'sync_status', 
+            'last_sync_timestamp',
+            'project',
+            'comments',
         ]
 
     def validate(self, data):

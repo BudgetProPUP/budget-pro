@@ -175,28 +175,6 @@ const ExpenseTracking = () => {
     setShowDateDropdown(false);
   };
 
-  const toggleCategoryDropdown = () => {
-    setShowCategoryDropdown(!showCategoryDropdown);
-    if (showDateDropdown) setShowDateDropdown(false);
-  };
-
-  const toggleDateDropdown = () => {
-    setShowDateDropdown(!showDateDropdown);
-    if (showCategoryDropdown) setShowCategoryDropdown(false);
-  };
-
-  const handleCategorySelect = (category) => {
-    setSelectedCategory(category);
-    setCurrentPage(1); // Reset to first page when category changes
-    setShowCategoryDropdown(false);
-  };
-
-  const handleDateSelect = (date) => {
-    setSelectedDate(date);
-    setCurrentPage(1); // Reset to first page when date changes
-    setShowDateDropdown(false);
-  };
-
   const handleNavigate = (path) => {
     navigate(path);
     setShowBudgetDropdown(false);

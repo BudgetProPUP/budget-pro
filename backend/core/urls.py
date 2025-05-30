@@ -5,7 +5,7 @@ from rest_framework.routers import DefaultRouter
 from .views_budget import AccountDropdownView, AccountSetupListView, BudgetProposalDetailView, BudgetProposalListView, BudgetProposalSummaryView, FiscalYearDropdownView, JournalEntryCreateView, JournalEntryListView, LedgerExportView, ProposalHistoryView, LedgerViewList, journal_choices, DepartmentDropdownView, AccountTypeDropdownView
 from .views_usermanagement import UserManagementViewSet, DepartmentViewSet
 from . import views_expense, views_dashboard  # ,TokenObtainPairView
-from .views_dashboard import MonthlyBudgetActualViewSet
+from .views_dashboard import MonthlyBudgetActualViewSet, TopCategoryBudgetAllocationView
 from .views import (
     LoginView,
     LogoutView,
@@ -130,4 +130,10 @@ urlpatterns += [
      # Dropdown endpoints for categories
     path('expense-categories/', views_expense.ExpenseCategoryDropdownView.as_view(), 
     name='expense-category-dropdown'),
+]
+
+
+# Added URLS
+urlpatterns += [
+    path('dashboard/top-category-allocations/', TopCategoryBudgetAllocationView.as_view(), name='top-category-allocations'),
 ]

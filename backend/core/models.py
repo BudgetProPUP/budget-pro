@@ -136,7 +136,8 @@ class Account(models.Model):
     is_active = models.BooleanField(default=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
-
+    accomplished = models.BooleanField(default=False)
+    accomplishment_date = models.DateField(null=True, blank=True)
     def __str__(self):
         return f"{self.code} - {self.name}"
 
@@ -243,14 +244,94 @@ class BudgetProposalItem(models.Model):
     def __str__(self):
         return f"{self.cost_element} - {self.estimated_cost}"
 
+class ExpenseCategory(models.Model):
+    code = models.CharField(max_length=20, unique=True)
+    name = models.CharField(max_length=100)
+    description = models.TextField(blank=True)
+    parent_category = models.ForeignKey('self', on_delete=models.SET_NULL,
+                                        null=True, blank=True, related_name='subcategories')
+    level = models.IntegerField(
+        validators=[MinValueValidator(1), MaxValueValidator(3)])
+    is_active = models.BooleanField(default=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    def __str__(self):
+        return self.name
+
+    @classmethod
+    def get_top_category_with_percentage(cls, fiscal_year=None, department=None):
+        """
+        Get the top expense category with amount and percentage of total expenses.
+
+        Parameters:
+        - fiscal_year: Optional FiscalYear to filter expenses by fiscal year
+        - department: Optional Department to filter expenses by department
+
+        Returns:
+        {
+            'category': ExpenseCategory instance,
+            'amount': Decimal value of expenses in this category,
+            'percentage': Float percentage of total expenses (0-100)
+        }
+        """
+        from django.db.models import Sum
+
+        # Start with approved expenses only
+        expenses_query = Expense.objects.filter(status='APPROVED')
+
+        # Use correct relationships: Expense → BudgetAllocation → Project → BudgetProposal
+        if fiscal_year:
+            expenses_query = expenses_query.filter(
+                budget_allocation__project__budget_proposal__fiscal_year=fiscal_year
+            )
+
+        if department:
+            expenses_query = expenses_query.filter(
+                budget_allocation__project__budget_proposal__department=department
+            )
+
+        # Total approved expenses
+        total_expenses = expenses_query.aggregate(
+            total=Sum('amount')
+        )['total'] or 0
+
+        if total_expenses == 0:
+            return None
+
+        # Aggregate by category
+        categories = expenses_query.values(
+            'category', 'category__name'
+        ).annotate(
+            total_amount=Sum('amount')
+        ).order_by('-total_amount')
+
+        if not categories:
+            return None
+
+        top_category = categories[0]
+        category_obj = cls.objects.get(pk=top_category['category'])
+
+        return {
+            'category': category_obj,
+            'amount': top_category['total_amount'],
+            'percentage': (top_category['total_amount'] / total_expenses) * 100
+        }
 
 class BudgetAllocation(models.Model):
+    
     fiscal_year = models.ForeignKey(FiscalYear, on_delete=models.PROTECT)
     department = models.ForeignKey(
         'Department',
         on_delete=models.PROTECT,
         related_name='allocations',
         help_text='The department receiving this budget allocation.'
+    )
+    category = models.ForeignKey(
+        ExpenseCategory,
+        on_delete=models.PROTECT,
+        related_name='budget_allocations',
+        help_text='The expense category this allocation is intended for'
     )
     account = models.ForeignKey(
         Account,
@@ -429,81 +510,6 @@ class JournalEntryLine(models.Model):
 
     def __str__(self):
         return f"{self.transaction_type} {self.amount} to {self.account.name}"
-
-
-class ExpenseCategory(models.Model):
-    code = models.CharField(max_length=20, unique=True)
-    name = models.CharField(max_length=100)
-    description = models.TextField(blank=True)
-    parent_category = models.ForeignKey('self', on_delete=models.SET_NULL,
-                                        null=True, blank=True, related_name='subcategories')
-    level = models.IntegerField(
-        validators=[MinValueValidator(1), MaxValueValidator(3)])
-    is_active = models.BooleanField(default=True)
-    created_at = models.DateTimeField(auto_now_add=True)
-    updated_at = models.DateTimeField(auto_now=True)
-
-    def __str__(self):
-        return self.name
-
-    @classmethod
-    def get_top_category_with_percentage(cls, fiscal_year=None, department=None):
-        """
-        Get the top expense category with amount and percentage of total expenses.
-
-        Parameters:
-        - fiscal_year: Optional FiscalYear to filter expenses by fiscal year
-        - department: Optional Department to filter expenses by department
-
-        Returns:
-        {
-            'category': ExpenseCategory instance,
-            'amount': Decimal value of expenses in this category,
-            'percentage': Float percentage of total expenses (0-100)
-        }
-        """
-        from django.db.models import Sum
-
-        # Start with approved expenses only
-        expenses_query = Expense.objects.filter(status='APPROVED')
-
-        # Use correct relationships: Expense → BudgetAllocation → Project → BudgetProposal
-        if fiscal_year:
-            expenses_query = expenses_query.filter(
-                budget_allocation__project__budget_proposal__fiscal_year=fiscal_year
-            )
-
-        if department:
-            expenses_query = expenses_query.filter(
-                budget_allocation__project__budget_proposal__department=department
-            )
-
-        # Total approved expenses
-        total_expenses = expenses_query.aggregate(
-            total=Sum('amount')
-        )['total'] or 0
-
-        if total_expenses == 0:
-            return None
-
-        # Aggregate by category
-        categories = expenses_query.values(
-            'category', 'category__name'
-        ).annotate(
-            total_amount=Sum('amount')
-        ).order_by('-total_amount')
-
-        if not categories:
-            return None
-
-        top_category = categories[0]
-        category_obj = cls.objects.get(pk=top_category['category'])
-
-        return {
-            'category': category_obj,
-            'amount': top_category['total_amount'],
-            'percentage': (top_category['total_amount'] / total_expenses) * 100
-        }
 
 
 class Expense(models.Model):

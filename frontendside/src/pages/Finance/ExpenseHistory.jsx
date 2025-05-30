@@ -162,18 +162,6 @@ const ExpenseHistory = () => {
     setShowCategoryDropdown(false);
   };
 
-  const toggleCategoryDropdown = () => {
-    setShowCategoryDropdown(!showCategoryDropdown);
-    if (showBudgetDropdown) setShowBudgetDropdown(false);
-    if (showExpenseDropdown) setShowExpenseDropdown(false);
-  };
-
-  const handleCategorySelect = (category) => {
-    setSelectedCategory(category);
-    setCurrentPage(1); // Reset to first page when category changes
-    setShowCategoryDropdown(false);
-  };
-
   const handleNavigate = (path) => {
     navigate(path);
     setShowBudgetDropdown(false);

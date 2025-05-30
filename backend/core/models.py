@@ -52,7 +52,7 @@ class AccountType(models.Model):
     name = models.CharField(max_length=100)
     description = models.TextField(blank=True)
     is_active = models.BooleanField(default=True)
-    
+
     def __str__(self):
         return self.name
 
@@ -136,8 +136,6 @@ class Account(models.Model):
     is_active = models.BooleanField(default=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
-    accomplished = models.BooleanField(default=False)
-    accomplishment_date = models.DateField(null=True, blank=True)
 
     def __str__(self):
         return f"{self.code} - {self.name}"
@@ -164,12 +162,12 @@ class FiscalYear(models.Model):
 
 class BudgetProposal(models.Model):
     STATUS_CHOICES = [
+        # ('DRAFT', 'Draft'),
         ('SUBMITTED', 'Submitted'),
-        ('PENDING', 'Pending Review'),
+        # ('UNDER_REVIEW', 'Under Review'),
         ('APPROVED', 'Approved'),
         ('REJECTED', 'Rejected'),
     ]
-    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='SUBMITTED')
 
     SYNC_STATUS_CHOICES = [
         ('SYNCED', 'Synced'),
@@ -184,6 +182,11 @@ class BudgetProposal(models.Model):
     department = models.ForeignKey(Department, on_delete=models.PROTECT)
     fiscal_year = models.ForeignKey(FiscalYear, on_delete=models.PROTECT)
     submitted_by_name = models.CharField(max_length=255, null=True, blank=True)
+    status = models.CharField(
+        max_length=20,
+        choices=STATUS_CHOICES,
+        default='APPROVED'
+    )
     performance_start_date = models.DateField()
     performance_end_date = models.DateField()
     submitted_at = models.DateTimeField(null=True, blank=True)
@@ -244,7 +247,7 @@ class BudgetProposalItem(models.Model):
 class BudgetAllocation(models.Model):
     fiscal_year = models.ForeignKey(FiscalYear, on_delete=models.PROTECT)
     department = models.ForeignKey(
-        Department,
+        'Department',
         on_delete=models.PROTECT,
         related_name='allocations',
         help_text='The department receiving this budget allocation.'
@@ -271,9 +274,8 @@ class BudgetAllocation(models.Model):
         related_name='budget',
         help_text='The one budget allocation for this project.'
     )
-    created_by = models.ForeignKey(User, on_delete=models.PROTECT)
-    funding_source = models.ForeignKey(Account, related_name='funded_allocations', on_delete=models.PROTECT)
-    created_by_name = models.CharField(max_length=255, null=True, blank=True) # If external
+
+    created_by_name = models.CharField(max_length=255, null=True, blank=True)
     amount = models.DecimalField(
         max_digits=15, decimal_places=2, validators=[MinValueValidator(Decimal('0'))])
     is_active = models.BooleanField(default=True)
@@ -308,38 +310,6 @@ class BudgetAllocation(models.Model):
             date__year=year,
             date__month=month
         ).aggregate(total=models.Sum('amount'))['total'] or 0
-        
-    def save(self, *args, **kwargs):
-        is_new = self.pk is None
-        super().save(*args, **kwargs)
-        if is_new:
-            from .models import JournalEntry, JournalEntryLine
-            je = JournalEntry.objects.create(
-                category='PROJECTS',
-                description=f"Budget Allocation for Project {self.project.name}",
-                date=timezone.now(),
-                total_amount=self.amount,
-                status='POSTED',
-                created_by=self.created_by,
-            )
-            JournalEntryLine.objects.bulk_create([
-                JournalEntryLine(
-                    journal_entry=je,
-                    account=self.account,
-                    transaction_type='DEBIT',
-                    journal_transaction_type='CAPITAL_EXPENDITURE',
-                    amount=self.amount,
-                    description=f"Allocated to {self.account.name}"
-                ),
-                JournalEntryLine(
-                    journal_entry=je,
-                    account=self.funding_source,
-                    transaction_type='CREDIT',
-                    journal_transaction_type='CAPITAL_EXPENDITURE',
-                    amount=self.amount,
-                    description=f"From {self.funding_source.name}"
-                )
-            ])
 
 
 class BudgetTransfer(models.Model):
@@ -825,9 +795,7 @@ class Project(models.Model):
     status = models.CharField(
         max_length=20, choices=STATUS_CHOICES, default='PLANNING')
     completion_percentage = models.IntegerField(
-        default=0,
-        validators=[MinValueValidator(0), MaxValueValidator(100)]
-    )
+        default=0, validators=[MinValueValidator(0), MaxValueValidator(100)])
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
@@ -941,4 +909,3 @@ class UserActivityLog(models.Model):
 
     def __str__(self):
         return f"{self.user.username} - {self.action} - {self.timestamp}"
-    

@@ -4,7 +4,7 @@ from rest_framework import generics, filters
 from django_filters.rest_framework import DjangoFilterBackend
 from drf_spectacular.utils import extend_schema, OpenApiParameter, OpenApiExample
 from core.models import Expense, ExpenseCategory
-from .serializers_expense import BudgetAllocationCreateSerializer, ExpenseCategoryDropdownSerializer, ExpenseCreateSerializer, ExpenseHistorySerializer, ExpenseTrackingSerializer
+from .serializers_expense import ExpenseCategoryDropdownSerializer, ExpenseCreateSerializer, ExpenseHistorySerializer, ExpenseTrackingSerializer
 from core.pagination import StandardResultsSetPagination
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.views import APIView
@@ -153,40 +153,3 @@ class ExpenseCategoryDropdownView(generics.ListAPIView):
     @extend_schema(parameters=[])
     def get(self, request, *args, **kwargs):
         return super().get(request, *args, **kwargs)
-    
-    
-class BudgetAllocationCreateView(APIView):
-    permission_classes = [IsAuthenticated]
-
-    @extend_schema(
-        tags=['Budget Allocation'],
-        request=BudgetAllocationCreateSerializer,
-        summary="Create new budget allocation",
-        description="Allocate budget from a funding source to a proposal's account",
-        examples=[
-            OpenApiExample(
-                name="Add Budget Allocation",
-                value={
-                    "proposal_id": 1,
-                    "account_code": "5100",
-                    "funding_source_code": "4000",
-                    "amount": "500000.00",
-                    "description": "Q3 Budget Allocation"
-                },
-                request_only=True
-            )
-        ],
-        responses={201: BudgetAllocationCreateSerializer}
-    )
-    def post(self, request):
-        serializer = BudgetAllocationCreateSerializer(
-            data=request.data, 
-            context={'request': request}
-        )
-        if serializer.is_valid():
-            allocation = serializer.save()
-            return Response({
-                'status': 'Allocation created',
-                'id': allocation.id
-            }, status=201)
-        return Response(serializer.errors, status=400)

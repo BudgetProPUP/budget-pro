@@ -222,6 +222,7 @@ function BudgetDashboard() {
           <div className="date-time-badge">
             {formattedDate} | {formattedTime}
           </div>
+          {/* Export button removed and timestamp is already displayed above */}
         </div>
 
         {/* Time period filter - UPDATED TO BLUE */}

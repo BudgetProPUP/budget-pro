@@ -617,3 +617,13 @@
     min-height: 48px;
   }
 }
+
+@media (max-width: 768px) {
+  .nav-menu {
+    display: none;
+  }
+  
+  .pagination-numbers {
+    display: none;
+  }
+}

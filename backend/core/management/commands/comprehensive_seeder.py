@@ -1214,3 +1214,4 @@ class Command(BaseCommand):
         UserActivityLog.objects.bulk_create(logs)
         self.stdout.write(self.style.SUCCESS(
             f'Created {len(logs)} user activity logs'))
+    

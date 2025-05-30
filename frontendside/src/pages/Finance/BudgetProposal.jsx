@@ -531,8 +531,7 @@ const BudgetProposal = () => {
               <div className="proposal-section">
                 <h4 className="section-label">PROJECT SUMMARY:</h4>
                 <p className="section-content">
-                  This Budget Proposal provides necessary costs associated with the website redesign project (the "Project") which 
-                  we would like to pursue due to increased mobile traffic and improved conversion rates from modern interfaces.
+                  This budget proposal outlines the costs for the {selectedProposal.subject.toLowerCase()}.
                 </p>
               </div>
               

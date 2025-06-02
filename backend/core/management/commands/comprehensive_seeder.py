@@ -40,11 +40,11 @@ class Command(BaseCommand):
                 budget_allocations = self.create_budget_allocations(
                     projects,
                     accounts,
-                    admin_user
+                    admin_user,
+                    expense_categories  
                 )
                 self.create_budget_transfers(
                     fiscal_years, budget_allocations, users)
-
                 # Financial transactions
                 journal_entries = self.create_journal_entries(users)
                 self.create_journal_entry_lines(journal_entries, accounts)
@@ -282,35 +282,45 @@ class Command(BaseCommand):
                 'name': 'Assets',
                 'description': 'All company assets',
                 'account_type': acct_type_dict['Asset'],
-                'parent_account': None
+                'parent_account': None,
+                'accomplished': False,
+                'accomplishment_date': None
             },
             {
                 'code': '2000',
                 'name': 'Liabilities',
                 'description': 'All company liabilities',
                 'account_type': acct_type_dict['Liability'],
-                'parent_account': None
+                'parent_account': None,
+                'accomplished': False,
+                'accomplishment_date': None
             },
             {
                 'code': '3000',
                 'name': 'Equity',
                 'description': 'All company equity',
                 'account_type': acct_type_dict['Equity'],
-                'parent_account': None
+                'parent_account': None,
+                'accomplished': False,
+                'accomplishment_date': None
             },
             {
                 'code': '4000',
                 'name': 'Revenue',
                 'description': 'All company revenue',
                 'account_type': acct_type_dict['Revenue'],
-                'parent_account': None
+                'parent_account': None,
+                'accomplished': False,
+                'accomplishment_date': None
             },
             {
                 'code': '5000',
                 'name': 'Expenses',
                 'description': 'All company expenses',
                 'account_type': acct_type_dict['Expense'],
-                'parent_account': None
+                'parent_account': None,
+                'accomplished': False,
+                'accomplishment_date': None
             }
         ]
 
@@ -324,7 +334,9 @@ class Command(BaseCommand):
                     'account_type': acct_data['account_type'],
                     'parent_account': None,
                     'created_by': created_by,
-                    'is_active': True
+                    'is_active': True,
+                    'accomplished': acct_data['accomplished'],
+                    'accomplishment_date': acct_data['accomplishment_date']
                 }
             )
             created_parents.append(account)
@@ -340,28 +352,36 @@ class Command(BaseCommand):
                 'name': 'Cash and Cash Equivalents',
                 'description': 'Cash on hand and in bank',
                 'account_type': acct_type_dict['Asset'],
-                'parent_account': parent_dict['1000']
+                'parent_account': parent_dict['1000'],
+                'accomplished': False,
+                'accomplishment_date': None
             },
             {
                 'code': '1200',
                 'name': 'Accounts Receivable',
                 'description': 'Amounts owed to the company',
                 'account_type': acct_type_dict['Asset'],
-                'parent_account': parent_dict['1000']
+                'parent_account': parent_dict['1000'],
+                'accomplished': False,
+                'accomplishment_date': None
             },
             {
                 'code': '1300',
                 'name': 'Inventory',
                 'description': 'Items held for sale',
                 'account_type': acct_type_dict['Asset'],
-                'parent_account': parent_dict['1000']
+                'parent_account': parent_dict['1000'],
+                'accomplished': False,
+                'accomplishment_date': None
             },
             {
                 'code': '1400',
                 'name': 'Fixed Assets',
                 'description': 'Long-term tangible assets',
                 'account_type': acct_type_dict['Asset'],
-                'parent_account': parent_dict['1000']
+                'parent_account': parent_dict['1000'],
+                'accomplished': False,
+                'accomplishment_date': None
             },
 
             # Liability child accounts
@@ -370,14 +390,18 @@ class Command(BaseCommand):
                 'name': 'Accounts Payable',
                 'description': 'Amounts owed by the company',
                 'account_type': acct_type_dict['Liability'],
-                'parent_account': parent_dict['2000']
+                'parent_account': parent_dict['2000'],
+                'accomplished': False,
+                'accomplishment_date': None
             },
             {
                 'code': '2200',
                 'name': 'Accrued Expenses',
                 'description': 'Expenses incurred but not yet paid',
                 'account_type': acct_type_dict['Liability'],
-                'parent_account': parent_dict['2000']
+                'parent_account': parent_dict['2000'],
+                'accomplished': False,
+                'accomplishment_date': None
             },
 
             # Expense child accounts
@@ -386,35 +410,45 @@ class Command(BaseCommand):
                 'name': 'Salaries and Wages',
                 'description': 'Employee compensation',
                 'account_type': acct_type_dict['Expense'],
-                'parent_account': parent_dict['5000']
+                'parent_account': parent_dict['5000'],
+                'accomplished': False,
+                'accomplishment_date': None
             },
             {
                 'code': '5200',
                 'name': 'Office Supplies',
                 'description': 'Office consumables',
                 'account_type': acct_type_dict['Expense'],
-                'parent_account': parent_dict['5000']
+                'parent_account': parent_dict['5000'],
+                'accomplished': False,
+                'accomplishment_date': None
             },
             {
                 'code': '5300',
                 'name': 'Travel and Entertainment',
                 'description': 'Business travel expenses',
                 'account_type': acct_type_dict['Expense'],
-                'parent_account': parent_dict['5000']
+                'parent_account': parent_dict['5000'],
+                'accomplished': False,
+                'accomplishment_date': None
             },
             {
                 'code': '5400',
                 'name': 'IT Equipment',
                 'description': 'Technology purchases',
                 'account_type': acct_type_dict['Expense'],
-                'parent_account': parent_dict['5000']
+                'parent_account': parent_dict['5000'],
+                'accomplished': False,
+                'accomplishment_date': None
             },
             {
                 'code': '5500',
                 'name': 'Professional Development',
                 'description': 'Training and education expenses',
                 'account_type': acct_type_dict['Expense'],
-                'parent_account': parent_dict['5000']
+                'parent_account': parent_dict['5000'],
+                'accomplished': False,
+                'accomplishment_date': None
             }
         ]
 
@@ -428,7 +462,9 @@ class Command(BaseCommand):
                     'account_type': acct_data['account_type'],
                     'parent_account': acct_data['parent_account'],
                     'created_by': created_by,
-                    'is_active': True
+                    'is_active': True,
+                    'accomplished': acct_data['accomplished'],
+                    'accomplishment_date': acct_data['accomplishment_date']
                 }
             )
             created_children.append(account)
@@ -504,16 +540,16 @@ class Command(BaseCommand):
                 'level': 1
             },
             {
-                'code': 'CAP',
-                'name': 'Capital Expenditures',
-                'description': 'Long-term asset investments',
+                'code': 'TRAVEL',
+                'name': 'Travel',
+                'description': 'Business travel expenses',
                 'parent_category': None,
                 'level': 1
             },
             {
-                'code': 'HRM',
-                'name': 'Human Resources',
-                'description': 'Employee-related expenses',
+                'code': 'PROF',
+                'name': 'Professional Services',
+                'description': 'Consulting and professional fees',
                 'parent_category': None,
                 'level': 1
             }
@@ -547,56 +583,63 @@ class Command(BaseCommand):
                 'level': 2
             },
             {
-                'code': 'OPS-RENT',
-                'name': 'Rent',
-                'description': 'Office space and equipment rental',
-                'parent_category': parent_dict['OPS'],
-                'level': 2
-            },
-            {
                 'code': 'OPS-SUP',
                 'name': 'Office Supplies',
                 'description': 'Consumable office materials',
                 'parent_category': parent_dict['OPS'],
                 'level': 2
             },
+            {
+                'code': 'OPS-MKT',
+                'name': 'Marketing & Advertising',
+                'description': 'Promotional and advertising expenses',
+                'parent_category': parent_dict['OPS'],
+                'level': 2
+            },
+            {
+                'code': 'OPS-EQM',
+                'name': 'Equipment & Maintenance',
+                'description': 'Equipment purchases and maintenance',
+                'parent_category': parent_dict['OPS'],
+                'level': 2
+            },
+            {
+                'code': 'OPS-MISC',
+                'name': 'Miscellaneous',
+                'description': 'Other operational expenses',
+                'parent_category': parent_dict['OPS'],
+                'level': 2
+            },
 
-            # Capital expenditure subcategories
+            # Travel subcategories
             {
-                'code': 'CAP-IT',
-                'name': 'IT Equipment',
-                'description': 'Computer hardware and software',
-                'parent_category': parent_dict['CAP'],
+                'code': 'TRV-LOCAL',
+                'name': 'Local Travel',
+                'description': 'In-country business travel',
+                'parent_category': parent_dict['TRAVEL'],
                 'level': 2
             },
             {
-                'code': 'CAP-FAC',
-                'name': 'Facilities',
-                'description': 'Building and major improvements',
-                'parent_category': parent_dict['CAP'],
+                'code': 'TRV-INTL',
+                'name': 'International Travel',
+                'description': 'Overseas business travel',
+                'parent_category': parent_dict['TRAVEL'],
                 'level': 2
             },
 
-            # HR subcategories
+            # Professional Services subcategories
             {
-                'code': 'HRM-SAL',
-                'name': 'Salaries',
-                'description': 'Base employee compensation',
-                'parent_category': parent_dict['HRM'],
+                'code': 'PROF-LEGAL',
+                'name': 'Legal Services',
+                'description': 'Attorney and legal consultation fees',
+                'parent_category': parent_dict['PROF'],
                 'level': 2
             },
             {
-                'code': 'HRM-BEN',
-                'name': 'Benefits',
-                'description': 'Health insurance, retirement, etc.',
-                'parent_category': parent_dict['HRM'],
-                'level': 2
-            },
-            {
-                'code': 'HRM-TRN',
-                'name': 'Training',
-                'description': 'Employee education and development',
-                'parent_category': parent_dict['HRM'],
+                'code': 'PROF-CONS',
+                'name': 'Consulting',
+                'description': 'Business consulting services',
+                'parent_category': parent_dict['PROF'],
                 'level': 2
             }
         ]
@@ -620,31 +663,17 @@ class Command(BaseCommand):
 
         grandchild_categories = [
             {
-                'code': 'HRM-TRN-INT',
-                'name': 'Internal Training',
-                'description': 'In-house training programs',
-                'parent_category': child_dict['HRM-TRN'],
+                'code': 'TRN-DEV',
+                'name': 'Training & Development',
+                'description': 'Employee training programs',
+                'parent_category': child_dict['OPS-MISC'],
                 'level': 3
             },
             {
-                'code': 'HRM-TRN-EXT',
-                'name': 'External Training',
-                'description': 'Third-party training and conferences',
-                'parent_category': child_dict['HRM-TRN'],
-                'level': 3
-            },
-            {
-                'code': 'CAP-IT-HW',
-                'name': 'Hardware',
-                'description': 'Physical computing equipment',
-                'parent_category': child_dict['CAP-IT'],
-                'level': 3
-            },
-            {
-                'code': 'CAP-IT-SW',
-                'name': 'Software',
-                'description': 'Computer programs and licenses',
-                'parent_category': child_dict['CAP-IT'],
+                'code': 'IT-MAINT',
+                'name': 'IT Maintenance',
+                'description': 'Computer and software maintenance',
+                'parent_category': child_dict['OPS-EQM'],
                 'level': 3
             }
         ]
@@ -674,7 +703,7 @@ class Command(BaseCommand):
         # Get the current fiscal year
         current_year = datetime.now().year
         current_fy = next((fy for fy in fiscal_years if fy.name ==
-                        f'FY {current_year}'), fiscal_years[0])
+                           f'FY {current_year}'), fiscal_years[0])
 
         # Get a finance user to be the submitter
         finance_user = next(
@@ -682,8 +711,7 @@ class Command(BaseCommand):
 
         # Create proposals for each department
         proposals = []
-        
-        
+
         status = 'APPROVED'
 
         for i, department in enumerate(departments):
@@ -703,7 +731,8 @@ class Command(BaseCommand):
                     'department': department,
                     'fiscal_year': current_fy,
                     'submitted_by_name': finance_user.get_full_name(),  # String field
-                    'approved_by_name': users[0].get_full_name(),  # String field
+                    # String field
+                    'approved_by_name': users[0].get_full_name(),
                     'status': status,
                     'performance_start_date': start_date,
                     'performance_end_date': end_date,
@@ -712,7 +741,8 @@ class Command(BaseCommand):
                     'sync_status': random.choice(['SYNCED', 'PENDING', 'FAILED']),
                 }
 
-                proposal_data['approval_date'] = timezone.now() - timedelta(days=random.randint(1, 10))
+                proposal_data['approval_date'] = timezone.now(
+                ) - timedelta(days=random.randint(1, 10))
 
                 proposal, created = BudgetProposal.objects.update_or_create(
                     title=proposal_data['title'],
@@ -770,8 +800,8 @@ class Command(BaseCommand):
 
         self.stdout.write(self.style.SUCCESS(
             f'Created/Updated {items_created} budget proposal items'))
-        
-    def create_budget_allocations(self, projects, accounts, created_by):
+
+    def create_budget_allocations(self, projects, accounts, created_by, categories):
         """
         Creates BudgetAllocations for Projects, ensuring uniqueness constraints are respected.
         """
@@ -781,53 +811,58 @@ class Command(BaseCommand):
         expense_accounts = [
             acc for acc in accounts if acc.account_type.name == 'Expense'
         ]
-        
+
         if not expense_accounts:
-            self.stdout.write(self.style.WARNING('No expense accounts found, using all accounts'))
+            self.stdout.write(self.style.WARNING(
+                'No expense accounts found, using all accounts'))
             expense_accounts = accounts
 
         allocations = []
         allocation_keys = set()  # Track unique (fiscal_year, department, account) combinations
-        
+
         for project in projects:
-            # Get fiscal_year & department from the linked BudgetProposal
+            # Get fiscal_year and department from the linked BudgetProposal
             fy = project.budget_proposal.fiscal_year
             department = project.budget_proposal.department
-            
+
             # Find an account that doesn't cause a unique constraint violation
-            available_accounts = list(expense_accounts)  # Make a copy we can modify
+            # Make copy that can be modified
+            available_accounts = list(expense_accounts)
             random.shuffle(available_accounts)  # Randomize order
-            
+
             selected_account = None
             for account in available_accounts:
-                # Check if this combination already exists
                 key = (fy.id, department.id, account.id)
                 if key not in allocation_keys:
                     selected_account = account
                     allocation_keys.add(key)
                     break
-                    
+
             if not selected_account:
                 self.stdout.write(self.style.WARNING(
                     f"Couldn't find unique account for project {project.id}. Skipping."
                 ))
                 continue
-                
-            # Create allocation with the selected account
+
+            # Pick a random category from the provided list
+            selected_category = random.choice(
+                categories) if categories else None
+
             try:
-                # Using created_by_name instead of created_by
                 alloc = BudgetAllocation.objects.create(
                     project=project,
-                    proposal=project.budget_proposal,  # Link to the project's proposal
+                    proposal=project.budget_proposal,
                     fiscal_year=fy,
                     department=department,
                     account=selected_account,
                     amount=Decimal(random.randint(100_000, 5_000_000)),
-                    created_by_name=created_by.get_full_name(),  # Use the string name instead of foreign key
+                    created_by_name=created_by.get_full_name(),
+                    category=selected_category,
                     is_active=True
                 )
                 allocations.append(alloc)
-                self.stdout.write(f"Created allocation for project {project.id}")
+                self.stdout.write(
+                    f"Created allocation for project {project.id} in category {selected_category.name if selected_category else 'N/A'}")
             except Exception as e:
                 self.stdout.write(self.style.ERROR(
                     f"Error creating allocation for project {project.id}: {str(e)}"
@@ -857,10 +892,10 @@ class Command(BaseCommand):
         for fy_id, allocs in fy_groups.items():
             if len(allocs) < 2:
                 continue  # Skip years with insufficient allocations
-                
+
             # Get the actual fiscal year object
             fy = allocs[0].fiscal_year
-                
+
             for _ in range(min(3, len(allocs))):  # Create up to 3 transfers per fiscal year
                 source = random.choice(allocs)
                 dest = random.choice([a for a in allocs if a != source])
@@ -931,32 +966,35 @@ class Command(BaseCommand):
     def create_expenses(self, departments, accounts, budget_allocations, users, expense_categories):
         """
         Creates Expense records against budget allocations.
-        
+
         Since we're working with a system that only receives APPROVED budget proposals,
         our expenses should reflect appropriate workflow states that happen AFTER
         the proposals are approved.
         """
         self.stdout.write('Creating expenses...')
         expenses = []
-        
-        # We should still have a variety of expense statuses as these represent 
+
+        # We should still have a variety of expense statuses as these represent
         # the expense approval workflow, not the proposal workflow
         # In a real system, expenses would start as DRAFT and move through a workflow
         STATUS_CHOICES = ['DRAFT', 'SUBMITTED', 'APPROVED', 'REJECTED']
-        STATUS_WEIGHTS = [3, 4, 8, 1]  # Weight more toward APPROVED for realism
+        # Weight more toward APPROVED for realism
+        STATUS_WEIGHTS = [3, 4, 8, 1]
 
         # Skip if there are no allocations
         if not budget_allocations:
-            self.stdout.write(self.style.WARNING("No budget allocations to create expenses for"))
+            self.stdout.write(self.style.WARNING(
+                "No budget allocations to create expenses for"))
             return []
 
         for i in range(100):  # Create 100 expenses across all allocations
             alloc = random.choice(budget_allocations)
             txn_id = f"TXN-{datetime.now().strftime('%Y%m%d')}-{i+1:04d}"
-            
+
             # Use weighted choice for more realistic status distribution
-            status = random.choices(STATUS_CHOICES, weights=STATUS_WEIGHTS, k=1)[0]
-            
+            status = random.choices(
+                STATUS_CHOICES, weights=STATUS_WEIGHTS, k=1)[0]
+
             # Select an appropriate expense category
             category = random.choice(expense_categories)
 
@@ -976,7 +1014,8 @@ class Command(BaseCommand):
             )
 
             if status == 'APPROVED':
-                approvers = [u for u in users if u.role in ('ADMIN', 'FINANCE_HEAD')]
+                approvers = [u for u in users if u.role in (
+                    'ADMIN', 'FINANCE_HEAD')]
                 if approvers:
                     expense.approved_by = random.choice(approvers)
                     expense.approved_at = timezone.now()
@@ -1025,8 +1064,10 @@ class Command(BaseCommand):
 
         actions = []
         for proposal in proposals:
-            submitter = next((u for u in users if u.department == proposal.department), random.choice(users))
-            admin_user = next((u for u in users if u.is_staff), random.choice(users))
+            submitter = next((u for u in users if u.department ==
+                             proposal.department), random.choice(users))
+            admin_user = next((u for u in users if u.is_staff),
+                              random.choice(users))
 
             # Simulate approval
             actions.append(ProposalHistory(
@@ -1087,7 +1128,7 @@ class Command(BaseCommand):
         used_proposals = set()
         projects = []
         status_weights = [('PLANNING', 2), ('IN_PROGRESS', 5),
-                        ('COMPLETED', 2), ('ON_HOLD', 1)]
+                          ('COMPLETED', 2), ('ON_HOLD', 1)]
         statuses = [s for s, w in status_weights for _ in range(w)]
 
         for dept in departments:
@@ -1096,7 +1137,7 @@ class Command(BaseCommand):
             ]
 
             selected = random.sample(available_proposals,
-                                    min(3, len(available_proposals))) if available_proposals else []
+                                     min(3, len(available_proposals))) if available_proposals else []
 
             for proposal in selected:
                 used_proposals.add(proposal.id)
@@ -1114,7 +1155,8 @@ class Command(BaseCommand):
                 )
                 projects.append(project)
 
-        self.stdout.write(self.style.SUCCESS(f'Created {len(projects)} projects'))
+        self.stdout.write(self.style.SUCCESS(
+            f'Created {len(projects)} projects'))
         return projects
 
     def create_risk_metrics(self, projects, users):

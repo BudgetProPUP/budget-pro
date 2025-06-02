@@ -51,7 +51,7 @@ function LoginPage() {
         {/* Sign Up Form */}
         <div className="form-container sign-up-container">
           <div className="form">
-            <h1>Admin User</h1>
+            <h1>ADMIN</h1>
             <input
               type="email"
               placeholder="Email"
@@ -88,7 +88,7 @@ function LoginPage() {
         {/* Sign In Form */}
         <div className="form-container sign-in-container">
           <div className="form">
-            <h1>Finance Head</h1>
+            <h1>FINANCE HEAD</h1>
             <input
               type="email"
               placeholder="Email"
@@ -132,13 +132,13 @@ function LoginPage() {
             />
             
             <div className="overlay-panel overlay-left">
-              <h1>Log In as Finance Head!</h1>
+              <h1>FINANCE HEAD</h1>
               <button className="ghost-button" onClick={toggleMode}>
                 Log In
               </button>
             </div>
             <div className="overlay-panel overlay-right">
-              <h1>Log In as Admin User!</h1>
+              <h1>ADMIN</h1>
               <button className="ghost-button" onClick={toggleMode}>
                 Log In
               </button>

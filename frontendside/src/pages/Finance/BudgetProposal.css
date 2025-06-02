@@ -1070,3 +1070,68 @@ body::-webkit-scrollbar {
   font-weight: bold;
   color: var(--primary-color);
 }
+
+.transactions-table {
+  width: 100%;
+  border-collapse: collapse;
+  table-layout: fixed; /* Ensures consistent column widths */
+}
+
+.transactions-table th, 
+.transactions-table td {
+  padding: 12px 16px;
+  vertical-align: middle; /* Aligns content vertically in the middle */
+}
+
+.transactions-table th {
+  font-weight: 500;
+  color: #64748b;
+  border-bottom: 1px solid #e2e8f0;
+}
+
+.transactions-table td {
+  border-bottom: 1px solid #f1f5f9;
+}
+
+/* Status badge styling */
+.status-badge {
+  display: inline-block;
+  padding: 4px 12px;
+  border-radius: 20px;
+  font-size: 12px;
+  font-weight: 500;
+  text-transform: capitalize;
+}
+
+.status-badge.pending {
+  background-color: rgba(251, 191, 36, 0.1);
+  color: #d97706;
+}
+
+.status-badge.approved {
+  background-color: rgba(74, 222, 128, 0.1);
+  color: #16a34a;
+}
+
+.status-badge.rejected {
+  background-color: rgba(248, 113, 113, 0.1);
+  color: #dc2626;
+}
+
+/* Action button styling */
+.action-btn {
+  padding: 6px 12px;
+  font-size: 12px;
+  border-radius: 4px;
+  white-space: nowrap;
+}
+
+@media (max-width: 768px) {
+  .transactions-table-wrapper {
+    overflow-x: auto;
+  }
+  
+  .transactions-table {
+    min-width: 800px;
+  }
+}

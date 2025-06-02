@@ -430,12 +430,12 @@ const BudgetProposal = () => {
           <table className="transactions-table">
             <thead>
               <tr>
-                <th style={{ width: '20%' }}>Subject</th>
-                <th style={{ width: '20%' }}>Category</th>
-                <th style={{ width: '15%' }}>Submitted By</th>
-                <th style={{ width: '20%', textAlign: 'left' }}>Amount</th>
-                <th style={{ width: '15%' }}>Status</th>
-                <th style={{ width: '15%' }}>Actions</th>
+                <th style={{ width: '25%', textAlign: 'left' }}>Subject</th>
+                <th style={{ width: '20%', textAlign: 'left' }}>Category</th>
+                <th style={{ width: '15%', textAlign: 'left' }}>Submitted By</th>
+                <th style={{ width: '10%', textAlign: 'right' }}>Amount</th>
+                <th style={{ width: '15%', textAlign: 'center' }}>Status</th>
+                <th style={{ width: '10%', textAlign: 'center' }}>Actions</th>
               </tr>
             </thead>
             <tbody>
@@ -445,17 +445,17 @@ const BudgetProposal = () => {
                   onClick={() => handleReviewClick(proposal)}
                   style={{ cursor: 'pointer' }}
                 >
-                  <td>{proposal.subject}</td>
-                  <td>{proposal.category}</td>
-                  <td>{proposal.submittedBy}</td>
+                  <td style={{ textAlign: 'left' }}>{proposal.subject}</td>
+                  <td style={{ textAlign: 'left' }}>{proposal.category}</td>
+                  <td style={{ textAlign: 'left' }}>{proposal.submittedBy}</td>
                   <td style={{ textAlign: 'right' }}>{proposal.amount}</td>
-                  <td>
+                  <td style={{ textAlign: 'center' }}>
                     <span className={`status-badge ${proposal.status}`}>
                       {proposal.status === 'pending' ? 'Pending' : 
                       proposal.status === 'approved' ? 'Approved' : 'Rejected'}
                     </span>
                   </td>
-                  <td>
+                  <td style={{ textAlign: 'center' }}>
                     <button 
                       className="blue-button action-btn"
                       onClick={(e) => {
@@ -599,9 +599,6 @@ const BudgetProposal = () => {
                 </button>
                 <button className="action-btn reject-btn" onClick={() => handleStatusChange('rejected')}>
                   Reject
-                </button>
-                <button className="action-btn pending-btn" onClick={handlePendingClick}>
-                  Pending
                 </button>
               </div>
             </div>

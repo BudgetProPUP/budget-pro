@@ -28,7 +28,19 @@ html, body {
   margin: 0;
   padding: 0;
 }
+/* Logo styles */
+.app-logo {
+  height: 40px; /* Adjust based on your logo height */
+  display: flex;
+  align-items: center;
+  margin-right: 20px; /* Space between logo and nav */
+}
 
+.logo-image {
+  height: 100%; /* Will make logo match container height */
+  width: auto; /* Maintains aspect ratio */
+  max-width: 180px; /* Prevents logo from being too wide */
+}
 /* Header Styles */
 .app-header {
   display: flex;

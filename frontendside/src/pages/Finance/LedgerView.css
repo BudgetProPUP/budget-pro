@@ -61,15 +61,6 @@
   position: relative;
 }
 
-.nav-item.active {
-  color: #0284c7;
-  font-weight: 600;
-}
-
-.nav-dropdown {
-  position: relative;
-}
-
 .dropdown-menu {
   position: absolute;
   top: 100%;
@@ -283,12 +274,15 @@
   border-bottom: 1px solid #f1f5f9;
 }
 
-.transactions-table tbody tr:hover {
-  background-color: #fafafa;
+.transactions-table th:nth-child(5), 
+.transactions-table td:nth-child(5) {
+  width: 15%;
 }
 
-.transactions-table tbody tr:last-child td {
-  border-bottom: none;
+.transactions-table th:nth-child(6), 
+.transactions-table td:nth-child(6) {
+  width: 15%;
+  text-align: right;
 }
 
 .no-results {
@@ -398,9 +392,5 @@
 
   .transactions-table {
     min-width: 600px;
-  }
-  
-  .filter-controls {
-    justify-content: space-between;
   }
 }

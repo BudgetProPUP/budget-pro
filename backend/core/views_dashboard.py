@@ -269,10 +269,10 @@ class MonthlyBudgetActualViewSet(viewsets.ViewSet):
 
     def _calculate_monthly_data(self, department, fiscal_year, total_budget, project_id=None):
         """
-        Calculate budget and actual expenses by month.
+        Calculate budget and actual expenses by month
 
         This method distributes the annual budget across months based on fiscal year
-        duration and retrieves actual expenses by month.
+        duration and retrieves actual expenses by month
         """
         result = []
 
@@ -290,7 +290,7 @@ class MonthlyBudgetActualViewSet(viewsets.ViewSet):
         if total_months <= 0:
             return result
 
-        # Distribute budget evenly across months (simple approach)
+        #Distribute budget evenly across months (simple approach)
         monthly_budget = total_budget / total_months
 
         # For each month in the fiscal year

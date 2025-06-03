@@ -342,33 +342,35 @@ const LedgerView = () => {
         <div className="transactions-table-wrapper">
           <table className="transactions-table">
             <thead>
-              <tr>
-                <th style={{ width: '15%' }}>Reference</th>
-                <th style={{ width: '15%' }}>Date</th>
-                <th style={{ width: '20%' }}>Category</th>
-                <th style={{ width: '30%' }}>Description</th>
-                <th style={{ width: '20%', textAlign: 'right' }}>Amount</th>
-              </tr>
-            </thead>
-            <tbody>
-              {currentTransactions.length > 0 ? (
-                currentTransactions.map((transaction, index) => (
-                  <tr key={index}>
-                    <td>{transaction.reference}</td>
-                    <td>{transaction.date}</td>
-                    <td>{transaction.category}</td>
-                    <td>{transaction.description}</td>
-                    <td style={{ textAlign: 'right' }}>{transaction.amount}</td>
-                  </tr>
-                ))
-              ) : (
                 <tr>
-                  <td colSpan="5" className="no-results">
-                    No transactions match your search criteria.
-                  </td>
+                  <th style={{ width: '15%' }}>Reference</th>
+                  <th style={{ width: '15%' }}>Date</th>
+                  <th style={{ width: '20%' }}>Category</th>
+                  <th style={{ width: '20%' }}>Description</th>
+                  <th style={{ width: '15%' }}>Account</th> 
+                  <th style={{ width: '15%', textAlign: 'right' }}>Amount</th>
                 </tr>
-              )}
-            </tbody>
+              </thead>
+                    <tbody>
+          {currentTransactions.length > 0 ? (
+            currentTransactions.map((transaction, index) => (
+              <tr key={index}>
+                <td>{transaction.reference}</td>
+                <td>{transaction.date}</td>
+                <td>{transaction.category}</td>
+                <td>{transaction.description}</td>
+                <td>{transaction.type}</td> 
+                <td style={{ textAlign: 'right' }}>{transaction.amount}</td>
+              </tr>
+            ))
+          ) : (
+            <tr>
+              <td colSpan="6" className="no-results">
+                No transactions match your search criteria.
+              </td>
+            </tr>
+          )}
+</tbody>
           </table>
           
           {/* Pagination Controls */}

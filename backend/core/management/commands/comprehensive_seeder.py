@@ -1,6 +1,7 @@
 from django.core.management.base import BaseCommand
 from django.utils import timezone
 from django.db import transaction
+from django.db.models import Sum
 from datetime import datetime, timedelta
 import random
 from decimal import Decimal
@@ -821,6 +822,11 @@ class Command(BaseCommand):
         allocation_keys = set()  # Track unique (fiscal_year, department, account) combinations
 
         for project in projects:
+            # Calculate total from proposal items
+            total_estimated_cost = BudgetProposalItem.objects.filter(
+                proposal=project.budget_proposal
+            ).aggregate(total=Sum('estimated_cost'))['total'] or 0
+            
             # Get fiscal_year and department from the linked BudgetProposal
             fy = project.budget_proposal.fiscal_year
             department = project.budget_proposal.department
@@ -855,7 +861,7 @@ class Command(BaseCommand):
                     fiscal_year=fy,
                     department=department,
                     account=selected_account,
-                    amount=Decimal(random.randint(100_000, 5_000_000)),
+                    amount=total_estimated_cost,
                     created_by_name=created_by.get_full_name(),
                     category=selected_category,
                     is_active=True

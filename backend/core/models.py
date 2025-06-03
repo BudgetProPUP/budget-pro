@@ -340,7 +340,7 @@ class BudgetAllocation(models.Model):
         help_text='The account this allocation funds.'
     )
     proposal = models.ForeignKey(
-        'BudgetProposal',
+        BudgetProposal,
         on_delete=models.SET_NULL,
         null=True, blank=True,
         related_name='allocations',
@@ -774,7 +774,6 @@ class TransactionAudit(models.Model):
             }
         )
 
-
 class Project(models.Model):
     STATUS_CHOICES = [
         ('PLANNING', 'Planning'),
@@ -846,7 +845,6 @@ class ProjectFiscalYear(models.Model):
 
     class Meta:
         unique_together = ('project', 'fiscal_year')
-
 
 class DashboardMetric(models.Model):
     metric_type = models.CharField(max_length=100)

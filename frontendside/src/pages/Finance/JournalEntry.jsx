@@ -27,12 +27,12 @@ function JournalEntry() {
 
   // Sample journal entries data
   const journalEntries = [
-    { id: 'EX-001', date: '05-12-2025', category: 'Miscellaneous', description: 'Internet Bill', amount: 'P8,300' },
-    { id: 'AS-001', date: '05-03-2025', category: 'Equipment & Maintenance', description: 'Company Laptops', amount: 'P250,000' },
-    { id: 'LI-001', date: '04-21-2025', category: 'Miscellaneous', description: 'Office Rent', amount: 'P45,000' },
-    { id: 'EX-002', date: '04-15-2025', category: 'Miscellaneous', description: 'Electricity Bill', amount: 'P12,750' },
-    { id: 'AS-002', date: '04-10-2025', category: 'Equipment & Maintenance', description: 'Office Furniture', amount: 'P85,000' },
-  ];
+  { id: 'EX-001', date: '05-12-2025', category: 'Miscellaneous', account: 'Expenses', description: 'Internet Bill', amount: 'P8,300' },
+  { id: 'AS-001', date: '05-03-2025', category: 'Equipment & Maintenance', account: 'Assets', description: 'Company Laptops', amount: 'P250,000' },
+  { id: 'LI-001', date: '04-21-2025', category: 'Miscellaneous', account: 'Liabilities', description: 'Office Rent', amount: 'P45,000' },
+  { id: 'EX-002', date: '04-15-2025', category: 'Miscellaneous', account: 'Expenses', description: 'Electricity Bill', amount: 'P12,750' },
+  { id: 'AS-002', date: '04-10-2025', category: 'Equipment & Maintenance', account: 'Assets', description: 'Office Furniture', amount: 'P85,000' },
+];
 
   // Get unique categories for the filter dropdown
   const categories = [
@@ -53,12 +53,13 @@ function JournalEntry() {
 
   // Filter journal entries based on search query and selected category
   const filteredEntries = journalEntries.filter(entry => {
-    const matchesSearch = entry.description.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                         entry.category.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                         entry.id.toLowerCase().includes(searchQuery.toLowerCase());
-    const matchesCategory = selectedCategory === 'All Categories' || entry.category === selectedCategory;
-    return matchesSearch && matchesCategory;
-  });
+  const matchesSearch = entry.description.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                       entry.category.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                       entry.id.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                       entry.account.toLowerCase().includes(searchQuery.toLowerCase());
+  const matchesCategory = selectedCategory === 'All Categories' || entry.category === selectedCategory;
+  return matchesSearch && matchesCategory;
+});
 
   // Pagination logic
   const indexOfLastItem = currentPage * itemsPerPage;
@@ -257,19 +258,21 @@ function JournalEntry() {
           <table className="transactions-table">
             <thead>
               <tr>
-                <th style={{ width: '15%' }}>Reference</th>
-                <th style={{ width: '15%' }}>Date</th>
-                <th style={{ width: '20%' }}>Category</th>
-                <th style={{ width: '30%' }}>Description</th>
-                <th style={{ width: '20%', textAlign: 'right' }}>Amount</th>
+                <th style={{ width: '12%' }}>Reference</th>
+                <th style={{ width: '12%' }}>Date</th>
+                <th style={{ width: '12%' }}>Category</th>
+                <th style={{ width: '12%' }}>Account</th>
+                <th style={{ width: '12%' }}>Description</th>
+                <th style={{ width: '12%', textAlign: 'right' }}>Amount</th>
               </tr>
             </thead>
-            <tbody>
+                        <tbody>
               {currentEntries.map((entry) => (
                 <tr key={entry.id}>
                   <td>{entry.id}</td>
                   <td>{entry.date}</td>
                   <td>{entry.category}</td>
+                  <td>{entry.account}</td>
                   <td>{entry.description}</td>
                   <td style={{ textAlign: 'right' }}>{entry.amount}</td>
                 </tr>

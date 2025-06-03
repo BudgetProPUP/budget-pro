@@ -517,7 +517,7 @@ body {
 }
 
 .modal-container {
-  background-color: var(--white);
+  background-color: var(--light-bg);
   border-radius: 8px;
   width: 100%;
   max-width: 550px;
@@ -586,10 +586,6 @@ body {
 }
 
 .form-group label {
-  display: block;
-  margin-bottom: 0.5rem;
-  font-size: 0.875rem;
-  font-weight: 500;
   color: var(--gray-700);
 }
 
@@ -602,6 +598,8 @@ body {
   border-radius: 4px;
   font-size: 0.875rem;
   transition: border-color 0.2s ease;
+  background: white;
+  color: black; 
 }
 
 .form-group input:focus,
@@ -736,3 +734,27 @@ body {
     justify-content: center;
   }
 }
+
+/* Add this to your CSS */
+.amount-date-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 1rem 0;
+}
+
+.amount-date-table td {
+  padding: 0.75rem;
+  border: 1px solid #f1f5f9;
+}
+
+.amount-date-table input {
+  width: 100%;
+  border: none;
+  background: transparent;
+  padding: 0.5rem;
+}
+
+.amount-date-table input:focus {
+  outline: none;
+}
+

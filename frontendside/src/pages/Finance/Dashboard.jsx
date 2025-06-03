@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 import { ChevronLeft, ChevronRight, ChevronDown, Search, ArrowLeft, Expand, Minimize } from 'lucide-react';
 import { Link, useNavigate } from 'react-router-dom';
+import LOGOMAP from '../../assets/LOGOMAP.png';
 import './Dashboard.css';
 
 function BudgetDashboard() {
@@ -126,10 +127,16 @@ function BudgetDashboard() {
     <div className="app-container">
       {/* Header - Using ExpenseHistory Nav Structure */}
       <header className="app-header">
-        <div className="header-left">
-          <h1 className="app-logo">BUDGETPRO</h1>
-          <nav className="nav-menu">
-            <Link to="/dashboard" className="nav-item">Dashboard</Link>
+  <div className="header-left">
+    <div className="app-logo">
+      <img 
+        src={LOGOMAP} 
+        alt="BudgetPro Logo" 
+        className="logo-image"
+      />
+    </div>
+    <nav className="nav-menu">
+      <Link to="/dashboard" className="nav-item">Dashboard</Link>
 
             {/* Budget Dropdown */}
             <div className="nav-dropdown">
@@ -222,7 +229,6 @@ function BudgetDashboard() {
           <div className="date-time-badge">
             {formattedDate} | {formattedTime}
           </div>
-          {/* Export button removed and timestamp is already displayed above */}
         </div>
 
         {/* Time period filter - UPDATED TO BLUE */}

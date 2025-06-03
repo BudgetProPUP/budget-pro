@@ -90,9 +90,9 @@ const ExpenseTracking = () => {
 
   // Budget summary data
   const budgetData = {
-    remaining: '₱3,326,025.75',
-    expensesThisMonth: '₱800,025.75'
-  };
+  remaining: <span style={{ color: '#0d6efd' }}>₱3,326,025.75</span>,
+  expensesThisMonth: <span style={{ color: '#0d6efd' }}>₱800,025.75</span>
+};
 
   // Define categories directly instead of extracting from expenses
   const categories = [
@@ -135,31 +135,24 @@ const ExpenseTracking = () => {
   const nextPage = () => setCurrentPage(prev => Math.min(prev + 1, totalPages));
   const prevPage = () => setCurrentPage(prev => Math.max(prev - 1, 1));
 
+  // Navigation functions
   const toggleBudgetDropdown = () => {
     setShowBudgetDropdown(!showBudgetDropdown);
     if (showExpenseDropdown) setShowExpenseDropdown(false);
-    if (showCategoryDropdown) setShowCategoryDropdown(false);
-    if (showDateDropdown) setShowDateDropdown(false);
   };
 
   const toggleExpenseDropdown = () => {
     setShowExpenseDropdown(!showExpenseDropdown);
     if (showBudgetDropdown) setShowBudgetDropdown(false);
-    if (showCategoryDropdown) setShowCategoryDropdown(false);
-    if (showDateDropdown) setShowDateDropdown(false);
   };
 
   const toggleCategoryDropdown = () => {
     setShowCategoryDropdown(!showCategoryDropdown);
-    if (showBudgetDropdown) setShowBudgetDropdown(false);
-    if (showExpenseDropdown) setShowExpenseDropdown(false);
     if (showDateDropdown) setShowDateDropdown(false);
   };
 
   const toggleDateDropdown = () => {
     setShowDateDropdown(!showDateDropdown);
-    if (showBudgetDropdown) setShowBudgetDropdown(false);
-    if (showExpenseDropdown) setShowExpenseDropdown(false);
     if (showCategoryDropdown) setShowCategoryDropdown(false);
   };
 

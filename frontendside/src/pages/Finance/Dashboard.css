@@ -1,5 +1,6 @@
 /* Dashboard.css - Combined and Optimized Blue Palette */
-
+/* Add this at the top of your Dashboard.css */
+@import url('https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap');
 /* Reset and base styles */
 * {
   box-sizing: border-box;
@@ -28,19 +29,21 @@ html, body {
   margin: 0;
   padding: 0;
 }
+
 /* Logo styles */
 .app-logo {
-  height: 40px; /* Adjust based on your logo height */
+  height: 40px;
   display: flex;
   align-items: center;
-  margin-right: 20px; /* Space between logo and nav */
+  margin-right: 20px;
 }
 
 .logo-image {
-  height: 100%; /* Will make logo match container height */
-  width: auto; /* Maintains aspect ratio */
-  max-width: 180px; /* Prevents logo from being too wide */
+  height: 100%;
+  width: auto;
+  max-width: 180px;
 }
+
 /* Header Styles */
 .app-header {
   display: flex;
@@ -52,6 +55,7 @@ html, body {
   height: 60px;
   flex-shrink: 0;
 }
+
 .content-container {
   flex: 1;
   padding: 1.5rem;
@@ -62,9 +66,9 @@ html, body {
 
 .header-left {
   display: flex;
-    align-items: center;
-    width: 100%; /* Ensures flex space distribution */
-    justify-content: space-between; /* Logo on left, menu on right */
+  align-items: center;
+  width: 100%;
+  justify-content: space-between;
 }
 
 .date-display, 
@@ -88,12 +92,12 @@ html, body {
   font-weight: bold;
   color: #0096FF !important;
   margin: 0;
-   margin-right: 60px 
+  margin-right: 60px;
 }
 
 .nav-menu {
-    margin: 0 auto; /* Centers the menu */
-    transform: translateX(-50px); /* Fine-tune position */
+  margin: 0 auto;
+  transform: translateX(-50px);
 }
 
 .nav-item {
@@ -146,24 +150,190 @@ html, body {
   background-color: #f3f4f6;
 }
 
-/* User Avatar */
+/* User Avatar and Profile */
 .header-right {
   display: flex;
   align-items: center;
 }
 
+.profile-container {
+  position: relative;
+}
+
 .user-avatar {
   width: 2rem;
   height: 2rem;
-  border-radius: 9999px;
+  border-radius: 50%;
   overflow: hidden;
   border: 1px solid #d1d5db;
+  cursor: pointer;
+  transition: border-color 0.2s;
+}
+
+.user-avatar:hover {
+  border-color: #3b82f6;
 }
 
 .avatar-img {
   width: 100%;
   height: 100%;
   object-fit: cover;
+}
+
+/* Profile Popup */
+.profile-popup {
+  position: absolute;
+  top: calc(100% + 0.5rem);
+  right: 0;
+  width: 280px;
+  background-color: #fff;
+  border-radius: 12px;
+  box-shadow: 0 10px 25px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+  border: 1px solid #e5e7eb;
+  z-index: 50;
+  overflow: hidden;
+}
+
+.profile-popup-header {
+  display: flex;
+  align-items: center;
+  padding: 1rem 1.5rem;
+  border-bottom: 1px solid #e5e7eb;
+  background-color: #f9fafb;
+}
+
+.profile-back-btn {
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 0.25rem;
+  margin-right: 0.75rem;
+  border-radius: 4px;
+  color: #6b7280;
+  transition: all 0.2s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.profile-back-btn:hover {
+  background-color: #e5e7eb;
+  color: #374151;
+}
+
+.profile-popup-title {
+  font-size: 1.125rem;
+  font-weight: 600;
+  color: #111827;
+  margin: 0;
+}
+
+.profile-popup-content {
+  padding: 1.5rem;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.profile-avatar-large {
+  width: 80px;
+  height: 80px;
+  border-radius: 50%;
+  overflow: hidden;
+  margin-bottom: 1rem;
+  border: 3px solid #e5e7eb;
+}
+
+.profile-avatar-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.profile-link {
+  margin-bottom: 1.5rem;
+}
+
+.profile-link-text {
+  color: #3b82f6;
+  font-size: 0.875rem;
+  font-weight: 500;
+  cursor: pointer;
+  text-decoration: none;
+  transition: color 0.2s;
+}
+
+.profile-link-text:hover {
+  color: #2563eb;
+  text-decoration: underline;
+}
+
+.profile-info {
+  width: 100%;
+  margin-bottom: 1.5rem;
+}
+
+.profile-field {
+  margin-bottom: 1rem;
+}
+
+.profile-field:last-child {
+  margin-bottom: 0;
+}
+
+.profile-field-header {
+  display: flex;
+  align-items: center;
+  margin-bottom: 0.25rem;
+}
+
+.profile-field-icon {
+  color: #6b7280;
+  margin-right: 0.5rem;
+}
+
+.profile-field-label {
+  font-size: 0.75rem;
+  font-weight: 500;
+  color: #6b7280;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.profile-field-value {
+  font-size: 0.875rem;
+  color: #374151;
+  font-weight: 500;
+  margin-left: 1.5rem;
+}
+
+.profile-email {
+  color: #3b82f6;
+}
+
+.profile-role {
+  color: #059669;
+}
+
+.logout-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  width: 100%;
+  padding: 0.75rem 1rem;
+  background-color: #3b82f6;
+  color: white;
+  border: none;
+  border-radius: 8px;
+  font-size: 0.875rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+
+.logout-btn:hover {
+  background-color: #2563eb;
 }
 
 /* Main Content */
@@ -705,6 +875,15 @@ html, body {
   .card {
     padding: 1rem;
   }
+  
+  .profile-popup {
+    width: 260px;
+    right: -10px;
+  }
+  
+  .profile-popup-content {
+    padding: 1rem;
+  }
 }
 
 /* Footer */
@@ -719,3 +898,4 @@ html, body {
   margin-bottom: 1.5rem;
   width: 100%;
 }
+

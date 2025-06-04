@@ -8,7 +8,7 @@ body, html {
   margin: 0;
   padding: 0;
   height: 100%;
-  font-family: 'Poppins', sans-serif;
+   font-family: 'Poppins', sans-serif;
 }
 
 .fullscreen-slider-container {
@@ -144,15 +144,13 @@ body, html {
   transform: translateX(20%);
 }
 
-
-
 .form {
   background-color: #FFFFFF;
   display: flex;
   align-items: center;
   justify-content: center;
   flex-direction: column;
-  padding: 0 50px;
+  padding: 0 30px; /* Reduced from 50px to 30px */
   height: 100%;
   text-align: center;
 }
@@ -160,23 +158,24 @@ body, html {
 .form h1 {
   color: #41b0f5; /* Your specified blue */
   font-weight: bold;
-  margin: 0 0 20px 0;
-  font-size: 36px;
+  margin: 0 0 15px 0; /* Reduced bottom margin from 20px to 15px */
+  font-size: 32px; /* Reduced from 36px to 32px */
   line-height: 1.2;
 }
 
 .form p {
   font-size: 14px;
-  margin-bottom: 30px;
+  margin-bottom: 20px; /* Reduced from 30px to 20px */
   color: #666;
 }
 
 .form input {
   background-color: #f6f6f6;
   border: 2px solid #41b0f5; /* Blue border */
-  padding: 15px;
-  margin: 10px 0;
-  width: 100%;
+  padding: 12px; /* Reduced from 15px to 12px */
+  margin: 8px 0; /* Reduced from 10px to 8px */
+  width: 85%; /* Reduced from 100% to 85% */
+  max-width: 320px; /* Added max-width for better control */
   border-radius: 5px;
   outline: none;
   font-size: 14px;
@@ -198,21 +197,29 @@ body, html {
   color: #FFFFFF;
   font-size: 14px;
   font-weight: bold;
-  padding: 15px 45px;
+  padding: 12px 35px; /* Reduced from 15px 45px to 12px 35px */
   letter-spacing: 1px;
   text-transform: uppercase;
   transition: all 0.3s ease;
-  margin-top: 20px;
+  margin-top: 15px; /* Reduced from 20px to 15px */
   cursor: pointer;
-  width: 100%;
+  width: 85%; /* Reduced from 100% to 85% */
+  max-width: 320px; /* Added max-width to match inputs */
 }
 
 .form-button:hover {
   background-color: #3598db; /* Slightly darker on hover */
 }
+
 .password-input-container {
   position: relative;
-  width: 100%;
+  width: 85%; /* Reduced from 100% to 85% */
+  max-width: 320px; /* Added max-width for consistency */
+}
+
+.password-input-container input {
+  width: 100%; /* Full width of the container */
+  margin: 8px 0; /* Keep consistent with other inputs */
 }
 
 .password-toggle {
@@ -226,26 +233,6 @@ body, html {
   padding: 0;
 }
 
-.form-button {
-  border-radius: 5px;
-  border: none;
-  background-color: #41b0f5;
-  color: #FFFFFF;
-  font-size: 14px;
-  font-weight: bold;
-  padding: 15px 45px;
-  letter-spacing: 1px;
-  text-transform: uppercase;
-  transition: all 0.3s ease;
-  margin-top: 20px;
-  cursor: pointer;
-  width: 100%;
-}
-
-.form-button:hover {
-  background-color: #41b0f5;
-}
-
 .ghost-button {
   background-color: transparent;
   border-radius: 5px;
@@ -253,11 +240,11 @@ body, html {
   color: #FFFFFF;
   font-size: 14px;
   font-weight: bold;
-  padding: 15px 45px;
+  padding: 12px 35px; /* Reduced from 15px 45px to 12px 35px */
   letter-spacing: 1px;
   text-transform: uppercase;
   transition: all 0.3s ease;
-  margin-top: 20px;
+  margin-top: 15px; /* Reduced from 20px to 15px */
   cursor: pointer;
 }
 
@@ -267,11 +254,22 @@ body, html {
 
 @media (max-width: 768px) {
   .form {
-    padding: 0 30px;
+    padding: 0 20px; /* Reduced from 30px to 20px */
   }
   
   .form h1 {
-    font-size: 28px;
+    font-size: 26px; /* Reduced from 28px to 26px */
+  }
+  
+  .form input,
+  .form-button {
+    width: 90%; /* Slightly wider on mobile */
+    max-width: none; /* Remove max-width on mobile */
+  }
+  
+  .password-input-container {
+    width: 90%; /* Match other inputs on mobile */
+    max-width: none; /* Remove max-width on mobile */
   }
   
   .overlay-panel {
@@ -301,4 +299,3 @@ body, html {
 .ghost-button:hover {
   background-color: rgba(255,255,255,0.2);
 }
-

@@ -1,11 +1,13 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { Search, ChevronDown, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Search, ChevronDown, ChevronLeft, ChevronRight, ArrowLeft, User, Mail, Briefcase, LogOut } from 'lucide-react';
+import LOGOMAP from '../../assets/LOGOMAP.png';
 import './AccountSetup.css';
 
 const AccountSetup = () => {
   const [showBudgetDropdown, setShowBudgetDropdown] = useState(false);
   const [showExpenseDropdown, setShowExpenseDropdown] = useState(false);
+  const [showProfilePopup, setShowProfilePopup] = useState(false);
   const [selectedAccounts, setSelectedAccounts] = useState([]);
   const [currentPage, setCurrentPage] = useState(1);
   const [showAccountTypeFilter, setShowAccountTypeFilter] = useState(false);
@@ -15,6 +17,14 @@ const AccountSetup = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const itemsPerPage = 5; // Number of accounts per page
   const navigate = useNavigate();
+  
+  // User profile data - Same as Dashboard
+  const userProfile = {
+    name: "John Doe",
+    email: "Johndoe@gmail.com",
+    role: "Finance Head",
+    avatar: "https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?ixlib=rb-1.2.1&ixid=eyJhcHBfaWQiOjEyMDd9&auto=format&fit=facearea&facepad=2&w=256&h=256&q=80"
+  };
   
   // Account type options
   const accountTypes = ['All', 'Assets', 'Liabilities', 'Expenses'];
@@ -30,6 +40,22 @@ const AccountSetup = () => {
     { id: 4, code: '3014', type: 'Assets', description: 'Office Equipment', active: true, accomplished: true, date: '05-11-25' },
     { id: 5, code: '5210', type: 'Expenses', description: 'Rent Expense', active: false, accomplished: true, date: '04-24-25' },
   ]);
+
+  // Close dropdowns when clicking outside - Same as Dashboard
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (!event.target.closest('.nav-dropdown') && !event.target.closest('.profile-container')) {
+        setShowBudgetDropdown(false);
+        setShowExpenseDropdown(false);
+        setShowProfilePopup(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, []);
 
   // Filter accounts based on selected filters and search query
   const filteredAccounts = accounts.filter(account => {
@@ -72,11 +98,19 @@ const AccountSetup = () => {
   const toggleBudgetDropdown = () => {
     setShowBudgetDropdown(!showBudgetDropdown);
     if (showExpenseDropdown) setShowExpenseDropdown(false);
+    if (showProfilePopup) setShowProfilePopup(false);
   };
 
   const toggleExpenseDropdown = () => {
     setShowExpenseDropdown(!showExpenseDropdown);
     if (showBudgetDropdown) setShowBudgetDropdown(false);
+    if (showProfilePopup) setShowProfilePopup(false);
+  };
+
+  const toggleProfilePopup = () => {
+    setShowProfilePopup(!showProfilePopup);
+    if (showBudgetDropdown) setShowBudgetDropdown(false);
+    if (showExpenseDropdown) setShowExpenseDropdown(false);
   };
 
   const toggleAccountTypeFilter = () => {
@@ -93,6 +127,32 @@ const AccountSetup = () => {
     navigate(path);
     setShowBudgetDropdown(false);
     setShowExpenseDropdown(false);
+    setShowProfilePopup(false);
+  };
+
+  // Updated logout function with navigation to login screen - Same as Dashboard
+  const handleLogout = () => {
+    try {
+      // Clear any stored authentication data
+      localStorage.removeItem('authToken');
+      localStorage.removeItem('userSession');
+      localStorage.removeItem('userProfile');
+      
+      // Clear session storage
+      sessionStorage.clear();
+      
+      // Close the profile popup
+      setShowProfilePopup(false);
+      
+      // Navigate to login screen
+      navigate('/login', { replace: true });
+      
+      console.log('User logged out successfully');
+    } catch (error) {
+      console.error('Error during logout:', error);
+      // Still navigate to login even if there's an error clearing storage
+      navigate('/login', { replace: true });
+    }
   };
 
   const handleAccountSelect = (id) => {
@@ -122,10 +182,16 @@ const AccountSetup = () => {
 
   return (
     <div className="app-container">
-      {/* Header */}
+      {/* Header - Copied from Dashboard */}
       <header className="app-header">
         <div className="header-left">
-          <h1 className="app-logo">BUDGETPRO</h1>
+          <div className="app-logo">
+            <img 
+              src={LOGOMAP} 
+              alt="BudgetPro Logo" 
+              className="logo-image"
+            />
+          </div>
           <nav className="nav-menu">
             <Link to="/dashboard" className="nav-item">Dashboard</Link>
 
@@ -152,7 +218,7 @@ const AccountSetup = () => {
                     Proposal History
                   </div>
                   <div
-                    className="dropdown-item active"
+                    className="dropdown-item"
                     onClick={() => handleNavigate('/finance/account-setup')}
                   >
                     Account Setup
@@ -206,9 +272,68 @@ const AccountSetup = () => {
             </div>
           </nav>
         </div>
+        
         <div className="header-right">
-          <div className="user-avatar">
-            <img src="/api/placeholder/36/36" alt="User avatar" className="avatar-img" />
+          <div className="profile-container">
+            <div className="user-avatar" onClick={toggleProfilePopup}>
+              <img src={userProfile.avatar} alt="User avatar" className="avatar-img" />
+            </div>
+            
+            {/* Profile Popup */}
+            {showProfilePopup && (
+              <div className="profile-popup">
+                <div className="profile-popup-header">
+                  <button 
+                    className="profile-back-btn"
+                    onClick={() => setShowProfilePopup(false)}
+                  >
+                    <ArrowLeft size={20} />
+                  </button>
+                  <h3 className="profile-popup-title">Profile</h3>
+                </div>
+                
+                <div className="profile-popup-content">
+                  <div className="profile-avatar-large">
+                    <img src={userProfile.avatar} alt="Profile" className="profile-avatar-img" />
+                  </div>
+                  
+                  <div className="profile-link">
+                    <span className="profile-link-text">My Profile</span>
+                  </div>
+                  
+                  <div className="profile-info">
+                    <div className="profile-field">
+                      <div className="profile-field-header">
+                        <User size={16} className="profile-field-icon" />
+                        <span className="profile-field-label">Name:</span>
+                      </div>
+                      <span className="profile-field-value">{userProfile.name}</span>
+                    </div>
+                    
+                    <div className="profile-field">
+                      <div className="profile-field-header">
+                        <Mail size={16} className="profile-field-icon" />
+                        <span className="profile-field-label">E-mail:</span>
+                      </div>
+                      <span className="profile-field-value profile-email">{userProfile.email}</span>
+                    </div>
+                    
+                    <div className="profile-field">
+                      <div className="profile-field-header">
+                        <Briefcase size={16} className="profile-field-icon" />
+                        <span className="profile-field-label">Role:</span>
+                      </div>
+                      <span className="profile-field-value profile-role">{userProfile.role}</span>
+                    </div>
+                  </div>
+                  
+                  <button className="logout-btn" onClick={handleLogout}>
+                    <LogOut size={16} />
+                    Log Out
+                  </button>
+                </div>
+              </div>
+            )}
           </div>
         </div>
       </header>

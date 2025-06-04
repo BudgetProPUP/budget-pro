@@ -11,3 +11,9 @@
     It assumes uniform monthly distribution in the absence of fine-grained monthly planning, which is acceptable for initial reporting. 
     However, if future business processes introduce detailed monthly allocations or varying disbursement schedules, 
     this logic must be updated to reflect actual monthly planning or cash flow-based allocation strategies.
+- change signing_key to secrets manager for better security/ and verifying key]
+
+
+
+did:
+- disabled api and axios .jsx 

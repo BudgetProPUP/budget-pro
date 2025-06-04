@@ -1,11 +1,13 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { Search, ChevronDown, ArrowLeft, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Search, ChevronDown, ArrowLeft, ChevronLeft, ChevronRight, User, Mail, Briefcase, LogOut } from 'lucide-react';
+import LOGOMAP from '../../assets/LOGOMAP.png';
 import './JournalEntry.css';
 
 function JournalEntry() {
   const [showBudgetDropdown, setShowBudgetDropdown] = useState(false);
   const [showExpenseDropdown, setShowExpenseDropdown] = useState(false);
+  const [showProfilePopup, setShowProfilePopup] = useState(false);
   const [showCategoryDropdown, setShowCategoryDropdown] = useState(false);
   const [selectedCategory, setSelectedCategory] = useState('All Categories');
   const [showAddJournalModal, setShowAddJournalModal] = useState(false);
@@ -13,6 +15,14 @@ function JournalEntry() {
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 5; // Number of journal entries per page
   const navigate = useNavigate();
+
+  // User profile data (same as Dashboard)
+  const userProfile = {
+    name: "John Doe",
+    email: "Johndoe@gmail.com",
+    role: "Finance Head",
+    avatar: "https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?ixlib=rb-1.2.1&ixid=eyJhcHBfaWQiOjEyMDd9&auto=format&fit=facearea&facepad=2&w=256&h=256&q=80"
+  };
 
   // Initial form state
   const [journalForm, setJournalForm] = useState({
@@ -27,12 +37,12 @@ function JournalEntry() {
 
   // Sample journal entries data
   const journalEntries = [
-  { id: 'EX-001', date: '05-12-2025', category: 'Miscellaneous', account: 'Expenses', description: 'Internet Bill', amount: 'P8,300' },
-  { id: 'AS-001', date: '05-03-2025', category: 'Equipment & Maintenance', account: 'Assets', description: 'Company Laptops', amount: 'P250,000' },
-  { id: 'LI-001', date: '04-21-2025', category: 'Miscellaneous', account: 'Liabilities', description: 'Office Rent', amount: 'P45,000' },
-  { id: 'EX-002', date: '04-15-2025', category: 'Miscellaneous', account: 'Expenses', description: 'Electricity Bill', amount: 'P12,750' },
-  { id: 'AS-002', date: '04-10-2025', category: 'Equipment & Maintenance', account: 'Assets', description: 'Office Furniture', amount: 'P85,000' },
-];
+    { id: 'EX-001', date: '05-12-2025', category: 'Miscellaneous', account: 'Expenses', description: 'Internet Bill', amount: 'P8,300' },
+    { id: 'AS-001', date: '05-03-2025', category: 'Equipment & Maintenance', account: 'Assets', description: 'Company Laptops', amount: 'P250,000' },
+    { id: 'LI-001', date: '04-21-2025', category: 'Miscellaneous', account: 'Liabilities', description: 'Office Rent', amount: 'P45,000' },
+    { id: 'EX-002', date: '04-15-2025', category: 'Miscellaneous', account: 'Expenses', description: 'Electricity Bill', amount: 'P12,750' },
+    { id: 'AS-002', date: '04-10-2025', category: 'Equipment & Maintenance', account: 'Assets', description: 'Office Furniture', amount: 'P85,000' },
+  ];
 
   // Get unique categories for the filter dropdown
   const categories = [
@@ -46,6 +56,22 @@ function JournalEntry() {
     'Training & Development',
   ];
 
+  // Close dropdowns when clicking outside (same as Dashboard)
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (!event.target.closest('.nav-dropdown') && !event.target.closest('.profile-container')) {
+        setShowBudgetDropdown(false);
+        setShowExpenseDropdown(false);
+        setShowProfilePopup(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, []);
+
   const handleSearch = (e) => {
     setSearchQuery(e.target.value);
     setCurrentPage(1); // Reset to first page when search changes
@@ -53,13 +79,13 @@ function JournalEntry() {
 
   // Filter journal entries based on search query and selected category
   const filteredEntries = journalEntries.filter(entry => {
-  const matchesSearch = entry.description.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                       entry.category.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                       entry.id.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                       entry.account.toLowerCase().includes(searchQuery.toLowerCase());
-  const matchesCategory = selectedCategory === 'All Categories' || entry.category === selectedCategory;
-  return matchesSearch && matchesCategory;
-});
+    const matchesSearch = entry.description.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                         entry.category.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                         entry.id.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                         entry.account.toLowerCase().includes(searchQuery.toLowerCase());
+    const matchesCategory = selectedCategory === 'All Categories' || entry.category === selectedCategory;
+    return matchesSearch && matchesCategory;
+  });
 
   // Pagination logic
   const indexOfLastItem = currentPage * itemsPerPage;
@@ -74,13 +100,19 @@ function JournalEntry() {
   const toggleBudgetDropdown = () => {
     setShowBudgetDropdown(!showBudgetDropdown);
     if (showExpenseDropdown) setShowExpenseDropdown(false);
-    if (showCategoryDropdown) setShowCategoryDropdown(false);
+    if (showProfilePopup) setShowProfilePopup(false);
   };
 
   const toggleExpenseDropdown = () => {
     setShowExpenseDropdown(!showExpenseDropdown);
     if (showBudgetDropdown) setShowBudgetDropdown(false);
-    if (showCategoryDropdown) setShowCategoryDropdown(false);
+    if (showProfilePopup) setShowProfilePopup(false);
+  };
+
+  const toggleProfilePopup = () => {
+    setShowProfilePopup(!showProfilePopup);
+    if (showBudgetDropdown) setShowBudgetDropdown(false);
+    if (showExpenseDropdown) setShowExpenseDropdown(false);
   };
 
   const toggleCategoryDropdown = () => {
@@ -99,6 +131,32 @@ function JournalEntry() {
     navigate(path);
     setShowBudgetDropdown(false);
     setShowExpenseDropdown(false);
+    setShowProfilePopup(false);
+  };
+
+  // Updated logout function with navigation to login screen (same as Dashboard)
+  const handleLogout = () => {
+    try {
+      // Clear any stored authentication data
+      localStorage.removeItem('authToken');
+      localStorage.removeItem('userSession');
+      localStorage.removeItem('userProfile');
+      
+      // Clear session storage
+      sessionStorage.clear();
+      
+      // Close the profile popup
+      setShowProfilePopup(false);
+      
+      // Navigate to login screen
+      navigate('/login', { replace: true });
+      
+      console.log('User logged out successfully');
+    } catch (error) {
+      console.error('Error during logout:', error);
+      // Still navigate to login even if there's an error clearing storage
+      navigate('/login', { replace: true });
+    }
   };
   
   const openAddJournalModal = () => {
@@ -119,10 +177,16 @@ function JournalEntry() {
 
   return (
     <div className="app-container">
-      {/* Header */}
+      {/* Header - Using Dashboard Nav Structure */}
       <header className="app-header">
         <div className="header-left">
-          <h1 className="app-logo">BUDGETPRO</h1>
+          <div className="app-logo">
+            <img 
+              src={LOGOMAP} 
+              alt="BudgetPro Logo" 
+              className="logo-image"
+            />
+          </div>
           <nav className="nav-menu">
             <Link to="/dashboard" className="nav-item">Dashboard</Link>
 
@@ -161,7 +225,7 @@ function JournalEntry() {
                     Ledger View
                   </div>
                   <div
-                    className="dropdown-item active"
+                    className="dropdown-item"
                     onClick={() => handleNavigate('/finance/journal-entry')}
                   >
                     Journal Entries
@@ -203,9 +267,68 @@ function JournalEntry() {
             </div>
           </nav>
         </div>
+        
         <div className="header-right">
-          <div className="user-avatar">
-            <img src="/api/placeholder/36/36" alt="User avatar" className="avatar-img" />
+          <div className="profile-container">
+            <div className="user-avatar" onClick={toggleProfilePopup}>
+              <img src={userProfile.avatar} alt="User avatar" className="avatar-img" />
+            </div>
+            
+            {/* Profile Popup */}
+            {showProfilePopup && (
+              <div className="profile-popup">
+                <div className="profile-popup-header">
+                  <button 
+                    className="profile-back-btn"
+                    onClick={() => setShowProfilePopup(false)}
+                  >
+                    <ArrowLeft size={20} />
+                  </button>
+                  <h3 className="profile-popup-title">Profile</h3>
+                </div>
+                
+                <div className="profile-popup-content">
+                  <div className="profile-avatar-large">
+                    <img src={userProfile.avatar} alt="Profile" className="profile-avatar-img" />
+                  </div>
+                  
+                  <div className="profile-link">
+                    <span className="profile-link-text">My Profile</span>
+                  </div>
+                  
+                  <div className="profile-info">
+                    <div className="profile-field">
+                      <div className="profile-field-header">
+                        <User size={16} className="profile-field-icon" />
+                        <span className="profile-field-label">Name:</span>
+                      </div>
+                      <span className="profile-field-value">{userProfile.name}</span>
+                    </div>
+                    
+                    <div className="profile-field">
+                      <div className="profile-field-header">
+                        <Mail size={16} className="profile-field-icon" />
+                        <span className="profile-field-label">E-mail:</span>
+                      </div>
+                      <span className="profile-field-value profile-email">{userProfile.email}</span>
+                    </div>
+                    
+                    <div className="profile-field">
+                      <div className="profile-field-header">
+                        <Briefcase size={16} className="profile-field-icon" />
+                        <span className="profile-field-label">Role:</span>
+                      </div>
+                      <span className="profile-field-value profile-role">{userProfile.role}</span>
+                    </div>
+                  </div>
+                  
+                  <button className="logout-btn" onClick={handleLogout}>
+                    <LogOut size={16} />
+                    Log Out
+                  </button>
+                </div>
+              </div>
+            )}
           </div>
         </div>
       </header>
@@ -266,7 +389,7 @@ function JournalEntry() {
                 <th style={{ width: '12%', textAlign: 'right' }}>Amount</th>
               </tr>
             </thead>
-                        <tbody>
+            <tbody>
               {currentEntries.map((entry) => (
                 <tr key={entry.id}>
                   <td>{entry.id}</td>

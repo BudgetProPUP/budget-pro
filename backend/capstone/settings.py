@@ -15,6 +15,7 @@ import os
 from dotenv import load_dotenv
 import sys
 
+
 # Detect if running tests
 TESTING = 'test' in sys.argv
 
@@ -107,14 +108,13 @@ from datetime import timedelta
 
 SIMPLE_JWT = {
     'ACCESS_TOKEN_LIFETIME': timedelta(minutes=30),
-    'REFRESH_TOKEN_LIFETIME': timedelta(days=1),
+    'REFRESH_TOKEN_LIFETIME': timedelta(hours=4),
     'ROTATE_REFRESH_TOKENS': True,
     'BLACKLIST_AFTER_ROTATION': True,
     'UPDATE_LAST_LOGIN': False,
     
-    'ALGORITHM': 'HS256',
-    'SIGNING_KEY': SECRET_KEY,
-    'VERIFYING_KEY': None,
+    'ALGORITHM': 'HS256',  # Changed from RS256 to HS256 (symmetric)
+    'SIGNING_KEY': SECRET_KEY,  # This now works with HS256
     'AUDIENCE': None,
     'ISSUER': None,
     
@@ -236,9 +236,18 @@ AUTH_PASSWORD_VALIDATORS = [
     {
         'NAME': 'django.contrib.auth.password_validation.CommonPasswordValidator',
     },
+    {'NAME': 'pwned_passwords_django.PwnedPasswordsValidator'},  # Check against breached passwords
 
 ]
 
+PASSWORD_HASHERS = [
+    'core.hashers.CustomArgon2PasswordHasher',
+    'django.contrib.auth.hashers.Argon2PasswordHasher',      # Strongest
+    'django.contrib.auth.hashers.PBKDF2PasswordHasher',      # Default ; Fallback
+    'django.contrib.auth.hashers.PBKDF2SHA1PasswordHasher',
+    'django.contrib.auth.hashers.BCryptSHA256PasswordHasher',
+    'django.contrib.auth.hashers.ScryptPasswordHasher',
+]
 
 # Internationalization
 # https://docs.djangoproject.com/en/5.2/topics/i18n/

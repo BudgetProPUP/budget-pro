@@ -9,8 +9,15 @@ from .serializers_password_reset import (
 )
 from drf_spectacular.utils import extend_schema, OpenApiExample, OpenApiResponse, inline_serializer
 from .models import UserActivityLog
+from django_ratelimit.decorators import ratelimit
+from django_ratelimit.exceptions import Ratelimited
+from django.utils.decorators import method_decorator
+from django.http import JsonResponse
 
-
+@method_decorator([
+    ratelimit(key='ip', rate='3/h', method='POST', block=True),
+    ratelimit(key='user_or_ip', rate='5/h', method='POST', block=True)
+], name='post')
 class PasswordResetRequestView(APIView):
     """
     API endpoint for requesting a password reset
@@ -54,6 +61,16 @@ class PasswordResetRequestView(APIView):
                         status_codes=['400']
                     )
                 ]
+            ),
+            429: OpenApiResponse(
+                description='Rate limit exceeded',
+                response=inline_serializer(
+                    name='PasswordResetRateLimit',
+                    fields={
+                        'error': serializers.CharField(),
+                        'detail': serializers.CharField()
+                    }
+                )
             )
         },
         examples=[
@@ -76,7 +93,7 @@ class PasswordResetRequestView(APIView):
             )
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
-
+@method_decorator(ratelimit(key='ip', rate='10/h', method='POST', block=True), name='post')
 class PasswordResetConfirmView(APIView):
     """
     API endpoint for confirming a password reset
@@ -140,6 +157,16 @@ class PasswordResetConfirmView(APIView):
                         status_codes=['400']
                     )
                 ]
+            ),
+            429: OpenApiResponse(
+                description='Rate limit exceeded',
+                response=inline_serializer(
+                    name='PasswordResetConfirmRateLimit',
+                    fields={
+                        'error': serializers.CharField(),
+                        'detail': serializers.CharField()
+                    }
+                )
             )
         },
         examples=[
@@ -183,7 +210,7 @@ class PasswordResetConfirmView(APIView):
             ip = request.META.get('REMOTE_ADDR')
         return ip
 
-
+@method_decorator(ratelimit(key='user', rate='20/h', method='POST', block=True), name='post')
 class PasswordChangeView(APIView):
     """
     API endpoint for authenticated users to change their password
@@ -252,6 +279,16 @@ class PasswordChangeView(APIView):
                         status_codes=['401']
                     )
                 ]
+            ),
+            429: OpenApiResponse(
+                description='Rate limit exceeded',
+                response=inline_serializer(
+                    name='PasswordChangeRateLimit',
+                    fields={
+                        'error': serializers.CharField(),
+                        'detail': serializers.CharField()
+                    }
+                )
             )
         },
         examples=[

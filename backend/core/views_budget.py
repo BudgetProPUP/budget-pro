@@ -30,7 +30,9 @@ from .serializers_budget import (
     LedgerViewSerializer,
     ProposalHistorySerializer
 )
-
+import openpyxl
+from openpyxl.utils import get_column_letter # Converts column index (integer) to its Excel letter (e.g., 1 -> 'A')
+from openpyxl.styles import Font, PatternFill # styling
 
 @extend_schema(
     tags=['Budget Proposal Page'],
@@ -523,7 +525,7 @@ class BudgetProposalViewSet(viewsets.ModelViewSet):
         Create a new BudgetProposal (and its nested BudgetProposalItem rows) in one call.
         
         The external system must supply:
-        1. `title`, `project_summary`, `project_description`
+        1. `title`, `project_summary`, `project_description`, `performance_notes`
         2. `department` (existing Department ID)
         3. `fiscal_year` (existing FiscalYear ID)
         4. `submitted_by_name` (string)
@@ -546,6 +548,7 @@ class BudgetProposalViewSet(viewsets.ModelViewSet):
                     "title": "Project Alpha",
                     "project_summary": "Summary of Project Alpha",
                     "project_description": "Detailed description of Project Alpha",
+                    "performance_notes": "This project will run during the last 2 quarters.",
                     "department": 1,
                     "fiscal_year": 2,
                     "submitted_by_name": "Jane Doe",
@@ -628,3 +631,112 @@ class BudgetProposalViewSet(viewsets.ModelViewSet):
     )
     def retrieve(self, request, *args, **kwargs):
         return super().retrieve(request, *args, **kwargs)
+
+
+'''
+Function that exports the budget proposal to an Excel File
+
+Example:
+const handleExportProposal = async (proposalId) => {
+  try {
+    const response = await fetch(
+      `http://localhost:8000/api/budget-proposals/${proposalId}/export/`,
+      {
+        method: 'GET',
+        headers: {
+          // Add the Authorization header here
+        },
+      }
+    );
+'''
+@extend_schema(
+    tags=["Budget Proposal Export"],
+    summary="Export a budget proposal to Excel",
+    description="Exports the specified BudgetProposal and its items to an Excel file. Example:",
+    responses={
+        200: OpenApiResponse(description="XLSX file of the proposal"),
+        404: OpenApiResponse(description="Proposal not found"),
+    }
+)
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+
+def export_budget_proposal_excel(request, proposal_id):
+
+    try:
+        proposal = BudgetProposal.objects.prefetch_related('items', 'department').get(id=proposal_id)
+    except BudgetProposal.DoesNotExist:
+        return HttpResponse("Proposal not found", status=404)
+
+    wb = openpyxl.Workbook()
+    ws = wb.active
+    ws.title = "Budget Proposal"
+
+    # Header section
+    header_labels = [
+        "Title", "Project Summary", "Project Description",
+        "Performance Start", "Performance End", "Performance Notes",
+        "Department", "Submitted By", "Status"
+    ]
+    header_values = [
+        proposal.title,
+        proposal.project_summary,
+        proposal.project_description,
+        proposal.performance_start_date.strftime("%Y-%m-%d"),
+        proposal.performance_end_date.strftime("%Y-%m-%d"),
+        getattr(proposal, 'performance_notes', ''),
+        proposal.department.name,
+        proposal.submitted_by_name or "N/A",
+        proposal.status
+    ]
+    for i, (label, value) in enumerate(zip(header_labels, header_values), start=1):
+        ws.append([label, value])
+        ws.cell(row=i, column=1).font = Font(bold=True)  # Bold the header label
+
+    ws.append([])  # Blank row
+
+    # able Header
+    table_header = ["Account", "Cost Element", "Description", "Estimated Cost", "Notes"]
+    ws.append(table_header)
+    table_header_row = ws.max_row
+    for col in range(1, len(table_header) + 1):
+        ws.cell(row=table_header_row, column=col).font = Font(bold=True)
+
+    # Line Items
+    total_cost = 0
+    for item in proposal.items.all():
+        ws.append([
+            item.account.name if item.account else "N/A",
+            item.cost_element,
+            item.description,
+            float(item.estimated_cost),
+            item.notes or ""
+        ])
+        total_cost += item.estimated_cost
+
+    # Total Row
+    ws.append([])
+    total_row = ws.max_row + 1
+    ws.append(["", "", "Total", float(total_cost)])
+
+    # Bold "Total", "Estimated Cost" header, and the summed value
+    ws.cell(row=table_header_row, column=4).font = Font(bold=True)  # "Estimated Cost" header
+    ws.cell(row=table_header_row, column=5).font = Font(bold=True)  # "Notes" header
+    ws.cell(row=total_row, column=3).font = Font(bold=True)         # "Total" label
+    ws.cell(row=total_row, column=4).font = Font(bold=True)         # summed value
+
+    # Bold all "Description" column cells (header and values)
+    for row in range(table_header_row, ws.max_row + 1):
+        ws.cell(row=row, column=3).font = Font(bold=True)
+
+    # Auto-size columns
+    for col in ws.columns:
+        max_length = max(len(str(cell.value)) for cell in col)
+        ws.column_dimensions[get_column_letter(col[0].column)].width = max(max_length + 2, 12)
+
+    response = HttpResponse(content_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+    filename = f"budget_proposal_{proposal.id}.xlsx"
+    response["Content-Disposition"] = f'attachment; filename="{filename}"'
+    wb.save(response)
+
+    return response

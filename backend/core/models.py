@@ -180,6 +180,7 @@ class BudgetProposal(models.Model):
     title = models.CharField(max_length=200)
     project_summary = models.TextField()
     project_description = models.TextField()
+    performance_notes = models.TextField(blank=True, help_text="Narrative description of the period of performance.")
     department = models.ForeignKey(Department, on_delete=models.PROTECT)
     fiscal_year = models.ForeignKey(FiscalYear, on_delete=models.PROTECT)
     submitted_by_name = models.CharField(max_length=255, null=True, blank=True)

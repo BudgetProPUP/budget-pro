@@ -2,7 +2,7 @@ from django.urls import path, include
 from rest_framework_simplejwt.views import TokenRefreshView
 from rest_framework.routers import DefaultRouter
 
-from .views_budget import AccountDropdownView, AccountSetupListView, BudgetProposalDetailView, BudgetProposalListView, BudgetProposalSummaryView, FiscalYearDropdownView, JournalEntryCreateView, JournalEntryListView, LedgerExportView, ProposalHistoryView, LedgerViewList, journal_choices, DepartmentDropdownView, AccountTypeDropdownView
+from .views_budget import AccountDropdownView, AccountSetupListView, BudgetProposalDetailView, BudgetProposalListView, BudgetProposalSummaryView, FiscalYearDropdownView, JournalEntryCreateView, JournalEntryListView, LedgerExportView, ProposalHistoryView, LedgerViewList, export_budget_proposal_excel, journal_choices, DepartmentDropdownView, AccountTypeDropdownView
 from .views_usermanagement import UserManagementViewSet, DepartmentViewSet
 from . import views_expense, views_dashboard  # ,TokenObtainPairView
 from .views_dashboard import MonthlyBudgetActualViewSet, TopCategoryBudgetAllocationView
@@ -32,8 +32,7 @@ user_management_router.register(
     r'monthly-budget-actual', MonthlyBudgetActualViewSet, basename='monthly-budget-actual')
 
 router = DefaultRouter()
-router.register(r'External Budget Proposals', views_budget.BudgetProposalViewSet, basename='External Budget Proposals')
-
+router.register(r'external-budget-proposals', views_budget.BudgetProposalViewSet, basename='external-budget-proposals')
 urlpatterns = [
      path('', include(router.urls)),
     # Authentication endpoints
@@ -136,4 +135,10 @@ urlpatterns += [
 # Added URLS
 urlpatterns += [
     path('dashboard/top-category-allocations/', TopCategoryBudgetAllocationView.as_view(), name='top-category-allocations'),
+]
+
+# For budget proposal exporting ; GET /api/budget-proposals/{proposal_id}/export/
+
+urlpatterns += [
+    path('budget-proposals/<int:proposal_id>/export/', export_budget_proposal_excel, name='budget-proposal-export'),
 ]

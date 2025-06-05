@@ -21,7 +21,8 @@ class BudgetProposalListSerializer(serializers.ModelSerializer):
             'department_name',
             'submitted_by_name',   
             'status',
-            'created_at'
+            'created_at',
+            'performance_notes',
         ]
         
     def get_total_cost(self, obj):
@@ -48,6 +49,7 @@ class BudgetProposalDetailSerializer(serializers.ModelSerializer):
             'title',
             'project_summary',
             'project_description',
+            'performance_notes', # Period of performance 
             'submitted_by_name',
             'status',
             'department_name',
@@ -265,6 +267,7 @@ class BudgetProposalSerializer(serializers.ModelSerializer):
             'title',
             'project_summary',
             'project_description',
+            'performance_notes',
             'department',
             'fiscal_year',
             'submitted_by_name',
@@ -325,7 +328,7 @@ class BudgetProposalSerializer(serializers.ModelSerializer):
         ProposalHistory.objects.create(
             proposal=proposal,
             action='CREATED',
-            action_by_name=None,      # We only have submitted_by_name, not a User instance; you could store None or a dummy user
+            action_by_name=None,      # Only have submitted_by_name, not a User instance; Store None or a dummy user
             previous_status=None,
             new_status=proposal.status,
             comments=f"Proposal created via external system (ID={proposal.external_system_id})."
@@ -335,8 +338,8 @@ class BudgetProposalSerializer(serializers.ModelSerializer):
 
     def update(self, instance, validated_data):
         """
-        If you want to allow updates to a proposal, including editing items,
-        you could implement nested updates here. For brevity, we only allow full Replacement of items:
+        If needed to allow updates to a proposal, including editing items,
+        implement nested updates here. We only allow full Replacement of items:
         - Delete all old items
         - Create new items from payload
         """

@@ -299,10 +299,6 @@ function BudgetDashboard() {
                     <img src={userProfile.avatar} alt="Profile" className="profile-avatar-img" />
                   </div>
                   
-                  <div className="profile-link">
-                    <span className="profile-link-text">My Profile</span>
-                  </div>
-                  
                   <div className="profile-info">
                     <div className="profile-field">
                       <div className="profile-field-header">
@@ -376,25 +372,25 @@ function BudgetDashboard() {
 
         {/* Top Cards */}
         <div className="stats-grid">
-          {/* Department Allocation - Pie Chart Removed */}
-          <div className="card">
-            <h3 className="card-title">Budget Allocation by Categories</h3>
-            <div className="dept-list">
-              {departmentData.map((dept, index) => (
-                <div key={index} className="dept-item">
-                  <div className="color-indicator" style={{ backgroundColor: dept.color }}></div>
-                  <span className="dept-name">{dept.name}</span>
-                  <div className="progress-container">
-                    <div 
-                      className="progress-bar" 
-                      style={{ width: `${dept.percentage}%`, backgroundColor: dept.color }}
-                    ></div>
-                  </div>
-                  <span className="dept-budget">₱{dept.budget.toLocaleString()}</span>
-                </div>
-              ))}
-            </div>
-          </div>
+          {/* Budget Allocation List */}
+<div className="card budget-allocation-card">
+  <h3 className="card-title">Budget Allocation by Categories</h3>
+  <div className="budget-list">
+    {departmentData.map((dept, index) => (
+      <div key={index} className="budget-item">
+        <div className="budget-category">
+          <div 
+            className="category-color" 
+            style={{ backgroundColor: dept.color }}
+          />
+          <span className="category-name">{dept.name}</span>
+        </div>
+        <span className="budget-amount">P{dept.budget.toLocaleString()}</span>
+      </div>
+    ))}
+  </div>
+  
+</div>
 
           {/* Plan Completion */}
           <div className="card">

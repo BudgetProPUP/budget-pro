@@ -250,24 +250,6 @@ html, body {
   object-fit: cover;
 }
 
-.profile-link {
-  margin-bottom: 1.5rem;
-}
-
-.profile-link-text {
-  color: #3b82f6;
-  font-size: 0.875rem;
-  font-weight: 500;
-  cursor: pointer;
-  text-decoration: none;
-  transition: color 0.2s;
-}
-
-.profile-link-text:hover {
-  color: #2563eb;
-  text-decoration: underline;
-}
-
 .profile-info {
   width: 100%;
   margin-bottom: 1.5rem;
@@ -413,6 +395,53 @@ html, body {
   font-weight: 500;
   background-color: #2563eb;
 }
+
+/* Budget Allocation List Styles */
+.budget-allocation-card {
+  padding: 1rem;
+}
+
+.budget-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  margin-top: 0.75rem;
+}
+
+.budget-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0;
+  
+}
+
+.budget-category {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.category-color {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.category-name {
+  font-size: 0.875rem;  
+  font-weight: 500;
+  color: #111827;
+  line-height: 1.4;
+}
+
+.budget-amount {
+  font-size: 0.875rem;  
+  font-weight: 600;
+  color: #1e40af;
+}
+
 
 /* Cards and Stats Grid */
 .stats-grid {

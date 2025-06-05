@@ -173,14 +173,14 @@ function BudgetDashboard() {
     }
   };
 
-  if (loading) {
-    return (
-      <div className="loading-container">
-        <div className="loading-spinner"></div>
-        <p>Loading dashboard data...</p>
-      </div>
-    );
-  }
+if (loading) {
+  return (
+    <div className="loading-container">
+      <div className="loading-spinner"></div>
+      <p className="loading-text">Loading dashboard data...</p>
+    </div>
+  );
+}
 
   return (
     <div className="app-container">

@@ -524,7 +524,7 @@ body {
   flex: 1;
   display: flex;
   flex-direction: column;
-  min-height: calc(100vh - 400px);
+  min-height: calc(100vh - 300px);
 }
 
 .transactions-table {
@@ -600,7 +600,7 @@ body {
   display: flex;
   justify-content: center;
   align-items: center;
-  padding: 1rem;
+  padding: 0.5rem 0;
   border-top: 1px solid var(--gray-200);
   gap: 0.5rem;
 }

@@ -187,7 +187,7 @@ class BudgetProposal(models.Model):
     status = models.CharField(
         max_length=20,
         choices=STATUS_CHOICES,
-        default='APPROVED'
+        default='SUBMITTED'
     )
     performance_start_date = models.DateField()
     performance_end_date = models.DateField()

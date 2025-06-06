@@ -368,3 +368,12 @@ class BudgetProposalSerializer(serializers.ModelSerializer):
             )
 
         return instance
+    
+class ExpenseCategoryVarianceSerializer(serializers.Serializer):
+    category = serializers.CharField()
+    code = serializers.CharField()
+    level = serializers.IntegerField()
+    budget = serializers.DecimalField(max_digits=15, decimal_places=2)
+    actual = serializers.DecimalField(max_digits=15, decimal_places=2)
+    available = serializers.DecimalField(max_digits=15, decimal_places=2)
+    children = serializers.ListField(child=serializers.DictField())

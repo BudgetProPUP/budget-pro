@@ -1,6 +1,7 @@
 from decimal import Decimal
 import json
-from django.db.models import Sum, Q
+from django.db.models import Sum, Q, DecimalField
+from django.db.models.functions import Coalesce
 from django.http import HttpResponse
 from rest_framework import generics, status
 from rest_framework.response import Response
@@ -9,7 +10,7 @@ from rest_framework.views import APIView
 from rest_framework import viewsets
 import csv
 from .serializers import FiscalYearSerializer
-from .models import Account, AccountType, BudgetProposal, Department, FiscalYear, BudgetAllocation, Expense, JournalEntry, JournalEntryLine, Project
+from .models import Account, AccountType, BudgetProposal, Department, ExpenseCategory, FiscalYear, BudgetAllocation, Expense, JournalEntry, JournalEntryLine, Project
 from rest_framework.permissions import IsAuthenticated
 from django.utils import timezone
 from rest_framework.decorators import api_view, permission_classes, action
@@ -25,6 +26,7 @@ from .serializers_budget import (
     BudgetProposalSummarySerializer,
     BudgetProposalDetailSerializer,
     DepartmentDropdownSerializer,
+    ExpenseCategoryVarianceSerializer,
     JournalEntryCreateSerializer,
     JournalEntryListSerializer,
     LedgerViewSerializer,
@@ -729,7 +731,7 @@ def export_budget_proposal_excel(request, proposal_id):
     for row in range(table_header_row, ws.max_row + 1):
         ws.cell(row=row, column=3).font = Font(bold=True)
 
-    # Auto-size columns
+    # Auto size columns
     for col in ws.columns:
         max_length = max(len(str(cell.value)) for cell in col)
         ws.column_dimensions[get_column_letter(col[0].column)].width = max(max_length + 2, 12)
@@ -740,3 +742,76 @@ def export_budget_proposal_excel(request, proposal_id):
     wb.save(response)
 
     return response
+
+class BudgetVarianceReportView(APIView):
+    permission_classes = [IsAuthenticated]
+    '''
+    View for budget variance report page
+    '''
+    @extend_schema(
+        tags=["Budget Variance Reports"],
+        summary="Budget Variance Report",
+        description="The Budget Variance Report shows how budget allocations are utilized across hierarchical categories such as Income and Expense. For each category, it displays: Budget (total allocated from BudgetAllocation objects), Actual (total approved Expense entries), and Available (Budget minus Actual). A negative Available value indicates overspending. Categories are organized into levels: Level 1 (top-level like INCOME or EXPENSE), Level 2 (groups like DISCRETIONARY or OPERATIONS), and Level 3 (specific items like Cloud Hosting or Utilities). This report helps departments track financial performance and identify areas of over- or under-spending.",
+        parameters=[
+            OpenApiParameter(name="fiscal_year_id", required=True, type=int)
+        ],
+        responses={200: ExpenseCategoryVarianceSerializer(many=True)}
+    )
+    def get(self, request):
+        fiscal_year_id = request.query_params.get('fiscal_year_id')
+        if not fiscal_year_id:
+            return Response({"error": "fiscal_year_id is required"}, status=400)
+
+        try:
+            fiscal_year = FiscalYear.objects.get(id=fiscal_year_id)
+        except FiscalYear.DoesNotExist:
+            return Response({"error": "Fiscal Year not found"}, status=404)
+
+        top_categories = ExpenseCategory.objects.filter(level=1, is_active=True)
+
+        def aggregate_node(category):
+            # Direct values
+            budget = BudgetAllocation.objects.filter(
+                category=category, fiscal_year=fiscal_year, is_active=True
+            ).aggregate(total=Coalesce(Sum('amount'), 0, output_field=DecimalField()))['total']
+
+            actual = Expense.objects.filter(
+                category=category,
+                budget_allocation__fiscal_year=fiscal_year,
+                status='APPROVED'
+            ).aggregate(total=Coalesce(Sum('amount'), 0, output_field=DecimalField()))['total']
+
+            available = budget - actual
+            children = []
+
+            for child in category.subcategories.all():
+                children.append(aggregate_node(child))
+
+            # Aggregate child totals if exists
+            if children:
+                child_budget = sum(c['budget'] for c in children)
+                child_actual = sum(c['actual'] for c in children)
+                child_available = child_budget - child_actual
+                return {
+                    "category": category.name,
+                    "code": category.code,
+                    "level": category.level,
+                    "budget": round(child_budget, 2),
+                    "actual": round(child_actual, 2),
+                    "available": round(child_available, 2),
+                    "children": children
+                }
+            else:
+                return {
+                    "category": category.name,
+                    "code": category.code,
+                    "level": category.level,
+                    "budget": round(budget, 2),
+                    "actual": round(actual, 2),
+                    "available": round(available, 2),
+                    "children": []
+                }
+        # Builds nested dictionariers, each representing top level expense categories, and its full budget/actual/available breakdown (and subcategories)
+        result = [aggregate_node(cat) for cat in top_categories] # aggregate_node(cat) - recursive function that computes budget, actual, and available amounts for given category (and all its children if any)
+
+        return Response(result)

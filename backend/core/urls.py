@@ -2,7 +2,7 @@ from django.urls import path, include
 from rest_framework_simplejwt.views import TokenRefreshView
 from rest_framework.routers import DefaultRouter
 
-from .views_budget import AccountDropdownView, AccountSetupListView, BudgetProposalDetailView, BudgetProposalListView, BudgetProposalSummaryView, FiscalYearDropdownView, JournalEntryCreateView, JournalEntryListView, LedgerExportView, ProposalHistoryView, LedgerViewList, export_budget_proposal_excel, journal_choices, DepartmentDropdownView, AccountTypeDropdownView
+from .views_budget import AccountDropdownView, AccountSetupListView, BudgetProposalDetailView, BudgetProposalListView, BudgetProposalSummaryView, BudgetVarianceReportView, FiscalYearDropdownView, JournalEntryCreateView, JournalEntryListView, LedgerExportView, ProposalHistoryView, LedgerViewList, export_budget_proposal_excel, journal_choices, DepartmentDropdownView, AccountTypeDropdownView
 from .views_usermanagement import UserManagementViewSet, DepartmentViewSet
 from . import views_expense, views_dashboard  # ,TokenObtainPairView
 from .views_dashboard import MonthlyBudgetActualViewSet, TopCategoryBudgetAllocationView
@@ -135,6 +135,8 @@ urlpatterns += [
 # Added URLS
 urlpatterns += [
     path('dashboard/top-category-allocations/', TopCategoryBudgetAllocationView.as_view(), name='top-category-allocations'),
+    # For budget variance report page
+    path('reports/budget-variance/', BudgetVarianceReportView.as_view(), name='budget-variance-report'),
 ]
 
 # For budget proposal exporting ; GET /api/budget-proposals/{proposal_id}/export/

@@ -10,6 +10,7 @@ https://docs.djangoproject.com/en/5.2/topics/settings/
 For the full list of settings and their values, see
 https://docs.djangoproject.com/en/5.2/ref/settings/
 """
+from datetime import timedelta
 from pathlib import Path
 import os
 from dotenv import load_dotenv
@@ -38,7 +39,7 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 SECRET_KEY = os.getenv('DJANGO_SECRET_KEY')
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = os.getenv('DEBUG', 'False').lower() == 'true' # Disable in production
+DEBUG = os.getenv('DEBUG', 'False').lower() == 'true'  # Disable in production
 
 ALLOWED_HOSTS = []
 
@@ -52,7 +53,7 @@ INSTALLED_APPS = [
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
-    
+
     # Third-party apps
     'rest_framework',
     'rest_framework_simplejwt',
@@ -60,7 +61,7 @@ INSTALLED_APPS = [
     'corsheaders',
     'drf_spectacular',
     'debug_toolbar',
-    
+
     # Local apps
     # Add your project apps here, e.g.:
     # 'users',
@@ -87,7 +88,8 @@ CORS_ALLOW_ALL_ORIGINS = True  # For development - restrict in production
 CORS_ALLOW_CREDENTIALS = True
 
 # Email Configuration
-EMAIL_BACKEND = os.getenv('EMAIL_BACKEND', 'django.core.mail.backends.smtp.EmailBackend')
+EMAIL_BACKEND = os.getenv(
+    'EMAIL_BACKEND', 'django.core.mail.backends.smtp.EmailBackend')
 EMAIL_HOST = os.getenv('EMAIL_HOST', 'smtp.gmail.com')
 EMAIL_PORT = int(os.getenv('EMAIL_PORT', 587))
 EMAIL_USE_TLS = os.getenv('EMAIL_USE_TLS', 'True') == 'True'
@@ -104,7 +106,6 @@ INTERNAL_IPS = [
 ]
 
 # JWT Settings
-from datetime import timedelta
 
 SIMPLE_JWT = {
     'ACCESS_TOKEN_LIFETIME': timedelta(minutes=30),
@@ -112,12 +113,12 @@ SIMPLE_JWT = {
     'ROTATE_REFRESH_TOKENS': True,
     'BLACKLIST_AFTER_ROTATION': True,
     'UPDATE_LAST_LOGIN': False,
-    
+
     'ALGORITHM': 'HS256',  # Changed from RS256 to HS256 (symmetric)
     'SIGNING_KEY': SECRET_KEY,  # This now works with HS256
     'AUDIENCE': None,
     'ISSUER': None,
-    
+
     'AUTH_HEADER_TYPES': ('Bearer',),
     'AUTH_HEADER_NAME': 'HTTP_AUTHORIZATION',
     'USER_ID_FIELD': 'id',
@@ -127,7 +128,8 @@ SIMPLE_JWT = {
 
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
-    'whitenoise.middleware.WhiteNoiseMiddleware',  # Add for static files in production
+    # Add for static files in production
+    'whitenoise.middleware.WhiteNoiseMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'corsheaders.middleware.CorsMiddleware',  # Add before CommonMiddleware
     'django.middleware.common.CommonMiddleware',
@@ -146,7 +148,7 @@ REST_FRAMEWORK = {
     'DEFAULT_PERMISSION_CLASSES': [
         'rest_framework.permissions.IsAuthenticated',
     ],
-    'DEFAULT_SCHEMA_CLASS': 'drf_spectacular.openapi.AutoSchema','DEFAULT_FILTER_BACKENDS': [
+    'DEFAULT_SCHEMA_CLASS': 'drf_spectacular.openapi.AutoSchema', 'DEFAULT_FILTER_BACKENDS': [
         'django_filters.rest_framework.DjangoFilterBackend',
         'rest_framework.filters.SearchFilter',
     ],
@@ -207,10 +209,9 @@ DATABASES = {
         'PASSWORD': os.getenv('DB_PASSWORD'),
         'HOST': os.getenv('DB_HOST', 'localhost'),
         'PORT': os.getenv('DB_PORT', '5432'),
-        
+
     }
 }
-
 
 
 # Optional: Only needed if using Django's createsuperuser command
@@ -230,13 +231,14 @@ AUTH_PASSWORD_VALIDATORS = [
         'NAME': 'core.password_validators.CustomPasswordValidator',
         'OPTIONS': {
             'min_length': 8,  # Minimum 8 characters as per requirements
-            'max_length': 64, # Maximum 64 characters as per requirements
+            'max_length': 64,  # Maximum 64 characters as per requirements
         }
     },
     {
         'NAME': 'django.contrib.auth.password_validation.CommonPasswordValidator',
     },
-    {'NAME': 'pwned_passwords_django.PwnedPasswordsValidator'},  # Check against breached passwords
+    {"NAME": "pwned_passwords_django.validators.PwnedPasswordsValidator",
+     },  # Check against breached passwords
 
 ]
 

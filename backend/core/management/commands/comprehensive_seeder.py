@@ -4,6 +4,7 @@ from django.db import transaction
 from django.db.models import Sum
 from datetime import datetime, timedelta
 import random
+from random import choice
 from decimal import Decimal
 
 from django.contrib.auth import get_user_model
@@ -42,7 +43,7 @@ class Command(BaseCommand):
                     projects,
                     accounts,
                     admin_user,
-                    expense_categories  
+                    expense_categories
                 )
                 self.create_budget_transfers(
                     fiscal_years, budget_allocations, users)
@@ -529,178 +530,157 @@ class Command(BaseCommand):
         return created_years
 
     def create_expense_categories(self):
-        self.stdout.write('Creating expense categories...')
-
-        # Create parent categories (level 1)
-        parent_categories = [
+        self.stdout.write('Creating hierarchical expense categories...')
+        
+        # Categories as nested dictionaries
+        categories_hierarchy = [
             {
-                'code': 'OPS',
-                'name': 'Operations',
-                'description': 'Day-to-day operating expenses',
-                'parent_category': None,
-                'level': 1
+                'code': 'INCOME',
+                'name': 'Income',
+                'description': 'Incoming funds',
+                'level': 1,
+                'children': [
+                    {
+                        'code': 'PRIMARY_INCOME',
+                        'name': 'Primary Income',
+                        'description': 'Main revenue sources',
+                        'level': 2,
+                        'children': [
+                            {
+                                'code': 'INCOME-UTIL',
+                                'name': 'Utilities',
+                                'description': 'Utility payments collected',
+                                'level': 3
+                            }
+                        ]
+                    }
+                ]
             },
             {
-                'code': 'TRAVEL',
-                'name': 'Travel',
-                'description': 'Business travel expenses',
-                'parent_category': None,
-                'level': 1
-            },
-            {
-                'code': 'PROF',
-                'name': 'Professional Services',
-                'description': 'Consulting and professional fees',
-                'parent_category': None,
-                'level': 1
+                'code': 'EXPENSE',
+                'name': 'Expense',
+                'description': 'Outflows for operations',
+                'level': 1,
+                'children': [
+                    {
+                        'code': 'BILLS',
+                        'name': 'Bills',
+                        'description': 'Monthly recurring bills',
+                        'level': 2,
+                        'children': [
+                            {
+                                'code': 'BILLS-UTIL',
+                                'name': 'Utilities',
+                                'description': 'Electricity, water, internet',
+                                'level': 3
+                            }
+                        ]
+                    },
+                    {
+                        'code': 'DISCRETIONARY',
+                        'name': 'Discretionary',
+                        'description': 'Flexible or optional spending',
+                        'level': 2,
+                        'children': [
+                            {
+                                'code': 'DISC-CLOUD',
+                                'name': 'Cloud Hosting',
+                                'description': 'AWS, Azure, etc.',
+                                'level': 3
+                            },
+                            {
+                                'code': 'DISC-SUBS',
+                                'name': 'Software Subscription',
+                                'description': 'SaaS apps like Figma, Slack',
+                                'level': 3
+                            }
+                        ]
+                    },
+                    {
+                        'code': 'OPERATIONS',
+                        'name': 'Operations',
+                        'description': 'Operational expenses',
+                        'level': 2,
+                        'children': [
+                            {
+                                'code': 'OPS-SUP',
+                                'name': 'Office Supplies',
+                                'description': 'Consumable office goods',
+                                'level': 3
+                            },
+                            {
+                                'code': 'OPS-EQM',
+                                'name': 'Equipment',
+                                'description': 'Equipment purchases',
+                                'level': 3
+                            },
+                            {
+                                'code': 'OPS-MAINT',
+                                'name': 'Maintenance',
+                                'description': 'Repairs and upkeep',
+                                'level': 3
+                            },
+                            {
+                                'code': 'OPS-TRANS',
+                                'name': 'Transportation',
+                                'description': 'Vehicle fuel, travel costs',
+                                'level': 3
+                            }
+                        ]
+                    }
+                ]
             }
         ]
+        created_categories = {}
 
-        created_parents = []
-        for cat_data in parent_categories:
-            category, created = ExpenseCategory.objects.update_or_create(
-                code=cat_data['code'],
+        def create_category(code, name, description, level, parent=None):
+            category, _ = ExpenseCategory.objects.update_or_create(
+                code=code,
                 defaults={
-                    'name': cat_data['name'],
-                    'description': cat_data['description'],
-                    'parent_category': None,
-                    'level': cat_data['level'],
+                    'name': name,
+                    'description': description,
+                    'level': level,
+                    'parent_category': parent,
                     'is_active': True
                 }
             )
-            created_parents.append(category)
+            created_categories[code] = category
+            return category
 
-        # Create mapping for easier reference
-        parent_dict = {cat.code: cat for cat in created_parents}
-
-        # Create child categories (level 2)
-        child_categories = [
-            # Operations subcategories
-            {
-                'code': 'OPS-UTIL',
-                'name': 'Utilities',
-                'description': 'Electricity, water, internet, etc.',
-                'parent_category': parent_dict['OPS'],
-                'level': 2
-            },
-            {
-                'code': 'OPS-SUP',
-                'name': 'Office Supplies',
-                'description': 'Consumable office materials',
-                'parent_category': parent_dict['OPS'],
-                'level': 2
-            },
-            {
-                'code': 'OPS-MKT',
-                'name': 'Marketing & Advertising',
-                'description': 'Promotional and advertising expenses',
-                'parent_category': parent_dict['OPS'],
-                'level': 2
-            },
-            {
-                'code': 'OPS-EQM',
-                'name': 'Equipment & Maintenance',
-                'description': 'Equipment purchases and maintenance',
-                'parent_category': parent_dict['OPS'],
-                'level': 2
-            },
-            {
-                'code': 'OPS-MISC',
-                'name': 'Miscellaneous',
-                'description': 'Other operational expenses',
-                'parent_category': parent_dict['OPS'],
-                'level': 2
-            },
-
-            # Travel subcategories
-            {
-                'code': 'TRV-LOCAL',
-                'name': 'Local Travel',
-                'description': 'In-country business travel',
-                'parent_category': parent_dict['TRAVEL'],
-                'level': 2
-            },
-            {
-                'code': 'TRV-INTL',
-                'name': 'International Travel',
-                'description': 'Overseas business travel',
-                'parent_category': parent_dict['TRAVEL'],
-                'level': 2
-            },
-
-            # Professional Services subcategories
-            {
-                'code': 'PROF-LEGAL',
-                'name': 'Legal Services',
-                'description': 'Attorney and legal consultation fees',
-                'parent_category': parent_dict['PROF'],
-                'level': 2
-            },
-            {
-                'code': 'PROF-CONS',
-                'name': 'Consulting',
-                'description': 'Business consulting services',
-                'parent_category': parent_dict['PROF'],
-                'level': 2
-            }
-        ]
-
-        created_children = []
-        for cat_data in child_categories:
-            category, created = ExpenseCategory.objects.update_or_create(
-                code=cat_data['code'],
-                defaults={
-                    'name': cat_data['name'],
-                    'description': cat_data['description'],
-                    'parent_category': cat_data['parent_category'],
-                    'level': cat_data['level'],
-                    'is_active': True
-                }
+        # Define the hierarchy
+        for top_level in categories_hierarchy:
+            top_cat = create_category(
+                code=top_level['code'],
+                name=top_level['name'],
+                description=top_level['description'],
+                level=top_level['level'],
             )
-            created_children.append(category)
 
-        # Create level 3 categories (grandchildren)
-        child_dict = {cat.code: cat for cat in created_children}
+            for mid in top_level.get('children', []):
+                mid_cat = create_category(
+                    code=mid['code'],
+                    name=mid['name'],
+                    description=mid['description'],
+                    level=mid['level'],
+                    parent=top_cat
+                )
 
-        grandchild_categories = [
-            {
-                'code': 'TRN-DEV',
-                'name': 'Training & Development',
-                'description': 'Employee training programs',
-                'parent_category': child_dict['OPS-MISC'],
-                'level': 3
-            },
-            {
-                'code': 'IT-MAINT',
-                'name': 'IT Maintenance',
-                'description': 'Computer and software maintenance',
-                'parent_category': child_dict['OPS-EQM'],
-                'level': 3
-            }
-        ]
+                for low in mid.get('children', []):
+                    create_category(
+                        code=low['code'],
+                        name=low['name'],
+                        description=low['description'],
+                        level=low['level'],
+                        parent=mid_cat
+                    )
 
-        created_grandchildren = []
-        for cat_data in grandchild_categories:
-            category, created = ExpenseCategory.objects.update_or_create(
-                code=cat_data['code'],
-                defaults={
-                    'name': cat_data['name'],
-                    'description': cat_data['description'],
-                    'parent_category': cat_data['parent_category'],
-                    'level': cat_data['level'],
-                    'is_active': True
-                }
-            )
-            created_grandchildren.append(category)
-
-        all_categories = created_parents + created_children + created_grandchildren
         self.stdout.write(self.style.SUCCESS(
-            f'Created/Updated {len(all_categories)} expense categories'))
-        return all_categories
+            f"Created/Updated {len(created_categories)} expense categories"))
+        return list(created_categories.values())
 
     def create_budget_proposals(self, departments, fiscal_years, users):
         self.stdout.write('Creating budget proposals...')
-
+        STATUSES = ['SUBMITTED', 'PENDING', 'APPROVED', 'REJECTED']
         # Get the current fiscal year
         current_year = datetime.now().year
         current_fy = next((fy for fy in fiscal_years if fy.name ==
@@ -713,16 +693,14 @@ class Command(BaseCommand):
         # Create proposals for each department
         proposals = []
 
-        status = 'APPROVED'
+        status = choice(STATUSES)
 
         for i, department in enumerate(departments):
-            # Create multiple proposals for each department (all with APPROVED status)
             for j in range(4):  # Create 4 quarterly proposals for each department
                 start_date = current_fy.start_date + timedelta(days=90*j)
-                # 3-month performance period
                 end_date = start_date + timedelta(days=90)
-
-                # Create a unique external system ID
+                status = choice(STATUSES)
+                random_user = random.choice(users)
                 external_id = f"EXT-{department.code}-{current_year}-{i+1}{j+1}"
 
                 proposal_data = {
@@ -731,19 +709,19 @@ class Command(BaseCommand):
                     'project_description': f"This budget covers all planned activities for {department.name} during {['Q1', 'Q2', 'Q3', 'Q4'][j]} including staffing, equipment, and operational expenses.",
                     'department': department,
                     'fiscal_year': current_fy,
-                    'submitted_by_name': finance_user.get_full_name(),  # String field
-                    # String field
-                    'approved_by_name': users[0].get_full_name(),
-                    'status': status,
+                    'submitted_by_name': random_user.get_full_name(),
                     'performance_start_date': start_date,
                     'performance_end_date': end_date,
-                    'submitted_at': timezone.now(),  # All are submitted since they're APPROVED
                     'external_system_id': external_id,
+                    'status': status,
+                    'performance_notes': f"Notes for {department.name} {['Q1', 'Q2', 'Q3', 'Q4'][j]}",
+                    'submitted_at': timezone.now() if status in ['SUBMITTED', 'PENDING', 'APPROVED'] else None,
+                    'approval_date': timezone.now() if status == 'APPROVED' else None,
+                    'approved_by_name': random_user.get_full_name() if status == 'APPROVED' else None,
+                    'rejected_by_name': random_user.get_full_name() if status == 'REJECTED' else None,
+                    'rejection_date': timezone.now() if status == 'REJECTED' else None,
                     'sync_status': random.choice(['SYNCED', 'PENDING', 'FAILED']),
                 }
-
-                proposal_data['approval_date'] = timezone.now(
-                ) - timedelta(days=random.randint(1, 10))
 
                 proposal, created = BudgetProposal.objects.update_or_create(
                     title=proposal_data['title'],
@@ -751,7 +729,6 @@ class Command(BaseCommand):
                     fiscal_year=proposal_data['fiscal_year'],
                     defaults=proposal_data
                 )
-
                 proposals.append(proposal)
 
         self.stdout.write(self.style.SUCCESS(
@@ -823,10 +800,12 @@ class Command(BaseCommand):
 
         for project in projects:
             # Calculate total from proposal items
+            if project.budget_proposal.status != 'APPROVED':
+                continue
             total_estimated_cost = BudgetProposalItem.objects.filter(
                 proposal=project.budget_proposal
             ).aggregate(total=Sum('estimated_cost'))['total'] or 0
-            
+
             # Get fiscal_year and department from the linked BudgetProposal
             fy = project.budget_proposal.fiscal_year
             department = project.budget_proposal.department

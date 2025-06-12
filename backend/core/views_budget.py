@@ -7,10 +7,10 @@ from rest_framework import generics, status
 from rest_framework.response import Response
 from drf_spectacular.utils import extend_schema, OpenApiParameter, OpenApiResponse, OpenApiTypes, OpenApiExample
 from rest_framework.views import APIView
-from rest_framework import viewsets
+from rest_framework import viewsets, status as drf_status
 import csv
 from .serializers import FiscalYearSerializer
-from .models import Account, AccountType, BudgetProposal, Department, ExpenseCategory, FiscalYear, BudgetAllocation, Expense, JournalEntry, JournalEntryLine, Project
+from .models import Account, AccountType, BudgetProposal, Department, ExpenseCategory, FiscalYear, BudgetAllocation, Expense, JournalEntry, JournalEntryLine, ProposalComment
 from rest_framework.permissions import IsAuthenticated
 from django.utils import timezone
 from rest_framework.decorators import api_view, permission_classes, action
@@ -30,11 +30,15 @@ from .serializers_budget import (
     JournalEntryCreateSerializer,
     JournalEntryListSerializer,
     LedgerViewSerializer,
-    ProposalHistorySerializer
+    ProposalCommentCreateSerializer,
+    ProposalHistorySerializer,
+    ProposalReviewSerializer
 )
 import openpyxl
 from openpyxl.utils import get_column_letter # Converts column index (integer) to its Excel letter (e.g., 1 -> 'A')
-from openpyxl.styles import Font, PatternFill # styling
+from openpyxl.styles import Font, PatternFill
+
+
 
 @extend_schema(
     tags=['Budget Proposal Page'],
@@ -634,6 +638,47 @@ class BudgetProposalViewSet(viewsets.ModelViewSet):
     def retrieve(self, request, *args, **kwargs):
         return super().retrieve(request, *args, **kwargs)
 
+    @extend_schema(
+        request=ProposalReviewSerializer,
+        responses={200: OpenApiTypes.OBJECT},
+        tags=['Budget Proposal Page'],
+        summary="Review a proposal (Approve/Reject with optional comment)",
+        description="Updates the proposal status and saves a comment in one action. This is triggered by the modal in the frontend when user selects a status and submits a comment. Options: REJECTED/APPROVED"
+    )
+    @action(detail=True, methods=['post'])
+    def review(self, request, pk=None):
+        proposal = self.get_object()
+        serializer = ProposalReviewSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+
+        new_status = serializer.validated_data['status']
+        comment_text = serializer.validated_data.get('comment', '')
+
+        proposal.status = new_status
+        user = request.user
+
+        # Assign audit fields
+        if new_status == 'APPROVED':
+            proposal.approved_by_name = user.get_full_name()
+            proposal.approval_date = timezone.now()
+        elif new_status == 'REJECTED':
+            proposal.rejected_by_name = user.get_full_name()
+            proposal.rejection_date = timezone.now()
+        proposal.save()
+
+        if comment_text:
+            ProposalComment.objects.create(
+                proposal=proposal,
+                user=user,
+                comment=comment_text
+            )
+
+        return Response({
+            'status': proposal.status,
+            'comment_saved': bool(comment_text),
+            'timestamp': timezone.now()
+        }, status=200)
+
 
 '''
 Function that exports the budget proposal to an Excel File
@@ -742,6 +787,9 @@ def export_budget_proposal_excel(request, proposal_id):
     wb.save(response)
 
     return response
+
+
+
 
 class BudgetVarianceReportView(APIView):
     permission_classes = [IsAuthenticated]

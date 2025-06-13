@@ -23,7 +23,11 @@ class Command(BaseCommand):
 
     def handle(self, *args, **options):
         self.stdout.write('Starting database seeding process...')
-
+        
+        if User.objects.exists():
+            self.stdout.write('Data exists, skipping seeding')
+            return
+        
         try:
             with transaction.atomic():
                 # Create in order of dependencies

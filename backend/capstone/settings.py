@@ -13,9 +13,11 @@ https://docs.djangoproject.com/en/5.2/ref/settings/
 from datetime import timedelta
 from pathlib import Path
 import os
+import dj_database_url
 from dotenv import load_dotenv
 import sys
 
+PORT = int(os.environ.get('PORT', 8000))
 
 # Detect if running tests
 TESTING = 'test' in sys.argv
@@ -41,8 +43,13 @@ SECRET_KEY = os.getenv('DJANGO_SECRET_KEY')
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = os.getenv('DEBUG', 'False').lower() == 'true'  # Disable in production
 
-ALLOWED_HOSTS = []
-
+ALLOWED_HOSTS = [
+    'localhost',
+    '127.0.0.1',
+    '*.railway.app',
+    '.railway.app',  # Also allow without subdomain
+    os.getenv('RAILWAY_STATIC_URL', '').replace('https://', '').replace('http://', ''),
+]
 
 # Application definition
 
@@ -80,11 +87,12 @@ AUTHENTICATION_BACKENDS = [
 
 # CORS settings
 CORS_ALLOWED_ORIGINS = [
-    "http://localhost:5173",  # Vite default dev server
-    # Add production URLs when deployed
+    "http://localhost:5173",  # Local development
+    "https://budget-pro-frontend-service-production.up.railway.app",  # Your frontend
+    # Add your backend Railway URL here too if needed
 ]
 
-CORS_ALLOW_ALL_ORIGINS = True  # For development - restrict in production
+CORS_ALLOW_ALL_ORIGINS = DEBUG  # For development - restrict in production
 CORS_ALLOW_CREDENTIALS = True
 
 # Email Configuration
@@ -202,14 +210,17 @@ WSGI_APPLICATION = 'capstone.wsgi.application'
 # https://docs.djangoproject.com/en/5.2/ref/settings/#databases
 
 DATABASES = {
-    'default': {
+    'default': dj_database_url.parse(
+        os.getenv('DATABASE_URL'),
+        conn_max_age=600,
+        conn_health_checks=True,
+    ) if os.getenv('DATABASE_URL') else {
         'ENGINE': 'django.db.backends.postgresql',
         'NAME': os.getenv('DB_NAME'),
         'USER': os.getenv('DB_USER'),
         'PASSWORD': os.getenv('DB_PASSWORD'),
         'HOST': os.getenv('DB_HOST', 'localhost'),
         'PORT': os.getenv('DB_PORT', '5432'),
-
     }
 }
 
@@ -266,9 +277,18 @@ USE_TZ = True
 # Static files (CSS, JavaScript, Images)
 # https://docs.djangoproject.com/en/5.2/howto/static-files/
 
-STATIC_URL = 'static/'
+STATIC_URL = '/static/'
+STATIC_ROOT = os.path.join(BASE_DIR, 'staticfiles')
 
 # Default primary key field type
 # https://docs.djangoproject.com/en/5.2/ref/settings/#default-auto-field
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
+
+if not DEBUG:
+    SECURE_BROWSER_XSS_FILTER = True
+    SECURE_CONTENT_TYPE_NOSNIFF = True
+    X_FRAME_OPTIONS = 'DENY'
+    SECURE_HSTS_SECONDS = 31536000 if not DEBUG else 0
+    SECURE_HSTS_INCLUDE_SUBDOMAINS = True
+    SECURE_HSTS_PRELOAD = True

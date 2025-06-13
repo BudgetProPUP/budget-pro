@@ -35,7 +35,6 @@ user_management_router.register(
 router = DefaultRouter()
 router.register(r'external-budget-proposals', views_budget.BudgetProposalViewSet, basename='external-budget-proposals')
 urlpatterns = [
-     path('health/', healthcheck_view, name='healthcheck'),
      path('', include(router.urls)),
     # Authentication endpoints
     path('auth/login/', LoginView.as_view(), name='login'),

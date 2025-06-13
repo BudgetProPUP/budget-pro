@@ -8,9 +8,9 @@ https://docs.djangoproject.com/en/5.2/howto/deployment/asgi/
 """
 
 import os
-
 from django.core.asgi import get_asgi_application
 
-os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'capstoneBudgetPro.settings')
+# Changed 'capstoneBudgetPro.settings' to 'capstone.settings'
+os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'capstone.settings')
 
 application = get_asgi_application()

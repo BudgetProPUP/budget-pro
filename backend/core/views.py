@@ -26,6 +26,10 @@ from .models import BudgetAllocation, JournalEntryLine, LoginAttempt, UserActivi
 
 User = get_user_model()
 
+def healthcheck_view(request):
+    return JsonResponse({"status": "ok"})
+
+
 def ratelimit_handler(request, exception): # Not yet hooked up
     """Custom handler for rate limit exceeded"""
     return JsonResponse({

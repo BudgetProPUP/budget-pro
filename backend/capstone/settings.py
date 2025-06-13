@@ -66,10 +66,9 @@ AUTHENTICATION_BACKENDS = [
 
 # CORS settings
 CORS_ALLOWED_ORIGINS = [
-    "http://localhost:5173",  # Vite default dev server
+    "http://localhost:5173",
     "http://127.0.0.1:5173",
-    "frontend-production-61ee.up.railway.app",
-    # Add your Railway frontend URL here after deployment
+    "https://budget-pro-frontend-service-production.up.railway.app",  # Add https://
 ]
 
 CORS_ALLOW_ALL_ORIGINS = DEBUG  # Only allow all origins in development
@@ -127,8 +126,9 @@ MIDDLEWARE = [
 ]
 
 CSRF_TRUSTED_ORIGINS = [
-    'frontend-production-61ee.up.railway.app', 'https://*.up.railway.app',]  # Replace
-
+    'https://budget-pro-frontend-service-production.up.railway.app',  
+    'https://*.up.railway.app',
+]
 # REST Framework settings
 REST_FRAMEWORK = {
     'DEFAULT_AUTHENTICATION_CLASSES': (

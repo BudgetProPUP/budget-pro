@@ -23,7 +23,8 @@ load_dotenv(BASE_DIR / 'capstone' / '.env')
 FRONTEND_URL = os.getenv('FRONTEND_URL', 'http://localhost:5173')
 
 # SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = os.getenv('DJANGO_SECRET_KEY', 'g^-i4u72k#@x1xmf4r@$%afoft=xsati0&8o9v5sa(s-#_wz++')
+SECRET_KEY = os.getenv('DJANGO_SECRET_KEY',
+                       'g^-i4u72k#@x1xmf4r@$%afoft=xsati0&8o9v5sa(s-#_wz++')
 
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = os.getenv('DEBUG', 'False').lower() == 'true'
@@ -67,6 +68,7 @@ AUTHENTICATION_BACKENDS = [
 CORS_ALLOWED_ORIGINS = [
     "http://localhost:5173",  # Vite default dev server
     "http://127.0.0.1:5173",
+    "frontend-production-61ee.up.railway.app",
     # Add your Railway frontend URL here after deployment
 ]
 
@@ -124,7 +126,8 @@ MIDDLEWARE = [
     'debug_toolbar.middleware.DebugToolbarMiddleware',
 ]
 
-CSRF_TRUSTED_ORIGINS = ['https://your-backend.up.railway.app']  # Replace
+CSRF_TRUSTED_ORIGINS = [
+    'frontend-production-61ee.up.railway.app', 'https://*.up.railway.app',]  # Replace
 
 # REST Framework settings
 REST_FRAMEWORK = {

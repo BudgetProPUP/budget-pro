@@ -32,8 +32,9 @@ DEBUG = os.getenv('DEBUG', 'False').lower() == 'true'
 ALLOWED_HOSTS = [
     'localhost',
     '127.0.0.1',
-    '.railway.app',  # Allow all Railway subdomains
-    '.up.railway.app',  # Railway's new domain format
+    '.railway.app',
+    '.up.railway.app',
+    'budget-pro-production.up.railway.app', # Add specific backend host
 ]
 
 # Application definition
@@ -68,7 +69,7 @@ AUTHENTICATION_BACKENDS = [
 CORS_ALLOWED_ORIGINS = [
     "http://localhost:5173",
     "http://127.0.0.1:5173",
-    "https://budget-pro-frontend-service-production.up.railway.app",  # Add https://
+    "https://frontend-production-906f.up.railway.app",  # Add https://
 ]
 
 CORS_ALLOW_ALL_ORIGINS = DEBUG  # Only allow all origins in development
@@ -126,7 +127,8 @@ MIDDLEWARE = [
 ]
 
 CSRF_TRUSTED_ORIGINS = [
-    'https://budget-pro-frontend-service-production.up.railway.app',  
+    'https://frontend-production-906f.up.railway.app', # Your frontend URL
+    'https://budget-pro-production.up.railway.app',   # Your backend URL
     'https://*.up.railway.app',
 ]
 # REST Framework settings

@@ -43,13 +43,7 @@ SECRET_KEY = os.getenv('DJANGO_SECRET_KEY')
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = os.getenv('DEBUG', 'False').lower() == 'true'  # Disable in production
 
-ALLOWED_HOSTS = [
-    'localhost',
-    '127.0.0.1',
-    '*.railway.app',
-    '.railway.app',  # Also allow without subdomain
-    os.getenv('RAILWAY_STATIC_URL', '').replace('https://', '').replace('http://', ''),
-]
+ALLOWED_HOSTS = ['*']
 
 # Application definition
 
@@ -148,6 +142,8 @@ MIDDLEWARE = [
     'debug_toolbar.middleware.DebugToolbarMiddleware',  # For development
 ]
 
+CSRF_TRUSTED_ORIGINS = ['https://your-backend.up.railway.app']  # Replace
+
 # REST Framework settings
 REST_FRAMEWORK = {
     'DEFAULT_AUTHENTICATION_CLASSES': (
@@ -210,10 +206,7 @@ WSGI_APPLICATION = 'capstone.wsgi.application'
 # https://docs.djangoproject.com/en/5.2/ref/settings/#databases
 
 DATABASES = {
-    'default': dj_database_url.parse(
-        os.getenv('DATABASE_URL'),
-        conn_max_age=600,
-        conn_health_checks=True,
+    'default': dj_database_url.config(default=os.environ.get('DATABASE_URL'),
     ) if os.getenv('DATABASE_URL') else {
         'ENGINE': 'django.db.backends.postgresql',
         'NAME': os.getenv('DB_NAME'),

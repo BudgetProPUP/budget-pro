@@ -1,7 +1,7 @@
 // src/Pages/LoginPage.jsx
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import "./LoginPage.css";
+import "./loginPage.css";
 import { useAuth } from "../../context/AuthContext";
 
 // Removed sign-up (unneeded)

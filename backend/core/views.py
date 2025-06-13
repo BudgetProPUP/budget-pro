@@ -26,7 +26,7 @@ from .models import BudgetAllocation, JournalEntryLine, LoginAttempt, UserActivi
 
 User = get_user_model()
 
-def ratelimit_handler(request, exception):
+def ratelimit_handler(request, exception): # Not yet hooked up
     """Custom handler for rate limit exceeded"""
     return JsonResponse({
         'error': 'Rate limit exceeded. Please try again later.',
@@ -35,7 +35,7 @@ def ratelimit_handler(request, exception):
 
 @method_decorator(ratelimit(key='ip', rate='5/m', method='POST', block=True), name='post')
 class LoginView(APIView):
-    permission_classes = [AllowAny]            # ← Add this
+    permission_classes = [AllowAny]            # ← Allows unauthenticated
     authentication_classes = []                # ← Disable auth checks here
     @extend_schema(
         request=LoginSerializer,
@@ -45,7 +45,7 @@ class LoginView(APIView):
             200: OpenApiResponse(
                 description='Successful login response',
                 response=inline_serializer(
-                    name='SuccessfulLoginResponse',  # Changed to remove spaces
+                    name='SuccessfulLoginResponse',  
                     fields={
                         'refresh': serializers.CharField(),
                         'access': serializers.CharField(),

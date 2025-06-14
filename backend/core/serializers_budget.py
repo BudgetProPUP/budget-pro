@@ -86,6 +86,10 @@ class BudgetProposalDetailSerializer(serializers.ModelSerializer):
             'document',  # Optional attachment
             'comments',
             'last_reviewed_at',
+            'approved_by_name',      # <-- ADD THIS
+            'approval_date',         # <-- ADD THIS
+            'rejected_by_name',      # <-- ADD THIS
+            'rejection_date',        # <-- ADD THIS
         ]
 
     def get_total_cost(self, obj):

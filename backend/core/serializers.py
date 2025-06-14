@@ -3,6 +3,7 @@ from django.contrib.auth import authenticate
 from django.utils import timezone
 from .models import FiscalYear, User, Department, LoginAttempt, ExpenseCategory, Expense
 from drf_spectacular.utils import extend_schema_field
+import re
 
 
 class DepartmentSerializer(serializers.ModelSerializer):
@@ -173,24 +174,29 @@ class LoginSerializer(serializers.Serializer):
                                          trim_whitespace=False)
 
     def validate(self, attrs):
-        identifier = attrs.get('email') or attrs.get('phone_number')
-        password   = attrs.get('password')
+        email = attrs.get('email')
+        phone_number = attrs.get('phone_number')
+        password = attrs.get('password')
 
-        if not identifier or not password:
-            raise serializers.ValidationError(
-              'Please provide email or phone number, and password.'
-            )
+        if not email and not phone_number:
+            raise serializers.ValidationError("Either email or phone number is required.")
+        if phone_number:
+            pattern = r'^\+\d{10,15}$'
+            if not re.match(pattern, phone_number):
+                raise serializers.ValidationError("Invalid phone number format.")
+
+        if not password:
+            raise serializers.ValidationError("Password is required.")
 
         user = authenticate(
             request=self.context.get('request'),
-            username=identifier, password=password
+            username=email or phone_number, password=password
         )
         if not user:
             raise serializers.ValidationError('Invalid credentials')
         if not user.is_active:
             raise serializers.ValidationError('Account is disabled')
 
-        # update last_login…
         user.last_login = timezone.now()
         user.save(update_fields=['last_login'])
 

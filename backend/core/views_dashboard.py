@@ -1,15 +1,15 @@
 from decimal import Decimal
-from django.db.models import Sum, F, DecimalField
+from django.db.models import Sum, F, DecimalField, Q
 from django.db.models.functions import Coalesce
 from rest_framework import viewsets, views, status
 from rest_framework.response import Response
+from rest_framework.views import APIView
 from drf_spectacular.utils import extend_schema, OpenApiParameter, OpenApiExample, OpenApiResponse
-from django.db.models import Subquery, OuterRef
-
+from django.db.models import Subquery, OuterRef, Q
 from core.pagination import ProjectStatusPagination, StandardResultsSetPagination
-from .models import Department, FiscalYear, BudgetAllocation, Expense, Project
+from .models import Department, ExpenseCategory, FiscalYear, BudgetAllocation, Expense, Project
 from .serializers import DepartmentBudgetSerializer
-from .serializers_dashboard import DashboardBudgetSummarySerializer, DepartmentBudgetStatusSerializer, ProjectStatusSerializer, TotalBudgetSerializer
+from .serializers_dashboard import CategoryAllocationSerializer, DashboardBudgetSummarySerializer, DepartmentBudgetStatusSerializer, ProjectStatusSerializer, TotalBudgetSerializer
 from rest_framework.permissions import IsAuthenticated
 from .serializers_dashboard import MonthlyBudgetActualSerializer
 from django.utils import timezone
@@ -17,6 +17,7 @@ from rest_framework.decorators import api_view, permission_classes, action
 import calendar
 from decimal import Decimal
 from django.utils import timezone
+
 
 
 class DepartmentBudgetView(views.APIView):
@@ -268,10 +269,10 @@ class MonthlyBudgetActualViewSet(viewsets.ViewSet):
 
     def _calculate_monthly_data(self, department, fiscal_year, total_budget, project_id=None):
         """
-        Calculate budget and actual expenses by month.
+        Calculate budget and actual expenses by month
 
         This method distributes the annual budget across months based on fiscal year
-        duration and retrieves actual expenses by month.
+        duration and retrieves actual expenses by month
         """
         result = []
 
@@ -289,7 +290,7 @@ class MonthlyBudgetActualViewSet(viewsets.ViewSet):
         if total_months <= 0:
             return result
 
-        # Distribute budget evenly across months (simple approach)
+        #Distribute budget evenly across months (simple approach)
         monthly_budget = total_budget / total_months
 
         # For each month in the fiscal year
@@ -664,3 +665,38 @@ def get_department_budget_status(request):
 
     serializer = DepartmentBudgetStatusSerializer(result, many=True)
     return Response(serializer.data)
+
+
+
+class TopCategoryBudgetAllocationView(APIView):
+    """
+    Returns top N budget allocations grouped by category.
+    """
+    @extend_schema(
+        summary="Top Budget Allocations by Category",
+        description="Returns total allocated budget grouped by category. Use ?limit=N to limit the number of categories returned.",
+        parameters=[
+            OpenApiParameter(
+                name="limit",
+                type=int,
+                required=False,
+                description="Limit the number of categories returned (default: 3)"
+            )
+        ],
+        responses={200: CategoryAllocationSerializer(many=True)},
+        tags=["Dashboard"]
+    )
+    def get(self, request):
+        limit = int(request.query_params.get('limit', 3))
+
+        # Sum BudgetAllocations by category
+        category_allocations = ExpenseCategory.objects.annotate(
+            total_allocated=Coalesce(
+                Sum('budget_allocations__amount', filter=Q(budget_allocations__is_active=True)),
+                0,
+                output_field=DecimalField()
+            )
+        ).filter(total_allocated__gt=0).order_by('-total_allocated')[:limit]
+
+        serializer = CategoryAllocationSerializer(category_allocations, many=True)
+        return Response(serializer.data)

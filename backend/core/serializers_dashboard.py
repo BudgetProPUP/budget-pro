@@ -54,3 +54,10 @@ class DepartmentBudgetStatusSerializer(serializers.Serializer):
     budget = serializers.DecimalField(max_digits=15, decimal_places=2)
     spent = serializers.DecimalField(max_digits=15, decimal_places=2)
     percentage_used = serializers.FloatField()
+    
+class CategoryAllocationSerializer(serializers.ModelSerializer):
+    total_allocated = serializers.DecimalField(max_digits=15, decimal_places=2)
+
+    class Meta:
+        model = ExpenseCategory
+        fields = ['id', 'name', 'total_allocated']

@@ -1,15 +1,16 @@
 from decimal import Decimal
 import json
-from django.db.models import Sum, Q
+from django.db.models import Sum, Q, DecimalField
+from django.db.models.functions import Coalesce
 from django.http import HttpResponse
 from rest_framework import generics, status
 from rest_framework.response import Response
 from drf_spectacular.utils import extend_schema, OpenApiParameter, OpenApiResponse, OpenApiTypes, OpenApiExample
 from rest_framework.views import APIView
-from rest_framework import viewsets
+from rest_framework import viewsets, status as drf_status
 import csv
 from .serializers import FiscalYearSerializer
-from .models import Account, AccountType, BudgetProposal, Department, FiscalYear, BudgetAllocation, Expense, JournalEntry, JournalEntryLine, Project
+from .models import Account, AccountType, BudgetProposal, Department, ExpenseCategory, FiscalYear, BudgetAllocation, Expense, JournalEntry, JournalEntryLine, ProposalComment
 from rest_framework.permissions import IsAuthenticated
 from django.utils import timezone
 from rest_framework.decorators import api_view, permission_classes, action
@@ -25,11 +26,18 @@ from .serializers_budget import (
     BudgetProposalSummarySerializer,
     BudgetProposalDetailSerializer,
     DepartmentDropdownSerializer,
+    ExpenseCategoryVarianceSerializer,
     JournalEntryCreateSerializer,
     JournalEntryListSerializer,
     LedgerViewSerializer,
-    ProposalHistorySerializer
+    ProposalCommentCreateSerializer,
+    ProposalHistorySerializer,
+    ProposalReviewSerializer
 )
+import openpyxl
+from openpyxl.utils import get_column_letter # Converts column index (integer) to its Excel letter (e.g., 1 -> 'A')
+from openpyxl.styles import Font, PatternFill
+
 
 
 @extend_schema(
@@ -523,7 +531,7 @@ class BudgetProposalViewSet(viewsets.ModelViewSet):
         Create a new BudgetProposal (and its nested BudgetProposalItem rows) in one call.
         
         The external system must supply:
-        1. `title`, `project_summary`, `project_description`
+        1. `title`, `project_summary`, `project_description`, `performance_notes`
         2. `department` (existing Department ID)
         3. `fiscal_year` (existing FiscalYear ID)
         4. `submitted_by_name` (string)
@@ -546,6 +554,7 @@ class BudgetProposalViewSet(viewsets.ModelViewSet):
                     "title": "Project Alpha",
                     "project_summary": "Summary of Project Alpha",
                     "project_description": "Detailed description of Project Alpha",
+                    "performance_notes": "This project will run during the last 2 quarters.",
                     "department": 1,
                     "fiscal_year": 2,
                     "submitted_by_name": "Jane Doe",
@@ -628,3 +637,229 @@ class BudgetProposalViewSet(viewsets.ModelViewSet):
     )
     def retrieve(self, request, *args, **kwargs):
         return super().retrieve(request, *args, **kwargs)
+
+    @extend_schema(
+        request=ProposalReviewSerializer,
+        responses={200: OpenApiTypes.OBJECT},
+        tags=['Budget Proposal Page'],
+        summary="Review a proposal (Approve/Reject with optional comment)",
+        description="Updates the proposal status and saves a comment in one action. This is triggered by the modal in the frontend when user selects a status and submits a comment. Options: REJECTED/APPROVED"
+    )
+    @action(detail=True, methods=['post'])
+    def review(self, request, pk=None):
+        proposal = self.get_object()
+        serializer = ProposalReviewSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+
+        new_status = serializer.validated_data['status']
+        comment_text = serializer.validated_data.get('comment', '')
+
+        proposal.status = new_status
+        user = request.user
+
+        # Assign audit fields
+        if new_status == 'APPROVED':
+            proposal.approved_by_name = user.get_full_name()
+            proposal.approval_date = timezone.now()
+        elif new_status == 'REJECTED':
+            proposal.rejected_by_name = user.get_full_name()
+            proposal.rejection_date = timezone.now()
+        proposal.save()
+
+        if comment_text:
+            ProposalComment.objects.create(
+                proposal=proposal,
+                user=user,
+                comment=comment_text
+            )
+
+        return Response({
+            'status': proposal.status,
+            'comment_saved': bool(comment_text),
+            'timestamp': timezone.now()
+        }, status=200)
+
+
+'''
+Function that exports the budget proposal to an Excel File
+
+Example:
+const handleExportProposal = async (proposalId) => {
+  try {
+    const response = await fetch(
+      `http://localhost:8000/api/budget-proposals/${proposalId}/export/`,
+      {
+        method: 'GET',
+        headers: {
+          // Add the Authorization header here
+        },
+      }
+    );
+'''
+@extend_schema(
+    tags=["Budget Proposal Export"],
+    summary="Export a budget proposal to Excel",
+    description="Exports the specified BudgetProposal and its items to an Excel file. Example:",
+    responses={
+        200: OpenApiResponse(description="XLSX file of the proposal"),
+        404: OpenApiResponse(description="Proposal not found"),
+    }
+)
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+
+def export_budget_proposal_excel(request, proposal_id):
+
+    try:
+        proposal = BudgetProposal.objects.prefetch_related('items', 'department').get(id=proposal_id)
+    except BudgetProposal.DoesNotExist:
+        return HttpResponse("Proposal not found", status=404)
+
+    wb = openpyxl.Workbook()
+    ws = wb.active
+    ws.title = "Budget Proposal"
+
+    # Header section
+    header_labels = [
+        "Title", "Project Summary", "Project Description",
+        "Performance Start", "Performance End", "Performance Notes",
+        "Department", "Submitted By", "Status"
+    ]
+    header_values = [
+        proposal.title,
+        proposal.project_summary,
+        proposal.project_description,
+        proposal.performance_start_date.strftime("%Y-%m-%d"),
+        proposal.performance_end_date.strftime("%Y-%m-%d"),
+        getattr(proposal, 'performance_notes', ''),
+        proposal.department.name,
+        proposal.submitted_by_name or "N/A",
+        proposal.status
+    ]
+    for i, (label, value) in enumerate(zip(header_labels, header_values), start=1):
+        ws.append([label, value])
+        ws.cell(row=i, column=1).font = Font(bold=True)  # Bold the header label
+
+    ws.append([])  # Blank row
+
+    # able Header
+    table_header = ["Account", "Cost Element", "Description", "Estimated Cost", "Notes"]
+    ws.append(table_header)
+    table_header_row = ws.max_row
+    for col in range(1, len(table_header) + 1):
+        ws.cell(row=table_header_row, column=col).font = Font(bold=True)
+
+    # Line Items
+    total_cost = 0
+    for item in proposal.items.all():
+        ws.append([
+            item.account.name if item.account else "N/A",
+            item.cost_element,
+            item.description,
+            float(item.estimated_cost),
+            item.notes or ""
+        ])
+        total_cost += item.estimated_cost
+
+    # Total Row
+    ws.append([])
+    total_row = ws.max_row + 1
+    ws.append(["", "", "Total", float(total_cost)])
+
+    # Bold "Total", "Estimated Cost" header, and the summed value
+    ws.cell(row=table_header_row, column=4).font = Font(bold=True)  # "Estimated Cost" header
+    ws.cell(row=table_header_row, column=5).font = Font(bold=True)  # "Notes" header
+    ws.cell(row=total_row, column=3).font = Font(bold=True)         # "Total" label
+    ws.cell(row=total_row, column=4).font = Font(bold=True)         # summed value
+
+    # Bold all "Description" column cells (header and values)
+    for row in range(table_header_row, ws.max_row + 1):
+        ws.cell(row=row, column=3).font = Font(bold=True)
+
+    # Auto size columns
+    for col in ws.columns:
+        max_length = max(len(str(cell.value)) for cell in col)
+        ws.column_dimensions[get_column_letter(col[0].column)].width = max(max_length + 2, 12)
+
+    response = HttpResponse(content_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+    filename = f"budget_proposal_{proposal.id}.xlsx"
+    response["Content-Disposition"] = f'attachment; filename="{filename}"'
+    wb.save(response)
+
+    return response
+
+
+
+
+class BudgetVarianceReportView(APIView):
+    permission_classes = [IsAuthenticated]
+    '''
+    View for budget variance report page
+    '''
+    @extend_schema(
+        tags=["Budget Variance Reports"],
+        summary="Budget Variance Report",
+        description="The Budget Variance Report shows how budget allocations are utilized across hierarchical categories such as Income and Expense. For each category, it displays: Budget (total allocated from BudgetAllocation objects), Actual (total approved Expense entries), and Available (Budget minus Actual). A negative Available value indicates overspending. Categories are organized into levels: Level 1 (top-level like INCOME or EXPENSE), Level 2 (groups like DISCRETIONARY or OPERATIONS), and Level 3 (specific items like Cloud Hosting or Utilities). This report helps departments track financial performance and identify areas of over- or under-spending.",
+        parameters=[
+            OpenApiParameter(name="fiscal_year_id", required=True, type=int)
+        ],
+        responses={200: ExpenseCategoryVarianceSerializer(many=True)}
+    )
+    def get(self, request):
+        fiscal_year_id = request.query_params.get('fiscal_year_id')
+        if not fiscal_year_id:
+            return Response({"error": "fiscal_year_id is required"}, status=400)
+
+        try:
+            fiscal_year = FiscalYear.objects.get(id=fiscal_year_id)
+        except FiscalYear.DoesNotExist:
+            return Response({"error": "Fiscal Year not found"}, status=404)
+
+        top_categories = ExpenseCategory.objects.filter(level=1, is_active=True)
+
+        def aggregate_node(category):
+            # Direct values
+            budget = BudgetAllocation.objects.filter(
+                category=category, fiscal_year=fiscal_year, is_active=True
+            ).aggregate(total=Coalesce(Sum('amount'), 0, output_field=DecimalField()))['total']
+
+            actual = Expense.objects.filter(
+                category=category,
+                budget_allocation__fiscal_year=fiscal_year,
+                status='APPROVED'
+            ).aggregate(total=Coalesce(Sum('amount'), 0, output_field=DecimalField()))['total']
+
+            available = budget - actual
+            children = []
+
+            for child in category.subcategories.all():
+                children.append(aggregate_node(child))
+
+            # Aggregate child totals if exists
+            if children:
+                child_budget = sum(c['budget'] for c in children)
+                child_actual = sum(c['actual'] for c in children)
+                child_available = child_budget - child_actual
+                return {
+                    "category": category.name,
+                    "code": category.code,
+                    "level": category.level,
+                    "budget": round(child_budget, 2),
+                    "actual": round(child_actual, 2),
+                    "available": round(child_available, 2),
+                    "children": children
+                }
+            else:
+                return {
+                    "category": category.name,
+                    "code": category.code,
+                    "level": category.level,
+                    "budget": round(budget, 2),
+                    "actual": round(actual, 2),
+                    "available": round(available, 2),
+                    "children": []
+                }
+        # Builds nested dictionariers, each representing top level expense categories, and its full budget/actual/available breakdown (and subcategories)
+        result = [aggregate_node(cat) for cat in top_categories] # aggregate_node(cat) - recursive function that computes budget, actual, and available amounts for given category (and all its children if any)
+
+        return Response(result)

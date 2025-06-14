@@ -1,3 +1,4 @@
+from django.http import JsonResponse
 from django.shortcuts import render
 from django.conf import settings
 from rest_framework import status, generics  # , permissions
@@ -15,7 +16,9 @@ from drf_spectacular.utils import extend_schema, OpenApiExample, OpenApiResponse
 from core.pagination import StandardResultsSetPagination
 from core.permissions import IsFinanceHead, IsAdmin
 from .serializers_budget import LedgerViewSerializer
-
+from django_ratelimit.decorators import ratelimit
+from django_ratelimit.exceptions import Ratelimited
+from django.utils.decorators import method_decorator
 # from django.utils import timezone
 
 from .serializers import UserSerializer, LoginSerializer, LoginAttemptSerializer, ValidProjectAccountSerializer
@@ -23,11 +26,17 @@ from .models import BudgetAllocation, JournalEntryLine, LoginAttempt, UserActivi
 
 User = get_user_model()
 
+def ratelimit_handler(request, exception): # Not yet hooked up
+    """Custom handler for rate limit exceeded"""
+    return JsonResponse({
+        'error': 'Rate limit exceeded. Please try again later.',
+        'detail': 'Too many requests from your IP address.'
+    }, status=429)
 
+@method_decorator(ratelimit(key='ip', rate='5/m', method='POST', block=True), name='post')
 class LoginView(APIView):
-    permission_classes = [AllowAny]            # ← Add this
+    permission_classes = [AllowAny]            # ← Allows unauthenticated
     authentication_classes = []                # ← Disable auth checks here
-
     @extend_schema(
         request=LoginSerializer,
         tags=['Authentication'],
@@ -36,7 +45,7 @@ class LoginView(APIView):
             200: OpenApiResponse(
                 description='Successful login response',
                 response=inline_serializer(
-                    name='SuccessfulLoginResponse',  # Changed to remove spaces
+                    name='SuccessfulLoginResponse',  
                     fields={
                         'refresh': serializers.CharField(),
                         'access': serializers.CharField(),
@@ -78,8 +87,17 @@ class LoginView(APIView):
                         status_codes=['400']
                     )
                 ]
+            ),
+            429: OpenApiResponse(
+                description='Rate limit exceeded',
+                response=inline_serializer(
+                    name='RateLimitResponse',
+                    fields={
+                        'error': serializers.CharField(),
+                        'detail': serializers.CharField()
+                    }
+                )
             )
-
         },
         examples=[
             OpenApiExample(
@@ -204,6 +222,7 @@ class LogoutErrorSerializer(serializers.Serializer):
     error = serializers.CharField(help_text="Error message")
 
 
+@method_decorator(ratelimit(key='user', rate='10/m', method='POST', block=True), name='post')
 class LogoutView(APIView):
     permission_classes = [IsAuthenticated]
 
@@ -213,7 +232,17 @@ class LogoutView(APIView):
         description='User logout endpoint, blacklists the refresh token.',
         responses={
             200: LogoutResponseSerializer,
-            400: LogoutErrorSerializer
+            400: LogoutErrorSerializer,
+            429: OpenApiResponse(
+                description='Rate limit exceeded',
+                response=inline_serializer(
+                    name='LogoutRateLimitResponse',
+                    fields={
+                        'error': serializers.CharField(),
+                        'detail': serializers.CharField()
+                    }
+                )
+            )
         },
         examples=[
             OpenApiExample(

@@ -1,5 +1,5 @@
-from core.models import Account, AccountType, BudgetProposal, BudgetProposalItem, Department, FiscalYear, JournalEntry, JournalEntryLine, ProposalHistory
-from rest_framework import serializers 
+from core.models import Account, AccountType, BudgetProposal, BudgetProposalItem, Department, FiscalYear, JournalEntry, JournalEntryLine, ProposalComment, ProposalHistory
+from rest_framework import serializers
 from django.db.models import Sum
 from django.utils import timezone
 
@@ -9,8 +9,10 @@ class BudgetProposalSummarySerializer(serializers.Serializer):
     pending_approvals = serializers.IntegerField()
     total_budget = serializers.DecimalField(max_digits=15, decimal_places=2)
 
+
 class BudgetProposalListSerializer(serializers.ModelSerializer):
-    department_name = serializers.CharField(source='department.name', read_only=True)
+    department_name = serializers.CharField(
+        source='department.name', read_only=True)
 
     class Meta:
         model = BudgetProposal
@@ -19,27 +21,51 @@ class BudgetProposalListSerializer(serializers.ModelSerializer):
             'external_system_id',
             'title',
             'department_name',
-            'submitted_by_name',   
+            'submitted_by_name',
             'status',
-            'created_at'
+            'created_at',
+            'performance_notes',
         ]
-        
+
     def get_total_cost(self, obj):
         return obj.items.aggregate(total=Sum('estimated_cost'))['total'] or 0
-        
+
+
 class BudgetProposalItemSerializer(serializers.ModelSerializer):
     account_code = serializers.CharField(source='account.code', read_only=True)
 
     class Meta:
         model = BudgetProposalItem
-        fields = ['cost_element', 'description', 'estimated_cost', 'account_code']
+        fields = ['cost_element', 'description',
+                  'estimated_cost', 'account_code']
+
+
+class ProposalCommentCreateSerializer(serializers.Serializer):
+    comment = serializers.CharField(max_length=1000)
+
+
+class ProposalCommentSerializer(serializers.ModelSerializer):
+    user_name = serializers.CharField(
+        source='user.get_full_name', read_only=True)
+
+    class Meta:
+        model = ProposalComment
+        fields = ['id', 'user_name', 'comment', 'created_at']
 
 
 class BudgetProposalDetailSerializer(serializers.ModelSerializer):
-    department_name = serializers.CharField(source='department.name', read_only=True)
+    department_name = serializers.CharField(
+        source='department.name', read_only=True)
     items = BudgetProposalItemSerializer(many=True, read_only=True)
     total_cost = serializers.SerializerMethodField()
-
+    approved_by_name = serializers.CharField(read_only=True)
+    approval_date = serializers.DateTimeField(read_only=True)
+    rejected_by_name = serializers.CharField(read_only=True)
+    rejection_date = serializers.DateTimeField(read_only=True)
+    department_name = serializers.CharField(
+        source='department.name', read_only=True)
+    comments = ProposalCommentSerializer(many=True, read_only=True)
+    last_reviewed_at = serializers.SerializerMethodField()
     class Meta:
         model = BudgetProposal
         fields = [
@@ -48,6 +74,7 @@ class BudgetProposalDetailSerializer(serializers.ModelSerializer):
             'title',
             'project_summary',
             'project_description',
+            'performance_notes',  # Period of performance
             'submitted_by_name',
             'status',
             'department_name',
@@ -56,15 +83,26 @@ class BudgetProposalDetailSerializer(serializers.ModelSerializer):
             'performance_end_date',
             'items',
             'total_cost',
-            'document'  # Optional attachment
+            'document',  # Optional attachment
+            'comments',
+            'last_reviewed_at',
         ]
 
     def get_total_cost(self, obj):
         return obj.items.aggregate(total=Sum('estimated_cost'))['total'] or 0
     
+    def get_last_reviewed_at(self, obj):
+        if obj.status == 'APPROVED':
+            return obj.approval_date
+        elif obj.status == 'REJECTED':
+            return obj.rejection_date
+        return None
+
 class ProposalHistorySerializer(serializers.ModelSerializer):
-    department_name = serializers.CharField(source='department.name', read_only=True)
-    last_modified_by = serializers.CharField(source='submitted_by_name', read_only=True)
+    department_name = serializers.CharField(
+        source='department.name', read_only=True)
+    last_modified_by = serializers.CharField(
+        source='submitted_by_name', read_only=True)
 
     class Meta:
         model = BudgetProposal
@@ -117,16 +155,19 @@ class AccountSetupSerializer(serializers.ModelSerializer):
         ).order_by('created_at').first()
         return alloc.created_at if alloc else None
 
+
 class LedgerViewSerializer(serializers.ModelSerializer):
-    reference = serializers.CharField(source='journal_entry.entry_id', read_only=True)
+    reference = serializers.CharField(
+        source='journal_entry.entry_id', read_only=True)
     date = serializers.DateField(source='journal_entry.date', read_only=True)
-    category = serializers.CharField(source='journal_entry.category', read_only=True)
-    description = serializers.CharField(source='journal_entry.description', read_only=True)
+    category = serializers.CharField(
+        source='journal_entry.category', read_only=True)
+    description = serializers.CharField(
+        source='journal_entry.description', read_only=True)
 
     class Meta:
         model = JournalEntryLine
         fields = ['reference', 'date', 'category', 'description', 'amount']
-
 
 
 class JournalEntryListSerializer(serializers.ModelSerializer):
@@ -135,24 +176,31 @@ class JournalEntryListSerializer(serializers.ModelSerializer):
     """
     class Meta:
         model = JournalEntry
-        fields = ['entry_id', 'date', 'category', 'description', 'total_amount']
+        fields = ['entry_id', 'date', 'category',
+                  'description', 'total_amount']
 
 # Serializers for Journal Entry creation
+
+
 class JournalEntryLineInputSerializer(serializers.Serializer):
     account_id = serializers.IntegerField()
     transaction_type = serializers.ChoiceField(choices=['DEBIT', 'CREDIT'])
-    journal_transaction_type = serializers.ChoiceField(choices=['CAPITAL_EXPENDITURE', 'OPERATIONAL_EXPENDITURE', 'TRANSFER'])
+    journal_transaction_type = serializers.ChoiceField(
+        choices=['CAPITAL_EXPENDITURE', 'OPERATIONAL_EXPENDITURE', 'TRANSFER'])
     amount = serializers.DecimalField(max_digits=15, decimal_places=2)
+
 
 class JournalEntryCreateSerializer(serializers.Serializer):
     date = serializers.DateField()
-    category = serializers.ChoiceField(choices=[c[0] for c in JournalEntry._meta.get_field('category').choices])
+    category = serializers.ChoiceField(
+        choices=[c[0] for c in JournalEntry._meta.get_field('category').choices])
     description = serializers.CharField()
     lines = JournalEntryLineInputSerializer(many=True)
 
     def validate_lines(self, value):
         if len(value) < 2:
-            raise serializers.ValidationError("At least 2 journal lines are required (e.g., 1 debit and 1 credit).")
+            raise serializers.ValidationError(
+                "At least 2 journal lines are required (e.g., 1 debit and 1 credit).")
         return value
 
     def create(self, validated_data):
@@ -169,7 +217,7 @@ class JournalEntryCreateSerializer(serializers.Serializer):
 
         # Create the journal entry with total_amount already set
         entry = JournalEntry.objects.create(
-            created_by=user, 
+            created_by=user,
             total_amount=abs(total_amount),  # Set total_amount on creation
             **validated_data
         )
@@ -185,20 +233,22 @@ class JournalEntryCreateSerializer(serializers.Serializer):
                 amount=line['amount'],
                 description=validated_data['description']
             )
-            
+
         return entry
-    
-    
+
+
 class AccountDropdownSerializer(serializers.ModelSerializer):
     class Meta:
         model = Account
         fields = ['id', 'code', 'name', 'account_type']
-        
+
+
 class DepartmentDropdownSerializer(serializers.ModelSerializer):
     class Meta:
         model = Department
         fields = ['id', 'name', 'code']
-        
+
+
 class AccountTypeDropdownSerializer(serializers.ModelSerializer):
     class Meta:
         model = AccountType
@@ -265,6 +315,7 @@ class BudgetProposalSerializer(serializers.ModelSerializer):
             'title',
             'project_summary',
             'project_description',
+            'performance_notes',
             'department',
             'fiscal_year',
             'submitted_by_name',
@@ -272,7 +323,8 @@ class BudgetProposalSerializer(serializers.ModelSerializer):
             'performance_start_date',
             'performance_end_date',
             'external_system_id',
-            'document',                # Optional FileField (e.g. an Excel sheet)
+            # Optional FileField (e.g. an Excel sheet)
+            'document',
             'items',                   # Custom write‐only nested field
             # Read-only metadata:
             'submitted_at',
@@ -325,7 +377,8 @@ class BudgetProposalSerializer(serializers.ModelSerializer):
         ProposalHistory.objects.create(
             proposal=proposal,
             action='CREATED',
-            action_by_name=None,      # We only have submitted_by_name, not a User instance; you could store None or a dummy user
+            # Only have submitted_by_name, not a User instance; Store None or a dummy user
+            action_by_name=None,
             previous_status=None,
             new_status=proposal.status,
             comments=f"Proposal created via external system (ID={proposal.external_system_id})."
@@ -335,8 +388,8 @@ class BudgetProposalSerializer(serializers.ModelSerializer):
 
     def update(self, instance, validated_data):
         """
-        If you want to allow updates to a proposal, including editing items,
-        you could implement nested updates here. For brevity, we only allow full Replacement of items:
+        If needed to allow updates to a proposal, including editing items,
+        implement nested updates here. We only allow full Replacement of items:
         - Delete all old items
         - Create new items from payload
         """
@@ -352,7 +405,8 @@ class BudgetProposalSerializer(serializers.ModelSerializer):
             # Delete existing items, then recreate
             instance.items.all().delete()
             for item_dict in items_data:
-                BudgetProposalItem.objects.create(proposal=instance, **item_dict)
+                BudgetProposalItem.objects.create(
+                    proposal=instance, **item_dict)
 
             # Optional: record this update in history
             ProposalHistory.objects.create(
@@ -365,3 +419,24 @@ class BudgetProposalSerializer(serializers.ModelSerializer):
             )
 
         return instance
+
+
+class ProposalReviewSerializer(serializers.Serializer):
+    status = serializers.ChoiceField(
+        choices=['APPROVED', 'REJECTED', 'PENDING'])
+    comment = serializers.CharField(required=False)
+
+    def validate_status(self, value):
+        if value not in ['APPROVED', 'REJECTED', 'PENDING']:
+            raise serializers.ValidationError("Invalid status.")
+        return value
+
+
+class ExpenseCategoryVarianceSerializer(serializers.Serializer):
+    category = serializers.CharField()
+    code = serializers.CharField()
+    level = serializers.IntegerField()
+    budget = serializers.DecimalField(max_digits=15, decimal_places=2)
+    actual = serializers.DecimalField(max_digits=15, decimal_places=2)
+    available = serializers.DecimalField(max_digits=15, decimal_places=2)
+    children = serializers.ListField(child=serializers.DictField())

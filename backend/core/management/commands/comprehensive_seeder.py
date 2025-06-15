@@ -23,11 +23,7 @@ class Command(BaseCommand):
 
     def handle(self, *args, **options):
         self.stdout.write('Starting database seeding process...')
-        
-        if User.objects.exists():
-            self.stdout.write('Data exists, skipping seeding')
-            return
-        
+
         try:
             with transaction.atomic():
                 # Create in order of dependencies
@@ -279,7 +275,7 @@ class Command(BaseCommand):
         self.stdout.write('Creating accounts...')
 
         # Get account types by name for easier reference
-        acct_type_dict = {acct.name: acct for acct in account_types}
+        acct_type_dict = {acct.name: acct fo r acct in account_types}
 
         # Create parent accounts first
         parent_accounts = [

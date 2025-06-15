@@ -12,8 +12,7 @@ from .views import (
     UserProfileView,
     LoginAttemptsView,
     CustomTokenRefreshView,
-    ValidProjectAccountView,
-    healthcheck_view
+    ValidProjectAccountView
 )
 
 from .views_password_reset import (

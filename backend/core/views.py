@@ -20,32 +20,11 @@ from django_ratelimit.decorators import ratelimit
 from django_ratelimit.exceptions import Ratelimited
 from django.utils.decorators import method_decorator
 # from django.utils import timezone
-import logging
+
 from .serializers import UserSerializer, LoginSerializer, LoginAttemptSerializer, ValidProjectAccountSerializer
 from .models import BudgetAllocation, JournalEntryLine, LoginAttempt, UserActivityLog
-from django.views.decorators.csrf import csrf_exempt
-from django.views.decorators.http import require_http_methods
+
 User = get_user_model()
-
-logger = logging.getLogger(__name__)
-
-@csrf_exempt
-@require_http_methods(["GET"])
-def healthcheck_view(request):
-    """Simple health check endpoint for Railway deployment"""
-    try:
-        logger.info("Health check endpoint accessed")
-        return JsonResponse({
-            "status": "ok",
-            "message": "Service is healthy"
-        }, status=200)
-    except Exception as e:
-        logger.error(f"Health check failed: {str(e)}")
-        return JsonResponse({
-            "status": "error", 
-            "message": str(e)
-        }, status=500)
-
 
 def ratelimit_handler(request, exception): # Not yet hooked up
     """Custom handler for rate limit exceeded"""

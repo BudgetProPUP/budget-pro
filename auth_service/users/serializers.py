@@ -1,0 +1,310 @@
+# File: CapstoneBP/auth_service/users/serializers.py
+
+from rest_framework import serializers
+from django.contrib.auth import get_user_model, authenticate
+from django.utils.translation import gettext_lazy as _
+from django.utils import timezone
+from drf_spectacular.utils import extend_schema_field
+import re
+
+# Models from the current app ('users')
+from .models import LoginAttempt # UserActivityLog will be used in views
+
+# For password reset, from serializers_password_reset.py
+from django.contrib.auth.tokens import default_token_generator
+from django.utils.http import urlsafe_base64_encode, urlsafe_base64_decode
+from django.utils.encoding import force_bytes, force_str
+from django.core.mail import send_mail
+from django.template.loader import render_to_string
+from django.conf import settings # For FRONTEND_URL, DEFAULT_FROM_EMAIL
+
+# For simplejwt custom token claims
+from rest_framework_simplejwt.serializers import TokenObtainPairSerializer as OriginalTokenObtainPairSerializer
+
+
+User = get_user_model()
+
+# --- User Serializers (Adapted for Auth Service) ---
+
+class UserSerializer(serializers.ModelSerializer):
+    """
+    General User Serializer for auth service.
+    Department is represented by department_id and department_name from the User model.
+    """
+    # department_name is already a field on the auth_service User model
+    # department_id is also already a field on the auth_service User model
+
+    class Meta:
+        model = User
+        fields = [
+            'id', 'email', 'username', 'first_name', 'last_name',
+            'role',
+            'department_id',      # Read-only from User model
+            'department_name',    # Read-only from User model
+            'phone_number',
+            'is_active', 'is_staff', 'is_superuser', # Added is_staff, is_superuser
+            'created_at', 'last_login', 'password' # Include password for write operations
+        ]
+        read_only_fields = [
+            'id', 'created_at', 'last_login',
+            'department_name' # department_id can be written during creation/update
+        ]
+        extra_kwargs = {
+            'password': {'write_only': True, 'required': False}, # Not required for GET/PATCH, but for POST
+            'phone_number': {'required': False, 'allow_blank': True, 'allow_null': True},
+            'first_name': {'required': False, 'allow_blank': True},
+            'last_name': {'required': False, 'allow_blank': True},
+        }
+
+    def create(self, validated_data):
+        # department_id and department_name are directly on the User model now
+        # No need to pop 'department_id' and look up Department object here
+        # as the auth_service doesn't own the Department model.
+        # It's assumed department_id and department_name are set if provided.
+        password = validated_data.pop('password', None)
+        user = User(**validated_data)
+        if password:
+            user.set_password(password)
+        else:
+            # Set a default random password if not provided during creation by admin
+            # (e.g., if UserManagementViewSet uses this serializer for creation)
+            import secrets, string
+            temp_password = ''.join(secrets.choice(string.ascii_letters + string.digits) for _ in range(12))
+            user.set_password(temp_password)
+            # Consider how this temp_password is communicated if this is an admin action.
+            # For self-registration, password would be required.
+
+        user.save()
+        return user
+
+    def update(self, instance, validated_data):
+        password = validated_data.pop('password', None)
+        for attr, value in validated_data.items():
+            setattr(instance, attr, value)
+        if password:
+            instance.set_password(password)
+        instance.save()
+        return instance
+
+
+class UserProfileUpdateSerializer(serializers.ModelSerializer): # Was UserUpdateSerializer
+    """
+    Serializer specifically for user self-updating their profile.
+    Limits fields that a user can change for themselves.
+    """
+    class Meta:
+        model = User
+        fields = ['first_name', 'last_name', 'phone_number']
+        extra_kwargs = {
+            'phone_number': {'required': False, 'allow_blank': True, 'allow_null': True},
+            'first_name': {'required': False, 'allow_blank': True},
+            'last_name': {'required': False, 'allow_blank': True},
+        }
+
+# --- Login Serializers ---
+
+class LoginSerializer(serializers.Serializer):
+    """
+    Mirrors monolithic LoginSerializer for validating login input.
+    """
+    email = serializers.CharField(required=False, allow_blank=True) # Changed from EmailField to CharField to allow non-email as identifier
+    phone_number = serializers.CharField(required=False, allow_blank=True)
+    password = serializers.CharField(style={'input_type': 'password'}, trim_whitespace=False)
+
+    def validate(self, attrs):
+        # Using self.initial_data to get what was actually sent
+        email_input = self.initial_data.get('email')
+        phone_input = self.initial_data.get('phone_number')
+        password = attrs.get('password') # Password from validated data
+
+        identifier = None
+        if email_input: # Prioritize email if both are sent
+            identifier = email_input
+        elif phone_input:
+            identifier = phone_input
+        
+        if not identifier:
+            raise serializers.ValidationError(
+                _("Must include either 'email' or 'phone_number'."), code='authorization')
+
+        if not password:
+            raise serializers.ValidationError(_("Password is required."), code='authorization')
+
+        # Validate phone format if phone_input was the identifier used
+        if identifier == phone_input:
+            pattern = r'^\+\d{10,15}$' # E.164 like
+            if not re.match(pattern, identifier):
+                # This error might not be the best place if the identifier could be a username
+                # but for email/phone only, it's okay.
+                raise serializers.ValidationError(
+                    _("Invalid phone number format. Use E.164 format e.g., +639123456789."),
+                    code='authorization'
+                )
+        
+        user = authenticate(
+            request=self.context.get('request'),
+            username=identifier, # This 'username' is passed to EmailOrPhoneNumberBackend
+            password=password
+        )
+
+        if not user:
+            raise serializers.ValidationError(_('Invalid credentials'), code='authorization')
+        
+        if not user.is_active:
+            raise serializers.ValidationError(_('User account is disabled.'), code='authorization')
+
+        # last_login update is handled in the LoginView after successful token generation
+        # user.last_login = timezone.now()
+        # user.save(update_fields=['last_login'])
+        attrs['user'] = user
+        return attrs
+
+
+class MyTokenObtainPairSerializer(OriginalTokenObtainPairSerializer):
+    """
+    Custom token serializer to add custom claims like role, department info.
+    This is used by LoginView to generate tokens.
+    """
+    @classmethod
+    def get_token(cls, user):
+        token = super().get_token(user)
+        # Add custom claims from the auth_service User model
+        token['username'] = user.username
+        token['email'] = user.email
+        token['role'] = user.role
+        token['user_id'] = user.id
+        token['department_id'] = user.department_id
+        token['department_name'] = user.department_name
+        token['first_name'] = user.first_name
+        token['last_name'] = user.last_name
+        return token
+
+
+class LogoutSerializer(serializers.Serializer):
+    refresh = serializers.CharField(required=True, help_text="Refresh token to blacklist")
+
+class LogoutResponseSerializer(serializers.Serializer): # For Swagger
+    success = serializers.CharField(help_text="Logout status message")
+
+class LogoutErrorSerializer(serializers.Serializer): # For Swagger
+    error = serializers.CharField(help_text="Error message")
+
+
+class LoginAttemptSerializer(serializers.ModelSerializer):
+    username = serializers.CharField(source='user.username', read_only=True, allow_null=True)
+    # username_input is already a field on LoginAttempt model
+
+    class Meta:
+        model = LoginAttempt
+        fields = ['id', 'username', 'username_input', 'ip_address', 'user_agent', 'success', 'timestamp']
+
+
+# --- Password Reset Serializers (from serializers_password_reset.py) ---
+
+class PasswordResetRequestSerializer(serializers.Serializer):
+    email = serializers.EmailField(required=True)
+
+    def validate_email(self, value):
+        try:
+            User.objects.get(email__iexact=value) # Case-insensitive check
+        except User.DoesNotExist:
+            pass # Don't reveal existence
+        return value
+
+    def save(self):
+        email = self.validated_data['email']
+        try:
+            user = User.objects.get(email__iexact=email) # Case-insensitive
+            uid = urlsafe_base64_encode(force_bytes(user.pk))
+            token = default_token_generator.make_token(user)
+            
+            frontend_url = settings.FRONTEND_URL
+            # Ensure frontend route match
+            reset_url = f"{frontend_url}/reset-password/{uid}/{token}/" 
+            
+            subject = "Password Reset Request"
+            context = {
+                'user': user, # Pass the whole user object if template needs more
+                'username': user.get_full_name() or user.username,
+                'reset_url': reset_url,
+                'site_name': "MAP Active Budgeting Software" # Or from settings
+            }
+            
+            html_message = render_to_string('email/password_reset_email.html', context)
+            plain_message = render_to_string('email/password_reset_email.txt', context) # Create a .txt template too
+            
+            send_mail(
+                subject=subject,
+                message=plain_message,
+                from_email=settings.DEFAULT_FROM_EMAIL,
+                recipient_list=[user.email], # Send to the user's actual email
+                fail_silently=False,
+                html_message=html_message,
+            )
+            return user # Return user for logging purposes in the view
+        except User.DoesNotExist:
+            return None # Indicate user not found, view can decide how to log
+
+
+class PasswordResetConfirmSerializer(serializers.Serializer):
+    password = serializers.CharField(min_length=8, max_length=64, write_only=True, style={'input_type': 'password'})
+    token = serializers.CharField(write_only=True)
+    uid = serializers.CharField(write_only=True)
+
+    def validate(self, attrs): 
+        password = attrs.get('password') # Password validation (e.g. length) is done by field itself
+                                       # and AUTH_PASSWORD_VALIDATORS will run on set_password
+        token = attrs.get('token')
+        uid_b64 = attrs.get('uid') # Renamed to avoid confusion with decoded uid
+
+        try:
+            uid = force_str(urlsafe_base64_decode(uid_b64))
+            self.user = User.objects.get(pk=uid)
+        except (TypeError, ValueError, OverflowError, User.DoesNotExist, Exception): # Catch generic Exception too
+            raise serializers.ValidationError({'uid': _('Invalid user ID or link.')})
+
+        if not default_token_generator.check_token(self.user, token):
+            raise serializers.ValidationError({'token': _('Invalid or expired token.')})
+
+        # Validate the new password against Django's validators
+        from django.contrib.auth.password_validation import validate_password
+        try:
+            validate_password(password, self.user)
+        except serializers.ValidationError as e: # Django's ValidationError
+            raise serializers.ValidationError({'password': list(e.messages)}) # Convert to list for DRF
+
+        return attrs
+
+    def save(self):
+        password = self.validated_data['password']
+        # self.user is set during validation
+        self.user.set_password(password)
+        self.user.save()
+        return self.user
+
+
+class PasswordChangeSerializer(serializers.Serializer):
+    current_password = serializers.CharField(style={'input_type': 'password'}, write_only=True)
+    new_password = serializers.CharField(min_length=8, max_length=64, style={'input_type': 'password'}, write_only=True)
+
+    def validate_current_password(self, value):
+        user = self.context['request'].user
+        if not user.check_password(value):
+            raise serializers.ValidationError(_('Current password is incorrect.'))
+        return value
+
+    def validate_new_password(self, value):
+        # Validate the new password against Django's validators
+        from django.contrib.auth.password_validation import validate_password
+        user = self.context['request'].user
+        try:
+            validate_password(value, user)
+        except serializers.ValidationError as e: # Django's ValidationError
+            raise serializers.ValidationError(list(e.messages)) # Convert to list for DRF
+        return value
+
+    def save(self):
+        user = self.context['request'].user
+        user.set_password(self.validated_data['new_password'])
+        user.save()
+        return user

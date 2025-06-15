@@ -1,0 +1,376 @@
+# File: CapstoneBP/auth_service/users/views.py
+
+import re
+from django.http import JsonResponse
+from django.conf import settings
+from rest_framework import status, generics, serializers as drf_serializers
+from rest_framework.response import Response
+from rest_framework.views import APIView
+from rest_framework_simplejwt.tokens import RefreshToken
+from rest_framework_simplejwt.exceptions import TokenError
+from rest_framework_simplejwt.views import TokenRefreshView as OriginalTokenRefreshView
+from rest_framework_simplejwt.serializers import TokenRefreshSerializer
+from rest_framework.permissions import IsAuthenticated, AllowAny
+from django.contrib.auth import get_user_model
+from django.utils import timezone
+from drf_spectacular.utils import extend_schema, OpenApiExample, OpenApiResponse, inline_serializer
+from django_ratelimit.decorators import ratelimit
+from django.utils.decorators import method_decorator
+
+# Import from local app
+from .permissions import IsFinanceHead, IsAdmin # Assuming these are defined in users.permissions
+from .serializers import (
+    UserSerializer, UserProfileUpdateSerializer, LoginSerializer,
+    LogoutSerializer, LogoutResponseSerializer, LogoutErrorSerializer,
+    MyTokenObtainPairSerializer, # For LoginView token generation
+    LoginAttemptSerializer,
+    PasswordResetRequestSerializer, PasswordResetConfirmSerializer, PasswordChangeSerializer
+)
+from .models import LoginAttempt, UserActivityLog
+
+User = get_user_model()
+
+def get_client_ip(request):
+    x_forwarded_for = request.META.get('HTTP_X_FORWARDED_FOR')
+    return x_forwarded_for.split(',')[0] if x_forwarded_for else request.META.get('REMOTE_ADDR')
+
+# --- Authentication Views ---
+
+@method_decorator(ratelimit(key='ip', rate='10/m', method='POST', block=True), name='post')
+class LoginView(APIView):
+    permission_classes = [AllowAny]
+    authentication_classes = []
+
+    @extend_schema(
+        request=LoginSerializer,
+        tags=['Authentication'],
+        summary="Login with email/phone and password",
+        description="Authenticates a user and returns JWT access and refresh tokens, along with user details.",
+        responses={
+            200: OpenApiResponse(
+                description='Successful login',
+                response=inline_serializer(
+                    name='AuthServiceLoginSuccessResponse', # Renamed for uniqueness
+                    fields={
+                        'refresh': drf_serializers.CharField(),
+                        'access': drf_serializers.CharField(),
+                        'user': UserSerializer()
+                    }
+                )
+            ),
+            400: OpenApiResponse( # General error for invalid input or failed auth
+                description="Invalid input or credentials",
+                response=inline_serializer(
+                    name='AuthServiceLoginErrorResponse',
+                    fields={'detail': drf_serializers.ListField(child=drf_serializers.CharField())} # Or DictField
+                )
+            ),
+            401: OpenApiResponse(description="Invalid credentials or inactive user (covered by 400 generally)"),
+            429: OpenApiResponse(description="Rate limit exceeded")
+        }
+    )
+    def post(self, request, *args, **kwargs):
+        ip_address = get_client_ip(request)
+        user_agent = request.META.get('HTTP_USER_AGENT', '')
+        
+        # Determine identifier for logging before validation
+        login_identifier = request.data.get('email') or request.data.get('phone_number') or "unknown_identifier"
+
+        login_validation_serializer = LoginSerializer(data=request.data, context={'request': request})
+
+        if login_validation_serializer.is_valid():
+            user = login_validation_serializer.validated_data['user']
+            
+            # Update last_login (was in monolith LoginSerializer, good to have in view)
+            user.last_login = timezone.now()
+            user.save(update_fields=['last_login'])
+
+            refresh_token_obj = MyTokenObtainPairSerializer.get_token(user)
+            tokens = {
+                'refresh': str(refresh_token_obj),
+                'access': str(refresh_token_obj.access_token),
+            }
+
+            LoginAttempt.objects.create(
+                user=user, username_input=login_identifier,
+                ip_address=ip_address, user_agent=user_agent, success=True
+            )
+            UserActivityLog.objects.create(
+                user=user, log_type='LOGIN',
+                action=f'User {user.username} logged in successfully.', status='SUCCESS',
+                details={
+                    'ip_address': ip_address, 'user_agent': user_agent,
+                    'role': user.role, 'department_name': user.department_name
+                }
+            )
+            return Response({
+                'refresh': tokens['refresh'], 'access': tokens['access'],
+                'user': UserSerializer(user, context={'request': request}).data
+            }, status=status.HTTP_200_OK)
+        else:
+            # Log failed attempt
+            # Try to find user if possible for more detailed logging, but don't expose existence
+            failed_user_obj = None
+            try:
+                if '@' in login_identifier:
+                    failed_user_obj = User.objects.filter(email__iexact=login_identifier).first()
+                elif login_identifier.startswith('+'):
+                     # Add phone number format validation here if desired before DB query
+                    if re.match(r'^\+\d{10,15}$', login_identifier):
+                        failed_user_obj = User.objects.filter(phone_number=login_identifier).first()
+            except Exception: # Broad exception to avoid errors during logging
+                pass
+
+
+            LoginAttempt.objects.create(
+                user=failed_user_obj, username_input=login_identifier,
+                ip_address=ip_address, user_agent=user_agent, success=False
+            )
+            log_details = {
+                'ip_address': ip_address, 'user_agent': user_agent,
+                'errors': login_validation_serializer.errors
+            }
+            UserActivityLog.objects.create(
+                user=failed_user_obj, log_type='LOGIN',
+                action=f'Failed login attempt for identifier: {login_identifier}.', status='FAILED',
+                details=log_details
+            )
+            # Return the validation errors from LoginSerializer
+            return Response(login_validation_serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+
+@method_decorator(ratelimit(key='user_or_ip', rate='10/m', method='POST', block=True), name='post')
+class LogoutView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    @extend_schema(
+        request=LogoutSerializer, tags=['Authentication'], summary="Logout user",
+        description="Blacklists the provided refresh token.",
+        responses={ 200: LogoutResponseSerializer, 400: LogoutErrorSerializer, 401: OpenApiResponse(description="Unauthorized."), 429: OpenApiResponse(description="Rate limit exceeded.")}
+    )
+    def post(self, request):
+        serializer = LogoutSerializer(data=request.data)
+        if not serializer.is_valid():
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+        try:
+            refresh_token = serializer.validated_data['refresh']
+            token = RefreshToken(refresh_token)
+            token.blacklist()
+
+            UserActivityLog.objects.create(
+                user=request.user, log_type='LOGOUT',
+                action=f'User {request.user.username} logged out.', status='SUCCESS',
+                details={'ip_address': get_client_ip(request)}
+            )
+            return Response({"success": "Logged out successfully"}, status=status.HTTP_200_OK)
+        except TokenError as e:
+            UserActivityLog.objects.create(
+                user=request.user, log_type='LOGOUT',
+                action=f'Logout failed for user {request.user.username}.', status='FAILED',
+                details={'error': str(e), 'ip_address': get_client_ip(request)}
+            )
+            return Response({"error": "Invalid or expired token", "detail": str(e)}, status=status.HTTP_400_BAD_REQUEST)
+        except Exception as e:
+            UserActivityLog.objects.create(
+                user=request.user, log_type='LOGOUT',
+                action='Logout failed due to an unexpected error.', status='FAILED',
+                details={'error': str(e), 'ip_address': get_client_ip(request)}
+            )
+            return Response({"error": "An unexpected error occurred during logout."}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+class CustomTokenRefreshView(OriginalTokenRefreshView):
+    @extend_schema(
+        tags=['Authentication'], summary="Refresh JWT access token",
+        description="Takes a refresh token and returns a new access token.",
+        request=TokenRefreshSerializer,
+        responses={
+            200: OpenApiResponse(description="New access token", response=inline_serializer(name='AuthServiceTokenRefreshResponse', fields={'access': drf_serializers.CharField()})),
+            401: OpenApiResponse(description="Invalid/expired refresh token", response=inline_serializer(name='AuthServiceTokenErrorResponse', fields={'detail': drf_serializers.CharField(), 'code': drf_serializers.CharField()}))
+        }
+    )
+    def post(self, request, *args, **kwargs):
+        # Logic for logging token refresh attempts is good as previously discussed.
+        response = super().post(request, *args, **kwargs)
+        user_id_from_token = request.data.get('refresh_token_payload', {}).get('user_id') # Try to get from decoded if available
+        user_for_log = None
+        if user_id_from_token:
+            try: user_for_log = User.objects.get(pk=user_id_from_token)
+            except User.DoesNotExist: pass
+
+        if response.status_code == 200:
+            UserActivityLog.objects.create(
+                user=user_for_log, log_type='TOKEN_REFRESH',
+                action=f'Token refreshed for user ID {user_id_from_token if user_id_from_token else "unknown"}.', status='SUCCESS',
+                details={'ip_address': get_client_ip(request)}
+            )
+        else:
+            UserActivityLog.objects.create(
+                user=user_for_log, log_type='TOKEN_REFRESH',
+                action=f'Token refresh failed for user ID {user_id_from_token if user_id_from_token else "unknown"}.', status='FAILED',
+                details={'ip_address': get_client_ip(request), 'response_status': response.status_code, 'errors': response.data if hasattr(response, 'data') else None}
+            )
+        return response
+
+# --- User Profile View ---
+
+class UserProfileView(generics.RetrieveUpdateAPIView):
+    permission_classes = [IsAuthenticated]
+
+    def get_serializer_class(self):
+        if self.request.method in ['PUT', 'PATCH']:
+            return UserProfileUpdateSerializer # Use the specific serializer for self-updates
+        return UserSerializer # For GET
+
+    def get_object(self):
+        return self.request.user
+
+    @extend_schema(
+        tags=['User Profile'], summary="Retrieve or update authenticated user's profile",
+        description="GET: retrieve profile. PUT/PATCH: update first_name, last_name, phone_number.",
+        responses={ 200: UserSerializer, 400: OpenApiResponse(description="Invalid data."), 401: OpenApiResponse(description="Unauthorized.") }
+    )
+    def get(self, request, *args, **kwargs):
+        UserActivityLog.objects.create(
+            user=request.user, log_type='PROFILE_VIEW',
+            action=f'User {request.user.username} viewed profile.', status='SUCCESS',
+            details={'ip_address': get_client_ip(request)}
+        )
+        return super().get(request, *args, **kwargs)
+
+    # update, put, patch methods are fine as previously, ensuring UserProfileUpdateSerializer is used.
+    def update(self, request, *args, **kwargs):
+        log_action = f'User {request.user.username} attempted profile update.'
+        response = super().update(request, *args, **kwargs)
+        log_status = 'SUCCESS' if response.status_code < 400 else 'FAILED'
+        UserActivityLog.objects.create(
+            user=request.user, log_type='PROFILE_UPDATE', action=log_action, status=log_status,
+            details={'ip_address': get_client_ip(request), 'data_sent': request.data, 'response_status': response.status_code}
+        )
+        return response
+
+    @extend_schema(tags=['User Profile'], description='Fully update user profile (fields in UserProfileUpdateSerializer).', request=UserProfileUpdateSerializer)
+    def put(self, request, *args, **kwargs):
+        return self.update(request, *args, **kwargs)
+
+    @extend_schema(tags=['User Profile'], description='Partially update user profile (fields in UserProfileUpdateSerializer).', request=UserProfileUpdateSerializer)
+    def patch(self, request, *args, **kwargs):
+        return self.partial_update(request, *args, **kwargs)
+
+
+# --- Login Attempts View (Security) ---
+class LoginAttemptsView(generics.ListAPIView):
+    serializer_class = LoginAttemptSerializer
+    permission_classes = [IsAuthenticated, (IsAdmin | IsFinanceHead)] # Ensure IsAdmin/IsFinanceHead are in .permissions
+
+    @extend_schema(
+        tags=['Security'], operation_id='auth_service_list_login_attempts', summary="List login attempts",
+        description='Admins/Finance Heads see all; others (if configured) see their own.'
+    )
+    def get_queryset(self):
+        user = self.request.user
+        if hasattr(user, 'role') and user.role in ['ADMIN', 'FINANCE_HEAD']:
+            return LoginAttempt.objects.all().order_by('-timestamp')
+        return LoginAttempt.objects.none() # Default: non-admins see nothing
+
+# --- Password Management Views ---
+# Ensure imports are correct and logging uses the auth_service's UserActivityLog.
+
+@method_decorator(ratelimit(key='ip', rate='3/h', method='POST', block=True), name='post')
+# Removed duplicate ratelimit decorator: ratelimit(key='user_or_ip', rate='5/h', method='POST', block=True)
+# One is sufficient for IP, user_or_ip is more for authenticated endpoints or where user can be identified.
+class PasswordResetRequestView(APIView):
+    permission_classes = [AllowAny]
+
+    @extend_schema(
+        tags=["Password Management"], summary="Request password reset email",
+        request=PasswordResetRequestSerializer,
+        responses={ 200: OpenApiResponse(description="Password reset email sent (best effort)."), 400: OpenApiResponse(description="Invalid input."), 429: OpenApiResponse(description="Rate limit.")}
+    )
+    def post(self, request):
+        serializer = PasswordResetRequestSerializer(data=request.data)
+        if serializer.is_valid():
+            user_obj = serializer.save() # Serializer now returns user object or None
+            
+            log_status = 'SUCCESS' if user_obj else 'ATTEMPTED' # If user found, email was attempted
+            action_detail = f" for email: {request.data.get('email')}"
+            if user_obj:
+                 action_detail += f" (User: {user_obj.username})"
+
+
+            UserActivityLog.objects.create(
+                user=user_obj, # Can be None if email doesn't exist
+                log_type='PASSWORD_RESET_REQUEST',
+                action=f"Password reset requested{action_detail}",
+                status=log_status,
+                details={'ip_address': get_client_ip(request), 'email_provided': request.data.get('email')}
+            )
+            return Response(
+                {"detail": "If an account with that email exists, a password reset link has been sent."},
+                status=status.HTTP_200_OK
+            )
+        
+        UserActivityLog.objects.create(
+            user=None, log_type='PASSWORD_RESET_REQUEST',
+            action=f"Password reset request failed validation for email: {request.data.get('email')}", status='FAILED',
+            details={'ip_address': get_client_ip(request), 'email_provided': request.data.get('email'), 'errors': serializer.errors}
+        )
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+
+@method_decorator(ratelimit(key='ip', rate='10/h', method='POST', block=True), name='post')
+class PasswordResetConfirmView(APIView):
+    permission_classes = [AllowAny]
+
+    @extend_schema(
+        tags=["Password Management"], summary="Confirm password reset",
+        request=PasswordResetConfirmSerializer, # Serializer handles uid/token/password
+        responses={ 200: OpenApiResponse(description="Password reset successful."), 400: OpenApiResponse(description="Invalid input/token."), 429: OpenApiResponse(description="Rate limit.")}
+    )
+    def post(self, request):
+        serializer = PasswordResetConfirmSerializer(data=request.data)
+        if serializer.is_valid():
+            user = serializer.save()
+            UserActivityLog.objects.create(
+                user=user, log_type='PASSWORD_RESET_CONFIRM',
+                action=f'Password reset for user {user.username}.', status='SUCCESS',
+                details={'method': 'reset_confirm', 'ip_address': get_client_ip(request)}
+            )
+            return Response({"detail": "Password has been reset successfully."}, status=status.HTTP_200_OK)
+        
+        UserActivityLog.objects.create(
+            user=getattr(serializer, 'user', None), # Try to get user if validation reached that far
+            log_type='PASSWORD_RESET_CONFIRM',
+            action='Password reset confirmation failed.', status='FAILED',
+            details={'ip_address': get_client_ip(request), 'errors': serializer.errors}
+        )
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+
+@method_decorator(ratelimit(key='user', rate='5/h', method='POST', block=True), name='post')
+class PasswordChangeView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    @extend_schema(
+        tags=["Password Management"], summary="Change password (authenticated)",
+        request=PasswordChangeSerializer,
+        responses={ 200: OpenApiResponse(description="Password changed."), 400: OpenApiResponse(description="Invalid input."), 401: OpenApiResponse(description="Unauthorized."), 429: OpenApiResponse(description="Rate limit.")}
+    )
+    def post(self, request):
+        serializer = PasswordChangeSerializer(data=request.data, context={'request': request})
+        if serializer.is_valid():
+            user = serializer.save()
+            UserActivityLog.objects.create(
+                user=user, log_type='PASSWORD_CHANGE',
+                action=f'Password changed by user {user.username}.', status='SUCCESS',
+                details={'method': 'change', 'ip_address': get_client_ip(request)}
+            )
+            return Response({"detail": "Password changed successfully."}, status=status.HTTP_200_OK)
+
+        UserActivityLog.objects.create(
+            user=request.user, log_type='PASSWORD_CHANGE',
+            action=f'Password change attempt failed by user {request.user.username}.', status='FAILED',
+            details={'ip_address': get_client_ip(request), 'errors': serializer.errors}
+        )
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)

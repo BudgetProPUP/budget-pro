@@ -529,22 +529,32 @@ class BudgetProposalViewSet(viewsets.ModelViewSet):
         },
         description="""
         Create a new BudgetProposal (and its nested BudgetProposalItem rows) in one call.
-        
-        The external system must supply:
-        1. `title`, `project_summary`, `project_description`, `performance_notes`
-        2. `department` (existing Department ID)
-        3. `fiscal_year` (existing FiscalYear ID)
-        4. `submitted_by_name` (string)
-        5. `status`: must be either `"SUBMITTED"`, `"APPROVED"`, or `"REJECTED"`. If `"SUBMITTED"`, `submitted_at` is auto-populated.
-        6. `performance_start_date`, `performance_end_date` (YYYY-MM-DD strings, with end > start).
-        7. `external_system_id` (string, globally unique for each proposal from that system).
-        8. `document` (optional file upload, e.g. Excel/PDF).
-        9. `items`: an array of line items; each item is an object with keys:
-           - `cost_element` (string)
-           - `description` (string)
-           - `estimated_cost` (decimal)
-           - `account` (PK of existing Account)
-           - `notes` (string, optional)
+
+        **Payload format:**
+        ```json
+        {
+        "title": "Project Alpha",                       // [required] Title of the proposal
+        "project_summary": "Summary of Project Alpha",  // [required] Short summary
+        "project_description": "Detailed description of Project Alpha", // [required]
+        "performance_notes": "This project will run during the last 2 quarters.", // [optional]
+        "department": 1,                               // [required] Department ID (integer, must exist)
+        "fiscal_year": 2,                              // [required] FiscalYear ID (integer, must exist)
+        "submitted_by_name": "Jane Doe",               // [required] Name of the submitter (string)
+        "status": "SUBMITTED",                         // [required] One of: "SUBMITTED", "APPROVED", "REJECTED"
+        "performance_start_date": "2025-06-01",        // [required] (YYYY-MM-DD)
+        "performance_end_date": "2025-12-31",          // [required] (YYYY-MM-DD, must be after start date)
+        "external_system_id": "EXT12345",              // [required] Unique string from external system
+        "document": null,                              // [optional] File upload (Excel/PDF), can be omitted or null
+        "items": [                                     // [required] List of line items (at least one)
+            {
+            "cost_element": "CE-4294",                 // [required] String
+            "description": "Item description",         // [required] String
+            "estimated_cost": "555",                   // [required] Decimal as string or number
+            "account": 1,                              // [required] Account ID (integer, must exist)
+            "notes": "Additional notes"                // [optional] String
+            }
+        ]
+        }
         """,
 
         examples=[

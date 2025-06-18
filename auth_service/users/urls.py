@@ -1,11 +1,17 @@
 # File: CapstoneBP/auth_service/users/urls.py
-from django.urls import path
+from django.urls import path, include
 from .views import (
-    LoginView, LogoutView, UserProfileView, CustomTokenRefreshView, LoginAttemptsView,
+    LoginView, LogoutView, UserManagementViewSet, UserProfileView, CustomTokenRefreshView, LoginAttemptsView,
     PasswordResetRequestView, PasswordResetConfirmView, PasswordChangeView
 )
+from rest_framework.routers import DefaultRouter
 
 app_name = 'users_auth' # Namespace for the app
+
+# Router for UserManagementViewSet
+router = DefaultRouter()
+router.register(r'management/users', UserManagementViewSet, basename='user-management')
+# The 'management/' prefix is optional, just to group admin-like endpoints.
 
 urlpatterns = [
     # Authentication endpoints
@@ -18,9 +24,12 @@ urlpatterns = [
     path('password/reset/confirm/', PasswordResetConfirmView.as_view(), name='password_reset_confirm'),
     path('password/change/', PasswordChangeView.as_view(), name='password_change'),
 
-    # User profile
+    # User profile (self-service)
     path('profile/', UserProfileView.as_view(), name='user_profile'),
 
     # Security endpoint
     path('login-attempts/', LoginAttemptsView.as_view(), name='login_attempts'),
+
+    # User Management (Admin) endpoints from the router
+    path('', include(router.urls)), # This will add /management/users/, /management/users/{id}/ etc.
 ]

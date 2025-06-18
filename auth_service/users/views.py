@@ -1,33 +1,45 @@
 # File: CapstoneBP/auth_service/users/views.py
 
 import re
+
+# Django core imports
 from django.http import JsonResponse
 from django.conf import settings
-from rest_framework import status, generics, serializers as drf_serializers
+from django.utils import timezone
+from django.contrib.auth import get_user_model
+from django_filters.rest_framework import DjangoFilterBackend # For filtering
+
+# Third-party imports
+from rest_framework import status, generics, serializers as drf_serializers,  viewsets, filters
 from rest_framework.response import Response
 from rest_framework.views import APIView
+from rest_framework.permissions import IsAuthenticated, AllowAny
+from rest_framework.decorators import action  # For custom actions in viewset
+
 from rest_framework_simplejwt.tokens import RefreshToken
 from rest_framework_simplejwt.exceptions import TokenError
 from rest_framework_simplejwt.views import TokenRefreshView as OriginalTokenRefreshView
 from rest_framework_simplejwt.serializers import TokenRefreshSerializer
-from rest_framework.permissions import IsAuthenticated, AllowAny
-from django.contrib.auth import get_user_model
-from django.utils import timezone
-from drf_spectacular.utils import extend_schema, OpenApiExample, OpenApiResponse, inline_serializer
+
+from drf_spectacular.utils import (
+    extend_schema, OpenApiExample, OpenApiResponse, inline_serializer,
+    extend_schema_view, OpenApiParameter
+)
+from drf_spectacular.types import OpenApiTypes
+
 from django_ratelimit.decorators import ratelimit
 from django.utils.decorators import method_decorator
 
 # Import from local app
-from .permissions import IsFinanceHead, IsAdmin # Assuming these are defined in users.permissions
+from .permissions import IsFinanceHead, IsAdmin
 from .serializers import (
     UserSerializer, UserProfileUpdateSerializer, LoginSerializer,
     LogoutSerializer, LogoutResponseSerializer, LogoutErrorSerializer,
-    MyTokenObtainPairSerializer, # For LoginView token generation
-    LoginAttemptSerializer,
-    PasswordResetRequestSerializer, PasswordResetConfirmSerializer, PasswordChangeSerializer
+    MyTokenObtainPairSerializer, LoginAttemptSerializer,
+    PasswordResetRequestSerializer, PasswordResetConfirmSerializer, PasswordChangeSerializer,
+    AuthUserTableSerializer, AuthUserModalSerializer # User Management Serializers
 )
 from .models import LoginAttempt, UserActivityLog
-
 User = get_user_model()
 
 def get_client_ip(request):
@@ -45,7 +57,7 @@ class LoginView(APIView):
         request=LoginSerializer,
         tags=['Authentication'],
         summary="Login with email/phone and password",
-        description="Authenticates a user and returns JWT access and refresh tokens, along with user details.",
+        description="Authenticates a user and returns JWT access and refresh tokens, along with user details. Either provide email or phone number",
         responses={
             200: OpenApiResponse(
                 description='Successful login',
@@ -374,3 +386,135 @@ class PasswordChangeView(APIView):
             details={'ip_address': get_client_ip(request), 'errors': serializer.errors}
         )
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+    
+# --- User Management ViewSet (Adapted from monolith) ---
+
+@extend_schema_view(
+    list=extend_schema(
+        summary="List users (Admin)",
+        description="Returns a paginated list of users. Supports search and filtering.",
+        parameters=[
+            OpenApiParameter(name="search", description="Search by name, email, username", type=OpenApiTypes.STR),
+            OpenApiParameter(name="role", description="Filter by role", type=OpenApiTypes.STR, enum=[choice[0] for choice in User.ROLE_CHOICES]),
+            OpenApiParameter(name="is_active", description="Filter by active status", type=OpenApiTypes.BOOL),
+        ],
+        responses={200: AuthUserTableSerializer(many=True)},
+        tags=["User Management (Admin)"]
+    ),
+    create=extend_schema(
+        summary="Create user (Admin)",
+        request=AuthUserModalSerializer,
+        responses={201: AuthUserModalSerializer},
+        tags=["User Management (Admin)"]
+    ),
+    retrieve=extend_schema(
+        summary="Get user details (Admin)",
+        responses={200: AuthUserModalSerializer},
+        tags=["User Management (Admin)"]
+    ),
+    update=extend_schema(
+        summary="Update user (Full - Admin)",
+        request=AuthUserModalSerializer,
+        responses={200: AuthUserModalSerializer},
+        tags=["User Management (Admin)"]
+    ),
+    partial_update=extend_schema(
+        summary="Update user (Partial - Admin)",
+        request=AuthUserModalSerializer, # Can still use modal serializer for partial
+        responses={200: AuthUserModalSerializer},
+        tags=["User Management (Admin)"]
+    ),
+    destroy=extend_schema(
+        summary="Delete user (Admin)",
+        responses={204: OpenApiResponse(description="User deleted")},
+        tags=["User Management (Admin)"]
+    )
+)
+class UserManagementViewSet(viewsets.ModelViewSet):
+    """
+    ViewSet for administrators to manage users in the auth_service.
+    """
+    queryset = User.objects.all().order_by('first_name', 'last_name')
+    permission_classes = [IsAuthenticated, IsAdmin] # Ensure IsAdmin is correctly defined and imported
+    filter_backends = [DjangoFilterBackend, filters.SearchFilter]
+    filterset_fields = ['role', 'is_active'] # Fields on the auth_service.User model
+    search_fields = ['first_name', 'last_name', 'email', 'username'] # Fields on the auth_service.User model
+
+    def get_serializer_class(self):
+        if self.action == 'list':
+            return AuthUserTableSerializer
+        # For create, retrieve, update, partial_update
+        return AuthUserModalSerializer
+
+    def perform_create(self, serializer):
+        # Logic for creation (e.g., password handling) is in AuthUserModalSerializer.create
+        user = serializer.save()
+        UserActivityLog.objects.create(
+            user=self.request.user, # Admin performing action
+            log_type='CREATE', action=f'Admin created user: {user.username}', status='SUCCESS',
+            details={'created_user_id': user.id, 'admin_user_id': self.request.user.id}
+        )
+
+    def perform_update(self, serializer):
+        user = serializer.save()
+        UserActivityLog.objects.create(
+            user=self.request.user, # Admin performing action
+            log_type='UPDATE', action=f'Admin updated user: {user.username}', status='SUCCESS',
+            details={'updated_user_id': user.id, 'admin_user_id': self.request.user.id}
+        )
+
+    def perform_destroy(self, instance):
+        username = instance.username # Get username before deletion
+        instance.delete()
+        UserActivityLog.objects.create(
+            user=self.request.user, # Admin performing action
+            log_type='DELETE', action=f'Admin deleted user: {username}', status='SUCCESS',
+            details={'deleted_user_username': username, 'admin_user_id': self.request.user.id}
+        )
+
+    @extend_schema(
+        summary="Toggle user active status (Admin)",
+        description="Toggles the active status of a user.",
+        responses={200: AuthUserTableSerializer}, # Or AuthUserModalSerializer if more detail needed
+        tags=["User Management (Admin)"]
+    )
+    @action(detail=True, methods=['patch'], url_path='toggle-active')
+    def toggle_active_status(self, request, pk=None): # Renamed for clarity
+        user_to_toggle = self.get_object()
+        old_status = user_to_toggle.is_active
+        user_to_toggle.is_active = not user_to_toggle.is_active
+        user_to_toggle.save(update_fields=['is_active'])
+        
+        UserActivityLog.objects.create(
+            user=request.user, # Admin performing action
+            log_type='UPDATE',
+            action=f'Admin toggled active status for user {user_to_toggle.username} from {old_status} to {user_to_toggle.is_active}',
+            status='SUCCESS',
+            details={'target_user_id': user_to_toggle.id, 'new_status': user_to_toggle.is_active}
+        )
+        serializer = self.get_serializer(user_to_toggle) # Use appropriate serializer (Modal or Table)
+        return Response(serializer.data)
+
+    @extend_schema(
+        summary="Get user role choices (Admin)",
+        description="Returns available user roles for UI dropdowns.",
+        responses={ 200: OpenApiResponse(
+            response=inline_serializer(name="UserRoleChoices", fields={
+                "value": drf_serializers.CharField(), "label": drf_serializers.CharField()
+            }, many=True)
+        )},
+        tags=["User Management (Admin)"]
+    )
+    @action(detail=False, methods=['get'])
+    def roles(self, request):
+        """
+        Return all available user roles defined in the auth_service.User model.
+        """
+        # Uses ROLE_CHOICES from the auth_service.users.User model
+        roles_data = [{'value': code, 'label': label} for code, label in User.ROLE_CHOICES]
+        return Response(roles_data)
+
+# Note: DepartmentViewSet is NOT included here as Department model is not in auth_service.
+# If the UI for user management needs a department dropdown, fetch that
+# data from the budgeting service (or whichever service owns department master data).
+# the AuthUserModalSerializer accepts department_id and department_name as text/integer inputs

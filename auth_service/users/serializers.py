@@ -6,6 +6,8 @@ from django.utils.translation import gettext_lazy as _
 from django.utils import timezone
 from drf_spectacular.utils import extend_schema_field
 import re
+import secrets # For password generation
+import string  # For password generation
 
 # Models from the current app ('users')
 from .models import LoginAttempt # UserActivityLog will be used in views
@@ -308,3 +310,210 @@ class PasswordChangeSerializer(serializers.Serializer):
         user.set_password(self.validated_data['new_password'])
         user.save()
         return user
+# --- User Management Specific Serializers ---
+
+class AuthUserTableSerializer(serializers.ModelSerializer):
+    """
+    Serializer for listing users in the auth_service user management table.
+    """
+    full_name = serializers.SerializerMethodField()
+    last_active = serializers.DateTimeField(source='last_login', read_only=True, allow_null=True)
+    # department_name is directly on the User model in auth_service
+
+    class Meta:
+        model = User
+        fields = ['id', 'full_name', 'email', 'username', 'role', 'department_name', 'last_active', 'is_active']
+
+    @extend_schema_field(serializers.CharField())
+    def get_full_name(self, obj):
+        return f"{obj.first_name} {obj.last_name}".strip()
+
+
+class AuthUserModalSerializer(serializers.ModelSerializer):
+    """
+    Serializer for the add/edit user modals in auth_service.
+    Accepts department_id and department_name for user assignment.
+    Password is handled separately (e.g., set on create, or via a different change password flow).
+    """
+    date_added = serializers.DateTimeField(source='created_at', read_only=True)
+    last_active = serializers.DateTimeField(source='last_login', read_only=True, allow_null=True)
+    # department_id and department_name are regular fields now, not foreign keys to a local Department model.
+
+    class Meta:
+        model = User
+        fields = [
+            'id', 'first_name', 'last_name', 'username', 'email',
+            'role',
+            'department_id',      # Writable
+            'department_name',    # Writable (admin provides this, or it's synced)
+            'phone_number',       # Added phone_number
+            'is_active', 'is_staff', 'is_superuser', # Added is_staff, is_superuser
+            'date_added', 'last_active',
+            'password' # Include for creation, make optional for update
+        ]
+        extra_kwargs = {
+            'id': {'read_only': True},
+            'password': {'write_only': True, 'required': False, 'allow_null': True}, # Not required on update unless changing
+            'phone_number': {'required': False, 'allow_blank': True, 'allow_null': True},
+            'department_id': {'required': False, 'allow_null': True},
+            'department_name': {'required': False, 'allow_blank': True, 'allow_null': True},
+            'first_name': {'required': True, 'allow_blank': False}, # Make these required for creation
+            'last_name': {'required': True, 'allow_blank': False},
+            'username': {'required': True, 'allow_blank': False},
+            'email': {'required': True, 'allow_blank': False},
+            'role': {'required': True, 'allow_blank': False},
+        }
+
+    def create(self, validated_data):
+        password = validated_data.pop('password', None)
+        
+        # department_id and department_name are now direct fields
+        # No need to look up a Department object as it doesn't exist in auth_service
+        user = User(**validated_data)
+        
+        if password:
+            user.set_password(password)
+        else:
+            # For admin user creation, a password should ideally be provided by the admin in the modal
+            # Or, generate a secure temporary one and have a flow for the user to set it.
+            # Your monolith UserModalSerializer generated a random one.
+            temp_password = ''.join(secrets.choice(string.ascii_letters + string.digits) for _ in range(12))
+            user.set_password(temp_password)
+            # print(f"DEBUG: Temp password for {user.username}: {temp_password}") # For dev only!
+            # Consider how this is communicated or if a "force password reset" flag is set.
+        
+        user.save()
+        return user
+
+    def update(self, instance, validated_data):
+        password = validated_data.pop('password', None)
+        
+        # department_id and department_name are updated like any other field
+        for attr, value in validated_data.items():
+            setattr(instance, attr, value)
+        
+        if password: # Only update password if provided
+            instance.set_password(password)
+        
+        instance.save()
+        return instance
+
+# --- Login Serializers (already good from previous response) ---
+class LoginSerializer(serializers.Serializer):
+    email = serializers.CharField(required=False, allow_blank=True)
+    phone_number = serializers.CharField(required=False, allow_blank=True)
+    password = serializers.CharField(style={'input_type': 'password'}, trim_whitespace=False)
+
+    def validate(self, attrs):
+        email_input = self.initial_data.get('email')
+        phone_input = self.initial_data.get('phone_number')
+        password = attrs.get('password')
+        identifier = email_input or phone_input
+        
+        if not identifier:
+            raise serializers.ValidationError(_("Must include either 'email' or 'phone_number'."), code='authorization')
+        if not password:
+            raise serializers.ValidationError(_("Password is required."), code='authorization')
+
+        if identifier == phone_input and phone_input: # Check if phone_input is not None/empty
+            pattern = r'^\+\d{10,15}$'
+            if not re.match(pattern, identifier):
+                raise serializers.ValidationError(_("Invalid phone number format. Use E.164 format e.g., +639123456789."), code='authorization')
+        
+        user = authenticate(request=self.context.get('request'), username=identifier, password=password)
+
+        if not user:
+            raise serializers.ValidationError(_('Invalid credentials'), code='authorization')
+        if not user.is_active:
+            raise serializers.ValidationError(_('User account is disabled.'), code='authorization')
+        attrs['user'] = user
+        return attrs
+
+class MyTokenObtainPairSerializer(OriginalTokenObtainPairSerializer):
+    @classmethod
+    def get_token(cls, user):
+        token = super().get_token(user)
+        token['username'] = user.username
+        token['email'] = user.email
+        token['role'] = user.role
+        token['user_id'] = user.id
+        token['department_id'] = user.department_id
+        token['department_name'] = user.department_name
+        token['first_name'] = user.first_name
+        token['last_name'] = user.last_name
+        return token
+
+class LogoutSerializer(serializers.Serializer):
+    refresh = serializers.CharField(required=True, help_text="Refresh token to blacklist")
+
+class LogoutResponseSerializer(serializers.Serializer):
+    success = serializers.CharField(help_text="Logout status message")
+
+class LogoutErrorSerializer(serializers.Serializer):
+    error = serializers.CharField(help_text="Error message")
+
+class LoginAttemptSerializer(serializers.ModelSerializer):
+    username = serializers.CharField(source='user.username', read_only=True, allow_null=True)
+    class Meta:
+        model = LoginAttempt
+        fields = ['id', 'username', 'username_input', 'ip_address', 'user_agent', 'success', 'timestamp']
+
+# --- Password Reset Serializers (already good from previous response) ---
+class PasswordResetRequestSerializer(serializers.Serializer):
+    email = serializers.EmailField(required=True)
+    def validate_email(self, value):
+        try: User.objects.get(email__iexact=value)
+        except User.DoesNotExist: pass
+        return value
+    def save(self):
+        email = self.validated_data['email']
+        try:
+            user = User.objects.get(email__iexact=email)
+            uid = urlsafe_base64_encode(force_bytes(user.pk))
+            token = default_token_generator.make_token(user)
+            reset_url = f"{settings.FRONTEND_URL}/reset-password/{uid}/{token}/"
+            subject = "Password Reset Request"
+            context = {'user': user, 'username': user.get_full_name() or user.username, 'reset_url': reset_url, 'site_name': "MAP Active Budgeting Software"}
+            html_message = render_to_string('email/password_reset_email.html', context)
+            plain_message = render_to_string('email/password_reset_email.txt', context)
+            send_mail(subject, plain_message, settings.DEFAULT_FROM_EMAIL, [user.email], fail_silently=False, html_message=html_message)
+            return user
+        except User.DoesNotExist: return None
+
+class PasswordResetConfirmSerializer(serializers.Serializer):
+    password = serializers.CharField(min_length=8, max_length=64, write_only=True, style={'input_type': 'password'})
+    token = serializers.CharField(write_only=True)
+    uid = serializers.CharField(write_only=True)
+    def validate(self, attrs):
+        token, uid_b64 = attrs.get('token'), attrs.get('uid')
+        password = attrs.get('password')
+        try:
+            uid = force_str(urlsafe_base64_decode(uid_b64))
+            self.user = User.objects.get(pk=uid)
+        except: raise serializers.ValidationError({'uid': _('Invalid user ID or link.')})
+        if not default_token_generator.check_token(self.user, token):
+            raise serializers.ValidationError({'token': _('Invalid or expired token.')})
+        from django.contrib.auth.password_validation import validate_password
+        try: validate_password(password, self.user)
+        except Exception as e: raise serializers.ValidationError({'password': list(e.messages) if hasattr(e, 'messages') else [str(e)]})
+        return attrs
+    def save(self):
+        self.user.set_password(self.validated_data['password'])
+        self.user.save(); return self.user
+
+class PasswordChangeSerializer(serializers.Serializer):
+    current_password = serializers.CharField(style={'input_type': 'password'}, write_only=True)
+    new_password = serializers.CharField(min_length=8, max_length=64, style={'input_type': 'password'}, write_only=True)
+    def validate_current_password(self, value):
+        if not self.context['request'].user.check_password(value):
+            raise serializers.ValidationError(_('Current password is incorrect.'))
+        return value
+    def validate_new_password(self, value):
+        from django.contrib.auth.password_validation import validate_password
+        try: validate_password(value, self.context['request'].user)
+        except Exception as e: raise serializers.ValidationError(list(e.messages) if hasattr(e, 'messages') else [str(e)])
+        return value
+    def save(self):
+        user = self.context['request'].user
+        user.set_password(self.validated_data['new_password'])
+        user.save(); return user

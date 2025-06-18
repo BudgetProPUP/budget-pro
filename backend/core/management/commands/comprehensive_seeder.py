@@ -275,7 +275,7 @@ class Command(BaseCommand):
         self.stdout.write('Creating accounts...')
 
         # Get account types by name for easier reference
-        acct_type_dict = {acct.name: acct fo r acct in account_types}
+        acct_type_dict = {acct.name: acct for acct in account_types}
 
         # Create parent accounts first
         parent_accounts = [

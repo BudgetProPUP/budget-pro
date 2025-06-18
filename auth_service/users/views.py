@@ -48,6 +48,29 @@ def get_client_ip(request):
 
 # --- Authentication Views ---
 
+class UserInfoView(generics.RetrieveAPIView):
+    """Endpoint for other services to get user info"""
+    permission_classes = [AllowAny]  # Internal service call
+    serializer_class = UserSerializer
+    
+    def get_object(self):
+        user_id = self.kwargs.get('user_id')
+        try:
+            return User.objects.get(id=user_id)
+        except User.DoesNotExist:
+            return None
+    
+    def retrieve(self, request, *args, **kwargs):
+        user = self.get_object()
+        if not user:
+            return Response(
+                {"detail": "User not found", "code": "user_not_found"}, 
+                status=404
+            )
+        
+        serializer = self.get_serializer(user)
+        return Response(serializer.data)
+    
 @method_decorator(ratelimit(key='ip', rate='10/m', method='POST', block=True), name='post')
 class LoginView(APIView):
     permission_classes = [AllowAny]

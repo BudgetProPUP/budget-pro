@@ -8,6 +8,7 @@ BASE_DIR = Path(__file__).resolve().parent
 load_dotenv(BASE_DIR.parent / '.env')  # Load .env from auth_service folder
 
 SECRET_KEY = os.getenv('DJANGO_SECRET_KEY')
+
 DEBUG = os.getenv('DEBUG', 'False').lower() == 'true'
 ALLOWED_HOSTS = os.getenv('ALLOWED_HOSTS', 'localhost,127.0.0.1').split(',')
 
@@ -74,7 +75,7 @@ DATABASES = {
     }
 }
 
-AUTH_USER_MODEL = 'users.User' # Points to your User model in the 'users' app
+AUTH_USER_MODEL = 'users.User' # Points to User model in the 'users' app
 
 AUTHENTICATION_BACKENDS = [
     'users.authentication.EmailOrPhoneNumberBackend',
@@ -147,9 +148,9 @@ SIMPLE_JWT = {
 }
 
 REST_FRAMEWORK = {
-    'DEFAULT_AUTHENTICATION_CLASSES': (
+    'DEFAULT_AUTHENTICATION_CLASSES': [ 
         'rest_framework_simplejwt.authentication.JWTAuthentication',
-    ),
+    ],
     'DEFAULT_PERMISSION_CLASSES': [
         'rest_framework.permissions.IsAuthenticated',
     ],

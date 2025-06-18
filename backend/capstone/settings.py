@@ -16,6 +16,8 @@ import os
 from dotenv import load_dotenv
 import sys
 
+# Auth Service Configuration
+AUTH_SERVICE_URL = os.getenv('AUTH_SERVICE_URL', 'http://localhost:8001')
 
 # Detect if running tests
 TESTING = 'test' in sys.argv
@@ -71,10 +73,10 @@ INSTALLED_APPS = [
     'core',
 ]
 
-AUTH_USER_MODEL = 'core.User'
+# AUTH_USER_MODEL = 'core.User'
 
 AUTHENTICATION_BACKENDS = [
-    'core.authentication.EmailOrPhoneNumberBackend',
+    #'core.authentication.EmailOrPhoneNumberBackend',
     'django.contrib.auth.backends.ModelBackend',
 ]
 
@@ -115,7 +117,8 @@ SIMPLE_JWT = {
     'UPDATE_LAST_LOGIN': False,
 
     'ALGORITHM': 'HS256',  # Changed from RS256 to HS256 (symmetric)
-    'SIGNING_KEY': SECRET_KEY,  # This now works with HS256
+    'VERIFYING_KEY': None, # For HS256
+    'SIGNING_KEY': SECRET_KEY, 
     'AUDIENCE': None,
     'ISSUER': None,
 
@@ -123,6 +126,7 @@ SIMPLE_JWT = {
     'AUTH_HEADER_NAME': 'HTTP_AUTHORIZATION',
     'USER_ID_FIELD': 'id',
     'USER_ID_CLAIM': 'user_id',
+    'TOKEN_USER_CLASS': 'rest_framework_simplejwt.models.TokenUser', # Default, creates SimpleLazyObject
 }
 
 
@@ -142,16 +146,25 @@ MIDDLEWARE = [
 
 # REST Framework settings
 REST_FRAMEWORK = {
-    'DEFAULT_AUTHENTICATION_CLASSES': (
-        'rest_framework_simplejwt.authentication.JWTAuthentication',
-    ),
+    'DEFAULT_AUTHENTICATION_CLASSES': [ 
+        'core.authentication.MicroserviceJWTAuthentication',  # Use custom auth
+    ],
     'DEFAULT_PERMISSION_CLASSES': [
         'rest_framework.permissions.IsAuthenticated',
     ],
-    'DEFAULT_SCHEMA_CLASS': 'drf_spectacular.openapi.AutoSchema', 'DEFAULT_FILTER_BACKENDS': [
+    'DEFAULT_SCHEMA_CLASS': 'drf_spectacular.openapi.AutoSchema', 
+    'DEFAULT_FILTER_BACKENDS': [
         'django_filters.rest_framework.DjangoFilterBackend',
         'rest_framework.filters.SearchFilter',
     ],
+}
+
+# Cache configuration for user data
+CACHES = {
+    'default': {
+        'BACKEND': 'django.core.cache.backends.locmem.LocMemCache',
+        'LOCATION': 'unique-snowflake',
+    }
 }
 
 ROOT_URLCONF = 'capstone.urls'

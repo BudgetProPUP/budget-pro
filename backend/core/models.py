@@ -257,8 +257,10 @@ class RiskMetric(models.Model):
     description = models.TextField(blank=True)
     updated_at = models.DateTimeField(auto_now=True)
     # updated_by = models.ForeignKey(User, on_delete=models.PROTECT)
-    updated_by_user_id = models.IntegerField(help_text="ID of user from Auth Service") # NEW
-    updated_by_username = models.CharField(max_length=150, null=True, blank=True) # NEW
+    updated_by_user_id = models.IntegerField(
+        help_text="ID of user from Auth Service")  # NEW
+    updated_by_username = models.CharField(
+        max_length=150, null=True, blank=True)  # NEW
 
     class Meta:
         unique_together = ('project', 'risk_type')
@@ -282,32 +284,41 @@ class UserActivityLog(models.Model):
     ]
 
     # user = models.ForeignKey(User, on_delete=models.PROTECT)
-    user_id = models.IntegerField(help_text="ID of user from Auth Service who performed action") # NEW
-    user_username = models.CharField(max_length=150, help_text="Username of user (denormalized)") # NEW
+    user_id = models.IntegerField(
+        help_text="ID of user from Auth Service who performed action")  # NEW
+    user_username = models.CharField(
+        max_length=150, help_text="Username of user (denormalized)")  # NEW
     timestamp = models.DateTimeField(auto_now_add=True)
     log_type = models.CharField(max_length=30, choices=LOG_TYPE_CHOICES)
     action = models.CharField(max_length=255)
     status = models.CharField(max_length=20, choices=STATUS_CHOICES)
     details = models.JSONField(null=True, blank=True)
-    def __str__(self): return f"{self.user_username} - {self.action} - {self.timestamp}"
+    def __str__(
+        self): return f"{self.user_username} - {self.action} - {self.timestamp}"
+
 
 class Account(models.Model):
     code = models.CharField(max_length=20, unique=True)
     name = models.CharField(max_length=100)
     description = models.TextField(blank=True)
     account_type = models.ForeignKey(AccountType, on_delete=models.PROTECT)
-    parent_account = models.ForeignKey('self', on_delete=models.SET_NULL, null=True, blank=True, related_name='child_accounts')
-    
+    parent_account = models.ForeignKey(
+        'self', on_delete=models.SET_NULL, null=True, blank=True, related_name='child_accounts')
+
     # --- MODIFIED USER FIELD ---
     # created_by = models.ForeignKey(User, on_delete=models.PROTECT) # OLD
-    created_by_user_id = models.IntegerField(help_text="ID of the user from Auth Service who created this account") # NEW
-    created_by_username = models.CharField(max_length=150, null=True, blank=True, help_text="Username of the creator (denormalized)") # NEW
+    created_by_user_id = models.IntegerField(
+        help_text="ID of the user from Auth Service who created this account")  # NEW
+    created_by_username = models.CharField(
+        # NEW
+        max_length=150, null=True, blank=True, help_text="Username of the creator (denormalized)")
 
     is_active = models.BooleanField(default=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
     accomplished = models.BooleanField(default=False)
     accomplishment_date = models.DateField(null=True, blank=True)
+
     def __str__(self):
         return f"{self.code} - {self.name}"
 
@@ -476,32 +487,43 @@ class BudgetAllocation(models.Model):
         ).aggregate(total=models.Sum('amount'))['total'] or 0
 
 
-class BudgetTransfer(models.Model): # STAYS in budget_service
+class BudgetTransfer(models.Model):
     fiscal_year = models.ForeignKey(FiscalYear, on_delete=models.PROTECT)
-    source_allocation = models.ForeignKey(BudgetAllocation, on_delete=models.PROTECT, related_name='transfers_from')
-    destination_allocation = models.ForeignKey(BudgetAllocation, on_delete=models.PROTECT, related_name='transfers_to')
+    source_allocation = models.ForeignKey(
+        BudgetAllocation, on_delete=models.PROTECT, related_name='transfers_from')
+    destination_allocation = models.ForeignKey(
+        BudgetAllocation, on_delete=models.PROTECT, related_name='transfers_to')
 
     # --- MODIFIED USER FIELDS ---
     # transferred_by = models.ForeignKey(User, on_delete=models.PROTECT) # OLD
-    transferred_by_user_id = models.IntegerField(help_text="ID of user from Auth Service") # NEW
-    transferred_by_username = models.CharField(max_length=150, null=True, blank=True) # NEW
+    transferred_by_user_id = models.IntegerField(
+        help_text="ID of user from Auth Service")  # NEW
+    transferred_by_username = models.CharField(
+        max_length=150, null=True, blank=True)  # NEW
 
-    amount = models.DecimalField(max_digits=15, decimal_places=2, validators=[MinValueValidator(Decimal('0'))])
+    amount = models.DecimalField(max_digits=15, decimal_places=2, validators=[
+                                 MinValueValidator(Decimal('0'))])
     reason = models.TextField()
     transferred_at = models.DateTimeField(auto_now_add=True)
-    status = models.CharField(max_length=20, choices=[('PENDING', 'Pending'), ('APPROVED', 'Approved'), ('REJECTED', 'Rejected')], default='PENDING')
+    status = models.CharField(max_length=20, choices=[('PENDING', 'Pending'), (
+        'APPROVED', 'Approved'), ('REJECTED', 'Rejected')], default='PENDING')
 
     # approved_by = models.ForeignKey(User, on_delete=models.PROTECT, null=True, blank=True, related_name='approved_transfers') # OLD
-    approved_by_user_id = models.IntegerField(null=True, blank=True, help_text="ID of user from Auth Service") # NEW
-    approved_by_username = models.CharField(max_length=150, null=True, blank=True) # NEW
+    approved_by_user_id = models.IntegerField(
+        null=True, blank=True, help_text="ID of user from Auth Service")  # NEW
+    approved_by_username = models.CharField(
+        max_length=150, null=True, blank=True)  # NEW
     approval_date = models.DateTimeField(null=True, blank=True)
 
     # rejected_by = models.ForeignKey(User, on_delete=models.PROTECT, null=True, blank=True, related_name='rejected_transfers') # OLD
-    rejected_by_user_id = models.IntegerField(null=True, blank=True, help_text="ID of user from Auth Service") # NEW
-    rejected_by_username = models.CharField(max_length=150, null=True, blank=True) # NEW
+    rejected_by_user_id = models.IntegerField(
+        null=True, blank=True, help_text="ID of user from Auth Service")  # NEW
+    rejected_by_username = models.CharField(
+        max_length=150, null=True, blank=True)  # NEW
     rejection_date = models.DateTimeField(null=True, blank=True)
     # ... (__str__, validate_sufficient_funds methods need Expense model to be updated) ...
-    def __str__(self): return f"Transfer of {self.amount} from {self.source_allocation.department.name} to {self.destination_allocation.department.name}"
+    def __str__(
+        self): return f"Transfer of {self.amount} from {self.source_allocation.department.name} to {self.destination_allocation.department.name}"
 
 
 class JournalEntry(models.Model):
@@ -524,8 +546,10 @@ class JournalEntry(models.Model):
     status = models.CharField(
         max_length=20, choices=STATUS_CHOICES, default='DRAFT')
     # created_by = models.ForeignKey(User, on_delete=models.PROTECT) # OLD
-    created_by_user_id = models.IntegerField(help_text="ID of user from Auth Service") # NEW
-    created_by_username = models.CharField(max_length=150, null=True, blank=True)
+    created_by_user_id = models.IntegerField(
+        help_text="ID of user from Auth Service")  # NEW
+    created_by_username = models.CharField(
+        max_length=150, null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
@@ -603,12 +627,25 @@ class Expense(models.Model):
         BudgetAllocation, on_delete=models.PROTECT)
     # submitted_by = models.ForeignKey(
     #    User, on_delete=models.PROTECT, related_name='submitted_expenses')
-    #approved_by = models.ForeignKey(
+    # approved_by = models.ForeignKey(
     #    User, on_delete=models.PROTECT, null=True, blank=True, related_name='approved_expenses')
-    submitted_by_user_id = models.IntegerField(help_text="ID of user from Auth Service") # NEW
-    submitted_by_username = models.CharField(max_length=150, null=True, blank=True)
+    submitted_by_user_id = models.IntegerField(
+        help_text="ID of user from Auth Service")  # NEW
+    submitted_by_username = models.CharField(
+        max_length=150, null=True, blank=True)
     submitted_at = models.DateTimeField(auto_now_add=True)
     posting_date = models.DateField(null=True, blank=True)
+    approved_by_user_id = models.IntegerField(
+        null=True,
+        blank=True,
+        help_text="ID of approving user from Auth Service"
+    )
+    approved_by_username = models.CharField(
+        max_length=150,
+        null=True,
+        blank=True,
+        help_text="Username of approving user"
+    )
     approved_at = models.DateTimeField(null=True, blank=True)
     status = models.CharField(
         max_length=20, choices=STATUS_CHOICES, default='DRAFT')
@@ -727,8 +764,10 @@ class Document(models.Model):
     document_type = models.CharField(max_length=20, choices=DOCUMENT_TYPES)
     name = models.CharField(max_length=255)
     # uploaded_by = models.ForeignKey(User, on_delete=models.PROTECT)
-    uploaded_by_user_id = models.IntegerField(help_text="ID of user from Auth Service") # NEW
-    uploaded_by_username = models.CharField(max_length=150, null=True, blank=True) # NEW
+    uploaded_by_user_id = models.IntegerField(
+        help_text="ID of user from Auth Service")  # NEW
+    uploaded_by_username = models.CharField(
+        max_length=150, null=True, blank=True)  # NEW
     uploaded_at = models.DateTimeField(auto_now_add=True)
     department = models.ForeignKey(
         Department, on_delete=models.SET_NULL, null=True, blank=True)
@@ -777,9 +816,13 @@ class ProposalComment(models.Model):
     # user = models.ForeignKey(User, on_delete=models.PROTECT)
     comment = models.TextField()
     created_at = models.DateTimeField(auto_now_add=True)
-    user_id = models.IntegerField(help_text="ID of user from Auth Service who commented") # NEW
-    user_username = models.CharField(max_length=150, help_text="Username of commenter (denormalized)") # NEW
-    def __str__(self): return f"Comment on {self.proposal.title} by {self.user_username}"
+    user_id = models.IntegerField(
+        help_text="ID of user from Auth Service who commented")  # NEW
+    user_username = models.CharField(
+        # NEW
+        max_length=150, help_text="Username of commenter (denormalized)")
+    def __str__(
+        self): return f"Comment on {self.proposal.title} by {self.user_username}"
 
 
 class TransactionAudit(models.Model):
@@ -799,16 +842,20 @@ class TransactionAudit(models.Model):
 
     transaction_type = models.CharField(
         max_length=20, choices=TRANSACTION_TYPE_CHOICES)
-    transaction_id = models.IntegerField()
+    transaction_id_ref = models.IntegerField()
     # user = models.ForeignKey(User, on_delete=models.PROTECT)
-    user_id = models.IntegerField(help_text="ID of user from Auth Service related to audit") # NEW
-    user_username = models.CharField(max_length=150, help_text="Username of user (denormalized)") # NEW
-    
+    user_id = models.IntegerField(
+        help_text="ID of user from Auth Service related to audit")  # NEW
+    user_username = models.CharField(
+        max_length=150, help_text="Username of user (denormalized)")  # NEW
+
     action = models.CharField(max_length=20, choices=ACTION_CHOICES)
     timestamp = models.DateTimeField(auto_now_add=True)
     details = models.JSONField()
-    def __str__(self): return f"{self.transaction_type} {self.transaction_id} {self.action} by {self.user_username}"
-    
+
+    def __str__(
+        self): return f"{self.transaction_type} {self.transaction_id_ref} {self.action} by {self.user_username}"
+
     @receiver(post_save, sender=Expense)
     def expense_audit_log(sender, instance, created, **kwargs):
         """Create audit entry when expense is created or updated"""
@@ -828,7 +875,7 @@ class TransactionAudit(models.Model):
         # Create transaction audit record
         TransactionAudit.objects.create(
             transaction_type='EXPENSE',
-            transaction_id=instance.id,
+            transaction_id_ref=instance.id,
             user=user,
             action=action,
             details={

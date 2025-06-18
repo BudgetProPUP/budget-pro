@@ -6,6 +6,8 @@ from .views import (
 )
 from rest_framework.routers import DefaultRouter
 
+from . import views
+
 app_name = 'users_auth' # Namespace for the app
 
 # Router for UserManagementViewSet
@@ -32,4 +34,9 @@ urlpatterns = [
 
     # User Management (Admin) endpoints from the router
     path('', include(router.urls)), # This will add /management/users/, /management/users/{id}/ etc.
+]
+
+urlpatterns += [
+    # ... existing URLs
+    path('users/<int:user_id>/', views.UserInfoView.as_view(), name='user-info'),
 ]

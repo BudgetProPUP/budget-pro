@@ -28,6 +28,9 @@ User = get_user_model()
 
 # --- User Serializers (Adapted for Auth Service) ---
 
+
+
+
 class UserSerializer(serializers.ModelSerializer):
     """
     General User Serializer for auth service.

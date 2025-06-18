@@ -21,7 +21,7 @@ from rest_framework import viewsets, filters, status
 from rest_framework.decorators import action
 
 from .serializers import DepartmentSerializer, ValidProjectAccountSerializer
-from .models import BudgetAllocation, Department, JournalEntryLine, LoginAttempt, UserActivityLog
+from .models import BudgetAllocation, Department, JournalEntryLine, UserActivityLog
 
 User = get_user_model()
 

@@ -1,6 +1,6 @@
 from rest_framework import serializers
 from django.contrib.auth import authenticate
-from .models import FiscalYear, User, Department, LoginAttempt, ExpenseCategory, Expense
+from .models import FiscalYear, Department, ExpenseCategory, Expense
 from drf_spectacular.utils import extend_schema_field
 import re
 

@@ -3,57 +3,37 @@ from rest_framework_simplejwt.views import TokenRefreshView
 from rest_framework.routers import DefaultRouter
 
 from .views_budget import AccountDropdownView, AccountSetupListView, BudgetProposalDetailView, BudgetProposalListView, BudgetProposalSummaryView, BudgetVarianceReportView, FiscalYearDropdownView, JournalEntryCreateView, JournalEntryListView, LedgerExportView, ProposalHistoryView, LedgerViewList, export_budget_proposal_excel, journal_choices, DepartmentDropdownView, AccountTypeDropdownView
-from ..old.views_usermanagement import UserManagementViewSet, DepartmentViewSet
 from . import views_expense, views_dashboard  # ,TokenObtainPairView
 from .views_dashboard import MonthlyBudgetActualViewSet, TopCategoryBudgetAllocationView
 from .views import (
-    LoginView,
-    LogoutView,
-    UserProfileView,
-    LoginAttemptsView,
-    CustomTokenRefreshView,
+    DepartmentViewSet,
     ValidProjectAccountView
 )
 
-from .views_password_reset import (
-    PasswordResetRequestView,
-    PasswordResetConfirmView,
-    PasswordChangeView
-)
 from core import views_budget
 
 
 user_management_router = DefaultRouter()
-user_management_router.register(
-    r'users', UserManagementViewSet, basename='user-management')
 user_management_router.register(
     r'departments', DepartmentViewSet, basename='department')
 user_management_router.register(
     r'monthly-budget-actual', MonthlyBudgetActualViewSet, basename='monthly-budget-actual')
 
 router = DefaultRouter()
-router.register(r'external-budget-proposals', views_budget.BudgetProposalViewSet, basename='external-budget-proposals')
+router.register(r'external-budget-proposals',
+                views_budget.BudgetProposalViewSet, basename='external-budget-proposals')
 urlpatterns = [
-     path('', include(router.urls)),
+    path('', include(router.urls)),
     # Authentication endpoints
-    path('auth/login/', LoginView.as_view(), name='login'),
-    path('auth/logout/', LogoutView.as_view(), name='logout'),
-    path('auth/token/refresh/',
-         CustomTokenRefreshView.as_view(), name='token_refresh'),
-
-    # Password reset endpoints
-    path('auth/password/reset/', PasswordResetRequestView.as_view(),
-         name='password_reset_request'),
-    path('auth/password/reset/confirm/',
-         PasswordResetConfirmView.as_view(), name='password_reset_confirm'),
-    path('auth/password/change/',
-         PasswordChangeView.as_view(), name='password_change'),
-
+    #     path('auth/login/', LoginView.as_view(), name='login'),
+    #     path('auth/logout/', LogoutView.as_view(), name='logout'),
+    #     path('auth/token/refresh/',
+    #          CustomTokenRefreshView.as_view(), name='token_refresh'),
     # User management
-    path('auth/profile/', UserProfileView.as_view(), name='user_profile'),
+    #     path('auth/profile/', UserProfileView.as_view(), name='user_profile'),
 
     # Security endpoint
-    path('auth/login-attempts/', LoginAttemptsView.as_view(), name='login_attempts'),
+    #     path('auth/login-attempts/', LoginAttemptsView.as_view(), name='login_attempts'),
 
     # path('api/expenses/dashboard/', views_expense.get_expense_dashboard_data, name='expense-dashboard'),
 
@@ -116,31 +96,38 @@ urlpatterns += [
          name='department-dropdown'),
     path('account-types/', AccountTypeDropdownView.as_view(),
          name='account-type-dropdown'),
-    
+
     # API endpoint for the Expense pages
-    path('expenses/history/', views_expense.ExpenseHistoryView.as_view(), name='expense-history'),
-    path('expenses/tracking/', views_expense.ExpenseTrackingView.as_view(), name='expense-tracking'),
-    path('expenses/submit/', views_expense.ExpenseCreateView.as_view(), name='submit-expense'),
+    path('expenses/history/', views_expense.ExpenseHistoryView.as_view(),
+         name='expense-history'),
+    path('expenses/tracking/', views_expense.ExpenseTrackingView.as_view(),
+         name='expense-tracking'),
+    path('expenses/submit/', views_expense.ExpenseCreateView.as_view(),
+         name='submit-expense'),
 
 
     # API endpoint for quickly finding valid project with accounts and is active.
-    path('expenses/valid-project-accounts/', ValidProjectAccountView.as_view(), name='valid-project-accounts'),
-     
-     # Dropdown endpoints for categories
-    path('expense-categories/', views_expense.ExpenseCategoryDropdownView.as_view(), 
-    name='expense-category-dropdown'),
+    path('expenses/valid-project-accounts/',
+         ValidProjectAccountView.as_view(), name='valid-project-accounts'),
+
+    # Dropdown endpoints for categories
+    path('expense-categories/', views_expense.ExpenseCategoryDropdownView.as_view(),
+         name='expense-category-dropdown'),
 ]
 
 
 # Added URLS
 urlpatterns += [
-    path('dashboard/top-category-allocations/', TopCategoryBudgetAllocationView.as_view(), name='top-category-allocations'),
+    path('dashboard/top-category-allocations/',
+         TopCategoryBudgetAllocationView.as_view(), name='top-category-allocations'),
     # For budget variance report page
-    path('reports/budget-variance/', BudgetVarianceReportView.as_view(), name='budget-variance-report'),
+    path('reports/budget-variance/', BudgetVarianceReportView.as_view(),
+         name='budget-variance-report'),
 ]
 
 # For budget proposal exporting ; GET /api/budget-proposals/{proposal_id}/export/
 
 urlpatterns += [
-    path('budget-proposals/<int:proposal_id>/export/', export_budget_proposal_excel, name='budget-proposal-export'),
+    path('budget-proposals/<int:proposal_id>/export/',
+         export_budget_proposal_excel, name='budget-proposal-export'),
 ]

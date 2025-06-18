@@ -648,9 +648,6 @@ class Expense(models.Model):
             self.transaction_id = f"TXN-{date_part}-{last_number + 1:04d}"
         if self.status == 'APPROVED' and not self.approved_at:
             self.approved_at = timezone.now()
-            if not self.approved_by_user_id:
-                self.approved_by_user_id = self.submitted_by_user_id
-                self.approved_by_username = self.submitted_by_username
         super().save(*args, **kwargs)
 
     @classmethod

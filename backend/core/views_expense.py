@@ -3,7 +3,7 @@ from django.utils import timezone
 from rest_framework import generics, filters
 from django_filters.rest_framework import DjangoFilterBackend
 from drf_spectacular.utils import extend_schema, OpenApiParameter, OpenApiExample
-from core.models import Expense, ExpenseCategory
+from core.models import Department, Expense, ExpenseCategory
 from .serializers_expense import ExpenseCategoryDropdownSerializer, ExpenseCreateSerializer, ExpenseHistorySerializer, ExpenseTrackingSerializer
 from core.pagination import StandardResultsSetPagination
 from rest_framework.permissions import IsAuthenticated
@@ -34,14 +34,31 @@ class ExpenseHistoryView(generics.ListAPIView):
     pagination_class = StandardResultsSetPagination
     filter_backends = [DjangoFilterBackend, filters.SearchFilter]
     search_fields = ['description', 'vendor']
-    filterset_fields = ['category__code']  # frontend can pass category_code
+    filterset_fields = ['category__code']
 
     def get_queryset(self):
-        user = self.request.user
-        return Expense.objects.filter(
-            department=user.department,
-            status='APPROVED'
-        ).order_by('-date')
+        user = self.request.user # This is CustomUser or TokenUser
+        
+        # User must have department_id from JWT to filter by department
+        if not hasattr(user, 'department_id') or user.department_id is None:
+            # Handle case where user might not have a department_id (e.g., superadmin not tied to a dept)
+            # Option 1: Return no expenses
+            # return Expense.objects.none()
+            # Option 2: Return all approved expenses (if admin/finance head role allows)
+            if hasattr(user, 'role') and user.role in ['ADMIN', 'FINANCE_HEAD']:
+                 return Expense.objects.filter(status='APPROVED').order_by('-date')
+            return Expense.objects.none() # Default to no expenses if no department and not privileged
+
+        try:
+            # Fetch the actual Department object using the department_id from the user (JWT)
+            user_department = Department.objects.get(id=user.department_id)
+            return Expense.objects.filter(
+                department=user_department, # Filter by the Department instance
+                status='APPROVED'
+            ).order_by('-date')
+        except Department.DoesNotExist:
+            # Log this? Department ID in JWT doesn't match any local Department.
+            return Expense.objects.none() # Or handle as an error
 
     @extend_schema(
         tags=['Expense History Page'],
@@ -62,25 +79,31 @@ class ExpenseHistoryView(generics.ListAPIView):
 
 
 class ExpenseTrackingView(generics.ListAPIView):
-    """
-    For Expense Tracking Page (not including add modal)
-    """
     serializer_class = ExpenseTrackingSerializer
     permission_classes = [IsAuthenticated]
     pagination_class = StandardResultsSetPagination
-    filter_backends = [filters.SearchFilter]
+    filter_backends = [filters.SearchFilter] # Only search, category is manual
     search_fields = ['description', 'vendor']
 
     def get_queryset(self):
-        user = self.request.user
-        queryset = Expense.objects.filter(department=user.department)
+        user = self.request.user # This is CustomUser or TokenUser
+        
+        if not hasattr(user, 'department_id') or user.department_id is None:
+            if hasattr(user, 'role') and user.role in ['ADMIN', 'FINANCE_HEAD']:
+                queryset = Expense.objects.all() # Admin/Finance Head sees all initially
+            else:
+                return Expense.objects.none()
+        else:
+            try:
+                user_department = Department.objects.get(id=user.department_id)
+                queryset = Expense.objects.filter(department=user_department)
+            except Department.DoesNotExist:
+                return Expense.objects.none()
 
-        # Filter by category
         category_code = self.request.query_params.get('category__code')
         if category_code:
             queryset = queryset.filter(category__code=category_code)
 
-        # Filter by date range
         date_filter = self.request.query_params.get('date_filter')
         start_date, end_date = get_date_range_from_filter(date_filter)
         if start_date and end_date:

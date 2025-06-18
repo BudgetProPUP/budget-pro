@@ -601,7 +601,15 @@ Create a new Budget Proposal.
     def retrieve(self, request, *args, **kwargs):
         # Uses get_serializer_class which returns BudgetProposalDetailSerializer for 'retrieve'
         return super().retrieve(request, *args, **kwargs)
-
+    
+    # DESTROY (DELETE /api/external-budget-proposals/{id}/)
+    @extend_schema(
+        summary="Delete a Budget Proposal (from external system)",
+        tags=['External Budget Proposals']
+    )
+    def destroy(self, request, *args, **kwargs):
+        return super().destroy(request, *args, **kwargs)
+    
     # REVIEW ACTION (POST /external-budget-proposals/{pk}/review/)
     @extend_schema(
         summary="Review a proposal by an internal BMS user",

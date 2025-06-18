@@ -669,11 +669,12 @@ def get_department_budget_status(request):
 
 
 class TopCategoryBudgetAllocationView(APIView):
+    permission_classes = [IsAuthenticated]
     """
     Returns top N budget allocations grouped by category.
     """
     @extend_schema(
-        summary="Top Budget Allocations by Category",
+        summary="Top Budget Allocations by Category (Budget Allocation by Categories on UI)",
         description="Returns total allocated budget grouped by category. Use ?limit=N to limit the number of categories returned.",
         parameters=[
             OpenApiParameter(
@@ -689,14 +690,17 @@ class TopCategoryBudgetAllocationView(APIView):
     def get(self, request):
         limit = int(request.query_params.get('limit', 3))
 
-        # Sum BudgetAllocations by category
+        today = timezone.now().date()
+        active_fiscal_year = FiscalYear.objects.filter(start_date__lte=today, end_date__gte=today, is_active=True).first()
+
+        if not active_fiscal_year:
+             return Response({"detail": "No active fiscal year for filtering top categories."}, status=status.HTTP_404_NOT_FOUND)
+
         category_allocations = ExpenseCategory.objects.annotate(
             total_allocated=Coalesce(
-                Sum('budget_allocations__amount', filter=Q(budget_allocations__is_active=True)),
-                0,
-                output_field=DecimalField()
+                Sum('budget_allocations__amount', filter=Q(budget_allocations__is_active=True, budget_allocations__fiscal_year=active_fiscal_year)), # Added fiscal year filter
+                Decimal('0'), output_field=DecimalField()
             )
         ).filter(total_allocated__gt=0).order_by('-total_allocated')[:limit]
-
         serializer = CategoryAllocationSerializer(category_allocations, many=True)
         return Response(serializer.data)

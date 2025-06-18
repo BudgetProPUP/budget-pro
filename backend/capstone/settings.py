@@ -182,7 +182,8 @@ SPECTACULAR_SETTINGS = {
     'COMPONENT_SPLIT_REQUEST': True,  # Separate schemas for request/response
     'SCHEMA_PATH_PREFIX': r'/api/',  # Match your API base path
     'ENUM_NAME_OVERRIDES': {
-        # Add enum overrides if needed
+       'Status0feEnum': 'BudgetProposalStatusEnum',
+        'Status1a2Enum': 'ExpenseStatusEnum',
     },
     'TAGS': [  # Organize endpoints by category
         {'name': 'Authentication', 'description': 'User login/logout operations'},

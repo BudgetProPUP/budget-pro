@@ -60,6 +60,7 @@ class BudgetProposalDetailSerializer(serializers.ModelSerializer):
     # Uses updated ProposalCommentSerializer
     comments = ProposalCommentSerializer(many=True, read_only=True)
     last_reviewed_at = serializers.SerializerMethodField()
+    latest_review_comment = serializers.SerializerMethodField()
 
     class Meta:
         model = BudgetProposal
@@ -69,6 +70,7 @@ class BudgetProposalDetailSerializer(serializers.ModelSerializer):
             'fiscal_year', 'performance_start_date', 'performance_end_date',
             'items', 'total_cost', 'document', 'comments', 'last_reviewed_at',
             'approved_by_name', 'approval_date', 'rejected_by_name', 'rejection_date',
+            'latest_review_comment',  # <-- Add this
         ]
 
     def get_total_cost(self, obj):
@@ -79,6 +81,23 @@ class BudgetProposalDetailSerializer(serializers.ModelSerializer):
             return obj.approval_date
         elif obj.status == 'REJECTED':
             return obj.rejection_date
+        return None
+
+    def get_latest_review_comment(self, obj):
+        # Find the latest APPROVED or REJECTED action in ProposalHistory
+        review_history = obj.history.filter(
+            action__in=['APPROVED', 'REJECTED']
+        ).order_by('-action_at').first()
+        if not review_history:
+            return None
+
+        # Find the latest comment by the same user, after or at the review time
+        comment = obj.comments.filter(
+            user_username=review_history.action_by_name,
+            created_at__gte=review_history.action_at
+        ).order_by('created_at').first()
+        if comment:
+            return ProposalCommentSerializer(comment).data
         return None
 
 

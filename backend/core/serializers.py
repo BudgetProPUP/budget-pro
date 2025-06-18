@@ -1,6 +1,5 @@
 from rest_framework import serializers
 from django.contrib.auth import authenticate
-from django.utils import timezone
 from .models import FiscalYear, User, Department, LoginAttempt, ExpenseCategory, Expense
 from drf_spectacular.utils import extend_schema_field
 import re
@@ -15,7 +14,7 @@ class DepartmentSerializer(serializers.ModelSerializer):
         model = Department
         fields = ['id', 'name', 'code', 'description']
         
-        # Add schema examples
+       
         swagger_schema_fields = {
             "title": "Department",
             "description": "Represents a department within the organization",
@@ -26,8 +25,49 @@ class DepartmentSerializer(serializers.ModelSerializer):
                 "description": "Handles company financial operations and budgeting"
             }
         }
+        
+class TopCategorySerializer(serializers.Serializer):
+    """
+    Serializer for top expense category with amount and percentage.
+    """
+    name = serializers.CharField()
+    amount = serializers.DecimalField(max_digits=15, decimal_places=2)
+    percentage = serializers.FloatField()
+    
+    
+class DepartmentBudgetSerializer(serializers.ModelSerializer):
+    """
+    Serializer for displaying department budget allocation information
+    """
+    total_budget = serializers.DecimalField(max_digits=15, decimal_places=2, read_only=True)
+    total_spent = serializers.DecimalField(max_digits=15, decimal_places=2, read_only=True)
+    remaining_budget = serializers.DecimalField(max_digits=15, decimal_places=2, read_only=True)
+    percentage_used = serializers.FloatField(read_only=True)
+    
+    class Meta:
+        model = Department
+        fields = ['id', 'name', 'code', 'total_budget', 'total_spent', 'remaining_budget', 'percentage_used']
 
 
+class FiscalYearSerializer(serializers.ModelSerializer):
+    """
+    Serializer for fiscal year information
+    """
+    class Meta:
+        model = FiscalYear
+        fields = ['id', 'name', 'start_date', 'end_date', 'is_active', 'is_locked']
+
+
+class ValidProjectAccountSerializer(serializers.Serializer):
+    project_id = serializers.IntegerField()
+    project_title = serializers.CharField()
+    account_id = serializers.IntegerField()
+    account_code = serializers.CharField()
+    account_title = serializers.CharField()
+    department_name = serializers.CharField()
+    fiscal_year_name = serializers.CharField()
+
+"""
 class UserSerializer(serializers.ModelSerializer):
     department_id = serializers.IntegerField(write_only=True, required=False)
 
@@ -83,10 +123,10 @@ class UserSerializer(serializers.ModelSerializer):
         return instance
 
 class UserTableSerializer(serializers.ModelSerializer):
-    """
+    \"\"\"
     Serializer for listing users in the management table view.
     Only includes fields needed for the table display.
-    """
+    \"\"\"
     full_name = serializers.SerializerMethodField()
     last_active = serializers.DateTimeField(source='last_login', read_only=True)
     
@@ -99,10 +139,10 @@ class UserTableSerializer(serializers.ModelSerializer):
         return f"{obj.first_name} {obj.last_name}"
 
 class UserModalSerializer(serializers.ModelSerializer):
-    """
+    \"\"\"
     Serializer for the add/edit user modals.
     Includes all fields needed for creating or updating a user.
-    """
+    \"\"\"
     department = DepartmentSerializer(read_only=True)
     department_id = serializers.IntegerField(write_only=True, required=False, allow_null=True)
     date_added = serializers.DateTimeField(source='created_at', read_only=True)
@@ -208,7 +248,7 @@ class LoginAttemptSerializer(serializers.ModelSerializer):
     # Add type hint for the method using extend_schema_field
     @extend_schema_field(serializers.CharField())
     def get_username(self, obj) -> str:
-        """Get username for the login attempt."""
+        "Get username for the login attempt."
         return obj.user.username if obj.user else "Unknown"
     
     username = serializers.SerializerMethodField()
@@ -216,45 +256,7 @@ class LoginAttemptSerializer(serializers.ModelSerializer):
     class Meta:
         model = LoginAttempt
         fields = ['id', 'username', 'ip_address', 'user_agent', 'success', 'timestamp']
-        
-        
-class TopCategorySerializer(serializers.Serializer):
-    """
-    Serializer for top expense category with amount and percentage.
-    """
-    name = serializers.CharField()
-    amount = serializers.DecimalField(max_digits=15, decimal_places=2)
-    percentage = serializers.FloatField()
-    
-    
-class DepartmentBudgetSerializer(serializers.ModelSerializer):
-    """
-    Serializer for displaying department budget allocation information
-    """
-    total_budget = serializers.DecimalField(max_digits=15, decimal_places=2, read_only=True)
-    total_spent = serializers.DecimalField(max_digits=15, decimal_places=2, read_only=True)
-    remaining_budget = serializers.DecimalField(max_digits=15, decimal_places=2, read_only=True)
-    percentage_used = serializers.FloatField(read_only=True)
-    
-    class Meta:
-        model = Department
-        fields = ['id', 'name', 'code', 'total_budget', 'total_spent', 'remaining_budget', 'percentage_used']
+"""
 
+# --- Budgeting/Department/Expense serializers below are still active ---
 
-class FiscalYearSerializer(serializers.ModelSerializer):
-    """
-    Serializer for fiscal year information
-    """
-    class Meta:
-        model = FiscalYear
-        fields = ['id', 'name', 'start_date', 'end_date', 'is_active', 'is_locked']
-
-
-class ValidProjectAccountSerializer(serializers.Serializer):
-    project_id = serializers.IntegerField()
-    project_title = serializers.CharField()
-    account_id = serializers.IntegerField()
-    account_code = serializers.CharField()
-    account_title = serializers.CharField()
-    department_name = serializers.CharField()
-    fiscal_year_name = serializers.CharField()

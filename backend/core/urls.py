@@ -3,7 +3,7 @@ from rest_framework_simplejwt.views import TokenRefreshView
 from rest_framework.routers import DefaultRouter
 
 from .views_budget import AccountDropdownView, AccountSetupListView, BudgetProposalDetailView, BudgetProposalListView, BudgetProposalSummaryView, BudgetVarianceReportView, FiscalYearDropdownView, JournalEntryCreateView, JournalEntryListView, LedgerExportView, ProposalHistoryView, LedgerViewList, export_budget_proposal_excel, journal_choices, DepartmentDropdownView, AccountTypeDropdownView
-from .views_usermanagement import UserManagementViewSet, DepartmentViewSet
+from ..old.views_usermanagement import UserManagementViewSet, DepartmentViewSet
 from . import views_expense, views_dashboard  # ,TokenObtainPairView
 from .views_dashboard import MonthlyBudgetActualViewSet, TopCategoryBudgetAllocationView
 from .views import (

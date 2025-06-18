@@ -9,8 +9,8 @@ from drf_spectacular.types import OpenApiTypes
 
 from core.permissions import IsAdmin
 
-from .models import User, Department
-from .serializers import UserTableSerializer, UserModalSerializer, DepartmentSerializer
+from ..core.models import User, Department
+from ..core.serializers import UserTableSerializer, UserModalSerializer, DepartmentSerializer
 
 @extend_schema_view(
     list=extend_schema(
@@ -255,44 +255,3 @@ class UserManagementViewSet(viewsets.ModelViewSet):
         roles = [{'value': code, 'label': label} for code, label in User.ROLE_CHOICES]
         return Response(roles)
 
-@extend_schema_view(
-    list=extend_schema(
-        operation_id="list_departments",
-        summary="List all departments",
-        description="Returns a list of all active departments for populating the department dropdown menu in the user management UI.",
-        parameters=[
-            OpenApiParameter(
-                name="search",
-                description="Search departments by name or code",
-                required=False,
-                type=OpenApiTypes.STR
-            )
-        ],
-        responses={
-            200: DepartmentSerializer(many=True),
-            401: {"description": "Authentication credentials were not provided"}
-        },
-        tags=["Departments"]
-    ),
-    retrieve=extend_schema(
-        operation_id="get_department",
-        summary="Get department details",
-        description="Returns detailed information about a specific department.",
-        responses={
-            200: DepartmentSerializer,
-            404: {"description": "Department not found"},
-            401: {"description": "Authentication credentials were not provided"}
-        },
-        tags=["Departments"]
-    )
-)
-class DepartmentViewSet(viewsets.ReadOnlyModelViewSet):
-    """
-    Read-only ViewSet for departments.
-    Used to populate department dropdowns in user management.
-    """
-    permission_classes = [IsAuthenticated]
-    queryset = Department.objects.filter(is_active=True).order_by('name')
-    serializer_class = DepartmentSerializer
-    filter_backends = [filters.SearchFilter]
-    search_fields = ['name', 'code']

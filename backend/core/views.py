@@ -1,28 +1,27 @@
+from warnings import filters
 from django.http import JsonResponse
 from django.shortcuts import render
 from django.conf import settings
-from rest_framework import status, generics  # , permissions
+from rest_framework import status  # , permissions
 from rest_framework.response import Response
 from rest_framework.views import APIView
-from rest_framework_simplejwt.tokens import RefreshToken,AccessToken
-from rest_framework_simplejwt.exceptions import TokenError
-from rest_framework_simplejwt.views import TokenRefreshView
-from rest_framework_simplejwt.serializers import TokenObtainPairSerializer, TokenRefreshSerializer
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.permissions import AllowAny  # TODO Remove Later
 from rest_framework import serializers
 from django.contrib.auth import get_user_model
 from drf_spectacular.utils import extend_schema, OpenApiExample, OpenApiResponse, OpenApiParameter, inline_serializer
-from core.pagination import StandardResultsSetPagination
-from core.permissions import IsFinanceHead, IsAdmin
-from .serializers_budget import LedgerViewSerializer
 from django_ratelimit.decorators import ratelimit
-from django_ratelimit.exceptions import Ratelimited
 from django.utils.decorators import method_decorator
 # from django.utils import timezone
+from django_filters.rest_framework import DjangoFilterBackend
+from django.db.models import Q
+from drf_spectacular.utils import extend_schema, extend_schema_view, OpenApiParameter, OpenApiExample
+from drf_spectacular.types import OpenApiTypes
+from rest_framework import viewsets, filters, status
+from rest_framework.decorators import action
 
-from .serializers import UserSerializer, LoginSerializer, LoginAttemptSerializer, ValidProjectAccountSerializer
-from .models import BudgetAllocation, JournalEntryLine, LoginAttempt, UserActivityLog
+from .serializers import DepartmentSerializer, ValidProjectAccountSerializer
+from .models import BudgetAllocation, Department, JournalEntryLine, LoginAttempt, UserActivityLog
 
 User = get_user_model()
 
@@ -32,7 +31,84 @@ def ratelimit_handler(request, exception): # Not yet hooked up
         'error': 'Rate limit exceeded. Please try again later.',
         'detail': 'Too many requests from your IP address.'
     }, status=429)
+    
+class ValidProjectAccountView(APIView):
+    """
+    API that returns valid projects and accounts with active budget allocations.
+    """
+    
+    @extend_schema(
+        tags=['Valid Projects and Accounts with Active Allocations'],
+        summary="Get valid projects and accounts with active allocations",
+        responses={200: ValidProjectAccountSerializer(many=True)},
+    )
+    def get(self, request):
+        allocations = BudgetAllocation.objects.filter(is_active=True).select_related(
+            'project', 'account', 'department', 'fiscal_year'
+        )
 
+        data = [
+            {
+                'project_id': a.project.id,
+                'project_title': a.project.name,
+                'account_id': a.account.id,
+                'account_code': a.account.code,
+                'account_title': a.account.name,
+                'department_name': a.department.name,
+                'fiscal_year_name': a.fiscal_year.name
+            }
+            for a in allocations
+        ]
+
+        return Response(data, status=status.HTTP_200_OK)
+    
+    
+@extend_schema_view(
+    list=extend_schema(
+        operation_id="list_departments",
+        summary="List all departments",
+        description="Returns a list of all active departments for populating the department dropdown menu in the user management UI.",
+        parameters=[
+            OpenApiParameter(
+                name="search",
+                description="Search departments by name or code",
+                required=False,
+                type=OpenApiTypes.STR
+            )
+        ],
+        responses={
+            200: DepartmentSerializer(many=True),
+            401: {"description": "Authentication credentials were not provided"}
+        },
+        tags=["Departments"]
+    ),
+    retrieve=extend_schema(
+        operation_id="get_department",
+        summary="Get department details",
+        description="Returns detailed information about a specific department.",
+        responses={
+            200: DepartmentSerializer,
+            404: {"description": "Department not found"},
+            401: {"description": "Authentication credentials were not provided"}
+        },
+        tags=["Departments"]
+    )
+)
+class DepartmentViewSet(viewsets.ReadOnlyModelViewSet):
+    """
+    Read-only ViewSet for departments.
+    Used to populate department dropdowns in user management.
+    """
+    permission_classes = [IsAuthenticated]
+    queryset = Department.objects.filter(is_active=True).order_by('name')
+    serializer_class = DepartmentSerializer
+    filter_backends = [filters.SearchFilter]
+    search_fields = ['name', 'code']
+    
+
+# --- The following views have been moved to auth_service.users.views ---
+
+"""
 @method_decorator(ratelimit(key='ip', rate='5/m', method='POST', block=True), name='post')
 class LoginView(APIView):
     permission_classes = [AllowAny]            # ← Allows unauthenticated
@@ -123,92 +199,10 @@ class LoginView(APIView):
         ]
     )
     def post(self, request):
+        # ...existing code...
+"""
 
-        # Get client info for logging
-        ip_address = self.get_client_ip(request)
-        user_agent = request.META.get('HTTP_USER_AGENT', '')
-
-        serializer = LoginSerializer(
-            data=request.data, context={'request': request})
-
-        if serializer.is_valid():
-            user = serializer.validated_data['user']
-
-            # Create JWT tokens
-            refresh = RefreshToken.for_user(user)
-            tokens = {
-                'refresh': str(refresh),
-                'access': str(refresh.access_token),
-            }
-
-            # Log successful login attempt
-            LoginAttempt.objects.create(
-                user=user,
-                ip_address=ip_address,
-                user_agent=user_agent,
-                success=True
-            )
-
-            # Log user activity
-            UserActivityLog.objects.create(
-                user=user,
-                log_type='LOGIN',
-                action='User logged in',
-                status='SUCCESS',
-                details={
-                    'ip_address': ip_address,
-                    'user_agent': user_agent,
-                    'role': user.role,
-                    'department': user.department.name if user.department else None
-                }
-            )
-
-            return Response({
-                'refresh': tokens['refresh'],
-                'access': tokens['access'],
-                'user': UserSerializer(user).data
-            }, status=status.HTTP_200_OK, headers={'X-Success': 'true'})
-        else:
-            # Try to find user by email for failed login attempt
-            email = request.data.get('email', '')
-            try:
-                user = User.objects.get(email=email)
-            except User.DoesNotExist:
-                user = None
-
-            # Log failed login attempt
-            LoginAttempt.objects.create(
-                user=user,
-                ip_address=ip_address,
-                user_agent=user_agent,
-                success=False
-            )
-
-            # If there's a user, log their failed attempt
-            if user:
-                UserActivityLog.objects.create(
-                    user=user,
-                    log_type='LOGIN',
-                    action='Failed login attempt',
-                    status='FAILED',
-                    details={
-                        'ip_address': ip_address,
-                        'user_agent': user_agent,
-                        
-                    }
-                )
-
-            return Response({'error': serializer.errors}, status=status.HTTP_400_BAD_REQUEST)
-
-    def get_client_ip(self, request):
-        x_forwarded_for = request.META.get('HTTP_X_FORWARDED_FOR')
-        if x_forwarded_for:
-            ip = x_forwarded_for.split(',')[0]
-        else:
-            ip = request.META.get('REMOTE_ADDR')
-        return ip
-
-
+"""
 class LogoutSerializer(serializers.Serializer):
     refresh = serializers.CharField(
         required=True, help_text="Refresh token to blacklist")
@@ -225,7 +219,6 @@ class LogoutErrorSerializer(serializers.Serializer):
 @method_decorator(ratelimit(key='user', rate='10/m', method='POST', block=True), name='post')
 class LogoutView(APIView):
     permission_classes = [IsAuthenticated]
-
     @extend_schema(
         request=LogoutSerializer,
         tags=['Authentication'],
@@ -266,36 +259,15 @@ class LogoutView(APIView):
         ]
     )
     def post(self, request):
-        refresh_token = request.data.get('refresh')
-        if not refresh_token:
-            return Response({"error": "Refresh token required"}, status=status.HTTP_400_BAD_REQUEST)
+        # ...existing code...
+"""
 
-        try:
-            token = RefreshToken(refresh_token)
-            token.blacklist()
-        except TokenError as e:
-            return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
-
-
-        # Log user activity
-        UserActivityLog.objects.create(
-            user=request.user,
-            log_type='LOGIN',
-            action='User logged out',
-            status='SUCCESS',
-            details={}
-        )
-
-        return Response({"success": "Logged out"}, status=status.HTTP_200_OK)
-
-
+"""
 class UserProfileView(generics.RetrieveUpdateAPIView):
     permission_classes = [IsAuthenticated]
     serializer_class = UserSerializer
-
     def get_object(self):
         return self.request.user
-
     @extend_schema(
         tags=['User Profile'],
         description='Retrieve authenticated user profile details',
@@ -345,17 +317,7 @@ class UserProfileView(generics.RetrieveUpdateAPIView):
         ]
     )
     def get(self, request, *args, **kwargs):
-        # Log user activity
-        UserActivityLog.objects.create(
-            user=request.user,
-            log_type='READ',
-            action='User profile viewed',
-            status='SUCCESS',
-            details={}
-        )
-
-        return self.retrieve(request, *args, **kwargs)
-
+        # ...existing code...
     @extend_schema(
         tags=['User Profile'],
         description='Update authenticated user profile details',
@@ -405,19 +367,7 @@ class UserProfileView(generics.RetrieveUpdateAPIView):
         ]
     )
     def update(self, request, *args, **kwargs):
-        response = super().update(request, *args, **kwargs)
-
-        # Log user activity
-        UserActivityLog.objects.create(
-            user=request.user,
-            log_type='UPDATE',
-            action='User profile updated',
-            status='SUCCESS',
-            details={}
-        )
-
-        return response
-
+        # ...existing code...
     @extend_schema(
         tags=['User Profile'],
         description='Fully update user profile (all fields required).',
@@ -448,8 +398,7 @@ class UserProfileView(generics.RetrieveUpdateAPIView):
         ]
     )
     def put(self, request, *args, **kwargs):
-        return self.update(request, *args, **kwargs)
-
+        # ...existing code...
     @extend_schema(
         tags=['User Profile'],
         description='Partially update user profile (partial fields allowed).',
@@ -475,13 +424,13 @@ class UserProfileView(generics.RetrieveUpdateAPIView):
         ]
     )
     def patch(self, request, *args, **kwargs):
-        return self.partial_update(request, *args, **kwargs)
+        # ...existing code...
+"""
 
-
+"""
 class LoginAttemptsView(generics.ListAPIView):
     permission_classes = [IsAuthenticated, IsFinanceHead | IsAdmin]
     serializer_class = LoginAttemptSerializer
-
     @extend_schema(
         tags=['Security'],
         operation_id='list_login_attempts',
@@ -539,8 +488,9 @@ class LoginAttemptsView(generics.ListAPIView):
             # Return an empty queryset instead of filtering by user
             # This will still return a 200 with empty list, so we need additional permission check
             return LoginAttempt.objects.none()
+"""
 
-
+"""
 class CustomTokenRefreshView(TokenRefreshView):
     @extend_schema(
         tags=['Authentication'],
@@ -574,34 +524,7 @@ class CustomTokenRefreshView(TokenRefreshView):
     )
     def post(self, request, *args, **kwargs):
         return super().post(request, *args, **kwargs)
+"""
 
+# --- End of moved views ---
 
-class ValidProjectAccountView(APIView):
-    """
-    API that returns valid projects and accounts with active budget allocations.
-    """
-    
-    @extend_schema(
-        tags=['Valid Projects and Accounts with Active Allocations'],
-        summary="Get valid projects and accounts with active allocations",
-        responses={200: ValidProjectAccountSerializer(many=True)},
-    )
-    def get(self, request):
-        allocations = BudgetAllocation.objects.filter(is_active=True).select_related(
-            'project', 'account', 'department', 'fiscal_year'
-        )
-
-        data = [
-            {
-                'project_id': a.project.id,
-                'project_title': a.project.name,
-                'account_id': a.account.id,
-                'account_code': a.account.code,
-                'account_title': a.account.name,
-                'department_name': a.department.name,
-                'fiscal_year_name': a.fiscal_year.name
-            }
-            for a in allocations
-        ]
-
-        return Response(data, status=status.HTTP_200_OK)

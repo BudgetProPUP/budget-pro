@@ -2,6 +2,7 @@ from pathlib import Path
 import os
 from dotenv import load_dotenv
 from datetime import timedelta
+import dj_database_url
 
 # Base directory for the auth_service
 BASE_DIR = Path(__file__).resolve().parent
@@ -10,9 +11,11 @@ load_dotenv(BASE_DIR.parent / '.env')  # Load .env from auth_service folder
 SECRET_KEY = os.getenv('DJANGO_SECRET_KEY')
 
 DEBUG = os.getenv('DEBUG', 'False').lower() == 'true'
-ALLOWED_HOSTS = os.getenv('ALLOWED_HOSTS', 'localhost,127.0.0.1').split(',')
-
-
+ALLOWED_HOSTS = ['localhost', '127.0.0.1']
+RAILWAY_STATIC_HOSTNAME = os.getenv('RAILWAY_STATIC_URL') # Railway provides this
+if RAILWAY_STATIC_HOSTNAME:
+    ALLOWED_HOSTS.append(RAILWAY_STATIC_HOSTNAME.split('//')[1])
+    
 INSTALLED_APPS = [
     'django.contrib.admin',
     'django.contrib.auth',
@@ -64,16 +67,28 @@ TEMPLATES = [
 
 WSGI_APPLICATION = 'core.wsgi.application'
 
-DATABASES = {
-    'default': {
-        'ENGINE': 'django.db.backends.postgresql',
-        'NAME': os.getenv('AUTH_DB_NAME'),
-        'USER': os.getenv('AUTH_DB_USER'),
-        'PASSWORD': os.getenv('AUTH_DB_PASSWORD'),
-        'HOST': os.getenv('AUTH_DB_HOST', 'localhost'),
-        'PORT': os.getenv('AUTH_DB_PORT', '5432'),
+DATABASE_URL = os.getenv('DATABASE_URL')
+if DATABASE_URL:
+    DATABASES = {
+        'default': dj_database_url.config(
+            default=DATABASE_URL,
+            conn_max_age=600,
+            conn_health_checks=True,
+            # ssl_require=True # Often needed for managed DBs
+        )
     }
-}
+else:
+    # Fallback to local .env settings for AUTH_DB_*
+    DATABASES = {
+        'default': {
+            'ENGINE': 'django.db.backends.postgresql',
+            'NAME': os.getenv('AUTH_DB_NAME'),
+            'USER': os.getenv('AUTH_DB_USER'),
+            'PASSWORD': os.getenv('AUTH_DB_PASSWORD'),
+            'HOST': os.getenv('AUTH_DB_HOST', 'localhost'),
+            'PORT': os.getenv('AUTH_DB_PORT', '5432'),
+        }
+    }
 
 AUTH_USER_MODEL = 'users.User' # Points to User model in the 'users' app
 
@@ -107,15 +122,19 @@ USE_I18N = True
 USE_TZ = True
 
 STATIC_URL = '/static/'
-STATIC_ROOT = os.path.join(BASE_DIR.parent, 'staticfiles_auth') # For collectstatic
+STATIC_ROOT = os.path.join(BASE_DIR.parent, 'staticfiles_auth') # Correct for auth_service
+STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
-# CORS Settings - Adjust as necessary
+# CORS - Add deployed frontend and budget_service URLs
 CORS_ALLOWED_ORIGINS = [
-    os.getenv('FRONTEND_URL', "http://localhost:5173"),
-    # Add URLs of other microservices that might call this one if needed, or use CORS_ALLOW_ALL_ORIGINS for dev
+    "http://localhost:5173", # Local frontend
+    os.getenv('FRONTEND_URL'), # Deployed frontend
+    os.getenv('BUDGET_SERVICE_PUBLIC_URL') # Public URL of budget_service
 ]
+CORS_ALLOWED_ORIGINS = [origin for origin in CORS_ALLOWED_ORIGINS if origin] 
+
 CORS_ALLOW_ALL_ORIGINS = DEBUG # For development - restrict in production
 CORS_ALLOW_CREDENTIALS = True
 

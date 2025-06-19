@@ -45,6 +45,8 @@ import openpyxl
 # Converts column index (integer) to its Excel letter (e.g., 1 -> 'A')
 from openpyxl.utils import get_column_letter
 from openpyxl.styles import Font, PatternFill
+from django.conf import settings
+import requests
 
 
 # --- Budget Proposal Page Views ---
@@ -513,11 +515,12 @@ Create a new Budget Proposal.
 - `items` (array of objects, required): Line items. Each item: `cost_element`(str), `description`(str), `estimated_cost`(decimal), `account`(int), `notes`(str, opt).
 """,
         request=BudgetProposalMessageSerializer,
-        responses={201: BudgetProposalMessageSerializer}, # Response will show 'external_system_id' and 'department_details'
+        # Response will show 'external_system_id' and 'department_details'
+        responses={201: BudgetProposalMessageSerializer},
         examples=[
             OpenApiExample(
                 name="Create Budget Proposal Example",
-                value={ 
+                value={
                     "title": "Q1 System Upgrade 2026",
                     "project_summary": "Upgrade core accounting software.",
                     "project_description": "Migrate to new version of accounting platform for improved features and security.",
@@ -528,10 +531,12 @@ Create a new Budget Proposal.
                     "status": "SUBMITTED",
                     "performance_start_date": "2026-01-01",
                     "performance_end_date": "2026-03-31",
-                    "ticket_id": "DTS-FIN-2026-001", # Payload sends 'ticket_id'
+                    "ticket_id": "DTS-FIN-2026-001",  # Payload sends 'ticket_id'
                     "items": [
-                        {"cost_element": "Software License", "description": "New Accounting Software License", "estimated_cost": "25000.00", "account": 2},
-                        {"cost_element": "Training", "description": "Staff training for new software", "estimated_cost": "5000.00", "account": 2}
+                        {"cost_element": "Software License", "description": "New Accounting Software License",
+                            "estimated_cost": "25000.00", "account": 2},
+                        {"cost_element": "Training", "description": "Staff training for new software",
+                            "estimated_cost": "5000.00", "account": 2}
                     ]
                 },
                 request_only=True,
@@ -547,7 +552,7 @@ Create a new Budget Proposal.
                 data['items'] = json.loads(data['items'])
             except json.JSONDecodeError:
                 return Response({"items": ["Invalid JSON format for items."]}, status=status.HTTP_400_BAD_REQUEST)
-        
+
         serializer = self.get_serializer(data=data)
         serializer.is_valid(raise_exception=True)
         self.perform_create(serializer)
@@ -617,65 +622,120 @@ Create a new Budget Proposal.
         responses={200: BudgetProposalDetailSerializer},
         tags=['Budget Proposal Page Actions']
     )
-    # Add more specific permissions if needed
+    
     @action(detail=True, methods=['post'], permission_classes=[IsAuthenticated])
     def review(self, request, pk=None):
         proposal = self.get_object()
-        # Input serializer for the review action
         review_input_serializer = ProposalReviewSerializer(data=request.data)
         review_input_serializer.is_valid(raise_exception=True)
 
         new_status = review_input_serializer.validated_data['status']
-        comment_text = review_input_serializer.validated_data.get(
-            'comment', '')
+        comment_text = review_input_serializer.validated_data.get('comment', '')
 
-        # User performing the review is from the JWT (auth_service)
         reviewer_user_id = request.user.id
         reviewer_name = getattr(request.user, 'username', 'Unknown Reviewer')
-        # Try to get full name if available from JWT claims
         if hasattr(request.user, 'first_name') and hasattr(request.user, 'last_name'):
             full_name = f"{request.user.first_name} {request.user.last_name}".strip()
             if full_name:
                 reviewer_name = full_name
-
+        
         previous_status_for_history = proposal.status
 
         proposal.status = new_status
         if new_status == 'APPROVED':
             proposal.approved_by_name = reviewer_name
             proposal.approval_date = timezone.now()
-            # If you added approved_by_user_id to BudgetProposal model:
-            # proposal.approved_by_user_id = reviewer_user_id
         elif new_status == 'REJECTED':
             proposal.rejected_by_name = reviewer_name
             proposal.rejection_date = timezone.now()
-            # If you added rejected_by_user_id to BudgetProposal model:
-            # proposal.rejected_by_user_id = reviewer_user_id
-
-        proposal.last_modified = timezone.now()  # Update last_modified timestamp
+        
+        proposal.last_modified = timezone.now()
         proposal.save()
 
         if comment_text:
             ProposalComment.objects.create(
                 proposal=proposal,
                 user_id=reviewer_user_id,
-                user_username=reviewer_name,  # Store the name used for the review action
+                user_username=reviewer_name,
                 comment=comment_text
             )
-
+        
         ProposalHistory.objects.create(
-            proposal=proposal,
-            action=new_status,  # e.g., 'APPROVED' or 'REJECTED'
+            proposal=proposal, action=new_status,
             action_by_name=reviewer_name,
-            # action_by_user_id=reviewer_user_id, # If added to ProposalHistory model
             previous_status=previous_status_for_history,
             new_status=proposal.status,
-            comments=comment_text or f"Proposal status changed to {new_status}."
+            comments=comment_text or f"Status changed to {new_status}."
         )
 
-        # Return the full details of the updated proposal
-        output_serializer = BudgetProposalDetailSerializer(
-            proposal, context={'request': request})
+        # --- Notify External System (e.g., DTS) ---
+        notification_payload = {
+            "bms_proposal_id": proposal.id,
+            "external_system_id": proposal.external_system_id, # The ID DTS originally gave
+            "new_status": proposal.status,
+            "reviewed_by_name": reviewer_name,
+            "review_timestamp": timezone.now().isoformat(),
+            "comments": comment_text if comment_text else None,
+            # Construct the absolute URI correctly for the BMS proposal detail
+            "bms_proposal_link": request.build_absolute_uri(
+                # Assuming you have a 'retrieve' action on this viewset or a detail view
+                # that can be reversed. If using a different URL structure, adjust this.
+                # For a ViewSet, reverse might look like:
+                # reverse('budgetproposal-detail', kwargs={'pk': proposal.pk}, request=request)
+
+                f"/api/external-budget-proposals/{proposal.id}/" # Adjust if needed
+            )
+        }
+
+        # Get the URL and API key for calling DTS from settings
+        target_dts_url = getattr(settings, 'DTS_STATUS_UPDATE_URL', None)
+        api_key_for_dts = getattr(settings, 'BMS_API_KEY_FOR_DTS', None) # Use the correct key
+
+        if target_dts_url and api_key_for_dts:
+            try:
+                headers = {
+                    'Content-Type': 'application/json',
+                    # The header name 'X-DTS-API-Key' is an EXAMPLE.
+                    # DTS team must tell you what header name they expect for THEIR API key.
+                    'X-DTS-API-Key': api_key_for_dts,
+                }
+                
+                response_to_dts = requests.post(
+                    target_dts_url, json=notification_payload, headers=headers, timeout=10
+                )
+                response_to_dts.raise_for_status() # Raise an exception for HTTP error codes 4xx/5xx
+                print(f"Successfully notified DTS about proposal {proposal.external_system_id} status: {proposal.status}")
+                # Log this success to UserActivityLog or a specific outbound notification log
+                UserActivityLog.objects.create(
+                    user_id=request.user.id,
+                    user_username=reviewer_name,
+                    log_type='PROCESS', # Or a new 'EXTERNAL_NOTIFICATION_SENT'
+                    action=f'Sent status update for proposal {proposal.id} ({proposal.external_system_id}) to DTS. Status: {proposal.status}',
+                    status='SUCCESS',
+                    details={'target_system': 'DTS', 'payload_sent': notification_payload}
+                )
+
+            except requests.RequestException as e:
+                error_message = f"Error notifying DTS about proposal {proposal.external_system_id}: {e}"
+                print(error_message)
+                # Log this failure
+                UserActivityLog.objects.create(
+                    user_id=request.user.id,
+                    user_username=reviewer_name,
+                    log_type='ERROR', # Or 'EXTERNAL_NOTIFICATION_FAILED'
+                    action=f'Failed to send status update for proposal {proposal.id} ({proposal.external_system_id}) to DTS.',
+                    status='FAILED',
+                    details={'target_system': 'DTS', 'error': str(e), 'payload_attempted': notification_payload}
+                )
+                # Important: Do not let this failure break the response to the BMS user.
+                # The proposal review in BMS was successful.
+        elif not target_dts_url:
+            print(f"Warning: DTS_STATUS_UPDATE_URL not configured in settings. Cannot notify DTS for proposal {proposal.id}.")
+        elif not api_key_for_dts:
+            print(f"Warning: BMS_API_KEY_FOR_DTS not configured in settings. Cannot authenticate to DTS for proposal {proposal.id}.")
+
+
+        output_serializer = BudgetProposalDetailSerializer(proposal, context={'request': request})
         return Response(output_serializer.data, status=status.HTTP_200_OK)
 
     # You might want a separate action for users to add comments without changing status

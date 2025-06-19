@@ -86,8 +86,17 @@ CORS_ALLOWED_ORIGINS = [
     # Add production URLs when deployed
 ]
 
+DTS_STATUS_UPDATE_URL = os.getenv('DTS_STATUS_UPDATE_URL')
 DTS_API_KEY = os.getenv('DTS_API_KEY')
+
+BMS_API_KEY_FOR_DTS = os.getenv('BMS_KEY_FOR_CALLING_DTS')
+
 TTS_API_KEY = os.getenv('TTS_API_KEY')
+
+
+# ...
+
+
 
 SERVICE_API_KEYS = {}
 if DTS_API_KEY:

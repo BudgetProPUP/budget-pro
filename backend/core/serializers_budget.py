@@ -43,13 +43,11 @@ class ProposalCommentCreateSerializer(serializers.Serializer):
 
 
 class ProposalCommentSerializer(serializers.ModelSerializer):
-    # user_name = serializers.CharField(source='user.get_full_name', read_only=True) # OLD
-    user_username = serializers.CharField(read_only=True)  # NEW
+    user_username = serializers.CharField(read_only=True)
 
     class Meta:
         model = ProposalComment
-        fields = ['id', 'user_id', 'user_username', 'comment',
-                  'created_at']  # Display user_id and user_username
+        fields = ['id', 'user_id', 'user_username', 'comment', 'created_at']
 
 
 class BudgetProposalDetailSerializer(serializers.ModelSerializer):
@@ -57,7 +55,6 @@ class BudgetProposalDetailSerializer(serializers.ModelSerializer):
         source='department.name', read_only=True)
     items = BudgetProposalItemSerializer(many=True, read_only=True)
     total_cost = serializers.SerializerMethodField()
-    # Uses updated ProposalCommentSerializer
     comments = ProposalCommentSerializer(many=True, read_only=True)
     last_reviewed_at = serializers.SerializerMethodField()
     latest_review_comment = serializers.SerializerMethodField()
@@ -70,11 +67,11 @@ class BudgetProposalDetailSerializer(serializers.ModelSerializer):
             'fiscal_year', 'performance_start_date', 'performance_end_date',
             'items', 'total_cost', 'document', 'comments', 'last_reviewed_at',
             'approved_by_name', 'approval_date', 'rejected_by_name', 'rejection_date',
-            'latest_review_comment',  # <-- Add this
+            'latest_review_comment',
         ]
 
-    def get_total_cost(self, obj):
-        return obj.items.aggregate(total=Sum('estimated_cost'))['total'] or 0
+    def get_total_cost(self, obj): return obj.items.aggregate(
+        total=Sum('estimated_cost'))['total'] or 0
 
     def get_last_reviewed_at(self, obj):
         if obj.status == 'APPROVED':
@@ -84,41 +81,27 @@ class BudgetProposalDetailSerializer(serializers.ModelSerializer):
         return None
 
     def get_latest_review_comment(self, obj):
-        # Find the latest APPROVED or REJECTED action in ProposalHistory
         review_history = obj.history.filter(
-            action__in=['APPROVED', 'REJECTED']
-        ).order_by('-action_at').first()
+            action__in=['APPROVED', 'REJECTED']).order_by('-action_at').first()
         if not review_history:
             return None
-
-        # Find the latest comment by the same user, after or at the review time
-        comment = obj.comments.filter(
-            user_username=review_history.action_by_name,
-            created_at__gte=review_history.action_at
-        ).order_by('created_at').first()
-        if comment:
-            return ProposalCommentSerializer(comment).data
-        return None
+        comment = obj.comments.filter(user_username=review_history.action_by_name,
+                                      created_at__gte=review_history.action_at).order_by('created_at').first()
+        return ProposalCommentSerializer(comment, context=self.context).data if comment else None
 
 
 class ProposalHistorySerializer(serializers.ModelSerializer):
-    proposal_title = serializers.CharField(source='proposal.title', read_only=True)
-    department_name = serializers.CharField(source='proposal.department.name', read_only=True)
-    last_modified_by = serializers.CharField(source='action_by_name', read_only=True)
+    proposal_title = serializers.CharField(
+        source='proposal.title', read_only=True)
+    department_name = serializers.CharField(
+        source='proposal.department.name', read_only=True)
+    action_by_name = serializers.CharField(
+        read_only=True)  # Changed from last_modified_by
 
     class Meta:
         model = ProposalHistory
-        fields = [
-            'id',
-            'proposal_title',
-            'department_name',
-            'action',
-            'last_modified_by',  # This is action_by_name
-            'action_at',
-            'previous_status',
-            'new_status',
-            'comments',
-        ]
+        fields = ['id', 'proposal_title', 'department_name', 'action',
+                  'action_by_name', 'action_at', 'previous_status', 'new_status', 'comments']
 
 
 class AccountSetupSerializer(serializers.ModelSerializer):
@@ -179,11 +162,11 @@ class JournalEntryListSerializer(serializers.ModelSerializer):
     Serializer for Journal Entry Page listing view
     """
     created_by_username = serializers.CharField(read_only=True)
-    
+
     class Meta:
         model = JournalEntry
-        fields = ['entry_id', 'date', 'category', 'description', 'total_amount', 'created_by_username']
-
+        fields = ['entry_id', 'date', 'category', 'description',
+                  'total_amount', 'created_by_username']
 
 
 class JournalEntryLineInputSerializer(serializers.Serializer):
@@ -196,13 +179,15 @@ class JournalEntryLineInputSerializer(serializers.Serializer):
 
 class JournalEntryCreateSerializer(serializers.Serializer):
     date = serializers.DateField()
-    category = serializers.ChoiceField(choices=[c[0] for c in JournalEntry._meta.get_field('category').choices])
+    category = serializers.ChoiceField(
+        choices=[c[0] for c in JournalEntry._meta.get_field('category').choices])
     description = serializers.CharField()
     lines = JournalEntryLineInputSerializer(many=True)
 
-    def validate_lines(self, value): # Fine
+    def validate_lines(self, value):  # Fine
         if len(value) < 2:
-            raise serializers.ValidationError("At least 2 journal lines are required (e.g., 1 debit and 1 credit).")
+            raise serializers.ValidationError(
+                "At least 2 journal lines are required (e.g., 1 debit and 1 credit).")
         return value
 
     def create(self, validated_data):
@@ -210,14 +195,16 @@ class JournalEntryCreateSerializer(serializers.Serializer):
         # In budget_service, request.user will be populated by JWTAuthentication
         # It will have attributes like id, username, role from the JWT.
         request_user = self.context['request'].user
-        
+
         lines_data = validated_data.pop('lines')
-        total_amount = sum(line['amount'] if line['transaction_type'] == 'DEBIT' else -line['amount'] for line in lines_data)
+        total_amount = sum(line['amount'] if line['transaction_type']
+                           == 'DEBIT' else -line['amount'] for line in lines_data)
 
         entry = JournalEntry.objects.create(
             # created_by=user, # OLD
-            created_by_user_id=request_user.id, # NEW - from JWT
-            created_by_username=getattr(request_user, 'username', 'N/A'), # NEW - from JWT (ensure 'username' claim exists)
+            created_by_user_id=request_user.id,  # NEW - from JWT
+            # NEW - from JWT (ensure 'username' claim exists)
+            created_by_username=getattr(request_user, 'username', 'N/A'),
             total_amount=abs(total_amount),
             **validated_data
         )
@@ -228,7 +215,7 @@ class JournalEntryCreateSerializer(serializers.Serializer):
                 transaction_type=line_data['transaction_type'],
                 journal_transaction_type=line_data['journal_transaction_type'],
                 amount=line_data['amount'],
-                description=validated_data['description'] 
+                description=validated_data['description']
             )
         return entry
 
@@ -253,115 +240,153 @@ class AccountTypeDropdownSerializer(serializers.ModelSerializer):
 
 class BudgetProposalItemCreateSerializer(serializers.ModelSerializer):
     account = serializers.PrimaryKeyRelatedField(
-        queryset=Account.objects.filter(is_active=True),
-        help_text="ID of an active Account."
-    )
+        queryset=Account.objects.filter(is_active=True))
+
     class Meta:
         model = BudgetProposalItem
-        fields = ['id', 'cost_element', 'description', 'estimated_cost', 'account', 'notes']
+        fields = ['id', 'cost_element', 'description',
+                  'estimated_cost', 'account', 'notes']
         read_only_fields = ['id']
 
 
 class BudgetProposalMessageSerializer(serializers.ModelSerializer):
-    department = serializers.PrimaryKeyRelatedField(
-        queryset=Department.objects.filter(is_active=True),
-        help_text="ID of an active Department."
+    department_input = serializers.CharField(  # Changed from 'department' to 'department_input'
+        write_only=True,
+        required=True,
+        source='department',  # Payload key is 'department'
+        help_text="Department ID (integer) or Department Code (string, e.g., 'FIN'). Required."
     )
+    department_details = DepartmentDropdownSerializer(
+        source='department', read_only=True)
+
     fiscal_year = serializers.PrimaryKeyRelatedField(
         queryset=FiscalYear.objects.filter(is_active=True, is_locked=False),
-        help_text="ID of an unlocked FiscalYear."
+        required=True
     )
-    items = BudgetProposalItemCreateSerializer(many=True) # Use the create/update item serializer
+    items = BudgetProposalItemCreateSerializer(many=True, allow_empty=False)
+
+    # Field for input from payload, named 'ticket_id'
+    ticket_id = serializers.CharField(
+        max_length=100,
+        write_only=True,  # Only for input
+        required=True,   # This field must be in the payload
+        help_text="The unique ticket ID from the originating external system."
+    )
+    # Field for output, maps to model's 'external_system_id'
+    external_system_id = serializers.CharField(read_only=True)
 
     class Meta:
         model = BudgetProposal
         fields = [
             'id', 'title', 'project_summary', 'project_description', 'performance_notes',
-            'department', 'fiscal_year', 'submitted_by_name', # Name comes from message
-            'status', # Status comes from message
-            'performance_start_date', 'performance_end_date', 'external_system_id',
-            'document', # Path or handle as file upload if ViewSet handles multipart
-            'items',
-            # Read-only fields populated by the system or during creation logic
+            'department_details',  # For output
+            'department_input',   # For input (maps to 'department' in payload)
+            'fiscal_year', 'submitted_by_name', 'status',
+            'performance_start_date', 'performance_end_date',
+            'external_system_id',  # For output (model's value)
+            'ticket_id',          # For input (payload key)
+            'document', 'items',
             'submitted_at', 'last_modified', 'sync_status', 'last_sync_timestamp',
             'approved_by_name', 'approval_date', 'rejected_by_name', 'rejection_date'
         ]
         read_only_fields = [
-            'id', 'submitted_at', 'last_modified', 'sync_status', 'last_sync_timestamp',
-            'approved_by_name', 'approval_date', 'rejected_by_name', 'rejection_date'
+            # external_system_id is read_only because it's populated from ticket_id
+            'id', 'department_details', 'external_system_id',
+            'submitted_at', 'last_modified', 'sync_status',
+            'last_sync_timestamp', 'approved_by_name', 'approval_date',
+            'rejected_by_name', 'rejection_date'
         ]
-        # `document` field might need special handling if it's a file path from the message
-        # vs. an actual file upload if this ViewSet is hit directly with multipart/form-data.
-        # For MQ, 'document' would likely be a URL or a reference.
 
-    def validate_items(self, value):
-        if not value:
-            raise serializers.ValidationError("At least one line item is required.")
-        return value
-
-    def validate(self, data):
-        start, end = data.get('performance_start_date'), data.get('performance_end_date')
-        if start and end and end <= start:
+    # Validates the 'department' payload key (via source)
+    def validate_department_input(self, value):
+        try:
+            if isinstance(value, int) or (isinstance(value, str) and value.isdigit()):
+                department_obj = Department.objects.get(
+                    pk=int(value), is_active=True)
+            elif isinstance(value, str):
+                department_obj = Department.objects.get(
+                    code__iexact=value, is_active=True)
+            else:
+                raise serializers.ValidationError(
+                    "Department input must be an integer ID or a string code.")
+        except Department.DoesNotExist:
             raise serializers.ValidationError(
-                {'performance_end_date': "Must be after performance_start_date."}
-            )
-        # Add other top-level validations if needed
-        return data
+                f"Active department with identifier '{value}' not found.")
+        except ValueError:
+            raise serializers.ValidationError(
+                "Invalid department ID format if sending an integer ID.")
+        return department_obj
 
     def create(self, validated_data):
+        # This comes from 'department_input' due to source
+        department_obj = validated_data.pop('department')
         items_data = validated_data.pop('items')
-        
-        # Set system-managed fields
-        validated_data.setdefault('submitted_at', timezone.now()) # If not provided
-        validated_data['sync_status'] = 'SYNCED' # Assume data from external is synced
+        # Pop 'ticket_id' from validated_data and assign it to 'external_system_id' for the model
+        ticket_id_value = validated_data.pop('ticket_id')
+        validated_data['external_system_id'] = ticket_id_value
+
+        # Assign the actual Department instance
+        validated_data['department'] = department_obj
+
+        validated_data.setdefault('submitted_at', timezone.now())
+        validated_data['sync_status'] = 'SYNCED'
         validated_data['last_sync_timestamp'] = timezone.now()
-        # approved_by_name, etc., are not set on creation from external system
 
         proposal = BudgetProposal.objects.create(**validated_data)
         for item_data in items_data:
             BudgetProposalItem.objects.create(proposal=proposal, **item_data)
-        
+
         ProposalHistory.objects.create(
-            proposal=proposal, action='CREATED', # Or 'SUBMITTED' if status is SUBMITTED
+            proposal=proposal, action='CREATED',
             action_by_name=proposal.submitted_by_name or "System (External Message)",
             new_status=proposal.status,
-            comments=f"Proposal created via external system (ID={proposal.external_system_id})."
+            comments=f"Proposal created from external system ID: {proposal.external_system_id} for department {department_obj.name}."
         )
         return proposal
 
     def update(self, instance, validated_data):
-        items_data = validated_data.pop('items', None) # Items are optional on update
+        department_obj = validated_data.pop('department', None)
+        if department_obj:
+            instance.department = department_obj
 
-        # Update proposal fields
-        instance.title = validated_data.get('title', instance.title)
-        instance.project_summary = validated_data.get('project_summary', instance.project_summary)
-        # ... update other fields similarly ...
-        instance.status = validated_data.get('status', instance.status) # Allow status update from external
+        items_data = validated_data.pop('items', None)
+
+        # Handle ticket_id mapping to external_system_id for updates
+        ticket_id_value = validated_data.pop('ticket_id', None)
+        if ticket_id_value:
+            instance.external_system_id = ticket_id_value  # Update model's field
+
+        for attr, val in validated_data.items():
+            setattr(instance, attr, val)
+
         instance.last_modified = timezone.now()
-        instance.sync_status = 'SYNCED' # Mark as synced after update
+        instance.sync_status = 'SYNCED'
         instance.last_sync_timestamp = timezone.now()
         instance.save()
 
-        if items_data is not None: # If items are provided, replace them
+        if items_data is not None:
             instance.items.all().delete()
-            for item_data in items_data:
-                BudgetProposalItem.objects.create(proposal=instance, **item_data)
-        
-        ProposalHistory.objects.create(
-            proposal=instance, action='UPDATED',
-            action_by_name=instance.submitted_by_name or "System (External Message)",
-            new_status=instance.status,
-            comments=f"Proposal updated via external system (ID={instance.external_system_id})."
-        )
+            for item_dict in items_data:
+                BudgetProposalItem.objects.create(
+                    proposal=instance, **item_dict)
+            ProposalHistory.objects.create(
+                proposal=instance, action='UPDATED',
+                action_by_name=instance.submitted_by_name or "System (External Message)",
+                new_status=instance.status,
+                comments=f"Proposal items updated via external system (ID={instance.external_system_id})."
+            )
         return instance
 
-class ProposalReviewSerializer(serializers.Serializer): # For the review action in BudgetProposalViewSet
-    status = serializers.ChoiceField(choices=['APPROVED', 'REJECTED']) # Removed 'PENDING' as it's for review
-    comment = serializers.CharField(required=False, allow_blank=True, max_length=1000)
 
-    def validate_status(self, value): 
-        if value not in ['APPROVED', 'REJECTED']: # Stricter choices for review action
-            raise serializers.ValidationError("Invalid status for review. Must be APPROVED or REJECTED.")
+# For the review action in BudgetProposalViewSet
+class ProposalReviewSerializer(serializers.Serializer):
+    status = serializers.ChoiceField(choices=['APPROVED', 'REJECTED'])
+    comment = serializers.CharField(
+        required=False, allow_blank=True, max_length=1000)
+
+    def validate_status(self, value):
+        if value not in ['APPROVED', 'REJECTED']:
+            raise serializers.ValidationError("Invalid status for review.")
         return value
 
 

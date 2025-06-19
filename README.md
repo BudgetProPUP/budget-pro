@@ -265,3 +265,11 @@ git stash  # Temporarily save changes in the working directory
 git reset --soft HEAD~1  # Undo last commit and keep changes in the staging area
 ```
 - In Github, never commit secrets. Use environment variables instead. Use the `python-dotenv` package to load environment variables from a `.env` file.
+
+``` Python (Generate simple bearer token)
+   python manage.py shell
+   from rest_framework_simplejwt.tokens import AccessToken
+   token = AccessToken()
+   token['user_id'] = 3  # Replace with the ID of a user in your local DB
+   print(str(token))
+```

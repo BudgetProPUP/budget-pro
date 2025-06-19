@@ -487,72 +487,62 @@ class BudgetProposalViewSet(viewsets.ModelViewSet):
     @extend_schema(
         summary="Create new Budget Proposal (from external system)",
         description="""
-Create a new Budget Proposal.  
-**Required fields:**
-- `title` (string): Title of the proposal.
-- `project_summary` (string): Short summary of the project.
-- `project_description` (string): Detailed description of the project.
-- `performance_notes` (string, optional): Additional notes.
-- `department` (integer): Department ID (must be active).
-- `fiscal_year` (integer): FiscalYear ID (must be active and unlocked).
-- `submitted_by_name` (string): Name of the submitter.
-- `status` (string): Initial status (e.g., SUBMITTED, DRAFT).
-- `performance_start_date` (date): Start date of the project.
-- `performance_end_date` (date): End date of the project (must be after start date).
-- `external_system_id` (string, optional): External system reference.
-- `document` (string or file, optional): Document path or upload. (still not sure how to implement)
-- `items` (list of objects): At least one line item is required.
-    - Each item requires:
-        - `cost_element` (string)
-        - `description` (string)
-        - `estimated_cost` (decimal)
-        - `account` (integer): Account ID (must be active)
-        - `notes` (string, optional)
+Create a new Budget Proposal.
+
+**Payload format:**
+- `title` (string, required)
+- `project_summary` (string, required)
+- `project_description` (string, required)
+- `performance_notes` (string, optional)
+- `department_input` (integer OR string, required): Department ID (integer) or Department Code (string, e.g., "FIN"). This is for the `department` field.
+- `fiscal_year` (integer, required): FiscalYear ID.
+- `submitted_by_name` (string, required)
+- `status` (string, required)
+- `performance_start_date` (date "YYYY-MM-DD", required)
+- `performance_end_date` (date "YYYY-MM-DD", required)
+- `ticket_id` (string, required): The unique identifier from the originating external system. This will be stored as `external_system_id`.
+- `document` (file, optional)
+- `items` (array of objects, required): Line items. Each item: `cost_element`(str), `description`(str), `estimated_cost`(decimal), `account`(int), `notes`(str, opt).
 """,
-        examples=[
-        OpenApiExample(
-            'Realistic Example',
-            value={
-                "title": "Cloud Infrastructure Upgrade",
-                "project_summary": "Upgrade on-premise servers to cloud-based infrastructure.",
-                "project_description": "This project involves migrating our legacy systems to AWS, improving scalability and reducing maintenance costs.",
-                "performance_notes": "Migration to be completed before Q4. Coordination with IT and Finance required.",
-                "department": 2,
-                "fiscal_year": 2,
-                "submitted_by_name": "Alice Johnson",
-                "status": "SUBMITTED",
-                "performance_start_date": "2025-07-01",
-                "performance_end_date": "2025-12-15",
-                "external_system_id": "TICKET-2025-00123",
-                "items": [
-                    {
-                        "cost_element": "Cloud Services",
-                        "description": "AWS EC2 and S3 annual subscription",
-                        "estimated_cost": "6088.20",
-                        "account": 2,
-                        "notes": "Includes reserved instances and storage"
-                    }
-                ]
-            },
-            request_only=True,
-            response_only=False,
-        )
-    ],
         request=BudgetProposalMessageSerializer,
-        responses={201: BudgetProposalMessageSerializer},
+        responses={201: BudgetProposalMessageSerializer}, # Response will show 'external_system_id' and 'department_details'
+        examples=[
+            OpenApiExample(
+                name="Create Budget Proposal Example",
+                value={ 
+                    "title": "Q1 System Upgrade 2026",
+                    "project_summary": "Upgrade core accounting software.",
+                    "project_description": "Migrate to new version of accounting platform for improved features and security.",
+                    "performance_notes": "This will run through the 3rd quarter",
+                    "department_input": "FIN",  # Payload sends 'department'
+                    "fiscal_year": 2,
+                    "submitted_by_name": "External System Interface",
+                    "status": "SUBMITTED",
+                    "performance_start_date": "2026-01-01",
+                    "performance_end_date": "2026-03-31",
+                    "ticket_id": "DTS-FIN-2026-001", # Payload sends 'ticket_id'
+                    "items": [
+                        {"cost_element": "Software License", "description": "New Accounting Software License", "estimated_cost": "25000.00", "account": 2},
+                        {"cost_element": "Training", "description": "Staff training for new software", "estimated_cost": "5000.00", "account": 2}
+                    ]
+                },
+                request_only=True,
+                summary="Example payload for creating a new budget proposal."
+            )
+        ],
         tags=['External Budget Proposals']
     )
     def create(self, request, *args, **kwargs):
         data = request.data.copy()
-        if isinstance(data.get('items'), str):  # Handle items if sent as JSON string
+        if isinstance(data.get('items'), str):
             try:
                 data['items'] = json.loads(data['items'])
             except json.JSONDecodeError:
                 return Response({"items": ["Invalid JSON format for items."]}, status=status.HTTP_400_BAD_REQUEST)
-
+        
         serializer = self.get_serializer(data=data)
         serializer.is_valid(raise_exception=True)
-        self.perform_create(serializer)  # Calls serializer.create()
+        self.perform_create(serializer)
         headers = self.get_success_headers(serializer.data)
         return Response(serializer.data, status=status.HTTP_201_CREATED, headers=headers)
 
@@ -601,7 +591,7 @@ Create a new Budget Proposal.
     def retrieve(self, request, *args, **kwargs):
         # Uses get_serializer_class which returns BudgetProposalDetailSerializer for 'retrieve'
         return super().retrieve(request, *args, **kwargs)
-    
+
     # DESTROY (DELETE /api/external-budget-proposals/{id}/)
     @extend_schema(
         summary="Delete a Budget Proposal (from external system)",
@@ -609,7 +599,7 @@ Create a new Budget Proposal.
     )
     def destroy(self, request, *args, **kwargs):
         return super().destroy(request, *args, **kwargs)
-    
+
     # REVIEW ACTION (POST /external-budget-proposals/{pk}/review/)
     @extend_schema(
         summary="Review a proposal by an internal BMS user",

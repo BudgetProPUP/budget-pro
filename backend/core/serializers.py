@@ -67,6 +67,7 @@ class ValidProjectAccountSerializer(serializers.Serializer):
     department_name = serializers.CharField()
     fiscal_year_name = serializers.CharField()
 
+
 """
 class UserSerializer(serializers.ModelSerializer):
     department_id = serializers.IntegerField(write_only=True, required=False)
@@ -221,7 +222,7 @@ class LoginSerializer(serializers.Serializer):
         if not email and not phone_number:
             raise serializers.ValidationError("Either email or phone number is required.")
         if phone_number:
-            pattern = r'^\+\d{10,15}$'
+            pattern = '^\\+\\d{10,15}$'  # Escaped backslashes, but raw string is preferred
             if not re.match(pattern, phone_number):
                 raise serializers.ValidationError("Invalid phone number format.")
 

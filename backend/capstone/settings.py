@@ -122,21 +122,25 @@ CORS_ALLOWED_ORIGINS = [
 CORS_ALLOWED_ORIGINS = [origin for origin in CORS_ALLOWED_ORIGINS if origin]
 
 
-DTS_STATUS_UPDATE_URL = os.getenv('DTS_STATUS_UPDATE_URL')
-DTS_API_KEY = os.getenv('DTS_API_KEY')
+# Settings for when THIS BMS service calls OTHER services
+BMS_AUTH_KEY_FOR_DTS = os.getenv('API_KEY_FOR_BMS_TO_CALL_DTS') # Key BMS uses
+DTS_STATUS_UPDATE_URL = os.getenv('DTS_STATUS_UPDATE_ENDPOINT_URL') # Target URL
 
-BMS_API_KEY_FOR_DTS = os.getenv('BMS_KEY_FOR_CALLING_DTS')
+# Keys expected from client services calling THIS (BMS) service
 
-TTS_API_KEY = os.getenv('TTS_API_KEY')
+DTS_CLIENT_API_KEY_EXPECTED = os.getenv('DTS_CLIENT_API_KEY')
+TTS_CLIENT_API_KEY_EXPECTED = os.getenv('TTS_CLIENT_API_KEY')
+# HDS_CLIENT_API_KEY_EXPECTED = os.getenv('HDS_CLIENT_API_KEY')
 
-
-
-SERVICE_API_KEYS = {}
-if DTS_API_KEY:
-    SERVICE_API_KEYS[DTS_API_KEY] = "DTS"
-if TTS_API_KEY:
-    SERVICE_API_KEYS[TTS_API_KEY] = "TTS"
+SERVICE_API_KEYS = {} # Maps the key value to the client service's name
+if DTS_CLIENT_API_KEY_EXPECTED:
+    SERVICE_API_KEYS[DTS_CLIENT_API_KEY_EXPECTED] = "DTS"
+if TTS_CLIENT_API_KEY_EXPECTED:
+    SERVICE_API_KEYS[TTS_CLIENT_API_KEY_EXPECTED] = "TTS"
     
+# if HDS_CLIENT_API_KEY_EXPECTED:
+#     SERVICE_API_KEYS[HDS_CLIENT_API_KEY_EXPECTED] = "HDS"
+
 # Filter out None values if a key isn't set in .env
 SERVICE_API_KEYS = {k: v for k, v in SERVICE_API_KEYS.items() if k}
 
@@ -270,17 +274,25 @@ WSGI_APPLICATION = 'capstone.wsgi.application'
 # Database
 # https://docs.djangoproject.com/en/5.2/ref/settings/#databases
 
-DATABASES = {
-    'default': {
-        'ENGINE': 'django.db.backends.postgresql',
-        'NAME': os.getenv('DB_NAME'),
-        'USER': os.getenv('DB_USER'),
-        'PASSWORD': os.getenv('DB_PASSWORD'),
-        'HOST': os.getenv('DB_HOST', 'localhost'),
-        'PORT': os.getenv('DB_PORT', '5432'),
+DATABASE_URL = os.getenv('DATABASE_URL')
 
+if DATABASE_URL:
+    # Use Railway's DATABASE_URL (recommended)
+    DATABASES = {
+        'default': dj_database_url.parse(DATABASE_URL)
     }
-}
+else:
+    # Fallback to individual environment variables
+    DATABASES = {
+        'default': {
+            'ENGINE': 'django.db.backends.postgresql',
+            'NAME': os.getenv('DB_NAME') or os.getenv('PGDATABASE'),
+            'USER': os.getenv('DB_USER') or os.getenv('PGUSER'),
+            'PASSWORD': os.getenv('DB_PASSWORD') or os.getenv('PGPASSWORD'),
+            'HOST': os.getenv('DB_HOST') or os.getenv('PGHOST', 'localhost'),
+            'PORT': os.getenv('DB_PORT') or os.getenv('PGPORT', '5432'),
+        }
+    }
 
 
 # Optional: Only needed if using Django's createsuperuser command

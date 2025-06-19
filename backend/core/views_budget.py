@@ -689,7 +689,7 @@ Create a new Budget Proposal.
 
         # Get the URL and API key for calling DTS from settings
         target_dts_url = getattr(settings, 'DTS_STATUS_UPDATE_URL', None)
-        api_key_for_dts = getattr(settings, 'BMS_API_KEY_FOR_DTS', None) # Use the correct key
+        api_key_for_dts = getattr(settings, 'BMS_AUTH_KEY_FOR_DTS', None) # Use the correct key
 
         if target_dts_url and api_key_for_dts:
             try:
@@ -697,7 +697,7 @@ Create a new Budget Proposal.
                     'Content-Type': 'application/json',
                     # The header name 'X-DTS-API-Key' is an EXAMPLE.
                     # DTS team must tell you what header name they expect for THEIR API key.
-                    'X-DTS-API-Key': api_key_for_dts,
+                    'X-Client-API-Key': api_key_for_dts,
                 }
                 
                 response_to_dts = requests.post(

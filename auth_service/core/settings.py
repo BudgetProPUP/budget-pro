@@ -13,15 +13,24 @@ SECRET_KEY = os.getenv('DJANGO_SECRET_KEY')
 
 DEBUG = os.getenv('DEBUG', 'False').lower() == 'true'
 
-
 ALLOWED_HOSTS = ['localhost', '127.0.0.1']
 
-# Railway domains Remove https:// prefix if present
+# Railway public domain
 RAILWAY_PUBLIC_DOMAIN = os.getenv('RAILWAY_PUBLIC_DOMAIN')
 if RAILWAY_PUBLIC_DOMAIN:
-    # Clean the domain (remove protocol if present)
     clean_domain = RAILWAY_PUBLIC_DOMAIN.replace('https://', '').replace('http://', '')
     ALLOWED_HOSTS.append(clean_domain)
+
+# Railway internal networking (for health checks)
+if os.getenv('RAILWAY_ENVIRONMENT_NAME') or os.getenv('DATABASE_URL'):
+    ALLOWED_HOSTS.extend([
+        'auth_service.railway.internal',
+        '.railway.internal',
+        'localhost:8000',  # Railway internal port
+    ])
+
+# Debug: Print what host is being used
+print(f"ALLOWED_HOSTS: {ALLOWED_HOSTS}")
 
 # Railway static URL
 RAILWAY_STATIC_URL = os.getenv('RAILWAY_STATIC_URL')
@@ -29,7 +38,7 @@ if RAILWAY_STATIC_URL:
     hostname = RAILWAY_STATIC_URL.replace('https://', '').replace('http://', '')
     ALLOWED_HOSTS.append(hostname)
 
-# Add Railway's internal service domain pattern
+# Railway's internal service domain pattern
 import re
 railway_service_url = os.getenv('RAILWAY_SERVICE_URL')
 if railway_service_url:
@@ -42,6 +51,9 @@ if os.getenv('RAILWAY_ENVIRONMENT'):  # Check if running on Railway
         '.railway.app',  # All Railway subdomains
         '.up.railway.app',  # Railway's app domains
     ])
+
+# For production, might need:
+# ALLOWED_HOSTS.append('your-custom-domain.com')
     
 INSTALLED_APPS = [
     'django.contrib.admin',

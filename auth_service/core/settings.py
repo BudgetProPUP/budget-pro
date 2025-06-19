@@ -18,19 +18,23 @@ ALLOWED_HOSTS = ['localhost', '127.0.0.1']
 # Railway public domain
 RAILWAY_PUBLIC_DOMAIN = os.getenv('RAILWAY_PUBLIC_DOMAIN')
 if RAILWAY_PUBLIC_DOMAIN:
-    clean_domain = RAILWAY_PUBLIC_DOMAIN.replace('https://', '').replace('http://', '')
+    # Remove http(s):// prefix if present
+    clean_domain = re.sub(r'^https?://', '', RAILWAY_PUBLIC_DOMAIN)
     ALLOWED_HOSTS.append(clean_domain)
 
-# Railway internal networking (for health checks)
-if os.getenv('RAILWAY_ENVIRONMENT_NAME') or os.getenv('DATABASE_URL'):
+# For Railway internal networking and health checks
+if os.getenv('RAILWAY_ENVIRONMENT'): # General check if running in a Railway environment
     ALLOWED_HOSTS.extend([
-        'auth_service.railway.internal',
-        '.railway.internal',
-        'localhost:8000',  # Railway internal port
+        'auth_service.railway.internal', # Your specific service's internal CNAME
+        '.railway.internal',             # Wildcard for other internal Railway hosts
+        '.railway.app',                  # Common TLD for Railway app URLs
+        '.up.railway.app',               # Another common TLD pattern
     ])
 
-# Debug: Print what host is being used
-print(f"ALLOWED_HOSTS: {ALLOWED_HOSTS}")
+# Remove duplicates and sort for consistency
+ALLOWED_HOSTS = sorted(list(set(ALLOWED_HOSTS)))
+
+print(f"DEBUG: Final ALLOWED_HOSTS in settings.py: {ALLOWED_HOSTS}")
 
 # Railway static URL
 RAILWAY_STATIC_URL = os.getenv('RAILWAY_STATIC_URL')
@@ -113,7 +117,8 @@ if DATABASE_URL:
             default=DATABASE_URL,
             conn_max_age=600,
             conn_health_checks=True,
-            # ssl_require=True # Often needed for managed DBs
+            ssl_require=True  # Explicitly enable SSL for Railway
+                              # dj_database_url will handle this for psycopg2
         )
     }
 else:

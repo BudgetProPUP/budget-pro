@@ -22,6 +22,8 @@ from rest_framework_simplejwt.tokens import RefreshToken
 from rest_framework_simplejwt.exceptions import TokenError
 from rest_framework_simplejwt.views import TokenRefreshView as OriginalTokenRefreshView
 from rest_framework_simplejwt.serializers import TokenRefreshSerializer
+import logging 
+
 
 from drf_spectacular.utils import (
     extend_schema, OpenApiExample, OpenApiResponse, inline_serializer,
@@ -44,31 +46,71 @@ from .serializers import (
 from .models import LoginAttempt, UserActivityLog
 User = get_user_model()
 
+
+
+logger = logging.getLogger(__name__) 
+
 def get_client_ip(request):
     x_forwarded_for = request.META.get('HTTP_X_FORWARDED_FOR')
     return x_forwarded_for.split(',')[0] if x_forwarded_for else request.META.get('REMOTE_ADDR')
 
 def auth_health_check_view(request):
-    # Check basic app running
+    request_host = request.get_host()
+    # Basic logging to confirm the view is hit and what host is seen by Django
+    logger.info(f"Auth service health check initiated. Request host: {request_host}")
+
     app_status = {
         "status": "healthy",
         "service": "auth_service",
-        "timestamp": timezone.now().isoformat()
+        "timestamp": timezone.now().isoformat(),
+        "host_received": request_host,
+        "host_allowed_check": False, # Initialize
+        "database_status": "not_checked" # Initialize
     }
     
-    # Check database connectivity
+    current_allowed_hosts = list(settings.ALLOWED_HOSTS) # Get current state of ALLOWED_HOSTS
+    app_status["configured_allowed_hosts_at_request_time"] = current_allowed_hosts
+
     try:
+        app_status["host_allowed_check"] = request_host in current_allowed_hosts
+        if not app_status["host_allowed_check"]:
+            logger.warning(
+                f"Health check: Request host '{request_host}' NOT IN "
+                f"ALLOWED_HOSTS ({current_allowed_hosts}). This could lead to Django blocking the request."
+            )
+            # Depending on policy, you might want to degrade status or even return 400 here
+            # For now, just log and let Django handle it if it's an issue for the response itself.
+
+        logger.info("Health check: Attempting database connection test.")
         with connection.cursor() as cursor:
             cursor.execute("SELECT 1")
-            app_status["database"] = "connected"
+            row = cursor.fetchone()
+            if row and row[0] == 1:
+                app_status["database_status"] = "connected_successfully"
+                logger.info("Health check: Database connection test successful.")
+            else:
+                app_status["database_status"] = "query_failed_unexpected_result"
+                app_status["status"] = "degraded" # Or "error"
+                logger.error("Health check: Database query executed but returned unexpected result.")
+        
+    except OperationalError as oe:
+        app_status["database_status"] = f"db_operational_error: {str(oe)}"
+        app_status["status"] = "degraded" # Or "error" depending on severity
+        logger.error(f"Health check: Database OperationalError: {str(oe)}", exc_info=True) # Log with traceback
     except Exception as e:
-        app_status["database"] = f"error: {str(e)}"
-        app_status["status"] = "degraded"
-
-    # Check if request host is allowed
-    app_status["allowed_host"] = request.get_host() in settings.ALLOWED_HOSTS
+        app_status["database_status"] = f"general_error_in_db_check: {str(e)}"
+        app_status["status"] = "error" # A general exception here is more severe
+        logger.error(f"Health check: Unexpected error during database check: {str(e)}", exc_info=True) # Log with traceback
     
-    status_code = 200 if app_status["status"] == "healthy" else 503
+    # Determine final status code
+    if app_status["status"] == "healthy":
+        status_code = 200
+    elif app_status["status"] == "degraded":
+        status_code = 503  # Service Unavailable (but app is trying)
+    else: # "error"
+        status_code = 500  # Internal Server Error (app had a critical issue processing health check)
+
+    logger.info(f"Auth service health check completed. Final status: {app_status['status']}, DB: {app_status['database_status']}, Code: {status_code}")
     return JsonResponse(app_status, status=status_code)
 
 

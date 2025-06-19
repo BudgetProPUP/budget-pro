@@ -12,9 +12,17 @@ SECRET_KEY = os.getenv('DJANGO_SECRET_KEY')
 
 DEBUG = os.getenv('DEBUG', 'False').lower() == 'true'
 ALLOWED_HOSTS = ['localhost', '127.0.0.1']
-RAILWAY_STATIC_HOSTNAME = os.getenv('RAILWAY_STATIC_URL') # Railway provides this
-if RAILWAY_STATIC_HOSTNAME:
-    ALLOWED_HOSTS.append(RAILWAY_STATIC_HOSTNAME.replace('https://', '').replace('http://', ''))
+
+# Use RAILWAY_PUBLIC_DOMAIN which is available in environment
+RAILWAY_PUBLIC_DOMAIN = os.getenv('RAILWAY_PUBLIC_DOMAIN')
+if RAILWAY_PUBLIC_DOMAIN:
+    ALLOWED_HOSTS.append(RAILWAY_PUBLIC_DOMAIN)
+
+# Safe parsing of RAILWAY_STATIC_URL if it exists
+RAILWAY_STATIC_URL = os.getenv('RAILWAY_STATIC_URL')
+if RAILWAY_STATIC_URL:
+    hostname = RAILWAY_STATIC_URL.replace('https://', '').replace('http://', '')
+    ALLOWED_HOSTS.append(hostname)
     
 INSTALLED_APPS = [
     'django.contrib.admin',

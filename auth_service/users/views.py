@@ -8,6 +8,8 @@ from django.conf import settings
 from django.utils import timezone
 from django.contrib.auth import get_user_model
 from django_filters.rest_framework import DjangoFilterBackend # For filtering
+from django.db import connection # To check DB connection
+from django.db.utils import OperationalError
 
 # Third-party imports
 from rest_framework import status, generics, serializers as drf_serializers,  viewsets, filters
@@ -45,6 +47,29 @@ User = get_user_model()
 def get_client_ip(request):
     x_forwarded_for = request.META.get('HTTP_X_FORWARDED_FOR')
     return x_forwarded_for.split(',')[0] if x_forwarded_for else request.META.get('REMOTE_ADDR')
+
+
+def auth_health_check_view(request):
+    # Check basic app running
+    app_status = {"status": "healthy", "service": "auth_service"}
+    
+    # Optional: Check database connectivity for auth_service's DB
+    try:
+        connection.ensure_connection()
+        db_connected = True
+    except OperationalError:
+        db_connected = False
+        app_status["database_status"] = "unhealthy"
+        app_status["status"] = "degraded" # Or "unhealthy" if DB is critical
+    else:
+         app_status["database_status"] = "healthy"
+
+    if db_connected: # Or based on overall status
+        return JsonResponse(app_status, status=200)
+    else:
+        return JsonResponse(app_status, status=503) # Service Unavailable if DB is critical
+
+
 
 # --- Authentication Views ---
 

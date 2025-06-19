@@ -1,5 +1,6 @@
 # File: CapstoneBP/auth_service/users/views.py
 
+import os
 import re
 
 # Django core imports
@@ -33,6 +34,8 @@ from drf_spectacular.types import OpenApiTypes
 
 from django_ratelimit.decorators import ratelimit
 from django.utils.decorators import method_decorator
+from django.views.decorators.csrf import csrf_exempt
+from django.views.decorators.http import require_http_methods
 
 # Import from local app
 from .permissions import IsFinanceHead, IsAdmin
@@ -54,64 +57,91 @@ def get_client_ip(request):
     x_forwarded_for = request.META.get('HTTP_X_FORWARDED_FOR')
     return x_forwarded_for.split(',')[0] if x_forwarded_for else request.META.get('REMOTE_ADDR')
 
+@csrf_exempt
+@require_http_methods(["GET", "HEAD"])
 def auth_health_check_view(request):
+    """
+    Health check endpoint for Railway deployment.
+    Returns 200 if service is healthy, 503 if degraded, 500 if error.
+    """
     request_host = request.get_host()
-    # Basic logging to confirm the view is hit and what host is seen by Django
-    logger.info(f"Auth service health check initiated. Request host: {request_host}")
+    logger.info(f"Health check initiated from host: {request_host}")
 
     app_status = {
         "status": "healthy",
         "service": "auth_service",
-        "timestamp": timezone.now().isoformat(),
+        "timestamp": timezone.now().isoformat(), 
         "host_received": request_host,
-        "host_allowed_check": False, # Initialize
-        "database_status": "not_checked" # Initialize
+        "database_status": "not_checked",
+        "debug_info": {
+            "allowed_hosts": list(settings.ALLOWED_HOSTS),
+            "debug_mode": settings.DEBUG,
+            "railway_env": bool(os.getenv('RAILWAY_ENVIRONMENT'))
+        }
     }
     
-    current_allowed_hosts = list(settings.ALLOWED_HOSTS) # Get current state of ALLOWED_HOSTS
-    app_status["configured_allowed_hosts_at_request_time"] = current_allowed_hosts
-
+    # Check if request host is in ALLOWED_HOSTS
+    host_allowed = any(
+        request_host == host or 
+        (host.startswith('.') and request_host.endswith(host[1:])) or
+        request_host == host
+        for host in settings.ALLOWED_HOSTS
+    )
+    
+    app_status["host_allowed"] = host_allowed
+    
+    if not host_allowed:
+        logger.warning(f"Host '{request_host}' not in ALLOWED_HOSTS: {settings.ALLOWED_HOSTS}")
+    
+    # Database health check with timeout
     try:
-        app_status["host_allowed_check"] = request_host in current_allowed_hosts
-        if not app_status["host_allowed_check"]:
-            logger.warning(
-                f"Health check: Request host '{request_host}' NOT IN "
-                f"ALLOWED_HOSTS ({current_allowed_hosts}). This could lead to Django blocking the request."
-            )
-            # Depending on policy, you might want to degrade status or even return 400 here
-            # For now, just log and let Django handle it if it's an issue for the response itself.
-
-        logger.info("Health check: Attempting database connection test.")
+        logger.info("Testing database connection...")
+        
+        # Use a simple query with timeout
         with connection.cursor() as cursor:
             cursor.execute("SELECT 1")
-            row = cursor.fetchone()
-            if row and row[0] == 1:
-                app_status["database_status"] = "connected_successfully"
-                logger.info("Health check: Database connection test successful.")
+            result = cursor.fetchone()
+            
+            if result and result[0] == 1:
+                app_status["database_status"] = "healthy"
+                logger.info("Database connection successful")
             else:
-                app_status["database_status"] = "query_failed_unexpected_result"
-                app_status["status"] = "degraded" # Or "error"
-                logger.error("Health check: Database query executed but returned unexpected result.")
+                app_status["database_status"] = "query_failed"
+                app_status["status"] = "degraded"
+                logger.error("Database query failed - unexpected result")
+                
+    except OperationalError as e:
+        app_status["database_status"] = f"connection_error: {str(e)[:100]}"
+        app_status["status"] = "degraded"
+        logger.error(f"Database connection failed: {e}")
         
-    except OperationalError as oe:
-        app_status["database_status"] = f"db_operational_error: {str(oe)}"
-        app_status["status"] = "degraded" # Or "error" depending on severity
-        logger.error(f"Health check: Database OperationalError: {str(oe)}", exc_info=True) # Log with traceback
     except Exception as e:
-        app_status["database_status"] = f"general_error_in_db_check: {str(e)}"
-        app_status["status"] = "error" # A general exception here is more severe
-        logger.error(f"Health check: Unexpected error during database check: {str(e)}", exc_info=True) # Log with traceback
+        app_status["database_status"] = f"error: {str(e)[:100]}"  
+        app_status["status"] = "error"
+        logger.error(f"Health check error: {e}", exc_info=True)
     
-    # Determine final status code
+    # Determine response status code
     if app_status["status"] == "healthy":
         status_code = 200
     elif app_status["status"] == "degraded":
-        status_code = 503  # Service Unavailable (but app is trying)
-    else: # "error"
-        status_code = 500  # Internal Server Error (app had a critical issue processing health check)
+        status_code = 503  # Service temporarily unavailable
+    else:
+        status_code = 500  # Internal server error
+    
+    logger.info(f"Health check complete: {app_status['status']} (HTTP {status_code})")
+    
+    # For HEAD requests (often used by load balancers), return empty response
+    if request.method == "HEAD":
+        response = JsonResponse({}, status=status_code)
+    else:
+        response = JsonResponse(app_status, status=status_code)
+    
+    # Add headers for health check monitoring
+    response['X-Health-Status'] = app_status['status']
+    response['X-Service-Name'] = 'auth_service'
+    
+    return response
 
-    logger.info(f"Auth service health check completed. Final status: {app_status['status']}, DB: {app_status['database_status']}, Code: {status_code}")
-    return JsonResponse(app_status, status=status_code)
 
 
 

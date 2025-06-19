@@ -13,28 +13,104 @@ SECRET_KEY = os.getenv('DJANGO_SECRET_KEY')
 
 DEBUG = os.getenv('DEBUG', 'False').lower() == 'true'
 
+
+LOGGING = {
+    'version': 1,
+    'disable_existing_loggers': False,
+    'formatters': {
+        'verbose': {
+            'format': '{levelname} {asctime} {module} {process:d} {thread:d} {message}',
+            'style': '{',
+        },
+        'simple': {
+            'format': '{levelname} {asctime} {name}: {message}', # Added name for clarity
+            'style': '{',
+        },
+    },
+    'handlers': {
+        'console': {
+            'level': 'DEBUG', # Capture DEBUG and above from all configured loggers
+            'class': 'logging.StreamHandler',
+            'formatter': 'simple',
+        },
+    },
+    'loggers': {
+        'django': {
+            'handlers': ['console'],
+            'level': os.getenv('DJANGO_LOG_LEVEL', 'INFO'), # Set to DEBUG for very verbose Django logs
+            'propagate': False,
+        },
+        'django.db.backends': {
+            'handlers': ['console'],
+            'level': 'DEBUG', # Set to DEBUG to see SQL queries, or INFO for connection issues
+            'propagate': False,
+        },
+        'users': { # Your app's logger (for views.py, models.py, etc. in 'users' app)
+            'handlers': ['console'],
+            'level': 'DEBUG', # Capture all DEBUG messages from your 'users' app
+            'propagate': False,
+        },
+        # You can add loggers for other apps if you have them
+        'gunicorn.error': { # Capture Gunicorn's error logs specifically
+            'handlers': ['console'],
+            'level': 'DEBUG',
+            'propagate': False,
+        },
+        # 'gunicorn.access': { # Gunicorn access logs can be noisy, enable if needed
+        # 'handlers': ['console'],
+        # 'level': 'DEBUG',
+        # 'propagate': False,
+        # }
+    },
+    'root': { # Catch-all for other logs
+        'handlers': ['console'],
+        'level': 'INFO', # Root logger level, set to DEBUG for maximum verbosity
+    },
+}
+
+
+
+# ALLOWED_HOSTS Configuration - Simplified and more robust
 ALLOWED_HOSTS = ['localhost', '127.0.0.1']
 
-# Railway public domain
-RAILWAY_PUBLIC_DOMAIN = os.getenv('RAILWAY_PUBLIC_DOMAIN')
-if RAILWAY_PUBLIC_DOMAIN:
-    # Remove http(s):// prefix if present
-    clean_domain = re.sub(r'^https?://', '', RAILWAY_PUBLIC_DOMAIN)
-    ALLOWED_HOSTS.append(clean_domain)
 
-# For Railway internal networking and health checks
-if os.getenv('RAILWAY_ENVIRONMENT'): # General check if running in a Railway environment
+# Railway environment detection
+RAILWAY_ENVIRONMENT = os.getenv('RAILWAY_ENVIRONMENT')
+if RAILWAY_ENVIRONMENT:
+    # Add Railway-specific hosts
     ALLOWED_HOSTS.extend([
-        'auth_service.railway.internal', # Your specific service's internal CNAME
-        '.railway.internal',             # Wildcard for other internal Railway hosts
-        '.railway.app',                  # Common TLD for Railway app URLs
-        '.up.railway.app',               # Another common TLD pattern
+        '.railway.app',
+        '.railway.internal', 
+        '.up.railway.app',
+        'auth_service.railway.internal',
     ])
 
-# Remove duplicates and sort for consistency
-ALLOWED_HOSTS = sorted(list(set(ALLOWED_HOSTS)))
+# Add Railway public domain
+RAILWAY_PUBLIC_DOMAIN = os.getenv('RAILWAY_PUBLIC_DOMAIN')
+if RAILWAY_PUBLIC_DOMAIN:
+    # Clean and add the domain
+    clean_domain = re.sub(r'^https?://', '', RAILWAY_PUBLIC_DOMAIN.strip())
+    if clean_domain:
+        ALLOWED_HOSTS.append(clean_domain)
+
+# Add other service URLs
+RAILWAY_STATIC_URL = os.getenv('RAILWAY_STATIC_URL')
+if RAILWAY_STATIC_URL:
+    hostname = re.sub(r'^https?://', '', RAILWAY_STATIC_URL.strip())
+    if hostname:
+        ALLOWED_HOSTS.append(hostname)
+
+RAILWAY_SERVICE_URL = os.getenv('RAILWAY_SERVICE_URL')
+if RAILWAY_SERVICE_URL:
+    hostname = re.sub(r'^https?://', '', RAILWAY_SERVICE_URL.strip())
+    if hostname:
+        ALLOWED_HOSTS.append(hostname)
+
+# Remove duplicates and empty strings
+ALLOWED_HOSTS = sorted(list(set(filter(None, ALLOWED_HOSTS))))
 
 print(f"DEBUG: Final ALLOWED_HOSTS in settings.py: {ALLOWED_HOSTS}")
+
 
 # Railway static URL
 RAILWAY_STATIC_URL = os.getenv('RAILWAY_STATIC_URL')

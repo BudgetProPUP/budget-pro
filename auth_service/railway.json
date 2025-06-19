@@ -2,7 +2,7 @@
   "$schema": "https://railway.app/railway.schema.json",
   "build": {
     "builder": "NIXPACKS",
-    "watchPatterns": [ 
+    "watchPatterns": [
       "**/*.py",
       "requirements.txt",
       "Procfile",
@@ -10,10 +10,8 @@
     ]
   },
   "deploy": {
-    "healthcheckPath": "/health/",
-    "healthcheckTimeout": 120,
+   
     "restartPolicyType": "ON_FAILURE",
-    "restartPolicyMaxRetries": 5,
-    "startCommand": "python manage.py migrate --noinput && python manage.py collectstatic --noinput && gunicorn --log-level debug --timeout 120 --bind 0.0.0.0:8081 --workers 1 --max-requests 1000 --max-requests-jitter 50 core.wsgi:application"
+    "restartPolicyMaxRetries": 10
   }
 }

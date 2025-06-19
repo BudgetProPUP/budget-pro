@@ -2,7 +2,9 @@ import React, { useState, useEffect } from 'react';
 import { ChevronDown, Search, ArrowLeft, ChevronLeft, ChevronRight, User, Mail, Briefcase, LogOut } from 'lucide-react';
 import { Link, useNavigate } from 'react-router-dom';
 import LOGOMAP from '../../assets/LOGOMAP.png';
-import './BudgetProposal.css';
+import '../../components/Styles/Layout.css';       // Main layout styles
+import '../../components/Header.css';              // Header components
+import '../../components/Tables.css';              // Table styles
 
 const BudgetProposal = () => {
   // State management

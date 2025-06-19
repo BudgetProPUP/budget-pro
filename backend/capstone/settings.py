@@ -15,9 +15,16 @@ from pathlib import Path
 import os
 from dotenv import load_dotenv
 import sys
+import dj_database_url
+
 
 # Auth Service Configuration
 AUTH_SERVICE_URL = os.getenv('AUTH_SERVICE_URL', 'http://localhost:8001')
+
+ALLOWED_HOSTS = ['localhost', '127.0.0.1']
+RAILWAY_STATIC_HOSTNAME = os.getenv('RAILWAY_STATIC_URL') # Railway provides this
+if RAILWAY_STATIC_HOSTNAME:
+    ALLOWED_HOSTS.append(RAILWAY_STATIC_HOSTNAME.split('//')[1])
 
 # Detect if running tests
 TESTING = 'test' in sys.argv
@@ -43,7 +50,7 @@ SECRET_KEY = os.getenv('DJANGO_SECRET_KEY')
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = os.getenv('DEBUG', 'False').lower() == 'true'  # Disable in production
 
-ALLOWED_HOSTS = []
+ALLOWED_HOSTS = ['localhost', '127.0.0.1']
 
 
 # Application definition
@@ -80,11 +87,14 @@ AUTHENTICATION_BACKENDS = [
     'django.contrib.auth.backends.ModelBackend',
 ]
 
-# CORS settings
+# CORS - Add deployed frontend and auth_service URL (if budget_service needs to call back, unlikely for auth)
 CORS_ALLOWED_ORIGINS = [
-    "http://localhost:5173",  # Vite default dev server
-    # Add production URLs when deployed
+    "http://localhost:5173", # Local frontend
+    os.getenv('FRONTEND_URL'), # Deployed frontend
+    # os.getenv('AUTH_SERVICE_URL'), # If auth_service makes direct calls to budget_service (unlikely for typical auth flow)
 ]
+CORS_ALLOWED_ORIGINS = [origin for origin in CORS_ALLOWED_ORIGINS if origin]
+
 
 DTS_STATUS_UPDATE_URL = os.getenv('DTS_STATUS_UPDATE_URL')
 DTS_API_KEY = os.getenv('DTS_API_KEY')
@@ -92,9 +102,6 @@ DTS_API_KEY = os.getenv('DTS_API_KEY')
 BMS_API_KEY_FOR_DTS = os.getenv('BMS_KEY_FOR_CALLING_DTS')
 
 TTS_API_KEY = os.getenv('TTS_API_KEY')
-
-
-# ...
 
 
 
@@ -301,7 +308,8 @@ USE_TZ = True
 
 # Static files (CSS, JavaScript, Images)
 # https://docs.djangoproject.com/en/5.2/howto/static-files/
-
+STATIC_ROOT = os.path.join(BASE_DIR, 'staticfiles')
+STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
 STATIC_URL = 'static/'
 
 # Default primary key field type

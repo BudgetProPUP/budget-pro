@@ -3,17 +3,15 @@ from django.core.management.base import BaseCommand
 from django.db import transaction, IntegrityError
 from django.contrib.auth import get_user_model
 from django.utils import timezone
-from datetime import timedelta # Explicitly import timedelta
+from datetime import timedelta
 import random
 
-# Import models from the 'users' app within 'auth_service'
-from users.models import UserActivityLog, LoginAttempt # Assuming User model is fetched by get_user_model()
+from users.models import UserActivityLog, LoginAttempt
 
-User = get_user_model() # This will get your auth_service.users.User model
+User = get_user_model()
 
-# Configuration for Seeder
-MAX_LOGIN_ATTEMPTS_TO_KEEP = 200  # Max old login attempts to retain before adding new ones
-MAX_ACTIVITY_LOGS_TO_KEEP = 500   # Max old activity logs to retain
+MAX_LOGIN_ATTEMPTS_TO_KEEP = 100 # Reduced for faster seeder runs if needed
+MAX_ACTIVITY_LOGS_TO_KEEP = 200  # Reduced for faster seeder runs
 
 class Command(BaseCommand):
     help = 'Seed auth_service database with initial users and related auth data.'
@@ -26,21 +24,19 @@ class Command(BaseCommand):
         {'id': 5, 'name': 'Marketing', 'code': 'MKT'},
     ]
 
-    def get_temp_department_info(self, code): # Renamed for clarity
+    def get_temp_department_info(self, code):
         for dept in self.TEMP_DEPARTMENTS:
             if dept['code'] == code:
                 return dept
-        self.stdout.write(self.style.WARNING(f"Department code '{code}' not found in TEMP_DEPARTMENTS. User will have no department info."))
-        return {'id': None, 'name': None} # Return a dict with None values to prevent KeyErrors
+        self.stdout.write(self.style.WARNING(f"Dept code '{code}' not found. User gets no dept info."))
+        return {'id': None, 'name': None}
 
     @transaction.atomic
     def handle(self, *args, **options):
         self.stdout.write(self.style.SUCCESS('Starting auth_service database seeding...'))
-
         self.create_users()
         self.prune_and_create_login_attempts()
         self.prune_and_create_user_activity_logs()
-
         self.stdout.write(self.style.SUCCESS('Auth_service database seeding completed successfully!'))
 
     def create_users(self):
@@ -50,142 +46,117 @@ class Command(BaseCommand):
         it_dept = self.get_temp_department_info('IT')
         ops_dept = self.get_temp_department_info('OPS')
         mkt_dept = self.get_temp_department_info('MKT')
-        hr_dept = self.get_temp_department_info('HR') # Added HR department retrieval
+        hr_dept = self.get_temp_department_info('HR')
 
         users_data = [
-            {
-                'email': 'admin@example.com', 'username': 'admin_auth',
-                'password': 'adminpassword123', 'first_name': 'AuthAdmin', 'last_name': 'User',
-                'role': 'ADMIN',
-                'department_id': finance_dept['id'], 'department_name': finance_dept['name'],
-                'is_staff': True, 'is_superuser': True, 'phone_number': '+639000000000' # Standardized phone format
-            },
-            {
-                'email': 'finance_head@example.com', 'username': 'finance_head_auth',
-                'password': 'password123', 'first_name': 'Finance', 'last_name': 'Head',
-                'role': 'FINANCE_HEAD',
-                'department_id': finance_dept['id'], 'department_name': finance_dept['name'],
-                'is_staff': True, 'phone_number': '+639171234567'
-            },
-            {
-                'email': 'it_user@example.com', 'username': 'it_user_auth',
-                'password': 'password123', 'first_name': 'IT', 'last_name': 'Support',
-                'role': 'ADMIN', # Assuming IT support might have admin rights in auth service
-                'department_id': it_dept['id'], 'department_name': it_dept['name'],
-                'phone_number': '+639171234568'
-            },
-            {
-                'email': 'ops_user@example.com', 'username': 'ops_user_auth',
-                'password': 'password123', 'first_name': 'Operations', 'last_name': 'Staff',
-                'role': 'USER', # More realistic role for general staff
-                'department_id': ops_dept['id'], 'department_name': ops_dept['name'],
-                'phone_number': '+639171111111',
-            },
-            {
-                'email': 'adibentulan@gmail.com', 'username': 'adi123',
-                'password': 'StrongPassword!123', 'first_name': 'Eldrin', 'last_name': 'Adi',
-                'role': 'ADMIN', # Example, adjust role as needed
-                'department_id': it_dept['id'], 'department_name': it_dept['name'],
-                'phone_number': '+639179876542', # Ensure phone is unique if model enforces it
-            },
-            {
-                'email': 'mkt_user@example.com', 'username': 'mkt_user_auth',
-                'password': 'password123', 'first_name': 'Marketing', 'last_name': 'Specialist',
-                'role': 'USER',
-                'department_id': mkt_dept['id'], 'department_name': mkt_dept['name'],
-                'phone_number': '+639172222222',
-            },
-            { # Added HR user example
-                'email': 'hr_user@example.com', 'username': 'hr_user_auth',
-                'password': 'password123', 'first_name': 'HR', 'last_name': 'Manager',
-                'role': 'USER', # Or specific HR role if defined
-                'department_id': hr_dept['id'], 'department_name': hr_dept['name'],
-                'phone_number': '+639173333333',
-            },
+            {'email': 'admin@example.com', 'username': 'admin_auth', 'password': 'Password123!', 'first_name': 'AuthAdmin', 'last_name': 'User', 'role': 'ADMIN', 'department_info': finance_dept, 'is_staff': True, 'is_superuser': True, 'phone_number': '+639000000000'},
+            {'email': 'finance_head@example.com', 'username': 'finance_head_auth', 'password': 'Password123!', 'first_name': 'Finance', 'last_name': 'Head', 'role': 'FINANCE_HEAD', 'department_info': finance_dept, 'is_staff': True, 'phone_number': '+639171234567'},
+            {'email': 'it_user@example.com', 'username': 'it_user_auth', 'password': 'Password123!', 'first_name': 'IT', 'last_name': 'Support', 'role': 'ADMIN', 'department_info': it_dept, 'phone_number': '+639171234568'},
+            {'email': 'ops_user@example.com', 'username': 'ops_user_auth', 'password': 'password123', 'first_name': 'Operations', 'last_name': 'Staff', 'role': 'USER', 'department_info': ops_dept, 'phone_number': '+639171111111'},
+            {'email': 'adibentulan@gmail.com', 'username': 'adi123', 'password': 'password123', 'first_name': 'Eldrin', 'last_name': 'Adi', 'role': 'ADMIN', 'department_info': it_dept, 'phone_number': '+639179876542'},
+            {'email': 'mkt_user@example.com', 'username': 'mkt_user_auth', 'password': 'Password123!', 'first_name': 'Marketing', 'last_name': 'Specialist', 'role': 'USER', 'department_info': mkt_dept, 'phone_number': '+639172222222'},
+            {'email': 'hr_user@example.com', 'username': 'hr_user_auth', 'password': 'Password123!', 'first_name': 'HR', 'last_name': 'Manager', 'role': 'USER', 'department_info': hr_dept, 'phone_number': '+639173333333'},
         ]
 
         created_count = 0
         updated_count = 0
-        for user_data in users_data:
+        for item_data in users_data:
+            email_val = item_data.get('email')
+            username_val = item_data.get('username')
+
+            if not email_val or not username_val:
+                self.stdout.write(self.style.ERROR(f"Skipping user data due to missing email or username: {item_data}"))
+                continue
+
+            dept_info = item_data.get('department_info', {'id': None, 'name': None})
+
+            defaults = {
+                'username': username_val,
+                'first_name': item_data['first_name'],
+                'last_name': item_data['last_name'],
+                'role': item_data['role'],
+                'department_id': dept_info.get('id'),
+                'department_name': dept_info.get('name'),
+                'is_staff': item_data.get('is_staff', False),
+                'is_superuser': item_data.get('is_superuser', False),
+                'is_active': True,
+                'phone_number': item_data.get('phone_number'),
+                # Ensure email is part of defaults for explicit setting during creation by update_or_create
+                'email': email_val.lower(),
+            }
+
             try:
                 user, created = User.objects.update_or_create(
-                    email__iexact=user_data['email'].lower(), # Case-insensitive email lookup
-                    defaults={
-                        'username': user_data['username'],
-                        'first_name': user_data['first_name'],
-                        'last_name': user_data['last_name'],
-                        'role': user_data['role'],
-                        'department_id': user_data['department_id'],
-                        'department_name': user_data['department_name'],
-                        'is_staff': user_data.get('is_staff', False),
-                        'is_superuser': user_data.get('is_superuser', False),
-                        'is_active': True,
-                        'phone_number': user_data.get('phone_number')
-                    }
+                    email__iexact=email_val.lower(), # Lookup by email
+                    defaults=defaults
                 )
-                if created:
-                    user.set_password(user_data['password']) # Set password only for new users
-                    user.save()
-                    created_count += 1
-                    self.stdout.write(f"Created user: {user.email}")
-                else:
-                    # Optional: Update existing user's details if needed, e.g., role or name.
-                    # Be cautious about overriding passwords of existing users unless intended.
-                    # For this seeder, we'll assume if user exists, password is managed elsewhere.
-                    updated_count +=1
-                    # self.stdout.write(f"User already exists, verified/updated: {user.email}") # Less verbose
-            except IntegrityError as e:
-                self.stdout.write(self.style.ERROR(f"Error creating/updating user {user_data.get('email', 'N/A')} (possibly due to unique username conflict '{user_data.get('username', 'N/A')}'): {e}"))
-            except Exception as e:
-                self.stdout.write(self.style.ERROR(f"Unexpected error for user {user_data.get('email', 'N/A')}: {e}"))
 
+                if created:
+                    user.set_password(item_data['password'])
+                    user.save() # Save password and ensure all defaults are applied
+                    created_count += 1
+                    self.stdout.write(f"Created user: {user.email} (Username: {user.username})")
+                else:
+                    # User existed, defaults were applied by update_or_create if different.
+                    # Optionally, update password for existing users if desired (generally not for seeders).
+                    # if user.check_password(item_data['password']) is False:
+                    #     user.set_password(item_data['password'])
+                    #     user.save()
+                    updated_count += 1
+                    self.stdout.write(f"User already exists, verified/updated: {user.email} (Username: {user.username})")
+
+            except IntegrityError as e: # Catch if username in defaults conflicts with another existing user
+                self.stdout.write(self.style.ERROR(f"IntegrityError for email '{email_val}' (target username '{username_val}'): {e}. Check if username is already taken by another email."))
+            except Exception as e:
+                self.stdout.write(self.style.ERROR(f"Unexpected error for email '{email_val}': {e}"))
 
         self.stdout.write(self.style.SUCCESS(f'Processed {len(users_data)} users ({created_count} created, {updated_count} existing/updated).'))
 
+
     def prune_and_create_login_attempts(self):
-        self.stdout.write('Pruning old login attempts and creating new sample ones...')
-        users = list(User.objects.all())
+        self.stdout.write('Pruning old login attempts & creating new ones...')
+        users = list(User.objects.filter(is_active=True)) # Use active users for more realistic attempts
         if not users:
-            self.stdout.write(self.style.WARNING('No users found to create login attempts for.'))
+            self.stdout.write(self.style.WARNING('No active users for login attempts.'))
             return
 
-        # Prune old attempts if count exceeds MAX_LOGIN_ATTEMPTS_TO_KEEP
         current_attempts_count = LoginAttempt.objects.count()
         if current_attempts_count > MAX_LOGIN_ATTEMPTS_TO_KEEP:
             ids_to_delete = LoginAttempt.objects.order_by('timestamp').values_list('id', flat=True)[:current_attempts_count - MAX_LOGIN_ATTEMPTS_TO_KEEP]
-            LoginAttempt.objects.filter(id__in=list(ids_to_delete)).delete()
-            self.stdout.write(self.style.WARNING(f'Pruned {len(ids_to_delete)} old login attempts.'))
+            deleted_count, _ = LoginAttempt.objects.filter(id__in=list(ids_to_delete)).delete()
+            self.stdout.write(self.style.WARNING(f'Pruned {deleted_count} old login attempts.'))
 
         new_attempts_data = []
-        for i in range(20): # Create 20 new attempts
-            user = random.choice(users) if random.random() < 0.8 else None
-            success = random.choices([True, False], weights=[0.7, 0.3], k=1)[0]
-            username_input_val = user.email if user and success else (user.email if user and not success and random.random() < 0.5 else f"failed_user{i}@example.com")
+        for i in range(min(20, len(users) * 2)): # Create a reasonable number of attempts
+            user = random.choice(users) if random.random() < 0.9 else None # 90% chance of using an existing user
+            success = random.choices([True, False], weights=[0.8, 0.2], k=1)[0] # 80% success
+            username_input_val = user.email if user else f"ghost_user{i}@example.com"
 
             new_attempts_data.append(LoginAttempt(
-                user=user if success else (user if random.random() < 0.7 else None),
+                user=user if user and success else None, # Only link user if login was successful for that user
                 username_input=username_input_val,
-                ip_address=f"192.168.1.{random.randint(10, 200)}",
-                user_agent=random.choice(["Mozilla/5.0 (Windows NT 10.0)", "PostmanRuntime/7.30.0", "curl/7.74.0"]),
+                ip_address=f"172.16.0.{random.randint(1, 100)}",
+                user_agent=random.choice(["Chrome/90.0", "Firefox/88.0", "Safari/14.0", "Edge/91.0"]),
                 success=success,
-                timestamp=timezone.now() - timedelta(minutes=random.randint(1, 60*24*3)) # Within last 3 days
+                timestamp=timezone.now() - timedelta(minutes=random.randint(1, 60*24*7)) # Within last 7 days
             ))
-        LoginAttempt.objects.bulk_create(new_attempts_data)
+        if new_attempts_data:
+            LoginAttempt.objects.bulk_create(new_attempts_data)
         self.stdout.write(self.style.SUCCESS(f'Created {len(new_attempts_data)} new login attempts.'))
 
+
     def prune_and_create_user_activity_logs(self):
-        self.stdout.write('Pruning old activity logs and creating new sample ones (auth-specific)...')
-        users = list(User.objects.all())
+        self.stdout.write('Pruning old activity logs & creating new ones...')
+        users = list(User.objects.filter(is_active=True))
         if not users:
-            self.stdout.write(self.style.WARNING('No users found to create activity logs for.'))
+            self.stdout.write(self.style.WARNING('No active users for activity logs.'))
             return
 
-        # Prune old logs
         current_logs_count = UserActivityLog.objects.count()
         if current_logs_count > MAX_ACTIVITY_LOGS_TO_KEEP:
             ids_to_delete = UserActivityLog.objects.order_by('timestamp').values_list('id', flat=True)[:current_logs_count - MAX_ACTIVITY_LOGS_TO_KEEP]
-            UserActivityLog.objects.filter(id__in=list(ids_to_delete)).delete()
-            self.stdout.write(self.style.WARNING(f'Pruned {len(ids_to_delete)} old user activity logs.'))
+            deleted_count, _ = UserActivityLog.objects.filter(id__in=list(ids_to_delete)).delete()
+            self.stdout.write(self.style.WARNING(f'Pruned {deleted_count} old user activity logs.'))
 
         log_types_auth = [
             ('LOGIN', 'User logged in successfully.', 'SUCCESS'),
@@ -193,33 +164,31 @@ class Command(BaseCommand):
             ('LOGOUT', 'User logged out.', 'SUCCESS'),
             ('PROFILE_UPDATE', 'User updated their profile.', 'SUCCESS'),
             ('PASSWORD_CHANGE', 'User changed their password.', 'SUCCESS'),
-            ('PASSWORD_RESET_REQUEST', 'Password reset requested.', 'ATTEMPTED'),
-            ('USER_CREATE_ADMIN', 'Admin created a new user.', 'SUCCESS'), # Example admin action
+            ('PASSWORD_RESET_REQUEST', 'Password reset requested for email.', 'ATTEMPTED'),
+            ('USER_CREATE_ADMIN', 'Admin action: New user created.', 'SUCCESS'),
         ]
         new_logs_data = []
-        for _ in range(30): # Create 30 new auth-related logs
+        for _ in range(min(30, len(users) * 3)): # Create a reasonable number of logs
             user_for_log = random.choice(users)
             log_type, action_template, status = random.choice(log_types_auth)
             
-            # Make action text more specific
-            if log_type == 'LOGIN' and status == 'FAILED':
-                action_text = f"Failed login attempt for {user_for_log.username if random.random() > 0.3 else 'unknown_user'}."
+            action_text = action_template.replace("User", user_for_log.username)
+            if log_type == 'PASSWORD_RESET_REQUEST':
+                action_text = f"Password reset requested for email associated with {user_for_log.username}."
             elif log_type == 'USER_CREATE_ADMIN':
-                admin_user = next((u for u in users if u.role == 'ADMIN'), user_for_log) # Prefer admin if available
-                created_user = random.choice(users)
-                action_text = f"Admin {admin_user.username} created user {created_user.username}."
-                user_for_log = admin_user # Log this action as performed by the admin
-            else:
-                action_text = action_template.replace("User", user_for_log.username)
-
+                admin_user = next((u for u in users if u.role == 'ADMIN'), user_for_log)
+                created_user_username = random.choice([u.username for u in users if u != admin_user] or ["new_sample_user"])
+                action_text = f"Admin {admin_user.username} created user {created_user_username}."
+                user_for_log = admin_user # Log action as performed by admin
 
             new_logs_data.append(UserActivityLog(
                 user=user_for_log,
                 log_type=log_type,
                 action=action_text,
                 status=status,
-                details={'ip_address': f"10.0.{random.randint(1,5)}.{random.randint(1,254)}"} if 'login' in log_type.lower() else {'source': 'seeder'},
-                timestamp=timezone.now() - timedelta(hours=random.randint(1, 72))
+                details={'ip_address': f"10.0.1.{random.randint(1,100)}"} if 'LOGIN' in log_type else {'source': 'seeder_auth'},
+                timestamp=timezone.now() - timedelta(hours=random.randint(1, 7*24)) # Within last 7 days
             ))
-        UserActivityLog.objects.bulk_create(new_logs_data)
+        if new_logs_data:
+            UserActivityLog.objects.bulk_create(new_logs_data)
         self.stdout.write(self.style.SUCCESS(f'Created {len(new_logs_data)} new user activity logs.'))

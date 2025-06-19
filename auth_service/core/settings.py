@@ -3,6 +3,7 @@ import os
 from dotenv import load_dotenv
 from datetime import timedelta
 import dj_database_url
+import re
 
 # Base directory for the auth_service
 BASE_DIR = Path(__file__).resolve().parent
@@ -11,10 +12,36 @@ load_dotenv(BASE_DIR.parent / '.env')  # Load .env from auth_service folder
 SECRET_KEY = os.getenv('DJANGO_SECRET_KEY')
 
 DEBUG = os.getenv('DEBUG', 'False').lower() == 'true'
+
+
 ALLOWED_HOSTS = ['localhost', '127.0.0.1']
-RAILWAY_STATIC_HOSTNAME = os.getenv('RAILWAY_STATIC_URL') # Railway provides this
-if RAILWAY_STATIC_HOSTNAME:
-    ALLOWED_HOSTS.append(RAILWAY_STATIC_HOSTNAME.replace('https://', '').replace('http://', ''))
+
+# Railway domains Remove https:// prefix if present
+RAILWAY_PUBLIC_DOMAIN = os.getenv('RAILWAY_PUBLIC_DOMAIN')
+if RAILWAY_PUBLIC_DOMAIN:
+    # Clean the domain (remove protocol if present)
+    clean_domain = RAILWAY_PUBLIC_DOMAIN.replace('https://', '').replace('http://', '')
+    ALLOWED_HOSTS.append(clean_domain)
+
+# Railway static URL
+RAILWAY_STATIC_URL = os.getenv('RAILWAY_STATIC_URL')
+if RAILWAY_STATIC_URL:
+    hostname = RAILWAY_STATIC_URL.replace('https://', '').replace('http://', '')
+    ALLOWED_HOSTS.append(hostname)
+
+# Add Railway's internal service domain pattern
+import re
+railway_service_url = os.getenv('RAILWAY_SERVICE_URL')
+if railway_service_url:
+    hostname = railway_service_url.replace('https://', '').replace('http://', '')
+    ALLOWED_HOSTS.append(hostname)
+
+# Allow Railway's internal domains (wildcard for Railway's internal networking)
+if os.getenv('RAILWAY_ENVIRONMENT'):  # Check if running on Railway
+    ALLOWED_HOSTS.extend([
+        '.railway.app',  # All Railway subdomains
+        '.up.railway.app',  # Railway's app domains
+    ])
     
 INSTALLED_APPS = [
     'django.contrib.admin',
@@ -31,7 +58,7 @@ INSTALLED_APPS = [
     'drf_spectacular',
     'pwned_passwords_django',    # For pwned password validation
 
-    'users', # Your new app
+    'users', 
 ]
 
 MIDDLEWARE = [
@@ -121,9 +148,6 @@ TIME_ZONE = 'UTC'
 USE_I18N = True
 USE_TZ = True
 
-STATIC_URL = '/static/'
-STATIC_ROOT = os.path.join(BASE_DIR.parent, 'staticfiles_auth') # Correct for auth_service
-STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
@@ -199,7 +223,7 @@ SPECTACULAR_SETTINGS = {
     'SCHEMA_PATH_PREFIX': r'/api/auth/', # Important: Prefix for auth service
 }
 
-# For django-ratelimit (if you choose to use its decorators)
+# For django-ratelimit (if we use its decorators)
 CACHES = {
     'default': {
         'BACKEND': 'django.core.cache.backends.locmem.LocMemCache',
@@ -207,6 +231,12 @@ CACHES = {
     }
 }
 RATELIMIT_USE_CACHE = 'default'
+
+
+STATIC_URL = '/static/'
+STATIC_ROOT = os.path.join(BASE_DIR.parent, 'staticfiles_auth')
+STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
+
 
 # For UserActivityLog (if you decide to keep it simple in auth service for auth events)
 # LOGGING configuration can be added here

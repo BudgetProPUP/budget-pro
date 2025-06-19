@@ -48,26 +48,28 @@ def get_client_ip(request):
     x_forwarded_for = request.META.get('HTTP_X_FORWARDED_FOR')
     return x_forwarded_for.split(',')[0] if x_forwarded_for else request.META.get('REMOTE_ADDR')
 
-
 def auth_health_check_view(request):
     # Check basic app running
-    app_status = {"status": "healthy", "service": "auth_service"}
+    app_status = {
+        "status": "healthy",
+        "service": "auth_service",
+        "timestamp": timezone.now().isoformat()
+    }
     
-    # Optional: Check database connectivity for auth_service's DB
+    # Check database connectivity
     try:
-        connection.ensure_connection()
-        db_connected = True
-    except OperationalError:
-        db_connected = False
-        app_status["database_status"] = "unhealthy"
-        app_status["status"] = "degraded" # Or "unhealthy" if DB is critical
-    else:
-         app_status["database_status"] = "healthy"
+        with connection.cursor() as cursor:
+            cursor.execute("SELECT 1")
+            app_status["database"] = "connected"
+    except Exception as e:
+        app_status["database"] = f"error: {str(e)}"
+        app_status["status"] = "degraded"
 
-    if db_connected: # Or based on overall status
-        return JsonResponse(app_status, status=200)
-    else:
-        return JsonResponse(app_status, status=503) # Service Unavailable if DB is critical
+    # Check if request host is allowed
+    app_status["allowed_host"] = request.get_host() in settings.ALLOWED_HOSTS
+    
+    status_code = 200 if app_status["status"] == "healthy" else 503
+    return JsonResponse(app_status, status=status_code)
 
 
 

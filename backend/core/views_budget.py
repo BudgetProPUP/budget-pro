@@ -15,7 +15,7 @@ from .models import (
     FiscalYear, BudgetAllocation, Expense, JournalEntry, JournalEntryLine,
     ProposalComment, ProposalHistory, UserActivityLog
 )
-
+from .permissions import IsTrustedService
 from rest_framework.permissions import IsAuthenticated
 from django.utils import timezone
 from rest_framework.decorators import api_view, permission_classes, action
@@ -466,8 +466,16 @@ class BudgetProposalViewSet(viewsets.ModelViewSet):
         'items__account', 'comments'  # Optimize queries
     ).order_by('-created_at')
 
-    # Base permission, can be more specific
-    permission_classes = [IsAuthenticated]
+    # permission_classes = [IsAuthenticated] # Old base permission
+    def get_permissions(self):
+        """
+        Instantiates and returns the list of permissions that this view requires.
+        """
+        if self.action in ['create', 'update', 'partial_update', 'destroy']:
+            # These actions should only be allowed by trusted services via API Key
+            return [IsTrustedService()]
+        # For list, retrieve, review, add_comment, allow authenticated end-users (via JWT)
+        return [IsAuthenticated()]
 
     def get_serializer_class(self):
         # This ViewSet is primarily for external system interaction via messages

@@ -86,6 +86,18 @@ CORS_ALLOWED_ORIGINS = [
     # Add production URLs when deployed
 ]
 
+DTS_API_KEY = os.getenv('DTS_API_KEY')
+TTS_API_KEY = os.getenv('TTS_API_KEY')
+
+SERVICE_API_KEYS = {}
+if DTS_API_KEY:
+    SERVICE_API_KEYS[DTS_API_KEY] = "DTS"
+if TTS_API_KEY:
+    SERVICE_API_KEYS[TTS_API_KEY] = "TTS"
+    
+# Filter out None values if a key isn't set in .env
+SERVICE_API_KEYS = {k: v for k, v in SERVICE_API_KEYS.items() if k}
+
 CORS_ALLOW_ALL_ORIGINS = True  # For development - restrict in production
 CORS_ALLOW_CREDENTIALS = True
 
@@ -147,7 +159,8 @@ MIDDLEWARE = [
 # REST Framework settings
 REST_FRAMEWORK = {
     'DEFAULT_AUTHENTICATION_CLASSES': [ 
-        'core.authentication.MicroserviceJWTAuthentication',  # Use custom auth
+        'core.authentication.MicroserviceJWTAuthentication',  # For end-user JWTs
+        'core.service_authentication.APIKeyAuthentication', # For service-to-service API keys
     ],
     'DEFAULT_PERMISSION_CLASSES': [
         'rest_framework.permissions.IsAuthenticated',

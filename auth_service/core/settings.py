@@ -14,7 +14,7 @@ DEBUG = os.getenv('DEBUG', 'False').lower() == 'true'
 ALLOWED_HOSTS = ['localhost', '127.0.0.1']
 RAILWAY_STATIC_HOSTNAME = os.getenv('RAILWAY_STATIC_URL') # Railway provides this
 if RAILWAY_STATIC_HOSTNAME:
-    ALLOWED_HOSTS.append(RAILWAY_STATIC_HOSTNAME.split('//')[1])
+    ALLOWED_HOSTS.append(RAILWAY_STATIC_HOSTNAME.replace('https://', '').replace('http://', ''))
     
 INSTALLED_APPS = [
     'django.contrib.admin',

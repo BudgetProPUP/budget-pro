@@ -21,10 +21,7 @@ import dj_database_url
 # Auth Service Configuration
 AUTH_SERVICE_URL = os.getenv('AUTH_SERVICE_URL', 'http://localhost:8001')
 
-ALLOWED_HOSTS = ['localhost', '127.0.0.1']
-RAILWAY_STATIC_HOSTNAME = os.getenv('RAILWAY_STATIC_URL') # Railway provides this
-if RAILWAY_STATIC_HOSTNAME:
-    ALLOWED_HOSTS.append(RAILWAY_STATIC_HOSTNAME.split('//')[1])
+
 
 # Detect if running tests
 TESTING = 'test' in sys.argv
@@ -50,7 +47,36 @@ SECRET_KEY = os.getenv('DJANGO_SECRET_KEY')
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = os.getenv('DEBUG', 'False').lower() == 'true'  # Disable in production
 
-ALLOWED_HOSTS = ['localhost', '127.0.0.1']
+ALLOWED_HOSTS = [] # Start with an empty list
+
+# Get the hostname provided by Railway (if any)
+# Railway typically sets a variable like RAILWAY_PUBLIC_DOMAIN or you might have a custom domain
+RAILWAY_APP_HOSTNAME = os.getenv('RAILWAY_PUBLIC_DOMAIN') # Check Railway docs for the exact variable name they provide for the service's public domain
+                                                        # Or, if you set a custom domain, use that.
+
+if DEBUG:
+    ALLOWED_HOSTS.extend(['localhost', '127.0.0.1'])
+else:
+    if RAILWAY_APP_HOSTNAME:
+        ALLOWED_HOSTS.append(RAILWAY_APP_HOSTNAME)
+    # Add any other specific production domains if necessary
+    # It's generally safer to be specific than to use wildcards like '.railway.app'
+    # if you know the exact hostname(s).
+    # If Railway provides a variable like RAILWAY_PRIVATE_DOMAIN for internal traffic, add that too if needed.
+
+# If you still want to allow all railway subdomains (less secure but might be needed if hostnames are dynamic and unpredictable)
+# You had this before, it's a broader approach:
+if not DEBUG: # Only for production-like environments
+    ALLOWED_HOSTS.extend(['.railway.app', '.up.railway.app'])
+
+# Ensure there are no duplicates and filter out any potential None values if os.getenv returned None
+ALLOWED_HOSTS = list(set(filter(None, ALLOWED_HOSTS)))
+
+if not ALLOWED_HOSTS and not DEBUG:
+    # Fallback if no hosts are configured for production to prevent Django from refusing all connections
+    print("WARNING: ALLOWED_HOSTS is empty in a non-DEBUG environment. This is insecure. Add your service's domain.")
+    # ALLOWED_HOSTS = ['*'] # Highly insecure, for temporary debugging only if absolutely stuck
+
 
 
 # Application definition

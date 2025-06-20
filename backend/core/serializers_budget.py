@@ -327,20 +327,26 @@ class BudgetProposalMessageSerializer(serializers.ModelSerializer):
 
         # Assign the actual Department instance
         validated_data['department'] = department_obj
-
+        validated_data['status'] = 'SUBMITTED'
         validated_data.setdefault('submitted_at', timezone.now())
         validated_data['sync_status'] = 'SYNCED'
         validated_data['last_sync_timestamp'] = timezone.now()
-
+        
+        validated_data.pop('approved_by_name', None)
+        validated_data.pop('approval_date', None)
+        validated_data.pop('rejected_by_name', None)
+        validated_data.pop('rejection_date', None)
+        
         proposal = BudgetProposal.objects.create(**validated_data)
         for item_data in items_data:
             BudgetProposalItem.objects.create(proposal=proposal, **item_data)
 
         ProposalHistory.objects.create(
-            proposal=proposal, action='CREATED',
+            proposal=proposal,
+            action='SUBMITTED', # Reflects that it arrived as submitted
             action_by_name=proposal.submitted_by_name or "System (External Message)",
             new_status=proposal.status,
-            comments=f"Proposal created from external system ID: {proposal.external_system_id} for department {department_obj.name}."
+            comments=f"Proposal received from external system (ID={proposal.external_system_id}) for department {department_obj.name}."
         )
         return proposal
 

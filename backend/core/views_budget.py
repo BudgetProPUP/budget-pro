@@ -640,91 +640,102 @@ Create a new Budget Proposal.
                 reviewer_name = full_name
         
         previous_status_for_history = proposal.status
-
-        proposal.status = new_status
-        if new_status == 'APPROVED':
-            proposal.approved_by_name = reviewer_name
-            proposal.approval_date = timezone.now()
-        elif new_status == 'REJECTED':
-            proposal.rejected_by_name = reviewer_name
-            proposal.rejection_date = timezone.now()
         
-        proposal.last_modified = timezone.now()
-        proposal.save()
+        # Prevent re-approving if already approved and project exists, or re-creating project
+        if new_status == 'APPROVED' and proposal.status == 'APPROVED':
+            # Potentially just add comment and history, but don't re-create project
+            # Or return an error/message indicating it's already approved.
+            # For now, let's assume UI prevents this or we allow re-stamping approval time/user.
+            pass # Or handle as "already approved"
 
-        if comment_text:
-            ProposalComment.objects.create(
-                proposal=proposal,
-                user_id=reviewer_user_id,
-                user_username=reviewer_name,
-                comment=comment_text
+        try:
+            with transaction.atomic():
+                proposal.status = new_status
+                if new_status == 'APPROVED':
+                    proposal.approved_by_name = reviewer_name
+                    proposal.approval_date = timezone.now()
+                    
+                    # --- PROJECT CREATION LOGIC ---
+                    if not hasattr(proposal, 'project') or proposal.project is None:
+                        Project.objects.create(
+                            name=f"Project for: {proposal.title}",
+                            description=proposal.project_summary,
+                            start_date=proposal.performance_start_date,
+                            end_date=proposal.performance_end_date,
+                            department=proposal.department,
+                            budget_proposal=proposal,
+                            status='PLANNING' # Default status for a new project
+                        )
+                        print(f"Project created for approved proposal ID {proposal.id}")
+                    else:
+                        print(f"Project already exists for proposal ID {proposal.id}. Approval details updated.")
+                    # --- END PROJECT CREATION LOGIC ---
+
+                elif new_status == 'REJECTED':
+                    proposal.rejected_by_name = reviewer_name
+                    proposal.rejection_date = timezone.now()
+                    # If a project was created and now it's rejected, what happens to the project?
+                    # Option: Mark project as CANCELLED.
+                    if hasattr(proposal, 'project') and proposal.project is not None:
+                        proposal.project.status = 'CANCELLED'
+                        proposal.project.save(update_fields=['status'])
+                        print(f"Project for proposal ID {proposal.id} marked as CANCELLED due to rejection.")
+                
+                proposal.last_modified = timezone.now()
+                proposal.save()
+
+                if comment_text:
+                    ProposalComment.objects.create(
+                        proposal=proposal,
+                        user_id=reviewer_user_id,
+                        user_username=reviewer_name,
+                        comment=comment_text
+                    )
+                
+                ProposalHistory.objects.create(
+                    proposal=proposal, action=new_status,
+                    action_by_name=reviewer_name,
+                    previous_status=previous_status_for_history,
+                    new_status=proposal.status,
+                    comments=comment_text or f"Status changed to {new_status}."
+                )
+        except Exception as e:
+            print(f"Error during proposal review for proposal {proposal.id}: {e}")
+            UserActivityLog.objects.create(
+                user_id=request.user.id, user_username=reviewer_name, log_type='ERROR',
+                action=f'Failed review for proposal {proposal.id}. Status attempted: {new_status}', status='FAILED',
+                details={'error': str(e)}
             )
-        
-        ProposalHistory.objects.create(
-            proposal=proposal, action=new_status,
-            action_by_name=reviewer_name,
-            previous_status=previous_status_for_history,
-            new_status=proposal.status,
-            comments=comment_text or f"Status changed to {new_status}."
-        )
+            return Response({"detail": f"An error occurred: {str(e)}"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
-        # --- Notify External System (e.g., DTS) ---
+        # ... (Outbound notification logic to DTS/TTS - this part is fine) ...
         notification_payload = {
             "bms_proposal_id": proposal.id,
-            "external_system_id": proposal.external_system_id, # The ID DTS originally gave
+            "external_system_id": proposal.external_system_id,
             "new_status": proposal.status,
             "reviewed_by_name": reviewer_name,
             "review_timestamp": timezone.now().isoformat(),
             "comments": comment_text if comment_text else None,
-            # Construct the absolute URI correctly for the BMS proposal detail
-            "bms_proposal_link": request.build_absolute_uri(
-                # Assuming you have a 'retrieve' action on this viewset or a detail view
-                # that can be reversed. If using a different URL structure, adjust this.
-                # For a ViewSet, reverse might look like:
-                # reverse('budgetproposal-detail', kwargs={'pk': proposal.pk}, request=request)
-
-                f"/api/external-budget-proposals/{proposal.id}/" # Adjust if needed
-            )
+            "bms_proposal_link": request.build_absolute_uri(f"/api/external-budget-proposals/{proposal.id}/")
         }
-
-        # Get the URL and API key for calling DTS from settings
         target_dts_url = getattr(settings, 'DTS_STATUS_UPDATE_URL', None)
-        api_key_for_dts = getattr(settings, 'BMS_AUTH_KEY_FOR_DTS', None) # Use the correct key
-
+        api_key_for_dts = getattr(settings, 'BMS_AUTH_KEY_FOR_DTS', None)
         if target_dts_url and api_key_for_dts:
             try:
-                headers = {
-                    'Content-Type': 'application/json',
-                    # The header name 'X-DTS-API-Key' is an EXAMPLE.
-                    # DTS team must tell you what header name they expect for THEIR API key.
-                    'X-Client-API-Key': api_key_for_dts,
-                }
-                
-                response_to_dts = requests.post(
-                    target_dts_url, json=notification_payload, headers=headers, timeout=10
-                )
-                response_to_dts.raise_for_status() # Raise an exception for HTTP error codes 4xx/5xx
+                headers = {'Content-Type': 'application/json', 'X-DTS-API-Key': api_key_for_dts} # Adjust header name
+                response_to_dts = requests.post(target_dts_url, json=notification_payload, headers=headers, timeout=10)
+                response_to_dts.raise_for_status()
                 print(f"Successfully notified DTS about proposal {proposal.external_system_id} status: {proposal.status}")
-                # Log this success to UserActivityLog or a specific outbound notification log
                 UserActivityLog.objects.create(
-                    user_id=request.user.id,
-                    user_username=reviewer_name,
-                    log_type='PROCESS', # Or a new 'EXTERNAL_NOTIFICATION_SENT'
-                    action=f'Sent status update for proposal {proposal.id} ({proposal.external_system_id}) to DTS. Status: {proposal.status}',
-                    status='SUCCESS',
-                    details={'target_system': 'DTS', 'payload_sent': notification_payload}
+                    user_id=request.user.id, user_username=reviewer_name, log_type='PROCESS',
+                    action=f'Sent status update for proposal {proposal.id} ({proposal.external_system_id}) to DTS. Status: {proposal.status}', status='SUCCESS',
+                    details={'target_system': 'DTS', 'payload_sent': notification_payload, 'response_status': response_to_dts.status_code}
                 )
-
             except requests.RequestException as e:
-                error_message = f"Error notifying DTS about proposal {proposal.external_system_id}: {e}"
-                print(error_message)
-                # Log this failure
+                print(f"Error notifying DTS about proposal {proposal.external_system_id}: {e}")
                 UserActivityLog.objects.create(
-                    user_id=request.user.id,
-                    user_username=reviewer_name,
-                    log_type='ERROR', # Or 'EXTERNAL_NOTIFICATION_FAILED'
-                    action=f'Failed to send status update for proposal {proposal.id} ({proposal.external_system_id}) to DTS.',
-                    status='FAILED',
+                    user_id=request.user.id, user_username=reviewer_name, log_type='ERROR',
+                    action=f'Failed to send status update for proposal {proposal.id} ({proposal.external_system_id}) to DTS.', status='FAILED',
                     details={'target_system': 'DTS', 'error': str(e), 'payload_attempted': notification_payload}
                 )
                 # Important: Do not let this failure break the response to the BMS user.

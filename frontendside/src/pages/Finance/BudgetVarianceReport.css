@@ -36,6 +36,11 @@
   letter-spacing: -0.025em;
 }
 
+.logo-image {
+  height: 40px;
+  width: auto;
+}
+
 .nav-menu {
   display: flex;
   align-items: center;
@@ -115,12 +120,17 @@
   gap: 16px;
 }
 
+.profile-container {
+  position: relative;
+}
+
 .user-avatar {
   width: 36px;
   height: 36px;
   border-radius: 50%;
   overflow: hidden;
   border: 2px solid #e5e7eb;
+  cursor: pointer;
 }
 
 .avatar-img {
@@ -292,19 +302,6 @@
   overflow-y: auto;
 }
 
-/* Page Header */
-.page-header {
-  margin-bottom: 32px;
-}
-
-.page-title {
-  font-size: 28px;
-  font-weight: 600;
-  color: #374151;
-  margin: 0;
-  letter-spacing: -0.025em;
-}
-
 /* Report Background Container */
 .report-background-container {
   background: white;
@@ -313,6 +310,21 @@
   box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
   border: 1px solid #e2e8f0;
   margin-bottom: 32px;
+}
+
+/* Page Header - Now inside container */
+.page-header {
+  margin-bottom: 24px;
+  padding-bottom: 16px;
+  border-bottom: 1px solid #e2e8f0;
+}
+
+.page-title {
+  font-size: 28px;
+  font-weight: 600;
+  color: #374151;
+  margin: 0;
+  letter-spacing: -0.025em;
 }
 
 /* Report Table Container */
@@ -365,6 +377,18 @@
 
 .report-table th:last-child {
   border-right: none;
+}
+
+.category-header {
+  text-align: left;
+}
+
+.budget-header {
+  text-align: left;
+}
+
+.actual-header {
+  text-align: left;
 }
 
 .available-header {

@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { Search, ChevronDown, ChevronLeft, ChevronRight, ArrowLeft, User, Mail, Briefcase, LogOut } from 'lucide-react';
-import LOGOMAP from '../../assets/LOGOMAP.png';
+import LOGOMAP from '../../assets/MAP.jpg';
 
 // CSS Imports (organized by component)
 import '../../components/Styles/Layout.css';       // Main layout styles
@@ -329,23 +329,23 @@ const AccountSetup = () => {
           <div className="top">
             <h2 
               style={{ 
-                margin: 0, 
-                fontSize: '29px', 
-                fontWeight: 'bold', 
-                color: '#007bff' 
+              margin: 0, 
+              fontSize: '29px', 
+             fontWeight: 'bold', 
+             color:'#242424',
               }}
             >
-              Account Setup ({filteredAccounts.length})
+              Account Setup 
             </h2>
             
             <div>
               <div className="filter-controls" style={{ 
-  display: 'flex', 
-  justifyContent: 'flex-end', // This pushes everything to the right
-  alignItems: 'center',
-  gap: '1rem',
-  width: '100%'
-}}></div>
+              display: 'flex', 
+              justifyContent: 'flex-end', // This pushes everything to the right
+              alignItems: 'center',
+              gap: '1rem',
+              width: '100%'
+            }}></div>
             <input
                 type="text"
                 placeholder="Search accounts"
@@ -423,12 +423,12 @@ const AccountSetup = () => {
           <table>
             <thead>
               <tr>
-                <th>CODE</th>
-                <th>TYPE</th>
-                <th>DESCRIPTION</th>
-                <th>STATUS</th>
-                <th>ACCOMPLISHED</th>
-                <th>DATE</th>
+                <th style={{ width: '17%' }}>ACCOUNT CODE</th>
+                <th style={{ width: '17%' }}>ACCOUNT TYPE</th>
+                 <th style={{ width: '17S' }}>ACCOUNT</th>
+                 <th style={{ width: '15%' }}>STATUS</th>
+                <th style={{ width: '15%' }}>ACCOMPLISHED</th>
+                <th style={{ width: '15%' }}>ACCOMPLISH DATE</th>
               </tr>
             </thead>
             <tbody>

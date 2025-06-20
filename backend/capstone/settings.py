@@ -1,4 +1,3 @@
-
 """
 Django settings for capstone project.
 
@@ -231,15 +230,22 @@ ROOT_URLCONF = 'capstone.urls'
 
 # DRF Spectacular settings for API documentation
 SPECTACULAR_SETTINGS = {
-    "TITLE": "My API",
-    "DESCRIPTION": "Auto-generated documentation",
+    "TITLE": "Budget Service API",
+    "DESCRIPTION": "API for Budget Management",
     "VERSION": "1.0.0",
     "SERVE_INCLUDE_SCHEMA": False,
+    "SECURITY": [{"BearerAuth": []}],  # <-- Add this line
+    "COMPONENT_SPLIT_REQUEST": True,
+    "COMPONENT_SECURITY_SCHEMES": {
+        "BearerAuth": {
+            "type": "http",
+            "scheme": "bearer",
+            "bearerFormat": "JWT",
+        }
+    },
     'SWAGGER_UI_SETTINGS': {
         'defaultModelsExpandDepth': -1,  # Hide schemas section completely
     },
-    'COMPONENT_SPLIT_REQUEST': True,  # Separate schemas for request/response
-    'SCHEMA_PATH_PREFIX': r'/api/',  # Match your API base path
     'ENUM_NAME_OVERRIDES': {
        'Status0feEnum': 'BudgetProposalStatusEnum',
         'Status1a2Enum': 'ExpenseStatusEnum',

@@ -74,37 +74,16 @@ DEBUG = os.getenv('DEBUG', 'False').lower() == 'true'
 ALLOWED_HOSTS = ['localhost', '127.0.0.1']
 
 
-# Railway environment detection
-RAILWAY_ENVIRONMENT = os.getenv('RAILWAY_ENVIRONMENT')
-if RAILWAY_ENVIRONMENT:
-    # Add Railway-specific hosts
-    ALLOWED_HOSTS.extend([
-        '.railway.app',
-        '.railway.internal', 
-        '.up.railway.app',
-        'auth_service.railway.internal',
-    ])
-
-# Add Railway public domain
-RAILWAY_PUBLIC_DOMAIN = os.getenv('RAILWAY_PUBLIC_DOMAIN')
-if RAILWAY_PUBLIC_DOMAIN:
-    # Clean and add the domain
-    clean_domain = re.sub(r'^https?://', '', RAILWAY_PUBLIC_DOMAIN.strip())
-    if clean_domain:
-        ALLOWED_HOSTS.append(clean_domain)
-
-# Add other service URLs
-RAILWAY_STATIC_URL = os.getenv('RAILWAY_STATIC_URL')
-if RAILWAY_STATIC_URL:
-    hostname = re.sub(r'^https?://', '', RAILWAY_STATIC_URL.strip())
-    if hostname:
-        ALLOWED_HOSTS.append(hostname)
-
-RAILWAY_SERVICE_URL = os.getenv('RAILWAY_SERVICE_URL')
-if RAILWAY_SERVICE_URL:
-    hostname = re.sub(r'^https?://', '', RAILWAY_SERVICE_URL.strip())
-    if hostname:
-        ALLOWED_HOSTS.append(hostname)
+if DEBUG:
+    ALLOWED_HOSTS = ['localhost', '127.0.0.1']
+else:
+    # Get the Railway public domain
+    RAILWAY_PUBLIC_DOMAIN = os.getenv('RAILWAY_PUBLIC_DOMAIN')
+    if RAILWAY_PUBLIC_DOMAIN:
+        ALLOWED_HOSTS = [RAILWAY_PUBLIC_DOMAIN]
+    else:
+        ALLOWED_HOSTS = []  # Or a default if you have one
+        print("WARNING: RAILWAY_PUBLIC_DOMAIN not set. ALLOWED_HOSTS is empty.")
 
 # Remove duplicates and empty strings
 ALLOWED_HOSTS = sorted(list(set(filter(None, ALLOWED_HOSTS))))
@@ -250,9 +229,8 @@ CORS_ALLOWED_ORIGINS = [
     os.getenv('FRONTEND_URL'), # Deployed frontend
     os.getenv('BUDGET_SERVICE_PUBLIC_URL') # Public URL of budget_service
 ]
-CORS_ALLOWED_ORIGINS = [origin for origin in CORS_ALLOWED_ORIGINS if origin] 
-
-CORS_ALLOW_ALL_ORIGINS = DEBUG # For development - restrict in production
+CORS_ALLOWED_ORIGINS = [origin for origin in CORS_ALLOWED_ORIGINS if origin]
+CORS_ALLOW_ALL_ORIGINS = DEBUG  # Restrict in production
 CORS_ALLOW_CREDENTIALS = True
 
 

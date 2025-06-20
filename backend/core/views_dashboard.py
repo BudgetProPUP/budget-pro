@@ -9,7 +9,7 @@ from django.db.models import Subquery, OuterRef, Q
 from core.pagination import ProjectStatusPagination, StandardResultsSetPagination
 from .models import Department, ExpenseCategory, FiscalYear, BudgetAllocation, Expense, Project
 from .serializers import DepartmentBudgetSerializer
-from .serializers_dashboard import CategoryAllocationSerializer, DashboardBudgetSummarySerializer, DepartmentBudgetStatusSerializer, ProjectStatusSerializer, TotalBudgetSerializer
+from .serializers_dashboard import CategoryAllocationSerializer, DashboardBudgetSummarySerializer, DepartmentBudgetStatusSerializer, ProjectStatusSerializer, SimpleProjectSerializer, TotalBudgetSerializer
 from rest_framework.permissions import IsAuthenticated
 from .serializers_dashboard import MonthlyBudgetActualSerializer
 from django.utils import timezone
@@ -488,6 +488,18 @@ class MonthlyBudgetActualViewSet(viewsets.ViewSet):
 
         return result
 
+@extend_schema(
+    summary="Get all projects (no filters)",
+    description="Returns a list of all projects in the system, with no filters or conditions.",
+    responses={200: SimpleProjectSerializer(many=True)},
+    tags=["Projects"]
+)
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def get_all_projects(request):
+    projects = Project.objects.all()
+    serializer = SimpleProjectSerializer(projects, many=True)
+    return Response(serializer.data)
 
 @extend_schema(
     summary="Project Table List",

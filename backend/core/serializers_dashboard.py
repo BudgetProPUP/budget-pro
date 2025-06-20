@@ -32,7 +32,13 @@ class MonthlyBudgetActualSerializer(serializers.Serializer):
     
     class Meta:
         fields = ['month', 'month_name', 'budget', 'actual']
-        
+
+class SimpleProjectSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Project
+        fields = '__all__'
+
+
 class ProjectStatusSerializer(serializers.Serializer):
     """
     Serializer for the project table in the dashboard.

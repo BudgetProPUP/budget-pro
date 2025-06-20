@@ -26,7 +26,7 @@ from drf_spectacular.utils import (
 from .models import (
     Account, AccountType, BudgetProposal, Department, ExpenseCategory,
     FiscalYear, BudgetAllocation, Expense, JournalEntry, JournalEntryLine,
-    ProposalComment, ProposalHistory, UserActivityLog
+    ProposalComment, ProposalHistory, UserActivityLog, Project
 )
 from .permissions import IsTrustedService
 from .pagination import StandardResultsSetPagination

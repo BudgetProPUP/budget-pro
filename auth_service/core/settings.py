@@ -14,59 +14,59 @@ SECRET_KEY = os.getenv('DJANGO_SECRET_KEY')
 DEBUG = os.getenv('DEBUG', 'False').lower() == 'true'
 
 
-LOGGING = {
-    'version': 1,
-    'disable_existing_loggers': False,
-    'formatters': {
-        'verbose': {
-            'format': '{levelname} {asctime} {module} {process:d} {thread:d} {message}',
-            'style': '{',
-        },
-        'simple': {
-            'format': '{levelname} {asctime} {name}: {message}', # Added name for clarity
-            'style': '{',
-        },
-    },
-    'handlers': {
-        'console': {
-            'level': 'DEBUG', # Capture DEBUG and above from all configured loggers
-            'class': 'logging.StreamHandler',
-            'formatter': 'simple',
-        },
-    },
-    'loggers': {
-        'django': {
-            'handlers': ['console'],
-            'level': os.getenv('DJANGO_LOG_LEVEL', 'INFO'), # Set to DEBUG for very verbose Django logs
-            'propagate': False,
-        },
-        'django.db.backends': {
-            'handlers': ['console'],
-            'level': 'DEBUG', # Set to DEBUG to see SQL queries, or INFO for connection issues
-            'propagate': False,
-        },
-        'users': { # Your app's logger (for views.py, models.py, etc. in 'users' app)
-            'handlers': ['console'],
-            'level': 'DEBUG', # Capture all DEBUG messages from your 'users' app
-            'propagate': False,
-        },
-        # You can add loggers for other apps if you have them
-        'gunicorn.error': { # Capture Gunicorn's error logs specifically
-            'handlers': ['console'],
-            'level': 'DEBUG',
-            'propagate': False,
-        },
-        # 'gunicorn.access': { # Gunicorn access logs can be noisy, enable if needed
-        # 'handlers': ['console'],
-        # 'level': 'DEBUG',
-        # 'propagate': False,
-        # }
-    },
-    'root': { # Catch-all for other logs
-        'handlers': ['console'],
-        'level': 'INFO', # Root logger level, set to DEBUG for maximum verbosity
-    },
-}
+# LOGGING = {
+#     'version': 1,
+#     'disable_existing_loggers': False,
+#     'formatters': {
+#         'verbose': {
+#             'format': '{levelname} {asctime} {module} {process:d} {thread:d} {message}',
+#             'style': '{',
+#         },
+#         'simple': {
+#             'format': '{levelname} {asctime} {name}: {message}', # Added name for clarity
+#             'style': '{',
+#         },
+#     },
+#     'handlers': {
+#         'console': {
+#             'level': 'DEBUG', # Capture DEBUG and above from all configured loggers
+#             'class': 'logging.StreamHandler',
+#             'formatter': 'simple',
+#         },
+#     },
+#     'loggers': {
+#         'django': {
+#             'handlers': ['console'],
+#             'level': os.getenv('DJANGO_LOG_LEVEL', 'INFO'), # Set to DEBUG for very verbose Django logs
+#             'propagate': False,
+#         },
+#         'django.db.backends': {
+#             'handlers': ['console'],
+#             'level': 'DEBUG', # Set to DEBUG to see SQL queries, or INFO for connection issues
+#             'propagate': False,
+#         },
+#         'users': { # Your app's logger (for views.py, models.py, etc. in 'users' app)
+#             'handlers': ['console'],
+#             'level': 'DEBUG', # Capture all DEBUG messages from your 'users' app
+#             'propagate': False,
+#         },
+#         # You can add loggers for other apps if you have them
+#         'gunicorn.error': { # Capture Gunicorn's error logs specifically
+#             'handlers': ['console'],
+#             'level': 'DEBUG',
+#             'propagate': False,
+#         },
+#         # 'gunicorn.access': { # Gunicorn access logs can be noisy, enable if needed
+#         # 'handlers': ['console'],
+#         # 'level': 'DEBUG',
+#         # 'propagate': False,
+#         # }
+#     },
+#     'root': { # Catch-all for other logs
+#         'handlers': ['console'],
+#         'level': 'INFO', # Root logger level, set to DEBUG for maximum verbosity
+#     },
+# }
 
 
 

@@ -98,7 +98,6 @@ class Command(BaseCommand):
 
     def create_departments(self): # No change needed here
         self.stdout.write('Creating departments...')
-        # ... (your existing department creation logic)
         departments_data = [
             {'name': 'Finance Department', 'code': 'FIN', 'description': 'Handles financial operations and budget management'},
             {'name': 'Human Resources', 'code': 'HR', 'description': 'Manages personnel, hiring and organizational development'},
@@ -117,7 +116,6 @@ class Command(BaseCommand):
 
     def create_account_types(self): # No change needed here
         self.stdout.write('Creating account types...')
-        # ... (your existing account type creation logic)
         account_types_data = [
             {'name': 'Asset', 'description': 'Resources owned by the company'},
             {'name': 'Liability', 'description': 'Obligations owed by the company'},
@@ -138,7 +136,6 @@ class Command(BaseCommand):
         parent_accounts_data = [
             {'code': '1000', 'name': 'Assets', 'account_type': acct_type_dict['Asset']},
             {'code': '5000', 'name': 'Expenses', 'account_type': acct_type_dict['Expense']},
-            # ... (other parent accounts as in your original)
         ]
         created_parents = []
         for acct_data in parent_accounts_data:
@@ -162,7 +159,6 @@ class Command(BaseCommand):
         child_accounts_data = [
             {'code': '1100', 'name': 'Cash and Cash Equivalents', 'account_type': acct_type_dict['Asset'], 'parent_account': parent_dict.get('1000')},
             {'code': '5100', 'name': 'Salaries and Wages', 'account_type': acct_type_dict['Expense'], 'parent_account': parent_dict.get('5000')},
-            # ... (other child accounts)
         ]
         created_children = []
         for acct_data in child_accounts_data:
@@ -186,7 +182,6 @@ class Command(BaseCommand):
 
     def create_fiscal_years(self): # No change needed here
         self.stdout.write('Creating fiscal years...')
-        # ... (your existing fiscal year creation logic)
         current_year = datetime.now().year
         fiscal_years_data = [
             {'name': f'FY {current_year-1}', 'start_date': datetime(current_year-1, 1, 1).date(), 'end_date': datetime(current_year-1, 12, 31).date(), 'is_active': False, 'is_locked': True},
@@ -202,13 +197,7 @@ class Command(BaseCommand):
 
     def create_expense_categories(self): # No change needed here
         self.stdout.write('Creating expense categories...')
-        # ... (your existing expense category creation logic) ...
-        # (Ensure this logic is self-contained and doesn't rely on User model directly)
-        # For brevity, assuming your hierarchical creation logic is correct.
-        # Just ensure no direct User FKs are attempted to be set.
-        # Example simplified:
         ExpenseCategory.objects.update_or_create(code='EXPENSE', defaults={'name': 'General Expenses', 'level': 1})
-        # ... add more as per your original seeder ...
         return list(ExpenseCategory.objects.all())
 
 
@@ -231,7 +220,6 @@ class Command(BaseCommand):
                     'performance_end_date': current_fy.start_date + timedelta(days=90*(j+1)-1),
                     'external_system_id': f"EXT-{department.code}-{current_year}-Q{j+1}-{i}",
                     'status': random.choice(['SUBMITTED', 'APPROVED']), # Assuming proposals are already approved or submitted
-                    # approved_by_name, rejected_by_name will be set by review actions if applicable
                 }
                 if proposal_data['status'] == 'APPROVED':
                     sim_approver = random.choice(SIMULATED_USERS)
@@ -246,15 +234,17 @@ class Command(BaseCommand):
         self.stdout.write(self.style.SUCCESS(f'Created/Updated {len(proposals)} budget proposals'))
         return proposals
 
-    def create_budget_proposal_items(self, proposals, accounts): # No change needed here
+    def create_budget_proposal_items(self, proposals, accounts): # IDEMPOTENT
         self.stdout.write('Creating budget proposal items...')
-        # ... (your existing item creation logic, it uses proposal and account which are local) ...
         items_created = 0
         expense_accounts = [acc for acc in accounts if acc.account_type.name == 'Expense'] or accounts
         for proposal in proposals:
+            if proposal.items.exists():                                             # IDEMPOTENCY: Skip if items already exist for this proposal.
+                continue
+
             for _ in range(random.randint(1,3)):
                 account = random.choice(expense_accounts)
-                BudgetProposalItem.objects.create(
+                BudgetProposalItem.objects.create(                                  # This is now safe due to the check above.
                     proposal=proposal, cost_element=f"CE-{random.randint(100,999)}",
                     description=f"{account.name} for {proposal.title[:20]}",
                     estimated_cost=Decimal(random.randint(1000, 50000)),
@@ -266,7 +256,6 @@ class Command(BaseCommand):
 
     def create_projects(self, departments, proposals): # No change needed here
         self.stdout.write('Creating projects...')
-        # ... (your existing project creation logic, it uses department and proposal which are local) ...
         projects = []
         for proposal in proposals:
             if proposal.status == 'APPROVED': # Only create projects for approved proposals
@@ -312,8 +301,12 @@ class Command(BaseCommand):
         self.stdout.write(self.style.SUCCESS(f'Created/Updated {len(allocations)} budget allocations'))
         return allocations
 
-    def create_budget_transfers(self, fiscal_years, allocations): # MODIFIED: removed users param
+    def create_budget_transfers(self, fiscal_years, allocations): # IDEMPOTENT
         self.stdout.write('Creating budget transfers...')
+        if BudgetTransfer.objects.exists():                                         # IDEMPOTENCY: Skip if any transfers exist.
+            self.stdout.write(self.style.SUCCESS('Budget transfers already exist, skipping creation.'))
+            return list(BudgetTransfer.objects.all())
+        
         transfers = []
         if len(allocations) < 2: return []
         for _ in range(min(3, len(allocations) // 2)):
@@ -334,41 +327,44 @@ class Command(BaseCommand):
                 transfer_data['approved_by_user_id'] = sim_approver['id']
                 transfer_data['approved_by_username'] = sim_approver['username']
                 transfer_data['approval_date'] = timezone.now()
-            # ... (similar for rejected_by if needed) ...
             transfer = BudgetTransfer.objects.create(**transfer_data)
             transfers.append(transfer)
         self.stdout.write(self.style.SUCCESS(f'Created {len(transfers)} budget transfers'))
         return transfers
 
-    def create_journal_entries(self): # MODIFIED: removed users param
+    def create_journal_entries(self): # IDEMPOTENT
         self.stdout.write('Creating journal entries...')
         entries = []
-        for _ in range(10):
+        for i in range(10):
             sim_creator = random.choice(SIMULATED_USERS)
-            entry = JournalEntry.objects.create(
-                category=random.choice(['EXPENSES', 'ASSETS']),
-                description=f"JE for {sim_creator['department_code']}",
-                date=timezone.now() - timedelta(days=random.randint(1, 90)),
-                total_amount=Decimal(0), # Will be updated by lines
-                status='POSTED',
-                created_by_user_id=sim_creator['id'],         # UPDATED
-                created_by_username=sim_creator['username']  # UPDATED
+            deterministic_desc = f"JE for {sim_creator['department_code']} - Seeded Entry #{i+1}" # IDEMPOTENCY: Create a stable key.
+            entry, _ = JournalEntry.objects.get_or_create(
+                description=deterministic_desc,                                     # IDEMPOTENCY: Use the stable key.
+                defaults={
+                    'category': random.choice(['EXPENSES', 'ASSETS']),
+                    'date': timezone.now() - timedelta(days=random.randint(1, 90)),
+                    'total_amount': Decimal(0), # Will be updated by lines
+                    'status': 'POSTED',
+                    'created_by_user_id': sim_creator['id'],
+                    'created_by_username': sim_creator['username']
+                }
             )
             entries.append(entry)
-        self.stdout.write(self.style.SUCCESS(f'Created {len(entries)} journal entries'))
+        self.stdout.write(self.style.SUCCESS(f'Created/Updated {len(entries)} journal entries'))
         return entries
 
-    def create_journal_entry_lines(self, journal_entries, accounts): # No change needed here
+    def create_journal_entry_lines(self, journal_entries, accounts): # IDEMPOTENT
         self.stdout.write('Creating journal entry lines...')
-        # ... (your existing logic is fine as it uses local journal_entries and accounts) ...
         if not accounts: return
         for entry in journal_entries:
+            if entry.lines.exists():                                                # IDEMPOTENCY: Skip if lines already exist for this entry.
+                continue
+
             debit_total = Decimal(0)
             credit_total = Decimal(0)
             num_lines = random.randint(2,4)
             for i in range(num_lines):
                 amount = Decimal(random.randint(100, 10000))
-                # Try to balance debits and credits roughly for the last line
                 if i == num_lines -1 : # last line
                     if debit_total > credit_total:
                         tran_type = 'CREDIT'
@@ -381,7 +377,7 @@ class Command(BaseCommand):
                 else:
                     tran_type = random.choice(['DEBIT', 'CREDIT'])
 
-                if amount <=0: amount = Decimal(random.randint(100,1000)) # ensure positive amount
+                if amount <=0: amount = Decimal(random.randint(100,1000))
 
                 JournalEntryLine.objects.create(
                     journal_entry=entry, account=random.choice(accounts),
@@ -391,144 +387,136 @@ class Command(BaseCommand):
                 )
                 if tran_type == 'DEBIT': debit_total += amount
                 else: credit_total += amount
-            entry.total_amount = debit_total # In accounting, total of a JE is usually sum of debits (or credits)
+            entry.total_amount = debit_total
             entry.save()
         self.stdout.write(self.style.SUCCESS(f'Added lines to {len(journal_entries)} journal entries'))
 
 
-    def create_expenses(self, departments, accounts, budget_allocations, expense_categories):
+    def create_expenses(self, departments, accounts, budget_allocations, expense_categories): # IDEMPOTENT
         self.stdout.write('Creating expenses...')
         expenses_list = []
         if not budget_allocations:
             self.stdout.write(self.style.WARNING("No budget allocations to create expenses for. Skipping expense creation."))
             return []
-        if not SIMULATED_USERS: # Should not happen if SIMULATED_USERS is defined
+        if not SIMULATED_USERS:
             self.stdout.write(self.style.ERROR("SIMULATED_USERS list is empty. Cannot create expenses."))
             return []
 
         for i in range(50): # Create 50 expenses
             alloc = random.choice(budget_allocations)
-            
-            # Find users in the same department as the allocation
             department_users = [u for u in SIMULATED_USERS if u['department_code'] == alloc.department.code]
-            
-            sim_submitter = None
-            if department_users:
-                # If users exist for that department, pick one randomly
-                sim_submitter = random.choice(department_users)
-            else:
-                # Fallback: If no user is found for that specific department, pick any random user
-                self.stdout.write(self.style.WARNING(
-                    f"No simulated user found for department {alloc.department.code}. Picking a random user for expense submission."
-                ))
-                sim_submitter = random.choice(SIMULATED_USERS) 
-                # Or use a specific default user:
-                # sim_submitter = get_simulated_user(username='admin_auth') # Example default
-
-            if not sim_submitter: # Should not happen if SIMULATED_USERS is not empty
-                self.stdout.write(self.style.ERROR("Could not select a simulated submitter. Skipping this expense."))
-                continue
+            sim_submitter = random.choice(department_users) if department_users else random.choice(SIMULATED_USERS)
 
             status = random.choice(['SUBMITTED', 'APPROVED', 'REJECTED', 'DRAFT'])
-            expense_data = {
-                'project': alloc.project,
-                'budget_allocation': alloc,
-                'account': alloc.account,
-                'department': alloc.department,
+            deterministic_desc = f"Expense for {alloc.project.name[:20]} - Seeded Item #{i+1}" # IDEMPOTENCY: Create a stable key.
+            
+            defaults = {
+                'budget_allocation': alloc, 'account': alloc.account, 'department': alloc.department,
                 'date': timezone.now() - timedelta(days=random.randint(1, 60)),
                 'amount': Decimal(random.randint(100, int(alloc.amount / 20) if alloc.amount > 2000 else 100)),
-                'description': f"Expense for {alloc.project.name[:20]}",
                 'vendor': random.choice(['Vendor X', 'Vendor Y', 'Vendor Z']),
-                'submitted_by_user_id': sim_submitter['id'],         # UPDATED
-                'submitted_by_username': sim_submitter['username'], # UPDATED
+                'submitted_by_user_id': sim_submitter['id'],
+                'submitted_by_username': sim_submitter['username'],
                 'status': status,
                 'category': random.choice(expense_categories) if expense_categories else None
             }
             if status == 'APPROVED':
                 sim_approver = random.choice([u for u in SIMULATED_USERS if u['username'] in ['admin_auth', 'finance_head_auth']])
-                expense_data['approved_by_user_id'] = sim_approver['id']     # UPDATED
-                expense_data['approved_by_username'] = sim_approver['username'] # UPDATED
-                expense_data['approved_at'] = timezone.now()
+                defaults['approved_by_user_id'] = sim_approver['id']
+                defaults['approved_by_username'] = sim_approver['username']
+                defaults['approved_at'] = timezone.now()
             
-            expense_obj = Expense.objects.create(**expense_data) # Use a different variable name
+            expense_obj, _ = Expense.objects.get_or_create(
+                project=alloc.project,                                              # IDEMPOTENCY: Use a compound key.
+                description=deterministic_desc,                                     # IDEMPOTENCY: Use a compound key.
+                defaults=defaults
+            )
             expenses_list.append(expense_obj)
-        self.stdout.write(self.style.SUCCESS(f'Created {len(expenses_list)} expenses'))
+        self.stdout.write(self.style.SUCCESS(f'Created/Updated {len(expenses_list)} expenses'))
         return expenses_list
 
-    # create_documents needs to be adapted if you uncomment it.
-    # def create_documents(self, budget_proposals, expenses, departments):
-    #     sim_uploader = random.choice(SIMULATED_USERS)
-    #     # ... use sim_uploader['id'] and sim_uploader['username'] for uploaded_by_user_id etc.
-
-    def create_proposal_history(self, proposals): # MODIFIED: removed users param
+    def create_proposal_history(self, proposals): # IDEMPOTENT
         self.stdout.write('Creating proposal history...')
-        actions = []
         for proposal in proposals:
             sim_actor = random.choice(SIMULATED_USERS)
-            # Create a few history entries for each proposal
-            ProposalHistory.objects.create(
-                proposal=proposal, action='SUBMITTED', action_by_name=proposal.submitted_by_name or sim_actor['full_name'],
-                new_status='SUBMITTED', comments="Initial submission."
+            ProposalHistory.objects.get_or_create(                                  # IDEMPOTENCY: Use get_or_create with a unique key.
+                proposal=proposal, action='SUBMITTED',
+                defaults={
+                    'action_by_name': proposal.submitted_by_name or sim_actor['full_name'],
+                    'new_status': 'SUBMITTED', 'comments': "Initial submission."
+                }
             )
             if proposal.status in ['APPROVED', 'REJECTED']:
-                ProposalHistory.objects.create(
-                    proposal=proposal, action=proposal.status, action_by_name=proposal.approved_by_name or proposal.rejected_by_name or sim_actor['full_name'],
-                    previous_status='SUBMITTED', new_status=proposal.status, comments=f"Proposal {proposal.status.lower()}."
+                ProposalHistory.objects.get_or_create(                              # IDEMPOTENCY: Use get_or_create with a unique key.
+                    proposal=proposal, action=proposal.status,
+                    defaults={
+                        'action_by_name': proposal.approved_by_name or proposal.rejected_by_name or sim_actor['full_name'],
+                        'previous_status': 'SUBMITTED', 'new_status': proposal.status,
+                        'comments': f"Proposal {proposal.status.lower()}."
+                    }
                 )
         self.stdout.write(self.style.SUCCESS(f'Created proposal history entries for {len(proposals)} proposals.'))
 
 
-    def create_proposal_comments(self, proposals): # MODIFIED: removed users param
+    def create_proposal_comments(self, proposals): # IDEMPOTENT
         self.stdout.write('Creating proposal comments...')
-        comments = []
+        comments_created = 0
         for proposal in proposals:
+            if proposal.comments.exists():                                          # IDEMPOTENCY: Skip if comments already exist.
+                continue
+                
             for _ in range(random.randint(0, 2)):
                 sim_commenter = random.choice(SIMULATED_USERS)
                 ProposalComment.objects.create(
                     proposal=proposal,
-                    user_id=sim_commenter['id'],             # UPDATED
-                    user_username=sim_commenter['username'], # UPDATED
+                    user_id=sim_commenter['id'],
+                    user_username=sim_commenter['username'],
                     comment=random.choice(["Looks good.", "Needs clarification on item X.", "Consider alternatives."])
                 )
-                comments.append(proposal) # just to count
-        self.stdout.write(self.style.SUCCESS(f'Created comments for {len(comments)} proposals.'))
+                comments_created += 1
+        self.stdout.write(self.style.SUCCESS(f'Created {comments_created} new proposal comments.'))
 
 
-    def create_risk_metrics(self, projects): # MODIFIED: removed users param
+    def create_risk_metrics(self, projects): # IDEMPOTENT
         self.stdout.write('Creating risk metrics...')
         metrics = []
         if not projects: return
         for project in projects:
             sim_updater = random.choice(SIMULATED_USERS)
             for risk_type in ['BUDGET', 'TIMELINE']:
-                RiskMetric.objects.create(
+                RiskMetric.objects.update_or_create(                                # IDEMPOTENCY: Use update_or_create with the model's unique_together key.
                     project=project, risk_type=risk_type,
-                    risk_level=random.randint(20, 80),
-                    description=f"{risk_type} assessment details.",
-                    updated_by_user_id=sim_updater['id'],         # UPDATED
-                    updated_by_username=sim_updater['username']  # UPDATED
+                    defaults={
+                        'risk_level': random.randint(20, 80),
+                        'description': f"{risk_type} assessment details.",
+                        'updated_by_user_id': sim_updater['id'],
+                        'updated_by_username': sim_updater['username']
+                    }
                 )
-                metrics.append(project) # just to count
-        self.stdout.write(self.style.SUCCESS(f'Created risk metrics for {len(metrics)} projects.'))
+                metrics.append(project)
+        self.stdout.write(self.style.SUCCESS(f'Created/Updated risk metrics for {len(projects)} projects.'))
 
 
-    def create_dashboard_metrics(self, fiscal_years, departments): # No change needed here
+    def create_dashboard_metrics(self, fiscal_years, departments): # IDEMPOTENT
         self.stdout.write('Creating dashboard metrics...')
-        # ... (your existing logic, it doesn't directly use User model) ...
-        # (Ensure this logic is self-contained and doesn't rely on User model directly)
         metrics = []
         if not fiscal_years or not departments: return
         current_fy = next((fy for fy in fiscal_years if fy.is_active), fiscal_years[0])
         for dept in departments:
-            DashboardMetric.objects.create(
-                metric_type='BUDGET_UTILIZATION', value=random.uniform(50,90), department=dept, fiscal_year=current_fy, status='NORMAL'
+            DashboardMetric.objects.update_or_create(                               # IDEMPOTENCY: Use update_or_create with a logical unique key.
+                metric_type='BUDGET_UTILIZATION', department=dept, fiscal_year=current_fy,
+                defaults={'value': random.uniform(50,90), 'status': 'NORMAL'}
             )
             metrics.append(dept)
-        self.stdout.write(self.style.SUCCESS(f'Created dashboard metrics for {len(metrics)} departments.'))
+        self.stdout.write(self.style.SUCCESS(f'Created/Updated dashboard metrics for {len(metrics)} departments.'))
 
 
-    def create_user_activity_logs(self): # MODIFIED: removed users param, uses SIMULATED_USERS
+    def create_user_activity_logs(self): # IDEMPOTENT
         self.stdout.write('Creating budget_service activity logs...')
+        if UserActivityLog.objects.exists():                                        # IDEMPOTENCY: Skip if any logs exist.
+            self.stdout.write(self.style.SUCCESS('User activity logs already exist, skipping creation.'))
+            return
+            
         logs = []
         log_actions_budget = [
             ('PROPOSAL_CREATE', 'SUCCESS'), ('PROPOSAL_UPDATE', 'SUCCESS'),
@@ -539,12 +527,12 @@ class Command(BaseCommand):
             sim_user = random.choice(SIMULATED_USERS)
             log_type, status = random.choice(log_actions_budget)
             UserActivityLog.objects.create(
-                user_id=sim_user['id'],                 # UPDATED
-                user_username=sim_user['username'],     # UPDATED
+                user_id=sim_user['id'],
+                user_username=sim_user['username'],
                 log_type=log_type,
                 action=f"{log_type} action performed in budget_service by {sim_user['username']}",
                 status=status,
-                details={'ip_address': f"10.0.0.{random.randint(1,100)}"} # Example detail
+                details={'ip_address': f"10.0.0.{random.randint(1,100)}"}
             )
-            logs.append(sim_user) # Just to count
+            logs.append(sim_user)
         self.stdout.write(self.style.SUCCESS(f'Created {len(logs)} budget_service activity logs.'))

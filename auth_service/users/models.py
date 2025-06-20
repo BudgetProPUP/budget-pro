@@ -28,23 +28,21 @@ class User(AbstractBaseUser, PermissionsMixin):
     ROLE_CHOICES = [
         ('ADMIN', 'Administrator'),
         ('FINANCE_HEAD', 'Finance Head'),
-        # Add other roles if they are purely for identity/auth-level checks
-        # Business-specific roles might be better managed by the business logic services
+        ('GENERAL_USER', 'General User'),                                    # MODIFIED: Added a general role to accommodate your seeder data.
     ]
 
     email = models.EmailField(unique=True)
     username = models.CharField(max_length=150, unique=True)
-    first_name = models.CharField(max_length=100, blank=True) # Allow blank if not always available
-    last_name = models.CharField(max_length=100, blank=True)  # Allow blank
-    role = models.CharField(max_length=20, choices=ROLE_CHOICES) # Roles critical for auth
+    first_name = models.CharField(max_length=100, blank=True)
+    last_name = models.CharField(max_length=100, blank=True)
+    role = models.CharField(max_length=20, choices=ROLE_CHOICES)
 
-    # Simplified department info - Auth service is not master of Department data
     department_id = models.IntegerField(null=True, blank=True)
     department_name = models.CharField(max_length=100, null=True, blank=True)
 
     phone_number = models.CharField(max_length=20, unique=True, null=True, blank=True)
     is_active = models.BooleanField(default=True)
-    is_staff = models.BooleanField(default=False) # For Django admin access
+    is_staff = models.BooleanField(default=False)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
     last_login = models.DateTimeField(null=True, blank=True)
@@ -78,7 +76,6 @@ class LoginAttempt(models.Model):
 
 
 # Copied UserActivityLog model from core/models.py
-# This will log auth-specific activities within the auth service
 class UserActivityLog(models.Model):
     LOG_TYPE_CHOICES = [
         ('LOGIN', 'Login'),
@@ -89,19 +86,21 @@ class UserActivityLog(models.Model):
         ('TOKEN_REFRESH', 'Token Refresh'),
         ('PROFILE_VIEW', 'Profile View'),
         ('PROFILE_UPDATE', 'Profile Update'),
-        ('REGISTER', 'User Registration'), # If you add registration
+        ('USER_MANAGEMENT', 'User Management'),                              # MODIFIED: Added a more generic type for admin actions like user creation.
+        ('REGISTER', 'User Registration'),
         ('ERROR', 'Error'),
     ]
     STATUS_CHOICES = [
         ('SUCCESS', 'Success'),
         ('FAILED', 'Failed'),
+        ('ATTEMPTED', 'Attempted'),                                          # MODIFIED: Added status to match seeder data for password resets.
     ]
-    user = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True) # SET_NULL if user can be deleted
+    user = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True)
     timestamp = models.DateTimeField(auto_now_add=True)
     log_type = models.CharField(max_length=30, choices=LOG_TYPE_CHOICES)
-    action = models.CharField(max_length=255) # Brief description
+    action = models.CharField(max_length=255)
     status = models.CharField(max_length=20, choices=STATUS_CHOICES)
-    details = models.JSONField(null=True, blank=True) # e.g., IP address, user agent
+    details = models.JSONField(null=True, blank=True)
 
     def __str__(self):
         user_str = self.user.username if self.user else "System/Unknown"

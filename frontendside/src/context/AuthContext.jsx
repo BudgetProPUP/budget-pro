@@ -9,9 +9,11 @@ export const AuthProvider = ({ children }) => {
   const [accessToken, setAccessToken] = useState(localStorage.getItem('accessToken'));
   const navigate = useNavigate();
 
+  const viteAuthApiUrl = import.meta.env.VITE_AUTH_API_URL;
+
   // Configure Axios with base URL and interceptors
   const api = axios.create({
-    baseURL: 'http://localhost:8000/api/',
+    baseURL: viteAuthApiUrl,
     headers: {
       'Content-Type': 'application/json',
     },
@@ -37,7 +39,7 @@ export const AuthProvider = ({ children }) => {
         originalRequest._retry = true;
         try {
           const refreshToken = localStorage.getItem('refreshToken');
-          const response = await axios.post('http://localhost:8000/api/auth/token/refresh/', {
+          const response = await axios.post(`${viteAuthApiUrl}/auth/token/refresh/`, {
             refresh: refreshToken,
           });
           const newAccessToken = response.data.access;

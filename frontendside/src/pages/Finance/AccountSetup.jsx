@@ -1,15 +1,14 @@
 import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { Search, ChevronDown, ChevronLeft, ChevronRight, ArrowLeft, User, Mail, Briefcase, LogOut, Loader2 } from 'lucide-react';
+import { Search, ChevronDown, ChevronLeft, ChevronRight, ArrowLeft, User, Mail, Briefcase, LogOut } from 'lucide-react';
 import LOGOMAP from '../../assets/MAP.jpg';
-import axios from 'axios';
-import PropTypes from 'prop-types';
 
-// CSS Import
-import '../../components/Styles/Layout.css';
-import '../../components/Header.css';
-import '../../components/Tables.css';
+// CSS Imports (organized by component)
+import '../../components/Styles/Layout.css';       // Main layout styles
+import '../../components/Header.css';              // Header components
+import '../../components/Tables.css';              // Table styles
 
+                
 const AccountSetup = () => {
   // State management
   const [showBudgetDropdown, setShowBudgetDropdown] = useState(false);
@@ -22,23 +21,9 @@ const AccountSetup = () => {
   const [selectedAccountType, setSelectedAccountType] = useState('All');
   const [selectedStatus, setSelectedStatus] = useState('All');
   const [searchQuery, setSearchQuery] = useState('');
-  const [accounts, setAccounts] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
-  const [totalCount, setTotalCount] = useState(0);
-  const [fiscalYears, setFiscalYears] = useState([]);
-  const [selectedFiscalYear, setSelectedFiscalYear] = useState(1001);
-  const [isInitialLoad, setIsInitialLoad] = useState(true);
-  const [isRefreshing, setIsRefreshing] = useState(false);
-  const [apiCache, setApiCache] = useState({});
-  
   const itemsPerPage = 5;
   const navigate = useNavigate();
-
-  // API Configuration
-  const API_BASE_URL = 'https://budget-gro-production.up.railway.app/api/accounts/setup/';
-  const FISCAL_YEARS_URL = 'https://budget-gro-production.us-reliway.app/api/fiscal-years/';
-
+  
   // User profile data
   const userProfile = {
     name: "John Doe",
@@ -46,128 +31,22 @@ const AccountSetup = () => {
     role: "Finance Head",
     avatar: "https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?ixlib=rb-1.2.1&auto=format&fit=facearea&facepad=2&w=256&h=256&q=80"
   };
-
+  
   // Filter options
   const accountTypes = ['All', 'Assets', 'Liabilities', 'Expenses'];
   const statusOptions = ['All', 'Active', 'Inactive'];
 
-  // Helper function to validate API response structure
-  const validateApiResponse = (data) => {
-    if (!data || typeof data !== 'object') return false;
-    if (!Array.isArray(data.results)) return false;
-    if (typeof data.count !== 'number') return false;
-    return true;
-  };
-
-  // API request with retry mechanism
-  const fetchWithRetry = async (url, options, retries = 3) => {
-    try {
-      const response = await axios.get(url, {
-        ...options,
-        timeout: 10000 // 10 seconds timeout
-      });
-      return response;
-    } catch (err) {
-      if (retries > 0 && err.response?.status >= 500) {
-        await new Promise(resolve => setTimeout(resolve, 1000));
-        return fetchWithRetry(url, options, retries - 1);
-      }
-      throw err;
-    }
-  };
-
-const checkNetworkConnection = async () => {
-  try {
-    await axios.get('https://www.google.com', { timeout: 3000 });
-    return true;
-  } catch {
-    return false;
-  }
-};
-
-
-  // Fetch fiscal years from API
-  const fetchFiscalYears = async () => {
-    try {
-      const token = localStorage.getItem('authToken');
-      const response = await fetchWithRetry(FISCAL_YEARS_URL, {
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Accept': 'application/json'
-        }
-      });
-      setFiscalYears(response.data.results);
-    } catch (err) {
-      console.error('Error fetching fiscal years:', err);
-    }
-  };
-
-// Fetch accounts from API
-const fetchAccounts = async () => {
-  setLoading(true);
-  setError(null);
-  try {
-    const token = localStorage.getItem('authToken');
-    const response = await axios.get(API_BASE_URL, {
-      params: {
-        fiscal_year_id: selectedFiscalYear,
-        page: currentPage,
-        page_size: itemsPerPage,
-        ...(searchQuery && { search: searchQuery }),
-        ...(selectedAccountType !== 'All' && { type: selectedAccountType.toLowerCase() }),
-        ...(selectedStatus !== 'All' && { status: selectedStatus.toLowerCase() })
-      },
-      headers: {
-        'Authorization': `Bearer ${token}`,
-        'Content-Type': 'application/json',
-        'Accept': 'application/json'
-      },
-      withCredentials: true
-    });
-
-    // Keep your existing response handling:
-    const transformedAccounts = response.data.results.map(account => ({
-      id: account.id,
-      code: account.code || 'N/A',
-      account_type: account.account_type || 'Unknown',
-      name: account.name || 'No description',
-      accountlabel: account.accountlabel || '',
-      is_active: account.is_active || false,
-      is_accomplished: account.is_accomplished || false,
-      accomplishment_date: account.accomplishment_date || '-'
-    }));
-
-    setAccounts(transformedAccounts);
-    setTotalCount(response.data.count);
-
-  } catch (err) {
-    if (err.response) {
-      if (err.response.status === 401) {
-        setError('Authentication required. Please login again.');
-        handleLogout();
-      } else {
-        setError(`Server error: ${err.response.status} - ${err.response.data?.detail || 'Unknown error'}`);
-      }
-    } else if (err.request) {
-      console.error('Network error details:', err.message);
-      setError('Cannot connect to server. Please check your internet connection and try again.');
-    } else {
-      setError(err.message || 'Failed to fetch accounts');
-    }
-  } finally {
-    setLoading(false);
-    setIsRefreshing(false);
-    setIsInitialLoad(false);
-  }
-};
-  // Fetch data on component mount and when dependencies change
-  useEffect(() => {
-    fetchFiscalYears();
-  }, []);
-
-  useEffect(() => {
-    fetchAccounts();
-  }, [currentPage, searchQuery, selectedAccountType, selectedStatus, selectedFiscalYear]);
+  // Original account data with your previous structure
+  const [accounts] = useState([
+    { id: 1, code: '1001', type: 'Assets', description: 'Accounts Receivable', active: true, accomplished: false, date: '-' },
+    { id: 2, code: '1002', type: 'Assets', description: 'Cash on Hand', active: true, accomplished: false, date: '-' },
+    { id: 3, code: '2000', type: 'Liabilities', description: 'Accounts Payable', active: true, accomplished: false, date: '-' },
+    { id: 4, code: '3014', type: 'Assets', description: 'Office Equipment', active: true, accomplished: true, date: '05-11-25' },
+    { id: 5, code: '5210', type: 'Expenses', description: 'Rent Expense', active: false, accomplished: true, date: '04-24-25' },
+    { id: 6, code: '8200', type: 'Expenses', description: 'Rent Expense', active: false, accomplished: true, date: '04-24-25' },
+    { id: 7, code: '8300', type: 'Expenses', description: 'Utilities Expense', active: true, accomplished: false, date: '-' },
+    { id: 8, code: '8400', type: 'Expenses', description: 'Supplies Expense', active: true, accomplished: false, date: '-' },
+  ]);
 
   // Close dropdowns when clicking outside
   useEffect(() => {
@@ -182,6 +61,59 @@ const fetchAccounts = async () => {
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
+
+  // Filter accounts based on selected filters and search query
+  const filteredAccounts = accounts.filter(account => {
+    const matchesType = selectedAccountType === 'All' || account.type === selectedAccountType;
+    const matchesStatus = selectedStatus === 'All' || 
+                         (selectedStatus === 'Active' && account.active) || 
+                         (selectedStatus === 'Inactive' && !account.active);
+    const matchesSearch = searchQuery === '' || 
+                         account.code.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                         account.description.toLowerCase().includes(searchQuery.toLowerCase());
+    
+    return matchesType && matchesStatus && matchesSearch;
+  });
+
+  // Pagination logic
+  const indexOfLastItem = currentPage * itemsPerPage;
+  const indexOfFirstItem = indexOfLastItem - itemsPerPage;
+  const currentAccounts = filteredAccounts.slice(indexOfFirstItem, indexOfLastItem);
+  const totalPages = Math.ceil(filteredAccounts.length / itemsPerPage);
+
+  // Navigation functions
+  const paginate = (pageNumber) => setCurrentPage(pageNumber);
+  const nextPage = () => setCurrentPage(prev => Math.min(prev + 1, totalPages));
+  const prevPage = () => setCurrentPage(prev => Math.max(prev - 1, 1));
+
+  // Toggle functions
+  const toggleBudgetDropdown = () => {
+    setShowBudgetDropdown(!showBudgetDropdown);
+    setShowExpenseDropdown(false);
+    setShowProfilePopup(false);
+  };
+
+  const toggleExpenseDropdown = () => {
+    setShowExpenseDropdown(!showExpenseDropdown);
+    setShowBudgetDropdown(false);
+    setShowProfilePopup(false);
+  };
+
+  const toggleProfilePopup = () => {
+    setShowProfilePopup(!showProfilePopup);
+    setShowBudgetDropdown(false);
+    setShowExpenseDropdown(false);
+  };
+
+  const toggleAccountTypeFilter = () => {
+    setShowAccountTypeFilter(!showAccountTypeFilter);
+    setShowStatusFilter(false);
+  };
+
+  const toggleStatusFilter = () => {
+    setShowStatusFilter(!showStatusFilter);
+    setShowAccountTypeFilter(false);
+  };
 
   // Handler functions
   const handleNavigate = (path) => {
@@ -221,101 +153,23 @@ const fetchAccounts = async () => {
     setCurrentPage(1);
   };
 
-  const handleFiscalYearChange = (year) => {
-    setSelectedFiscalYear(year);
-    setCurrentPage(1);
-  };
-
-  // Pagination functions
-  const totalPages = Math.ceil(totalCount / itemsPerPage);
-  const paginate = (pageNumber) => setCurrentPage(pageNumber);
-  const nextPage = () => setCurrentPage(prev => Math.min(prev + 1, totalPages));
-  const prevPage = () => setCurrentPage(prev => Math.max(prev - 1, 1));
-
-  // Toggle functions
-  const toggleBudgetDropdown = () => {
-    setShowBudgetDropdown(!showBudgetDropdown);
-    setShowExpenseDropdown(false);
-    setShowProfilePopup(false);
-  };
-
-  const toggleExpenseDropdown = () => {
-    setShowExpenseDropdown(!showExpenseDropdown);
-    setShowBudgetDropdown(false);
-    setShowProfilePopup(false);
-  };
-
-  const toggleProfilePopup = () => {
-    setShowProfilePopup(!showProfilePopup);
-    setShowBudgetDropdown(false);
-    setShowExpenseDropdown(false);
-  };
-
-  const toggleAccountTypeFilter = () => {
-    setShowAccountTypeFilter(!showAccountTypeFilter);
-    setShowStatusFilter(false);
-  };
-
-  const toggleStatusFilter = () => {
-    setShowStatusFilter(!showStatusFilter);
-    setShowAccountTypeFilter(false);
-  };
-
-  if (loading && accounts.length === 0) {
-    return (
-      <div className="app-container">
-        <header className="app-header">
-          {/* Header content remains the same */}
-        </header>
-        <div className="page">
-          <div className="container">
-            <div className="loading-overlay">
-              <Loader2 className="spinner" size={48} />
-              <p>Loading account data...</p>
-            </div>
-          </div>
-        </div>
-      </div>
-    );
-  }
-
-  if (error) {
-    return (
-      <div className="app-container">
-        <header className="app-header">
-          {/* Header content remains the same */}
-        </header>
-        <div className="page">
-          <div className="container">
-            <div className="error-container">
-              <h3>Error Loading Accounts</h3>
-              <p className="error-message">{error}</p>
-              <div className="error-actions">
-                <button onClick={fetchAccounts} className="retry-btn">
-                  Retry
-                </button>
-                <button onClick={handleLogout} className="logout-btn">
-                  Logout
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-    );
-  }
-
   return (
     <div className="app-container">
       {/* Header Section */}
       <header className="app-header">
         <div className="header-left">
           <div className="app-logo">
-            <img src={LOGOMAP} alt="BudgetPro Logo" className="logo-image" />
+            <img 
+              src={LOGOMAP} 
+              alt="BudgetPro Logo" 
+              className="logo-image" 
+            />
           </div>
           
           <nav className="nav-menu">
-            <Link to="/dashboard" className="nav-item">Dashboard</Link>
+            <Link to="/dashboard" className="nav-item">
+              Dashboard
+            </Link>
 
             {/* Budget Dropdown */}
             <div className="nav-dropdown">
@@ -327,22 +181,40 @@ const fetchAccounts = async () => {
               </div>
               {showBudgetDropdown && (
                 <div className="dropdown-menu">
-                  <div className="dropdown-item" onClick={() => handleNavigate('/finance/budget-proposal')}>
+                  <div 
+                    className="dropdown-item" 
+                    onClick={() => handleNavigate('/finance/budget-proposal')}
+                  >
                     Budget Proposal
                   </div>
-                  <div className="dropdown-item" onClick={() => handleNavigate('/finance/proposal-history')}>
+                  <div 
+                    className="dropdown-item" 
+                    onClick={() => handleNavigate('/finance/proposal-history')}
+                  >
                     Proposal History
                   </div>
-                  <div className="dropdown-item" onClick={() => handleNavigate('/finance/account-setup')}>
+                  <div 
+                    className="dropdown-item" 
+                    onClick={() => handleNavigate('/finance/account-setup')}
+                  >
                     Account Setup
                   </div>
-                  <div className="dropdown-item" onClick={() => handleNavigate('/finance/ledger-view')}>
+                  <div 
+                    className="dropdown-item" 
+                    onClick={() => handleNavigate('/finance/ledger-view')}
+                  >
                     Ledger View
                   </div>
-                  <div className="dropdown-item" onClick={() => handleNavigate('/finance/journal-entry')}>
+                  <div 
+                    className="dropdown-item" 
+                    onClick={() => handleNavigate('/finance/journal-entry')}
+                  >
                     Journal Entries
                   </div>
-                  <div className="dropdown-item" onClick={() => handleNavigate('/finance/budget-variance-report')}>
+                  <div 
+                    className="dropdown-item" 
+                    onClick={() => handleNavigate('/finance/budget-variance-report')}
+                  >
                     Budget Variance Report
                   </div>
                 </div>
@@ -359,10 +231,16 @@ const fetchAccounts = async () => {
               </div>
               {showExpenseDropdown && (
                 <div className="dropdown-menu">
-                  <div className="dropdown-item" onClick={() => handleNavigate('/finance/expense-tracking')}>
+                  <div 
+                    className="dropdown-item" 
+                    onClick={() => handleNavigate('/finance/expense-tracking')}
+                  >
                     Expense Tracking
                   </div>
-                  <div className="dropdown-item" onClick={() => handleNavigate('/finance/expense-history')}>
+                  <div 
+                    className="dropdown-item" 
+                    onClick={() => handleNavigate('/finance/expense-history')}
+                  >
                     Expense History
                   </div>
                 </div>
@@ -375,13 +253,20 @@ const fetchAccounts = async () => {
         <div className="header-right">
           <div className="profile-container">
             <div className="user-avatar" onClick={toggleProfilePopup}>
-              <img src={userProfile.avatar} alt="User avatar" className="avatar-img" />
+              <img 
+                src={userProfile.avatar} 
+                alt="User avatar" 
+                className="avatar-img" 
+              />
             </div>
             
             {showProfilePopup && (
               <div className="profile-popup">
                 <div className="profile-popup-header">
-                  <button className="profile-back-btn" onClick={() => setShowProfilePopup(false)}>
+                  <button 
+                    className="profile-back-btn" 
+                    onClick={() => setShowProfilePopup(false)}
+                  >
                     <ArrowLeft size={20} />
                   </button>
                   <h3 className="profile-popup-title">Profile</h3>
@@ -389,7 +274,11 @@ const fetchAccounts = async () => {
                 
                 <div className="profile-popup-content">
                   <div className="profile-avatar-large">
-                    <img src={userProfile.avatar} alt="Profile" className="profile-avatar-img" />
+                    <img 
+                      src={userProfile.avatar} 
+                      alt="Profile" 
+                      className="profile-avatar-img" 
+                    />
                   </div>
                   
                   <div className="profile-info">
@@ -437,54 +326,56 @@ const fetchAccounts = async () => {
       <div className="page">
         <div className="container">
           {/* Header Section with Title and Controls */}
-          <div className="top-section">
-            <div className="title-container">
-              <h2 className="page-title">Account Setup</h2>
-              
-              {/* Fiscal Year Selector */}
-              {fiscalYears.length > 0 && (
-                <div className="fiscal-year-selector">
-                  <label htmlFor="fiscal-year">Fiscal Year:</label>
-                  <select
-                    id="fiscal-year"
-                    value={selectedFiscalYear}
-                    onChange={(e) => handleFiscalYearChange(Number(e.target.value))}
-                    className="fiscal-year-dropdown"
-                  >
-                    {fiscalYears.map(year => (
-                      <option key={year.id} value={year.id}>
-                        {year.name}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-              )}
-            </div>
+          <div className="top">
+            <h2 
+              style={{ 
+                margin: 0, 
+                fontSize: '29px', 
+                fontWeight: 'bold', 
+                color: '#007bff' 
+              }}
+            >
+              Account Setup ({filteredAccounts.length})
+            </h2>
             
-            <div className="controls-container">
-              <div className="search-container">
-                <Search size={18} className="search-icon" />
-                <input
-                  type="text"
-                  placeholder="Search accounts..."
-                  value={searchQuery}
-                  onChange={handleSearch}
-                  className="search-input"
-                />
-              </div>
+            <div>
+              <div className="filter-controls" style={{ 
+  display: 'flex', 
+  justifyContent: 'flex-end', // This pushes everything to the right
+  alignItems: 'center',
+  gap: '1rem',
+  width: '100%'
+}}></div>
+            <input
+                type="text"
+                placeholder="Search accounts"
+                value={searchQuery}
+                onChange={handleSearch}
+                className="search-account-input"
+              />
               
               {/* Account Type Filter */}
-              <div className="filter-dropdown">
-                <button className="filter-dropdown-btn" onClick={toggleAccountTypeFilter}>
+              <div 
+                className="filter-dropdown" 
+                style={{ 
+                  display: 'inline-block', 
+                }}
+              >
+                <button 
+                  className="filter-dropdown-btn" 
+                  onClick={toggleAccountTypeFilter}
+                >
                   <span>{selectedAccountType}</span>
-                  <ChevronDown size={16} />
+                  <ChevronDown size={19} />
                 </button>
                 {showAccountTypeFilter && (
-                  <div className="dropdown-menu">
+                  <div className="category-dropdown-menu">
                     {accountTypes.map((type) => (
                       <div
                         key={type}
-                        className={`dropdown-item ${selectedAccountType === type ? 'active' : ''}`}
+                        className={`category-dropdown-item ${
+                          selectedAccountType === type ? 'active' : ''
+                        }`}
                         onClick={() => handleAccountTypeSelect(type)}
                       >
                         {type}
@@ -495,17 +386,28 @@ const fetchAccounts = async () => {
               </div>
               
               {/* Status Filter */}
-              <div className="filter-dropdown">
-                <button className="filter-dropdown-btn" onClick={toggleStatusFilter}>
+              <div 
+                className="filter-dropdown" 
+                style={{ 
+                  display: 'inline-block', 
+                  position: 'relative' 
+                }}
+              >
+                <button 
+                  className="filter-dropdown-btn" 
+                  onClick={toggleStatusFilter}
+                >
                   <span>Status: {selectedStatus}</span>
-                  <ChevronDown size={16} />
+                  <ChevronDown size={15} />
                 </button>
                 {showStatusFilter && (
-                  <div className="dropdown-menu">
+                  <div className="category-dropdown-menu">
                     {statusOptions.map((status) => (
                       <div
                         key={status}
-                        className={`dropdown-item ${selectedStatus === status ? 'active' : ''}`}
+                        className={`category-dropdown-item ${
+                          selectedStatus === status ? 'active' : ''
+                        }`}
                         onClick={() => handleStatusSelect(status)}
                       >
                         {status}
@@ -513,129 +415,95 @@ const fetchAccounts = async () => {
                     ))}
                   </div>
                 )}
-              </div>
-
-              {/* API Documentation Link */}
-              <a 
-                href="https://budget-gro-production.us-reliway.app/api/docs/" 
-                target="_blank" 
-                rel="noopener noreferrer"
-                className="api-docs-btn"
-              >
-                API Docs
-              </a>
+              </div>             
             </div>
           </div>
 
-          {/* Accounts Table */}
-          <div className="table-container">
-            <table>
-              <thead>
-                <tr>
-                  <th style={{ width: '15%' }}>ACCOUNT CODE</th>
-                  <th style={{ width: '15%' }}>ACCOUNT TYPE</th>
-                  <th style={{ width: '25%' }}>ACCOUNT NAME</th>
-                  <th style={{ width: '15%' }}>ACCOUNT LABEL</th>
-                  <th style={{ width: '15%' }}>STATUS</th>
-                  <th style={{ width: '15%' }}>ACCOMPLISHMENT DATE</th>
-                </tr>
-              </thead>
-              <tbody>
-                {accounts.length > 0 ? (
-                  accounts.map((account) => (
-                    <tr
-                      key={account.id}
-                      onClick={() => handleAccountSelect(account.id)}
-                      className={`account-row ${selectedAccounts.includes(account.id) ? 'selected' : ''}`}
+          {/* Accounts Table - Using original data with new headers */}
+          <table>
+            <thead>
+              <tr>
+                <th>CODE</th>
+                <th>TYPE</th>
+                <th>DESCRIPTION</th>
+                <th>STATUS</th>
+                <th>ACCOMPLISHED</th>
+                <th>DATE</th>
+              </tr>
+            </thead>
+            <tbody>
+              {currentAccounts.map((account) => (
+                <tr
+                  key={account.id}
+                  onClick={() => handleAccountSelect(account.id)}
+                  style={{ cursor: 'pointer' }}
+                  className={selectedAccounts.includes(account.id) ? 'selected' : ''}
+                >
+                  <td style={{ color: '#3b82f6', fontWeight: '500' }}>
+                    {account.code}
+                  </td>
+                  <td>{account.type}</td>
+                  <td>{account.description}</td>
+                  <td>
+                    <span 
+                      className={`status-badge ${
+                        account.active ? 'active' : 'inactive'
+                      }`}
                     >
-                      <td className="account-code">{account.code}</td>
-                      <td>{account.account_type}</td>
-                      <td className="account-description">{account.name}</td>
-                      <td>{account.accountlabel}</td>
-                      <td>
-                        <span className={`status-badge ${account.is_active ? 'active' : 'inactive'}`}>
-                          {account.is_active ? 'Active' : 'Inactive'}
-                        </span>
-                      </td>
-                      <td>{account.accomplishment_date}</td>
-                    </tr>
-                  ))
-                ) : (
-                  <tr className="no-results-row">
-                    <td colSpan="6">
-                      {loading ? (
-                        <div className="loading-row">
-                          <Loader2 className="spinner" size={20} />
-                          <span>Loading accounts...</span>
-                        </div>
-                      ) : (
-                        'No accounts found matching your criteria'
-                      )}
-                    </td>
-                  </tr>
-                )}
-              </tbody>
-            </table>
-          </div>
+                      {account.active ? 'Active' : 'Inactive'}
+                    </span>
+                  </td>
+                  <td>
+                    <span 
+                      className={`accomplished-badge ${
+                        account.accomplished ? 'accomplished' : 'pending'
+                      }`}
+                    >
+                      {account.accomplished ? 'Yes' : 'No'}
+                    </span>
+                  </td>
+                  <td>{account.date}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
 
           {/* Pagination */}
           {totalPages > 1 && (
-            <div className="pagination-container">
-              <div className="pagination-info">
-                Showing {(currentPage - 1) * itemsPerPage + 1} to{' '}
-                {Math.min(currentPage * itemsPerPage, totalCount)} of {totalCount} accounts
-              </div>
+            <div className="pagination">
+              <button 
+                onClick={prevPage} 
+                disabled={currentPage === 1}
+                className="pagination-btn"
+              >
+                <ChevronLeft size={16} />
+              </button>
               
-              <div className="pagination-controls">
-                <button 
-                  onClick={prevPage} 
-                  disabled={currentPage === 1}
-                  className="pagination-btn"
+              {[...Array(totalPages)].map((_, index) => (
+                <button
+                  key={index + 1}
+                  onClick={() => paginate(index + 1)}
+                  className={`pagination-btn ${
+                    currentPage === index + 1 ? 'active' : ''
+                  }`}
                 >
-                  <ChevronLeft size={16} />
+                  {index + 1}
                 </button>
-                
-                {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
-                  let pageNum;
-                  if (totalPages <= 5) {
-                    pageNum = i + 1;
-                  } else if (currentPage <= 3) {
-                    pageNum = i + 1;
-                  } else if (currentPage >= totalPages - 2) {
-                    pageNum = totalPages - 4 + i;
-                  } else {
-                    pageNum = currentPage - 2 + i;
-                  }
-                  
-                  return (
-                    <button
-                      key={pageNum}
-                      onClick={() => paginate(pageNum)}
-                      className={`pagination-btn ${currentPage === pageNum ? 'active' : ''}`}
-                    >
-                      {pageNum}
-                    </button>
-                  );
-                })}
-                
-                <button 
-                  onClick={nextPage} 
-                  disabled={currentPage === totalPages}
-                  className="pagination-btn"
-                >
-                  <ChevronRight size={16} />
-                </button>
-              </div>
+              ))}
+              
+              <button 
+                onClick={nextPage} 
+                disabled={currentPage === totalPages}
+                className="pagination-btn"
+              >
+                <ChevronRight size={16} />
+              </button>
             </div>
           )}
         </div>
       </div>
     </div>
   );
-};
-
-AccountSetup.propTypes = {
-  // Add your prop types here if needed
 };
 
 export default AccountSetup;

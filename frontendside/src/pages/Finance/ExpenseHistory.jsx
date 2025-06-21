@@ -407,41 +407,101 @@ const ExpenseHistory = () => {
                   className="search-account-input"
                 />
                 
-                <div className="category-dropdown-wrapper">
+                {/* Updated Category Dropdown with Oblong Style */}
+                <div className="category-dropdown-wrapper" style={{ position: 'relative' }}>
                   <button 
-                    className="category-dropdown-button"
+                    className="category-dropdown-button oblong-filter"
                     onClick={toggleCategoryDropdown}
                     aria-expanded={showCategoryDropdown}
                     style={{
                       display: 'flex',
                       alignItems: 'center',
                       justifyContent: 'space-between',
-                      width: '200px',
-                      padding: '10px 12px',
-                      border: '1px solid #d1d5db',
-                      borderRadius: '4px'
+                      minWidth: '160px',
+                      padding: '8px 16px',
+                      backgroundColor: '#f8fafc',
+                      border: '1px solid #e2e8f0',
+                      borderRadius: '20px',
+                      fontSize: '14px',
+                      fontWeight: '500',
+                      color: '#475569',
+                      cursor: 'pointer',
+                      transition: 'all 0.2s ease',
+                      outline: 'none',
+                      gap: '8px'
+                    }}
+                    onMouseEnter={(e) => {
+                      if (!showCategoryDropdown) {
+                        e.target.style.backgroundColor = '#f1f5f9';
+                        e.target.style.borderColor = '#cbd5e1';
+                      }
+                    }}
+                    onMouseLeave={(e) => {
+                      if (!showCategoryDropdown) {
+                        e.target.style.backgroundColor = '#f8fafc';
+                        e.target.style.borderColor = '#e2e8f0';
+                      }
                     }}
                   >
-                    <span className="selected-category">{selectedCategory}</span>
-                    <ChevronDown className={`dropdown-icon ${showCategoryDropdown ? 'open' : ''}`} size={16} />
+                    <span className="selected-category" style={{ flex: 1, textAlign: 'left' }}>
+                      {selectedCategory}
+                    </span>
+                    <ChevronDown 
+                      className={`dropdown-icon ${showCategoryDropdown ? 'open' : ''}`} 
+                      size={16}
+                      style={{
+                        transform: showCategoryDropdown ? 'rotate(180deg)' : 'rotate(0deg)',
+                        transition: 'transform 0.2s ease'
+                      }}
+                    />
                   </button>
+                  
                   {showCategoryDropdown && (
                     <div 
+                      className="category-dropdown-menu"
                       style={{
-                      position: 'absolute',
-                      width: '200px',
-                      border: '1px solid #d1d5db',
-                      borderRadius: '4px',
-                      marginTop: '4px'
-                    }}>
-                      {categories.map((category) => (
+                        position: 'absolute',
+                        top: '100%',
+                        left: '0',
+                        right: '0',
+                        backgroundColor: 'white',
+                        border: '1px solid #e2e8f0',
+                        borderRadius: '12px',
+                        boxShadow: '0 10px 25px rgba(0, 0, 0, 0.1), 0 4px 6px rgba(0, 0, 0, 0.05)',
+                        marginTop: '4px',
+                        zIndex: 1000,
+                        overflow: 'hidden',
+                        animation: 'dropdownFadeIn 0.15s ease-out forwards'
+                      }}
+                    >
+                      {categories.map((category, index) => (
                         <button
                           key={category}
                           className={`category-item ${selectedCategory === category ? 'selected' : ''}`}
                           onClick={() => handleCategorySelect(category)}
                           style={{
-                            padding: '8px 12px',
-                            borderBottom: '1px solid #f3f4f6'
+                            width: '100%',
+                            padding: '10px 16px',
+                            backgroundColor: selectedCategory === category ? '#f1f5f9' : 'transparent',
+                            border: 'none',
+                            borderBottom: index < categories.length - 1 ? '1px solid #f1f5f9' : 'none',
+                            textAlign: 'left',
+                            fontSize: '14px',
+                            color: selectedCategory === category ? '#3b82f6' : '#475569',
+                            fontWeight: selectedCategory === category ? '600' : '400',
+                            cursor: 'pointer',
+                            transition: 'all 0.15s ease',
+                            outline: 'none'
+                          }}
+                          onMouseEnter={(e) => {
+                            if (selectedCategory !== category) {
+                              e.target.style.backgroundColor = '#f8fafc';
+                            }
+                          }}
+                          onMouseLeave={(e) => {
+                            if (selectedCategory !== category) {
+                              e.target.style.backgroundColor = 'transparent';
+                            }
                           }}
                         >
                           {category}
@@ -565,6 +625,20 @@ const ExpenseHistory = () => {
           </div>
         )}
       </div>
+
+      {/* Add CSS Animation for Dropdown */}
+      <style jsx>{`
+        @keyframes dropdownFadeIn {
+          from {
+            opacity: 0;
+            transform: translateY(-10px);
+          }
+          to {
+            opacity: 1;
+            transform: translateY(0);
+          }
+        }
+      `}</style>
     </div>
   );
 };

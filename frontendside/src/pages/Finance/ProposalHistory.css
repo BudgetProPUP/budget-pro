@@ -6,7 +6,7 @@
 }
 
 .app-container {
-  font-family: Poppins, Poppins, 'Poppins', Poppins, Poppins;
+  font-family: Poppins, 'Poppins', sans-serif;
   min-height: 100vh;
   background-color: #f8fafc;
 }
@@ -100,12 +100,12 @@
 
 .dropdown-item:hover {
   background-color: #f8fafc;
-  color: #2563eb;
+  color: #007bff;
 }
 
 .dropdown-item.active {
   background-color: #eff6ff;
-  color: #2563eb;
+  color: #007bff;
 }
 
 .dropdown-item:first-child {
@@ -334,15 +334,8 @@
   background-color: #ffffff;
 }
 
-/* Title styling */
-.page .top .title {
-  font-size: 29px;
-  font-weight: 600;
-  color: #007bff;
-}
-
 /* Controls container for search and filters */
-.page .top .controls-container {
+.page .top > div:last-child {
   display: flex;
   align-items: center;
   gap: 1rem;
@@ -357,7 +350,6 @@
   width: 300px;
   height: 50px;
   max-width: 300px;
-  margin-left: 1rem;
   transition: all 0.2s ease;
 }
 
@@ -385,84 +377,72 @@
   color: #242424;
 }
 
-/* Filter controls */
-.page .top .filter-controls {
-  display: flex;
-  gap: 1rem;
-  align-items: center;
-}
-
-/* Status dropdown styling */
+/* Status dropdown container */
 .status-dropdown-container {
   position: relative;
+  display: inline-block;
 }
 
-/* Dropdown button styling - clean white design */
-.page .top .filter-dropdown-btn {
-  position: relative;
+/* Oblong filter button styling */
+.oblong-filter-btn {
+  background-color: #f8f9fa;
+  border: 1px solid #e2e8f0;
+  border-radius: 20px;
+  padding: 8px 16px;
+  font-size: 14px;
+  color: #64748b;
+  cursor: pointer;
   display: flex;
   align-items: center;
+  gap: 8px;
+  min-width: 140px;
   justify-content: space-between;
-  padding: 0.75rem 1rem;
-  background-color: #ffffff;
-  border: 1px solid #e2e8f0;
-  border-radius: 0.375rem;
-  cursor: pointer;
-  font-size: 0.875rem;
-  color: #4a5568;
-  min-width: 120px;
   transition: all 0.2s ease;
-  box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1);
+  outline: none;
 }
 
-.page .top .filter-dropdown-btn:hover {
-  background-color: #f7fafc;
-  border-color: #cbd5e0;
-  box-shadow: 0 2px 4px 0 rgba(0, 0, 0, 0.1);
+.oblong-filter-btn:hover {
+  background-color: #f1f5f9;
+  border-color: #cbd5e1;
 }
 
-.page .top .filter-dropdown-btn:focus {
+.oblong-filter-btn:focus {
   outline: none;
   border-color: #3b82f6;
   box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
 }
 
-/* Dropdown menu styling */
-.page .top .dropdown-menu {
+/* Oblong dropdown menu styling */
+.oblong-dropdown-menu {
   position: absolute;
   top: 100%;
   left: 0;
   right: 0;
-  background-color: #ffffff;
+  background-color: white;
   border: 1px solid #e2e8f0;
-  border-radius: 0.375rem;
-  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+  border-radius: 12px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
   z-index: 1000;
-  margin-top: 0.25rem;
+  margin-top: 4px;
   overflow: hidden;
 }
 
-.page .top .dropdown-item {
-  display: block;
-  width: 100%;
-  padding: 0.75rem 1rem;
-  background-color: transparent;
-  border: none;
-  text-align: left;
-  font-size: 0.875rem;
-  color: #4a5568;
+.oblong-dropdown-item {
+  padding: 12px 16px;
+  font-size: 14px;
   cursor: pointer;
-  transition: background-color 0.15s ease;
+  transition: background-color 0.2s ease;
+  color: #64748b;
+  background-color: white;
 }
 
-.page .top .dropdown-item:hover {
-  background-color: #f7fafc;
+.oblong-dropdown-item:hover {
+  background-color: #f8f9fa;
 }
 
-.page .top .dropdown-item.selected {
-  background-color: #ebf8ff;
-  color: #3182ce;
-  font-weight: 500;
+.oblong-dropdown-item.active {
+  color: #3b82f6;
+  background-color: #f0f9ff;
 }
 
 /* Main table styles */
@@ -498,28 +478,28 @@
   color: #374151;
 }
 
-/* Column widths */
+/* Column widths for proposal history table */
 .page table th:nth-child(1),
 .page table td:nth-child(1) {
-  width: 15%;
+  width: 5%;
   font-weight: 500;
 }
 
 .page table th:nth-child(2),
 .page table td:nth-child(2) {
-  width: 35%;
+  width: 19%;
   font-weight: 500;
 }
 
 .page table th:nth-child(3),
 .page table td:nth-child(3) {
-  width: 25%;
+  width: 13%;
 }
 
 .page table th:nth-child(4),
 .page table td:nth-child(4) {
-  width: 25%;
-  text-align: center;
+  width: 8%;
+  text-align: left;
 }
 
 /* Status badge styling */
@@ -588,7 +568,8 @@
   border-color: #3b82f6;
 }
 
-.pagination-btn:disabled {
+.pagination-btn:disabled,
+.pagination-btn.disabled {
   opacity: 0.5;
   cursor: not-allowed;
   background-color: #f9fafb;
@@ -611,7 +592,6 @@
 
   .search-account-input {
     width: 250px;
-    margin-left: 0.5rem;
   }
 }
 
@@ -623,11 +603,11 @@
     padding: 16px 20px;
   }
   
-  .page .top .title {
-    font-size: 24px;
+  .page .top h2 {
+    font-size: 24px !important;
   }
   
-  .page .top .controls-container {
+  .page .top > div:last-child {
     width: 100%;
     flex-direction: column;
     align-items: stretch;
@@ -636,15 +616,10 @@
   
   .search-account-input {
     width: 100%;
-    margin-left: 0;
     height: 44px;
   }
   
-  .page .top .filter-controls {
-    justify-content: flex-start;
-  }
-  
-  .page .top .filter-dropdown-btn {
+  .oblong-filter-btn {
     min-width: 140px;
   }
 
@@ -661,6 +636,27 @@
 
   .page table th {
     font-size: 0.6875rem;
+  }
+
+  /* Adjust column widths for mobile */
+  .page table th:nth-child(1),
+  .page table td:nth-child(1) {
+    width: 15%;
+  }
+  
+  .page table th:nth-child(2),
+  .page table td:nth-child(2) {
+    width: 40%;
+  }
+  
+  .page table th:nth-child(3),
+  .page table td:nth-child(3) {
+    width: 25%;
+  }
+  
+  .page table th:nth-child(4),
+  .page table td:nth-child(4) {
+    width: 20%;
   }
 
   /* Stack table content on very small screens */

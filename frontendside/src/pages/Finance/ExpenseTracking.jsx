@@ -505,6 +505,27 @@ const ExpenseTracking = () => {
                     value={searchQuery}
                     onChange={handleSearch}
                     className="search-account-input"
+                    style={{ 
+                      width: '350px',
+                      minWidth: '300px',
+                      maxWidth: '380px',
+                      padding: '12px 20px',
+                      fontSize: '14px',
+                      border: '1px solid #d1d5db',
+                      borderRadius: '25px',
+                      backgroundColor: '#ffffff',
+                      color: '#374151',
+                      transition: 'all 0.2s ease-in-out',
+                      outline: 'none'
+                    }}
+                    onFocus={(e) => {
+                      e.target.style.borderColor = '#3b82f6';
+                      e.target.style.boxShadow = '0 0 0 3px rgba(59, 130, 246, 0.1)';
+                    }}
+                    onBlur={(e) => {
+                      e.target.style.borderColor = '#d1d5db';
+                      e.target.style.boxShadow = 'none';
+                    }}
                   />
                   
                   {/* Category Filter */}

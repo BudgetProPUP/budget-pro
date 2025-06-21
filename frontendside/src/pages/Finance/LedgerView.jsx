@@ -81,7 +81,7 @@ const LedgerView = () => {
   ]);
 
   // State for UI elements
-  const [currentDate, setCurrentDate] = useState(new Date());
+  const [, setCurrentDate] = useState(new Date());
   const [searchTerm, setSearchTerm] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
   const [activeFilters, setActiveFilters] = useState({

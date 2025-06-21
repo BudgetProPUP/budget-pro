@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { Eye, EyeOff } from 'lucide-react';
-import './LoginPage.css';
+import './loginPage.css';
 import backgroundImage from '../../assets/BUDGET1.png';
 
 function LoginPage({ setIsAuthenticated }) {

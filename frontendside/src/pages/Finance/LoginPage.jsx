@@ -1,131 +1,172 @@
-// src/Pages/LoginPage.jsx
-import { useState } from "react";
-import { useNavigate } from "react-router-dom";
-import "./loginPage.css";
-import { useAuth } from "../../context/AuthContext";
+import { useState, useEffect } from 'react';
+import { useNavigate, Link } from 'react-router-dom';
+import { Eye, EyeOff } from 'lucide-react';
+import { useForm } from "react-hook-form";
+import './loginPage.css';
+import backgroundImage from '../../assets/BUDGETPROLOGO.jpg';
 
-// Removed sign-up (unneeded)
-function LoginPage() {
-  const [credentials, setCredentials] = useState({
-    emailOrPhone: "",
-    password: "",
-  });
-  const [error, setError] = useState("");
-  const [showPassword, setShowPassword] = useState(false);
-  const [isLoading, setIsLoading] = useState(false);
-  const { login } = useAuth();
+function LoginPage({ setIsAuthenticated }) {
   const navigate = useNavigate();
+  const [isInvalidCredentials, setInvalidCredentials] = useState(null);
+  const [isSubmitting, setSubmitting] = useState(false);
+  const [isShowPassword, setShowPassword] = useState(false);
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    setError("");
-    setIsLoading(true);
+  const {
+    register,
+    handleSubmit,
+    formState: { errors, isValid },
+    watch,
+  } = useForm({
+    mode: "all",
+  });
 
-    // Determine if input is email or phone number
-    const isEmail = credentials.emailOrPhone.includes("@");
-    const payload = {
-      [isEmail ? "email" : "phone_number"]: credentials.emailOrPhone,
-      password: credentials.password,
-    };
+  const password = watch("password", "");
+
+  const submission = async (data) => {
+    const { email, password } = data;
+    setSubmitting(true);
 
     try {
-      await login(payload);
-    } catch (err) {
-      setError(err.detail || 'Invalid credentials');
-      setIsLoading(false);
+      // Replace with your actual authentication logic
+      const response = await fakeAuthAPI({ email, password });
+      
+      if (response.success) {
+        setInvalidCredentials(false);
+        setIsAuthenticated(true);
+        navigate('/dashboard');
+      } else {
+        setInvalidCredentials(true);
+      }
+    } catch (error) {
+      console.log("login failed!");
+      setInvalidCredentials(true);
+    } finally {
+      setSubmitting(false);
     }
   };
 
-  const toggleMode = () => {
-    setIsSignUp(!isSignUp);
+  // Mock authentication function - replace with real API call
+  const fakeAuthAPI = async ({ email, password }) => {
+    return new Promise(resolve => {
+      setTimeout(() => {
+        // Basic validation - replace with real authentication
+        const isValid = email && password && password.length >= 6;
+        resolve({ 
+          success: isValid
+        });
+      }, 1000);
+    });
   };
 
-  const EyeIcon = ({ show }) => (
-    <svg
-      xmlns="http://www.w3.org/2000/svg"
-      width="20"
-      height="20"
-      fill="#666"
-      viewBox="0 0 16 16"
-    >
-      {show ? (
-        <path d="M13.359 11.238C15.06 9.72 16 8 16 8s-3-5.5-8-5.5a7.028 7.028 0 0 0-2.79.588l.77.771A5.944 5.944 0 0 1 8 3.5c2.12 0 3.879 1.168 5.168 2.457A13.134 13.134 0 0 1 14.828 8c-.058.087-.122.183-.195.288-.335.48-.83 1.12-1.465 1.755-.165.165-.337.328-.517.486l.708.709z M11.297 9.176a3.5 3.5 0 0 0-4.474-4.474l.823.823a2.5 2.5 0 0 1 2.829 2.829l.822.822zm-2.943 1.299.822.822a3.5 3.5 0 0 1-4.474-4.474l.823.823a2.5 2.5 0 0 0 2.829 2.829z M3.35 5.47c-.18.16-.353.322-.518.487A13.134 13.134 0 0 0 1.172 8l.195.288c.335.48.83 1.12 1.465 1.755C4.121 11.332 5.881 12.5 8 12.5c.716 0 1.39-.133 2.02-.36l.77.772A7.029 7.029 0 0 1 8 13.5C3 13.5 0 8 0 8s.939-1.721 2.641-3.238l.708.709zm10.296 8.884-12-12 .708-.708 12 12-.708.708z" />
-      ) : (
-        <>
-          <path d="M16 8s-3-5.5-8-5.5S0 8 0 8s3 5.5 8 5.5S16 8 16 8zM1.173 8a13.133 13.133 0 0 1 1.66-2.043C4.12 4.668 5.88 3.5 8 3.5c2.12 0 3.879 1.168 5.168 2.457A13.133 13.133 0 0 1 14.828 8c-.058.087-.122.183-.195.288-.335.48-.83 1.12-1.465 1.755C11.879 11.332 10.119 12.5 8 12.5c-2.12 0-3.879-1.168-5.168-2.457A13.134 13.134 0 0 1 1.172 8z" />
-          <path d="M8 5.5a2.5 2.5 0 1 0 0 5 2.5 2.5 0 0 0 0-5zM4.5 8a3.5 3.5 0 1 1 7 0 3.5 3.5 0 0 1-7 0z" />
-        </>
-      )}
-    </svg>
-  );
+  useEffect(() => {
+    if (isInvalidCredentials) {
+      setTimeout(() => {
+        setInvalidCredentials(false);
+      }, 5000);
+    }
+  }, [isInvalidCredentials]);
+
+  // Reset the value of isShowPassword state when the password input is empty.
+  useEffect(() => {
+    if (password.length == 0) {
+      setShowPassword(false);
+    }
+  }, [password]);
 
   return (
-    <div className="fullscreen-slider-container">
-      <div className="container">
-        <div className="form-container sign-in-container">
-          <div className="form">
-            <h1>Login</h1>
-            {error && <div className="error-message">{error}</div>}
-            <input
-              type="text"
-              placeholder="Email or Phone Number"
-              value={credentials.emailOrPhone}
-              onChange={(e) =>
-                setCredentials({ ...credentials, emailOrPhone: e.target.value })
-              }
-              required
-            />
-            <div className="password-input-container">
+    <>
+      {isInvalidCredentials && (
+        <div className="error-message">Invalid credentials.</div>
+      )}
+
+      <main className="login-page">
+        <section className="left-panel">
+          <img
+            src={backgroundImage}
+            alt="login-illustration"
+            className="asset-image"
+          />
+        </section>
+        
+        <section className="right-panel">
+          <header className="form-header">
+            <section className="logo">
+              <h1 className="logo-text">BUDGET PRO</h1>
+            </section>
+            <p>Welcome! Please provide the credentials to log in</p>
+          </header>
+
+          <form onSubmit={handleSubmit(submission)}>
+            <fieldset>
+              <label>Email:</label>
+
+              {errors.email && <span>{errors.email.message}</span>}
+
               <input
-                type={showPassword ? 'text' : 'password'}
-                placeholder="Password"
-                value={credentials.password}
-                onChange={(e) =>
-                  setCredentials({ ...credentials, password: e.target.value })
-                }
-                required
+                type="email"
+                name="email"
+                placeholder="Enter your email"
+                {...register("email", {
+                  required: "Must not empty",
+                  pattern: {
+                    value: /^[^\s@]+@[^\s@]+\.[^\s@]+$/,
+                    message: "Invalid email format",
+                  },
+                })}
               />
-              <button
-                type="button"
-                className="password-toggle"
-                onClick={() => setShowPassword(!showPassword)}
-              >
-                <EyeIcon show={showPassword} />
-              </button>
-            </div>
+            </fieldset>
+
+            <fieldset>
+              <label>Password:</label>
+
+              {errors.password && <span>{errors.password.message}</span>}
+
+              <div className="password-container">
+                <input
+                  type={isShowPassword ? "text" : "password"}
+                  name="password"
+                  placeholder="Enter your password"
+                  {...register("password", { 
+                    required: "Must not empty",
+                    minLength: {
+                      value: 6,
+                      message: "Password must be at least 6 characters"
+                    }
+                  })}
+                />
+
+                {password.length > 0 && (
+                  <button
+                    type="button"
+                    className="show-password"
+                    onClick={() => setShowPassword(!isShowPassword)}
+                    aria-label={isShowPassword ? "Hide password" : "Show password"}
+                  >
+                    {isShowPassword ? (
+                      <EyeOff size={18} color="#808080" /> 
+                    ) : (
+                      <Eye size={18} color="#808080" />
+                    )}
+                  </button>
+                )}
+              </div>
+            </fieldset>
+
             <button
-              type="button"
-              className="form-button"
-              onClick={handleSubmit}
-              disabled={isLoading}
+              type="submit"
+              disabled={!isValid || isSubmitting}
+              className="log-in-button"
             >
-              {isLoading ? 'Logging in...' : 'Log In'}
+              {!isSubmitting ? "LOG IN" : "LOGGING IN..."}
             </button>
-            <button
-              type="button"
-              className="forgot-password"
-              onClick={() => navigate('/forgot-password')}
-              style={{ marginTop: '10px', color: '#007bff' }}
-            >
-              Forgot Password?
-            </button>
-          </div>
-        </div>
-        <div className="overlay-container">
-          <div className="overlay">
-            <img
-              src="/assets/LOGO.png"
-              alt="Slide Image"
-              className="slide-image"
-            />
-            <div className="overlay-panel overlay-right">
-              <h1>Welcome</h1>
-              <p>Access your budgeting dashboard</p>
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
+          </form>
+
+          <Link to="/forgot-password" className="forgot-password-link">
+            Forgot Password?
+          </Link>
+        </section>
+      </main>
+    </>
   );
 }
 

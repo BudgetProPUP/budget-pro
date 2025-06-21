@@ -1,5 +1,4 @@
-/* Dashboard.css - Combined and Optimized Blue Palette */
-/* Add this at the top of your Dashboard.css */
+
 @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap');
 /* Reset and base styles */
 * {
@@ -13,7 +12,7 @@ html, body {
   height: 100%;
   margin: 0;
   padding: 0;
-  font-family: 'Poppins', sans-serif;
+  font-family: 'Poppins', Poppins;
   background-color: #f9fafb;
   color: #333;
   line-height: 1.5;
@@ -180,6 +179,43 @@ html, body {
   object-fit: cover;
 }
 
+/* Loading Spinner Styles */
+.loading-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 100vh;
+  width: 100%;
+  position: fixed;
+  top: 0;
+  left: 0;
+  background-color: rgba(255, 255, 255, 0.9);
+  z-index: 1000;
+}
+
+.loading-spinner {
+  border: 3px solid rgba(59, 130, 246, 0.1);
+  border-radius: 50%;
+  border-top: 3px solid #3b82f6;
+  width: 40px;
+  height: 40px;
+  animation: spin 1s linear infinite;
+  margin-bottom: 1rem;
+}
+
+.loading-text {
+  font-size: 1rem;
+  color: #4b5563;
+  font-weight: 500;
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+
 /* Profile Popup */
 .profile-popup {
   position: absolute;
@@ -248,24 +284,6 @@ html, body {
   width: 100%;
   height: 100%;
   object-fit: cover;
-}
-
-.profile-link {
-  margin-bottom: 1.5rem;
-}
-
-.profile-link-text {
-  color: #3b82f6;
-  font-size: 0.875rem;
-  font-weight: 500;
-  cursor: pointer;
-  text-decoration: none;
-  transition: color 0.2s;
-}
-
-.profile-link-text:hover {
-  color: #2563eb;
-  text-decoration: underline;
 }
 
 .profile-info {
@@ -412,6 +430,150 @@ html, body {
 .filter-button.active {
   font-weight: 500;
   background-color: #2563eb;
+}
+
+/* Compact Budget Cards */
+.compact-budget-card {
+  padding: 0.75rem;
+  border-radius: 8px;
+  background: white;
+  border-left: 3px solid #3b82f6;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+  height: 100%;
+  transition: all 0.3s ease;
+}
+
+.compact-budget-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 8px rgba(59, 130, 246, 0.15);
+}
+
+.compact-stat-value {
+  font-size: 40px;
+  font-weight: 700;
+  color: #3b82f6;
+  margin: 0.2rem 0;
+}
+
+.compact-card-title {
+ font-size: 40px;
+  color: #6b7280;
+  margin-bottom: 0.4rem;
+}
+
+.compact-progress-container {
+  height: 5px;
+  background: #e5e7eb;
+  border-radius: 3px;
+  margin: 0.4rem 0;
+}
+
+.compact-progress-bar {
+  height: 100%;
+  background: linear-gradient(90deg, #3b82f6, #60a5fa);
+  border-radius: 3px;
+}
+
+.compact-badge {
+  display: inline-block;
+  padding: 0.2rem 0.5rem;
+  background: #e0f2fe;
+  color: #0369a1;
+  border-radius: 12px;
+  font-size: 40px;
+  font-weight: 500;
+  margin-top: 0.4rem;
+  transition: all 0.3s ease;
+}
+
+.compact-budget-card:hover .compact-badge {
+  background-color: #3b82f6;
+  color: white;
+}
+
+/* Budget Allocation List - Compact */
+.compact-budget-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  margin-top: 0.5rem;
+}
+
+.compact-budget-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.4rem 0;
+}
+
+.compact-budget-category {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.compact-category-color {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  transition: transform 0.3s ease;
+}
+
+.compact-budget-item:hover .compact-category-color {
+  transform: scale(1.3);
+}
+
+.compact-category-name {
+ font-size: 40px;
+  font-weight: 500;
+}
+
+.compact-budget-amount {
+  font-size: 40px;
+  font-weight: 600;
+  color: #1e40af;
+}
+
+/* Additional styles for small details */
+.compact-budget-card {
+  padding: 0.7rem;
+  font-size: 20px; 
+}
+
+.compact-card-title {
+  font-size: 15px;
+  margin-bottom: 15px;
+}
+
+.compact-stat-value {
+  font-size: 30px;
+  margin: 0.2rem 0;
+ margin-bottom: 12px;
+}
+
+.compact-card-subtext {
+  font-size: 15px; /* Slightly smaller for hierarchy */
+}
+
+.compact-budget-category,
+.compact-category-name,
+.compact-budget-amount {
+  font-size: 14px;
+}
+
+.compact-category-icon {
+ font-size: 40px;
+}
+
+.compact-badge {
+  font-size: 11px;
+  padding: 0.2rem 0.5rem;
+}
+
+/* Progress bars adjustments */
+.compact-progress-container {
+  height: 5px; /* Slightly thicker */
+  margin: 0.35rem 0;
 }
 
 /* Cards and Stats Grid */

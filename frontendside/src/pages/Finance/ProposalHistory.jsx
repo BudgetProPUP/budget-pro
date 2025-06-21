@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { ChevronDown, Search, ArrowLeft, ChevronLeft, ChevronRight, User, Mail, Briefcase, LogOut } from 'lucide-react';
-import LOGOMAP from '../../assets/LOGOMAP.png';
+import LOGOMAP from '../../assets/MAP.jpg';
 import './ProposalHistory.css';
 
 const ProposalHistory = () => {
@@ -9,8 +9,9 @@ const ProposalHistory = () => {
   const [showExpenseDropdown, setShowExpenseDropdown] = useState(false);
   const [showStatusDropdown, setShowStatusDropdown] = useState(false);
   const [showProfilePopup, setShowProfilePopup] = useState(false);
-  const [selectedStatus, setSelectedStatus] = useState('All');
+  const [selectedStatus, setSelectedStatus] = useState('All Status');
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [searchTerm, setSearchTerm] = useState('');
   const navigate = useNavigate();
   const [currentPage, setCurrentPage] = useState(1);
   const [currentDate, setCurrentDate] = useState(new Date());
@@ -69,12 +70,15 @@ const ProposalHistory = () => {
     }
   ]);
 
-  // Filtered proposals based on selected status
-  const filteredProposals = selectedStatus === 'All' 
-    ? proposals 
-    : proposals.filter(proposal => 
-        proposal.status.toLowerCase() === selectedStatus.toLowerCase()
-      );
+  // Filtered proposals based on selected status and search term
+  const filteredProposals = proposals.filter(proposal => {
+    const matchesStatus = selectedStatus === 'All Status' || 
+      proposal.status.toLowerCase() === selectedStatus.toLowerCase();
+    const matchesSearch = searchTerm === '' || 
+      proposal.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      proposal.id.toLowerCase().includes(searchTerm.toLowerCase());
+    return matchesStatus && matchesSearch;
+  });
 
   useEffect(() => {
     // Update time at regular intervals
@@ -352,75 +356,211 @@ const ProposalHistory = () => {
       </header>
 
       {/* Main Content */}
-      <div className="content-container">
-        <h2 className="page-title">Proposal History</h2>
-          
-        {/* Search and Filter Bar */}
-        <div className="controls-row">
-          <div className="search-box">
-            <input 
-              type="text" 
-              placeholder="Search by project or budget" 
-              className="search-input"
-            />
-            <button className="search-icon-btn">
-              <Search size={18} />
-            </button>
-          </div>
-          <div className="filter-controls">
-            <button className="filter-dropdown-btn">
-              <span>Filter by</span>
-              <ChevronDown size={14} />
-            </button>
+      <div className="page">
+        <div className="container">
+          {/* Header Section with Title and Controls - Updated to match Account Setup */}
+          <div className="top">
+            <h2 
+              style={{ 
+                margin: 0, 
+                fontSize: '29px', 
+                fontWeight: 'bold', 
+                color: '#242424',
+              }}
+            >
+              Proposal History 
+            </h2>
             
-            {/* Status dropdown with functionality */}
-            <div className="status-dropdown-container">
-              <button className="filter-dropdown-btn" onClick={toggleStatusDropdown}>
-                <span>Status: {selectedStatus}</span>
-                <ChevronDown size={14} />
-              </button>
+            <div>
+              <div className="filter-controls" style={{ 
+                display: 'flex', 
+                justifyContent: 'flex-end', // This pushes everything to the right
+                alignItems: 'center',
+                gap: '1rem',
+                width: '100%'
+              }}></div>
+              <input
+                type="text"
+                placeholder="Search by proposal ID"
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="search-account-input"
+              />
               
-              {showStatusDropdown && (
-                <div className="status-dropdown-menu">
+              {/* Updated Status Filter with Oblong Shape */}
+              <div 
+                className="status-dropdown-container" 
+                style={{ 
+                  display: 'inline-block', 
+                  position: 'relative' 
+                }}
+              >
+                <button 
+                  className="oblong-filter-btn" 
+                  onClick={toggleStatusDropdown}
+                  style={{
+                    backgroundColor: '#f8f9fa',
+                    border: '1px solid #e2e8f0',
+                    borderRadius: '20px',
+                    padding: '8px 16px',
+                    fontSize: '14px',
+                    color: '#64748b',
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '8px',
+                    minWidth: '140px',
+                    justifyContent: 'space-between',
+                    transition: 'all 0.2s ease',
+                    outline: 'none'
+                  }}
+                  onMouseOver={(e) => {
+                    e.target.style.backgroundColor = '#f1f5f9';
+                    e.target.style.borderColor = '#cbd5e1';
+                  }}
+                  onMouseOut={(e) => {
+                    e.target.style.backgroundColor = '#f8f9fa';
+                    e.target.style.borderColor = '#e2e8f0';
+                  }}
+                >
+                  <span>{selectedStatus}</span>
+                  <ChevronDown size={14} />
+                </button>
+                {showStatusDropdown && (
                   <div 
-                    className={`status-dropdown-item ${selectedStatus === 'All' ? 'active' : ''}`}
-                    onClick={() => handleStatusSelect('All')}
+                    className="oblong-dropdown-menu"
+                    style={{
+                      position: 'absolute',
+                      top: '100%',
+                      left: '0',
+                      right: '0',
+                      backgroundColor: 'white',
+                      border: '1px solid #e2e8f0',
+                      borderRadius: '12px',
+                      boxShadow: '0 4px 12px rgba(0, 0, 0, 0.1)',
+                      zIndex: 1000,
+                      marginTop: '4px',
+                      overflow: 'hidden'
+                    }}
                   >
-                    All
+                    <div
+                      className={`oblong-dropdown-item ${
+                        selectedStatus === 'All Status' ? 'active' : ''
+                      }`}
+                      onClick={() => handleStatusSelect('All Status')}
+                      style={{
+                        padding: '12px 16px',
+                        fontSize: '14px',
+                        cursor: 'pointer',
+                        transition: 'background-color 0.2s ease',
+                        color: selectedStatus === 'All Status' ? '#3b82f6' : '#64748b',
+                        backgroundColor: selectedStatus === 'All Status' ? '#f0f9ff' : 'white'
+                      }}
+                      onMouseOver={(e) => {
+                        if (selectedStatus !== 'All Status') {
+                          e.target.style.backgroundColor = '#f8f9fa';
+                        }
+                      }}
+                      onMouseOut={(e) => {
+                        if (selectedStatus !== 'All Status') {
+                          e.target.style.backgroundColor = 'white';
+                        }
+                      }}
+                    >
+                      All Status
+                    </div>
+                    <div
+                      className={`oblong-dropdown-item ${
+                        selectedStatus === 'Approved' ? 'active' : ''
+                      }`}
+                      onClick={() => handleStatusSelect('Approved')}
+                      style={{
+                        padding: '12px 16px',
+                        fontSize: '14px',
+                        cursor: 'pointer',
+                        transition: 'background-color 0.2s ease',
+                        color: selectedStatus === 'Approved' ? '#3b82f6' : '#64748b',
+                        backgroundColor: selectedStatus === 'Approved' ? '#f0f9ff' : 'white'
+                      }}
+                      onMouseOver={(e) => {
+                        if (selectedStatus !== 'Approved') {
+                          e.target.style.backgroundColor = '#f8f9fa';
+                        }
+                      }}
+                      onMouseOut={(e) => {
+                        if (selectedStatus !== 'Approved') {
+                          e.target.style.backgroundColor = 'white';
+                        }
+                      }}
+                    >
+                      Approved
+                    </div>
+                    <div
+                      className={`oblong-dropdown-item ${
+                        selectedStatus === 'Rejected' ? 'active' : ''
+                      }`}
+                      onClick={() => handleStatusSelect('Rejected')}
+                      style={{
+                        padding: '12px 16px',
+                        fontSize: '14px',
+                        cursor: 'pointer',
+                        transition: 'background-color 0.2s ease',
+                        color: selectedStatus === 'Rejected' ? '#3b82f6' : '#64748b',
+                        backgroundColor: selectedStatus === 'Rejected' ? '#f0f9ff' : 'white'
+                      }}
+                      onMouseOver={(e) => {
+                        if (selectedStatus !== 'Rejected') {
+                          e.target.style.backgroundColor = '#f8f9fa';
+                        }
+                      }}
+                      onMouseOut={(e) => {
+                        if (selectedStatus !== 'Rejected') {
+                          e.target.style.backgroundColor = 'white';
+                        }
+                      }}
+                    >
+                      Rejected
+                    </div>
+                    <div
+                      className={`oblong-dropdown-item ${
+                        selectedStatus === 'Pending' ? 'active' : ''
+                      }`}
+                      onClick={() => handleStatusSelect('Pending')}
+                      style={{
+                        padding: '12px 16px',
+                        fontSize: '14px',
+                        cursor: 'pointer',
+                        transition: 'background-color 0.2s ease',
+                        color: selectedStatus === 'Pending' ? '#3b82f6' : '#64748b',
+                        backgroundColor: selectedStatus === 'Pending' ? '#f0f9ff' : 'white'
+                      }}
+                      onMouseOver={(e) => {
+                        if (selectedStatus !== 'Pending') {
+                          e.target.style.backgroundColor = '#f8f9fa';
+                        }
+                      }}
+                      onMouseOut={(e) => {
+                        if (selectedStatus !== 'Pending') {
+                          e.target.style.backgroundColor = 'white';
+                        }
+                      }}
+                    >
+                      Pending
+                    </div>
                   </div>
-                  <div 
-                    className={`status-dropdown-item ${selectedStatus === 'Approved' ? 'active' : ''}`}
-                    onClick={() => handleStatusSelect('Approved')}
-                  >
-                    Approved
-                  </div>
-                  <div 
-                    className={`status-dropdown-item ${selectedStatus === 'Rejected' ? 'active' : ''}`}
-                    onClick={() => handleStatusSelect('Rejected')}
-                  >
-                    Rejected
-                  </div>
-                  <div 
-                    className={`status-dropdown-item ${selectedStatus === 'Pending' ? 'active' : ''}`}
-                    onClick={() => handleStatusSelect('Pending')}
-                  >
-                    Pending
-                  </div>
-                </div>
-              )}
+                )}
+              </div>             
             </div>
           </div>
-        </div>
 
-        {/* Proposal table */}
-        <div className="transactions-table-wrapper">
-          <table className="transactions-table">
+          {/* Proposal table with new styling */}
+          <table>
             <thead>
               <tr>
-                <th>PROPOSAL ID</th>
-                <th>PROPOSAL</th>
-                <th>LAST MODIFIED</th>
-                <th>STATUS</th>
+                 <th style={{ width: '5%' }}>PROPOSAL ID</th>
+                    <th style={{ width: '19%' }}>PROPOSAL</th>
+                    <th style={{ width: '13%' }}>LAST MODIFIED</th>
+                    <th style={{ width: '8%' }}>STATUS</th>
               </tr>
             </thead>
             <tbody>
@@ -428,9 +568,9 @@ const ProposalHistory = () => {
                 <tr key={index}>
                   <td>{proposal.id}</td>
                   <td>{proposal.title}</td>
-                  <td className="modified-info">
+                  <td>
                     <div>{proposal.lastModified}</div>
-                    <div className="modified-by">By {proposal.modifiedBy}</div>
+                    <div style={{ fontSize: '0.75rem', color: '#64748b' }}>By {proposal.modifiedBy}</div>
                   </td>
                   <td>
                     <span className={`status-badge ${proposal.status}`}>
@@ -442,33 +582,33 @@ const ProposalHistory = () => {
               ))}
               {filteredProposals.length === 0 && (
                 <tr>
-                  <td colSpan="4" className="no-results">No proposals match the selected filter</td>
+                  <td colSpan="4" style={{ textAlign: 'center', color: '#64748b', fontStyle: 'italic', padding: '2rem' }}>
+                    No proposals match the selected filter
+                  </td>
                 </tr>
               )}
             </tbody>
           </table>
-        </div>
           
-        {/* Pagination */}
-        <div className="pagination-controls">
-          <button 
-            className={`pagination-btn ${currentPage === 1 ? 'disabled' : ''}`} 
-            onClick={handlePrevPage}
-            disabled={currentPage === 1}
-          >
-            <ChevronLeft size={14} />
-          </button>
-          
-          <div className="pagination-numbers">
-            <button className="pagination-number active">1</button>
+          {/* Pagination */}
+          <div className="pagination">
+            <button 
+              className={`pagination-btn ${currentPage === 1 ? 'disabled' : ''}`} 
+              onClick={handlePrevPage}
+              disabled={currentPage === 1}
+            >
+              <ChevronLeft size={14} />
+            </button>
+            
+            <button className="pagination-btn active">1</button>
+            
+            <button 
+              className="pagination-btn"
+              onClick={handleNextPage}
+            >
+              <ChevronRight size={14} />
+            </button>
           </div>
-          
-          <button 
-            className="pagination-btn"
-            onClick={handleNextPage}
-          >
-            <ChevronRight size={14} />
-          </button>
         </div>
       </div>
     </div>

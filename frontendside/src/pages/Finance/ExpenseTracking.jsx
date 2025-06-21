@@ -1,7 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import { Search, ChevronDown, ArrowLeft, ChevronLeft, ChevronRight, Plus, Calendar, FileText, User, Mail, Briefcase, LogOut } from 'lucide-react';
 import { Link, useNavigate } from 'react-router-dom';
-import LOGOMAP from '../../assets/LOGOMAP.png';
+import LOGOMAP from '../../assets/MAP.jpg';
+
+// CSS Imports (organized by component) - matching Account Setup
+import '../../components/Styles/Layout.css';       // Main layout styles
+import '../../components/Header.css';              // Header components
+import '../../components/Tables.css';              // Table styles
 import './ExpenseTracking.css';
 
 const ExpenseTracking = () => {
@@ -15,6 +20,7 @@ const ExpenseTracking = () => {
   const [showAddExpenseModal, setShowAddExpenseModal] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
   const [searchQuery, setSearchQuery] = useState('');
+  const [selectedExpenses, setSelectedExpenses] = useState([]);
   const [newExpense, setNewExpense] = useState({
     description: '',
     category: '',
@@ -59,6 +65,7 @@ const ExpenseTracking = () => {
       category: 'Training & Development',
       amount: '₱50,000.00',
       status: 'pending',
+      accomplished: false,
       projectSummary: 'This Budget Proposal provides necessary costs associated with the website redesign project.',
       dueDate: 'April 30, 2025'
     },
@@ -69,6 +76,7 @@ const ExpenseTracking = () => {
       category: 'Professional Services',
       amount: '₱15,750.00',
       status: 'approved',
+      accomplished: true,
       projectSummary: 'Annual subscription for productivity software suite.',
       dueDate: 'March 31, 2025'
     },
@@ -79,6 +87,7 @@ const ExpenseTracking = () => {
       category: 'Professional Services',
       amount: '₱12,500.00',
       status: 'paid',
+      accomplished: true,
       projectSummary: 'Monthly cloud infrastructure costs for all company applications.',
       dueDate: 'March 20, 2025'
     },
@@ -89,6 +98,7 @@ const ExpenseTracking = () => {
       category: 'Equipment & Maintenance',
       amount: '₱450,000.00',
       status: 'approved',
+      accomplished: true,
       projectSummary: 'Purchase of new laptops for the engineering team.',
       dueDate: 'February 28, 2025'
     },
@@ -99,6 +109,7 @@ const ExpenseTracking = () => {
       category: 'Equipment & Maintenance',
       amount: '₱180,000.00',
       status: 'paid',
+      accomplished: true,
       projectSummary: 'Acquisition of networked printers for all departments.',
       dueDate: 'January 30, 2025'
     },
@@ -109,6 +120,7 @@ const ExpenseTracking = () => {
       category: 'Training & Development',
       amount: '₱25,000.00',
       status: 'rejected',
+      accomplished: false,
       projectSummary: 'Training program for staff on AI technologies and applications.',
       dueDate: 'December 31, 2024'
     }
@@ -234,6 +246,12 @@ const ExpenseTracking = () => {
     }
   };
 
+  const handleExpenseSelect = (id) => {
+    setSelectedExpenses(prev => 
+      prev.includes(id) ? prev.filter(expenseId => expenseId !== id) : [...prev, id]
+    );
+  };
+
   const handleAddExpense = () => {
     setShowAddExpenseModal(true);
   };
@@ -274,6 +292,7 @@ const ExpenseTracking = () => {
       category: newExpense.category,
       amount: `₱${parseFloat(newExpense.amount).toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})}`,
       status: 'pending',
+      accomplished: false,
       projectSummary: newExpense.projectSummary,
       dueDate: newExpense.dueDate
     };
@@ -381,7 +400,7 @@ const ExpenseTracking = () => {
               <img src={userProfile.avatar} alt="User avatar" className="avatar-img" />
             </div>
             
-            {/* Profile Popup - Copied from Dashboard */}
+            {/* Profile Popup - Same as Account Setup */}
             {showProfilePopup && (
               <div className="profile-popup">
                 <div className="profile-popup-header">
@@ -397,10 +416,6 @@ const ExpenseTracking = () => {
                 <div className="profile-popup-content">
                   <div className="profile-avatar-large">
                     <img src={userProfile.avatar} alt="Profile" className="profile-avatar-img" />
-                  </div>
-                  
-                  <div className="profile-link">
-                    <span className="profile-link-text">My Profile</span>
                   </div>
                   
                   <div className="profile-info">
@@ -441,75 +456,7 @@ const ExpenseTracking = () => {
       </header>
 
       <div className="content-container">
-        <h2 className="page-title">Expense Tracking</h2>
-
-        {/* Search and Filters - Moved to the top */}
-        <div className="controls-row">
-          <div className="search-box">
-            <input
-              type="text"
-              placeholder="Search by project or budget"
-              value={searchQuery}
-              onChange={handleSearch}
-              className="search-input"
-            />
-            <button className="search-icon-btn">
-              <Search size={18} />
-            </button>
-          </div>
-
-          <div className="filter-controls">
-            {/* Category Filter */}
-            <div className="filter-dropdown">
-              <button className="filter-dropdown-btn" onClick={toggleCategoryDropdown}>
-                <span>Category</span>
-                <ChevronDown size={14} />
-              </button>
-              {showCategoryDropdown && (
-                <div className="category-dropdown-menu">
-                  {categories.map((category, index) => (
-                    <div
-                      key={index}
-                      className={`category-dropdown-item ${selectedCategory === category ? 'active' : ''}`}
-                      onClick={() => handleCategorySelect(category)}
-                    >
-                      {category}
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-
-            {/* Date Filter */}
-            <div className="filter-dropdown">
-              <button className="filter-dropdown-btn" onClick={toggleDateDropdown}>
-                <span>Date</span>
-                <ChevronDown size={14} />
-              </button>
-              {showDateDropdown && (
-                <div className="category-dropdown-menu">
-                  {dateOptions.map((date, index) => (
-                    <div
-                      key={index}
-                      className={`category-dropdown-item ${selectedDate === date ? 'active' : ''}`}
-                      onClick={() => handleDateSelect(date)}
-                    >
-                      {date}
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-
-            {/* Add Expense Button */}
-            <button className="add-expense-btn" onClick={handleAddExpense}>
-              <Plus size={16} />
-              <span>Add Budget</span>
-            </button>
-          </div>
-        </div>
-        
-        {/* Budget Summary Cards - Moved below the search/filter controls */}
+        {/* Budget Summary Cards - Moved to top of content */}
         <div className="budget-summary">
           <div className="budget-card">
             <div className="budget-card-label">
@@ -528,57 +475,218 @@ const ExpenseTracking = () => {
           </div>
         </div>
 
-        <div className="transactions-table-wrapper">
-          <table className="transactions-table">
-            <thead>
-              <tr>
-                <th style={{ width: '20%' }}>Date</th>
-                <th style={{ width: '35%' }}>Description</th>
-                <th style={{ width: '20%' }}>Category</th>
-                <th style={{ width: '25%', textAlign: 'right' }}>Amount</th>
-              </tr>
-            </thead>
-            <tbody>
-              {currentExpenses.map((expense) => (
-                <tr key={expense.id}>
-                  <td>{expense.date}</td>
-                  <td>{expense.description}</td>
-                  <td>{expense.category}</td>
-                  <td style={{ textAlign: 'right' }}>{expense.amount}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-  
-          {/* Pagination */}
-          <div className="pagination-controls">
-            <button 
-              className={`pagination-btn ${currentPage === 1 ? 'disabled' : ''}`} 
-              onClick={prevPage}
-              disabled={currentPage === 1}
-            >
-              <ChevronLeft size={14} />
-            </button>
-            
-            <div className="pagination-numbers">
-              {Array.from({ length: totalPages }, (_, i) => (
-                <button
-                  key={i + 1}
-                  className={`pagination-number ${currentPage === i + 1 ? 'active' : ''}`}
-                  onClick={() => paginate(i + 1)}
-                >
-                  {i + 1}
-                </button>
-              ))}
+        {/* Main Content - Using Account Setup structure */}
+        <div className="page">
+          <div className="container">
+            {/* Header Section with Title and Controls - Same as Account Setup */}
+            <div className="top">
+              <h2 
+                style={{ 
+                  margin: 0, 
+                  fontSize: '29px', 
+                  fontWeight: 'bold', 
+                  color: '#242424',
+                }}
+              >
+                Expense Tracking 
+              </h2>
+              
+              <div className="header-controls">
+                <div className="filter-controls" style={{ 
+                  display: 'flex', 
+                  justifyContent: 'flex-end',
+                  alignItems: 'center',
+                  gap: '1rem',
+                  width: '100%'
+                }}>
+                  <input
+                    type="text"
+                    placeholder="Search expenses"
+                    value={searchQuery}
+                    onChange={handleSearch}
+                    className="search-account-input"
+                    style={{ 
+                      width: '350px',
+                      minWidth: '300px',
+                      maxWidth: '380px',
+                      padding: '12px 20px',
+                      fontSize: '14px',
+                      border: '1px solid #d1d5db',
+                      borderRadius: '25px',
+                      backgroundColor: '#ffffff',
+                      color: '#374151',
+                      transition: 'all 0.2s ease-in-out',
+                      outline: 'none'
+                    }}
+                    onFocus={(e) => {
+                      e.target.style.borderColor = '#3b82f6';
+                      e.target.style.boxShadow = '0 0 0 3px rgba(59, 130, 246, 0.1)';
+                    }}
+                    onBlur={(e) => {
+                      e.target.style.borderColor = '#d1d5db';
+                      e.target.style.boxShadow = 'none';
+                    }}
+                  />
+                  
+                  {/* Category Filter */}
+                  <div 
+                    className="filter-dropdown" 
+                    style={{ 
+                      display: 'inline-block', 
+                    }}
+                  >
+                    <button 
+                      className="filter-dropdown-btn" 
+                      onClick={toggleCategoryDropdown}
+                    >
+                      <span>{selectedCategory}</span>
+                      <ChevronDown size={19} />
+                    </button>
+                    {showCategoryDropdown && (
+                      <div className="category-dropdown-menu">
+                        {categories.map((category) => (
+                          <div
+                            key={category}
+                            className={`category-dropdown-item ${
+                              selectedCategory === category ? 'active' : ''
+                            }`}
+                            onClick={() => handleCategorySelect(category)}
+                          >
+                            {category}
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                  
+                  {/* Status Filter */}
+                  <div 
+                    className="filter-dropdown" 
+                    style={{ 
+                      display: 'inline-block', 
+                      position: 'relative' 
+                    }}
+                  >
+                    <button 
+                      className="filter-dropdown-btn" 
+                      onClick={toggleDateDropdown}
+                    >
+                      <span>Status: {selectedDate}</span>
+                      <ChevronDown size={15} />
+                    </button>
+                    {showDateDropdown && (
+                      <div className="category-dropdown-menu">
+                        {dateOptions.map((date) => (
+                          <div
+                            key={date}
+                            className={`category-dropdown-item ${
+                              selectedDate === date ? 'active' : ''
+                            }`}
+                            onClick={() => handleDateSelect(date)}
+                          >
+                            {date}
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Add Budget Button */}
+                  <button 
+                    className="add-budget-btn" 
+                    onClick={handleAddExpense}
+                  >
+                    <Plus size={16} />
+                    Add Budget
+                  </button>
+                </div>
+              </div>
             </div>
-            
-            <button 
-              className={`pagination-btn ${currentPage === totalPages ? 'disabled' : ''}`}
-              onClick={nextPage}
-              disabled={currentPage === totalPages}
-            >
-              <ChevronRight size={14} />
-            </button>
+
+            {/* Table - Using Account Setup table structure and styling */}
+            <table>
+              <thead>
+                <tr>
+                   <th style={{ width: '12%' }}>CODE</th>
+                    <th style={{ width: '15%' }}>TYPE</th>
+                    <th style={{ width: '19%' }}>DESCRIPTION</th>
+                    <th style={{ width: '17%' }}>STATUS</th>
+                    <th style={{ width: '17%' }}>ACCOMPLISHED</th>
+                    <th style={{ width: '10%' }}>DATE</th>
+                </tr>
+              </thead>
+              <tbody>
+                {currentExpenses.map((expense) => (
+                  <tr
+                    key={expense.id}
+                    onClick={() => handleExpenseSelect(expense.id)}
+                    style={{ cursor: 'pointer' }}
+                    className={selectedExpenses.includes(expense.id) ? 'selected' : ''}
+                  >
+                    <td style={{ color: '#3b82f6', fontWeight: '500' }}>
+                      {expense.id}00{expense.id}
+                    </td>
+                    <td>
+                      {expense.category.includes('Equipment') ? 'Assets' : 
+                       expense.category.includes('Training') ? 'Expenses' : 'Liabilities'}
+                    </td>
+                    <td>{expense.description}</td>
+                    <td>
+                      <span 
+                        className={`status-badge ${
+                          (expense.status === 'approved' || expense.status === 'paid') ? 'active' : 'inactive'
+                        }`}
+                      >
+                        {(expense.status === 'approved' || expense.status === 'paid') ? 'Active' : 'Inactive'}
+                      </span>
+                    </td>
+                    <td>
+                      <span 
+                        className={`accomplished-badge ${
+                          expense.accomplished ? 'accomplished' : 'pending'
+                        }`}
+                      >
+                        {expense.accomplished ? 'Yes' : 'No'}
+                      </span>
+                    </td>
+                    <td>{expense.accomplished ? expense.date : '-'}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+
+            {/* Pagination - Same as Account Setup */}
+            {totalPages > 1 && (
+              <div className="pagination">
+                <button 
+                  onClick={prevPage} 
+                  disabled={currentPage === 1}
+                  className="pagination-btn"
+                >
+                  <ChevronLeft size={16} />
+                </button>
+                
+                {[...Array(totalPages)].map((_, index) => (
+                  <button
+                    key={index + 1}
+                    onClick={() => paginate(index + 1)}
+                    className={`pagination-btn ${
+                      currentPage === index + 1 ? 'active' : ''
+                    }`}
+                  >
+                    {index + 1}
+                  </button>
+                ))}
+                
+                <button 
+                  onClick={nextPage} 
+                  disabled={currentPage === totalPages}
+                  className="pagination-btn"
+                >
+                  <ChevronRight size={16} />
+                </button>
+              </div>
+            )}
           </div>
         </div>
       </div>

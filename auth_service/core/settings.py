@@ -70,26 +70,36 @@ DEBUG = os.getenv('DEBUG', 'False').lower() == 'true'
 
 
 
-# ALLOWED_HOSTS Configuration - Simplified and more robust
-ALLOWED_HOSTS = ['localhost', '127.0.0.1']
+# ALLOWED_HOSTS
+
+ALLOWED_HOSTS = []
+
+RAILWAY_PUBLIC_DOMAIN = os.getenv('RAILWAY_PUBLIC_DOMAIN')
+RENDER_EXTERNAL_HOSTNAME = os.getenv('RENDER_EXTERNAL_HOSTNAME')
 
 
 if DEBUG:
-    ALLOWED_HOSTS = ['localhost', '127.0.0.1']
+    ALLOWED_HOSTS.extend(['localhost', '127.0.0.1'])
 else:
-    # Get the Railway public domain
-    RAILWAY_PUBLIC_DOMAIN = os.getenv('RAILWAY_PUBLIC_DOMAIN')
+    # Add Railway hostname if available
     if RAILWAY_PUBLIC_DOMAIN:
-        ALLOWED_HOSTS = [RAILWAY_PUBLIC_DOMAIN]
-    else:
-        ALLOWED_HOSTS = []  # Or a default if you have one
-        print("WARNING: RAILWAY_PUBLIC_DOMAIN not set. ALLOWED_HOSTS is empty.")
+        ALLOWED_HOSTS.append(RAILWAY_PUBLIC_DOMAIN)
+    
+    # Add Render hostname if available
+    if RENDER_EXTERNAL_HOSTNAME:
+        ALLOWED_HOSTS.append(RENDER_EXTERNAL_HOSTNAME)
+    
+    # Add platform-specific domains
+    ALLOWED_HOSTS.extend([
+        '.railway.app', 
+        '.up.railway.app',
+        '.onrender.com'
+    ])
+    
+ALLOWED_HOSTS = list(set(filter(None, ALLOWED_HOSTS)))
 
-# Remove duplicates and empty strings
-ALLOWED_HOSTS = sorted(list(set(filter(None, ALLOWED_HOSTS))))
-
-print(f"DEBUG: Final ALLOWED_HOSTS in settings.py: {ALLOWED_HOSTS}")
-
+if not ALLOWED_HOSTS and not DEBUG:
+    print("WARNING: ALLOWED_HOSTS is empty in a non-DEBUG environment.")
 
 # Railway static URL
 RAILWAY_STATIC_URL = os.getenv('RAILWAY_STATIC_URL')

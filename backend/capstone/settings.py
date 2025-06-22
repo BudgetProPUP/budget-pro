@@ -52,21 +52,22 @@ ALLOWED_HOSTS = [] # Start with an empty list
 # Railway typically sets a variable like RAILWAY_PUBLIC_DOMAIN or you might have a custom domain
 RAILWAY_APP_HOSTNAME = os.getenv('RAILWAY_PUBLIC_DOMAIN') # Check Railway docs for the exact variable name they provide for the service's public domain
                                                         # Or, if you set a custom domain, use that.
+# Get the hostname provided by Render
+RENDER_EXTERNAL_HOSTNAME = os.getenv('RENDER_EXTERNAL_HOSTNAME')
 
 if DEBUG:
     ALLOWED_HOSTS.extend(['localhost', '127.0.0.1'])
 else:
     if RAILWAY_APP_HOSTNAME:
         ALLOWED_HOSTS.append(RAILWAY_APP_HOSTNAME)
-    # Add any other specific production domains if necessary
-    # It's generally safer to be specific than to use wildcards like '.railway.app'
-    # if you know the exact hostname(s).
-    # If Railway provides a variable like RAILWAY_PRIVATE_DOMAIN for internal traffic, add that too if needed.
-
+        
+    # Add Render hostname if available
+    if RENDER_EXTERNAL_HOSTNAME:
+        ALLOWED_HOSTS.append(RENDER_EXTERNAL_HOSTNAME)
 # If you still want to allow all railway subdomains (less secure but might be needed if hostnames are dynamic and unpredictable)
 # You had this before, it's a broader approach:
 if not DEBUG: # Only for production-like environments
-    ALLOWED_HOSTS.extend(['.railway.app', '.up.railway.app'])
+    ALLOWED_HOSTS.extend(['.railway.app', '.up.railway.app', '.onrender.com'])
 
 # Ensure there are no duplicates and filter out any potential None values if os.getenv returned None
 ALLOWED_HOSTS = list(set(filter(None, ALLOWED_HOSTS)))

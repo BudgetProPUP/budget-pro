@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Search, ChevronDown, ArrowLeft, ChevronLeft, ChevronRight, User, Mail, Briefcase, LogOut } from 'lucide-react';
 import { Link, useNavigate } from 'react-router-dom';
-import LOGOMAP from '../../assets/LOGOMAP.png';
+import LOGOMAP from '../../assets/MAP.jpg';
 import './ExpenseHistory.css'; 
 
 const ExpenseHistory = () => {
@@ -12,6 +12,7 @@ const ExpenseHistory = () => {
   const [selectedExpense, setSelectedExpense] = useState(null);
   const [selectedCategory, setSelectedCategory] = useState('All Categories');
   const [currentPage, setCurrentPage] = useState(1);
+  const [searchQuery, setSearchQuery] = useState('');
   const itemsPerPage = 5; // Number of transactions per page
   const navigate = useNavigate();
 
@@ -126,9 +127,7 @@ const ExpenseHistory = () => {
     }
   ]);
 
-  const [searchQuery, setSearchQuery] = useState('');
-
-  // Define all categories including the requested new ones
+  // Categories for dropdown
   const categories = [
     'All Categories', 
     'Travel',
@@ -140,11 +139,6 @@ const ExpenseHistory = () => {
     'Equipment & Maintenance',
     'Miscellaneous'
   ];
-
-  const handleSearch = (e) => {
-    setSearchQuery(e.target.value);
-    setCurrentPage(1); // Reset to first page when search changes
-  };
 
   // Filter transactions based on search query and selected category
   const filteredTransactions = transactions.filter(transaction => {
@@ -227,12 +221,17 @@ const ExpenseHistory = () => {
     }
   };
 
-  const handleRowClick = (expense) => {
+  const handleViewExpense = (expense) => {
     setSelectedExpense(expense);
   };
 
   const handleBackToList = () => {
     setSelectedExpense(null);
+  };
+
+  const handleSearch = (e) => {
+    setSearchQuery(e.target.value);
+    setCurrentPage(1);
   };
 
   return (
@@ -242,7 +241,7 @@ const ExpenseHistory = () => {
         <div className="header-left">
           <div className="app-logo">
             <img 
-              src={LOGOMAP} 
+            src={LOGOMAP} 
               alt="BudgetPro Logo" 
               className="logo-image"
             />
@@ -393,41 +392,120 @@ const ExpenseHistory = () => {
         </div>
       </header>
 
-      <div className="content-container">
+      {/* Updated main content with Account Setup styling */}
+      <div className="page">
         {!selectedExpense ? (
-          <>
-            <h2 className="page-title">Expense History</h2>
-
-            <div className="controls-row">
-              <div className="search-box">
+          <div className="container">
+            <div className="top">
+                <h2 className="expense-title">Expense History</h2>
+              <div className="controls-container">
                 <input
                   type="text"
-                  placeholder="Search by project or budget"
+                  placeholder="Search expenses..."
                   value={searchQuery}
                   onChange={handleSearch}
-                  className="search-input"
+                  className="search-account-input"
                 />
-                <button className="search-icon-btn">
-                  <Search size={18} />
-                </button>
-              </div>
-
-              <div className="filter-controls">
-                <div className="filter-dropdown">
-                  <button className="filter-dropdown-btn" onClick={toggleCategoryDropdown}>
-                    <span>{selectedCategory}</span>
-                    <ChevronDown size={14} />
+                
+                {/* Updated Category Dropdown with Oblong Style */}
+                <div className="category-dropdown-wrapper" style={{ position: 'relative' }}>
+                  <button 
+                    className="category-dropdown-button oblong-filter"
+                    onClick={toggleCategoryDropdown}
+                    aria-expanded={showCategoryDropdown}
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'space-between',
+                      minWidth: '160px',
+                      padding: '8px 16px',
+                      backgroundColor: '#f8fafc',
+                      border: '1px solid #e2e8f0',
+                      borderRadius: '20px',
+                      fontSize: '14px',
+                      fontWeight: '500',
+                      color: '#475569',
+                      cursor: 'pointer',
+                      transition: 'all 0.2s ease',
+                      outline: 'none',
+                      gap: '8px'
+                    }}
+                    onMouseEnter={(e) => {
+                      if (!showCategoryDropdown) {
+                        e.target.style.backgroundColor = '#f1f5f9';
+                        e.target.style.borderColor = '#cbd5e1';
+                      }
+                    }}
+                    onMouseLeave={(e) => {
+                      if (!showCategoryDropdown) {
+                        e.target.style.backgroundColor = '#f8fafc';
+                        e.target.style.borderColor = '#e2e8f0';
+                      }
+                    }}
+                  >
+                    <span className="selected-category" style={{ flex: 1, textAlign: 'left' }}>
+                      {selectedCategory}
+                    </span>
+                    <ChevronDown 
+                      className={`dropdown-icon ${showCategoryDropdown ? 'open' : ''}`} 
+                      size={16}
+                      style={{
+                        transform: showCategoryDropdown ? 'rotate(180deg)' : 'rotate(0deg)',
+                        transition: 'transform 0.2s ease'
+                      }}
+                    />
                   </button>
+                  
                   {showCategoryDropdown && (
-                    <div className="category-dropdown-menu">
+                    <div 
+                      className="category-dropdown-menu"
+                      style={{
+                        position: 'absolute',
+                        top: '100%',
+                        left: '0',
+                        right: '0',
+                        backgroundColor: 'white',
+                        border: '1px solid #e2e8f0',
+                        borderRadius: '12px',
+                        boxShadow: '0 10px 25px rgba(0, 0, 0, 0.1), 0 4px 6px rgba(0, 0, 0, 0.05)',
+                        marginTop: '4px',
+                        zIndex: 1000,
+                        overflow: 'hidden',
+                        animation: 'dropdownFadeIn 0.15s ease-out forwards'
+                      }}
+                    >
                       {categories.map((category, index) => (
-                        <div
-                          key={index}
-                          className={`category-dropdown-item ${selectedCategory === category ? 'active' : ''}`}
+                        <button
+                          key={category}
+                          className={`category-item ${selectedCategory === category ? 'selected' : ''}`}
                           onClick={() => handleCategorySelect(category)}
+                          style={{
+                            width: '100%',
+                            padding: '10px 16px',
+                            backgroundColor: selectedCategory === category ? '#f1f5f9' : 'transparent',
+                            border: 'none',
+                            borderBottom: index < categories.length - 1 ? '1px solid #f1f5f9' : 'none',
+                            textAlign: 'left',
+                            fontSize: '14px',
+                            color: selectedCategory === category ? '#3b82f6' : '#475569',
+                            fontWeight: selectedCategory === category ? '600' : '400',
+                            cursor: 'pointer',
+                            transition: 'all 0.15s ease',
+                            outline: 'none'
+                          }}
+                          onMouseEnter={(e) => {
+                            if (selectedCategory !== category) {
+                              e.target.style.backgroundColor = '#f8fafc';
+                            }
+                          }}
+                          onMouseLeave={(e) => {
+                            if (selectedCategory !== category) {
+                              e.target.style.backgroundColor = 'transparent';
+                            }
+                          }}
                         >
                           {category}
-                        </div>
+                        </button>
                       ))}
                     </div>
                   )}
@@ -435,114 +513,132 @@ const ExpenseHistory = () => {
               </div>
             </div>
 
-            <div className="transactions-table-wrapper">
-              <table className="transactions-table">
-                <thead>
-                  <tr>
-                    <th style={{ width: '20%' }}>Date</th>
-                    <th style={{ width: '35%' }}>Description</th>
-                    <th style={{ width: '25%' }}>Category</th>
-                    <th style={{ width: '20%', textAlign: 'right' }}>Amount</th>
+            {/* Table with new styling and Action column */}
+            <table>
+              <thead>
+                <tr>
+                  <th style={{ width: '25%' }}>Date</th>
+                  <th style={{ width: '35%' }}>Description</th>
+                  <th style={{ width: '36%' }}>Category</th>
+                  <th style={{ width: '19%' }}>Amount</th>
+                  <th style={{ width: '15%' }}>Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                {currentTransactions.map((transaction) => (
+                  <tr key={transaction.id}>
+                    <td>{transaction.date}</td>
+                    <td>{transaction.description}</td>
+                    <td>{transaction.category}</td>
+                    <td style={{ textAlign: 'Left' }}>{transaction.amount}</td>
+                    <td style={{ textAlign: 'center' }}>
+                      <button 
+                        className="view-btn"
+                        onClick={() => handleViewExpense(transaction)}
+                      >
+                        View
+                      </button>
+                    </td>
                   </tr>
-                </thead>
-                <tbody>
-                  {currentTransactions.map((transaction) => (
-                    <tr 
-                      key={transaction.id} 
-                      onClick={() => handleRowClick(transaction)}
-                      style={{ cursor: 'pointer' }}
-                    >
-                      <td>{transaction.date}</td>
-                      <td>{transaction.description}</td>
-                      <td>{transaction.category}</td>
-                      <td style={{ textAlign: 'right' }}>{transaction.amount}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-              
-              {/* Pagination Controls */}
-              <div className="pagination-controls">
-                <button 
-                  className={`pagination-btn ${currentPage === 1 ? 'disabled' : ''}`} 
-                  onClick={prevPage}
-                  disabled={currentPage === 1}
-                >
-                  <ChevronLeft size={14} />
-                </button>
-                
-                <div className="pagination-numbers">
-                  {Array.from({ length: totalPages }, (_, i) => (
-                    <button
-                      key={i + 1}
-                      className={`pagination-number ${currentPage === i + 1 ? 'active' : ''}`}
-                      onClick={() => paginate(i + 1)}
-                    >
-                      {i + 1}
-                    </button>
-                  ))}
-                </div>
-                
-                <button 
-                  className={`pagination-btn ${currentPage === totalPages ? 'disabled' : ''}`}
-                  onClick={nextPage}
-                  disabled={currentPage === totalPages}
-                >
-                  <ChevronRight size={14} />
-                </button>
-              </div>
-            </div>
-          </>
-        ) : (
-          <div className="budget-proposal-view">
-            <button className="back-button" onClick={handleBackToList}>
-              <ArrowLeft size={16} />
-              <span>Back to Expenses</span>
-            </button>
-
-            <div className="proposal-header">
-              <h3 className="proposal-title">{selectedExpense.description}</h3>
-              <div className="proposal-date">Due Date: {selectedExpense.dueDate}</div>
-            </div>
-
-            <div className="proposal-section">
-              <h4 className="section-label">PROJECT SUMMARY</h4>
-              <p className="section-content">{selectedExpense.projectSummary}</p>
-            </div>
-
-            <div className="proposal-section">
-              <h4 className="section-label">PROJECT DESCRIPTION</h4>
-              <p className="section-content">{selectedExpense.projectDescription}</p>
-            </div>
-
-            <div className="proposal-section">
-              <h4 className="section-label">COST ELEMENTS</h4>
-              <div className="cost-table">
-                <div className="cost-header">
-                  <div className="cost-type-header">TYPE</div>
-                  <div className="cost-desc-header">DESCRIPTION</div>
-                  <div className="cost-amount-header">ESTIMATED COST</div>
-                </div>
-                {selectedExpense.costElements.map((cost, idx) => (
-                  <div className="cost-row" key={idx}>
-                    <div className="cost-type">
-                      <span className="cost-bullet"></span>
-                      {cost.type}
-                    </div>
-                    <div className="cost-description">{cost.description}</div>
-                    <div className="cost-amount">{cost.cost}</div>
-                  </div>
                 ))}
-                <div className="cost-row total">
-                  <div className="cost-type"></div>
-                  <div className="cost-description">TOTAL</div>
-                  <div className="cost-amount">{selectedExpense.amount}</div>
+              </tbody>
+            </table>
+            
+            {/* Pagination Controls */}
+            <div className="pagination">
+              <button 
+                className={`pagination-btn ${currentPage === 1 ? '' : ''}`} 
+                onClick={prevPage}
+                disabled={currentPage === 1}
+              >
+                <ChevronLeft size={14} />
+              </button>
+              
+              {Array.from({ length: totalPages }, (_, i) => (
+                <button
+                  key={i + 1}
+                  className={`pagination-btn ${currentPage === i + 1 ? 'active' : ''}`}
+                  onClick={() => paginate(i + 1)}
+                >
+                  {i + 1}
+                </button>
+              ))}
+              
+              <button 
+                className={`pagination-btn ${currentPage === totalPages ? '' : ''}`}
+                onClick={nextPage}
+                disabled={currentPage === totalPages}
+              >
+                <ChevronRight size={14} />
+              </button>
+            </div>
+          </div>
+        ) : (
+          <div className="container">
+            <div className="budget-proposal-view">
+              <button className="back-button" onClick={handleBackToList}>
+                <ArrowLeft size={16} />
+                <span>Back to Expenses</span>
+              </button>
+
+              <div className="proposal-header">
+                <h3 className="proposal-title">{selectedExpense.description}</h3>
+                <div className="proposal-date">Due Date: {selectedExpense.dueDate}</div>
+              </div>
+
+              <div className="proposal-section">
+                <h4 className="section-label">PROJECT SUMMARY</h4>
+                <p className="section-content">{selectedExpense.projectSummary}</p>
+              </div>
+
+              <div className="proposal-section">
+                <h4 className="section-label">PROJECT DESCRIPTION</h4>
+                <p className="section-content">{selectedExpense.projectDescription}</p>
+              </div>
+
+              <div className="proposal-section">
+                <h4 className="section-label">COST ELEMENTS</h4>
+                <div className="cost-table">
+                  <div className="cost-header">
+                    <div className="cost-type-header">TYPE</div>
+                    <div className="cost-desc-header">DESCRIPTION</div>
+                    <div className="cost-amount-header">ESTIMATED COST</div>
+                  </div>
+                  {selectedExpense.costElements.map((cost, idx) => (
+                    <div className="cost-row" key={idx}>
+                      <div className="cost-type">
+                        <span className="cost-bullet"></span>
+                        {cost.type}
+                      </div>
+                      <div className="cost-description">{cost.description}</div>
+                      <div className="cost-amount">{cost.cost}</div>
+                    </div>
+                  ))}
+                  <div className="cost-row total">
+                    <div className="cost-type"></div>
+                    <div className="cost-description">TOTAL</div>
+                    <div className="cost-amount">{selectedExpense.amount}</div>
+                  </div>
                 </div>
               </div>
             </div>
           </div>
         )}
       </div>
+
+      {/* Add CSS Animation for Dropdown */}
+      <style jsx>{`
+        @keyframes dropdownFadeIn {
+          from {
+            opacity: 0;
+            transform: translateY(-10px);
+          }
+          to {
+            opacity: 1;
+            transform: translateY(0);
+          }
+        }
+      `}</style>
     </div>
   );
 };

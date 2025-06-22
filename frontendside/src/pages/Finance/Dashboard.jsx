@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 import { ChevronLeft, ChevronRight, ChevronDown, Search, ArrowLeft, Expand, Minimize, User, Mail, Briefcase, LogOut } from 'lucide-react';
 import { Link, useNavigate } from 'react-router-dom';
-import LOGOMAP from '../../assets/LOGOMAP.png';
+import LOGOMAP from '../../assets/MAP.jpg';
 import './Dashboard.css';
 
 function BudgetDashboard() {
@@ -173,14 +173,14 @@ function BudgetDashboard() {
     }
   };
 
-  if (loading) {
-    return (
-      <div className="loading-container">
-        <div className="loading-spinner"></div>
-        <p>Loading dashboard data...</p>
-      </div>
-    );
-  }
+if (loading) {
+  return (
+    <div className="loading-container">
+      <div className="loading-spinner"></div>
+      <p className="loading-text">Loading dashboard data...</p>
+    </div>
+  );
+}
 
   return (
     <div className="app-container">
@@ -299,10 +299,6 @@ function BudgetDashboard() {
                     <img src={userProfile.avatar} alt="Profile" className="profile-avatar-img" />
                   </div>
                   
-                  <div className="profile-link">
-                    <span className="profile-link-text">My Profile</span>
-                  </div>
-                  
                   <div className="profile-info">
                     <div className="profile-field">
                       <div className="profile-field-header">
@@ -374,65 +370,61 @@ function BudgetDashboard() {
           </button>
         </div>
 
-        {/* Top Cards */}
-        <div className="stats-grid">
-          {/* Department Allocation - Pie Chart Removed */}
-          <div className="card">
-            <h3 className="card-title">Budget Allocation by Categories</h3>
-            <div className="dept-list">
-              {departmentData.map((dept, index) => (
-                <div key={index} className="dept-item">
-                  <div className="color-indicator" style={{ backgroundColor: dept.color }}></div>
-                  <span className="dept-name">{dept.name}</span>
-                  <div className="progress-container">
-                    <div 
-                      className="progress-bar" 
-                      style={{ width: `${dept.percentage}%`, backgroundColor: dept.color }}
-                    ></div>
-                  </div>
-                  <span className="dept-budget">₱{dept.budget.toLocaleString()}</span>
-                </div>
-              ))}
-            </div>
+      <div className="stats-grid">
+  {/* Budget Allocation - Compact with all details */}
+  <div className="card compact-budget-card">
+    <h3 className="compact-card-title">Budget Allocation</h3>
+    <div className="compact-budget-list">
+      {departmentData.map((dept, index) => (
+        <div key={index} className="compact-budget-item">
+          <div className="compact-budget-category">
+            <div className="compact-category-icon"></div>
+            <div 
+              className="compact-category-color" 
+              style={{ backgroundColor: dept.color }}
+            />
+            <span className="compact-category-name">{dept.name}</span>
           </div>
-
-          {/* Plan Completion */}
-          <div className="card">
-            <h3 className="card-title">Budget Completion</h3>
-            <p className="stat-value">{planCompletion}%</p>
-            <p className="stat-label">Overall Status of Budget Plan</p>
-            <div className="progress-container">
-              <div 
-                className="progress-bar blue" 
-                style={{ width: `${planCompletion}%` }}
-              ></div>
-            </div>
-          </div>
-
-          {/* Total Budget */}
-          <div className="card">
-            <h3 className="card-title">Total Budget</h3>
-            <p className="stat-value">₱{totalBudget.toLocaleString()}</p>
-            <p className="stat-label">Allocated</p>
-            <div className="progress-container">
-              <div 
-                className="progress-bar green" 
-                style={{ width: `${allocatedPercentage}%` }}
-              ></div>
-            </div>
-            <p className="percentage">{allocatedPercentage}%</p>
-          </div>
-
-          {/* Remaining Budget */}
-          <div className="card">
-            <h3 className="card-title">Remaining Budget</h3>
-            <p className="stat-value">₱{remainingBudget.toLocaleString()}</p>
-            <p className="stat-label">56% of Total Budget</p>
-            <span className="badge badge-success">
-              Available for Allocation
-            </span>
-          </div>
+          <span className="compact-budget-amount">P{dept.budget.toLocaleString()}</span>
         </div>
+      ))}
+    </div>
+  </div>
+
+  {/* Budget Completion - Compact with all details */}
+  <div className="card compact-budget-card">
+    <h3 className="compact-card-title">Budget Completion</h3>
+    <p className="compact-stat-value">{planCompletion}%</p>
+    <p className="compact-card-subtext">Overall Status of Budget Plan</p>
+    <div className="compact-progress-container">
+      <div 
+        className="compact-progress-bar" 
+        style={{ width: `${planCompletion}%` }}
+      />
+    </div>
+  </div>
+
+  {/* Total Budget - Compact with all details */}
+  <div className="card compact-budget-card">
+    <h3 className="compact-card-title">Total Budget</h3>
+    <p className="compact-stat-value">P{totalBudget.toLocaleString()}</p>
+    <p className="compact-card-subtext">{allocatedPercentage}% allocated</p>
+    <div className="compact-progress-container">
+      <div 
+        className="compact-progress-bar" 
+        style={{ width: `${allocatedPercentage}%` }}
+      />
+    </div>
+  </div>
+
+  {/* Remaining Budget - Compact with all details */}
+  <div className="card compact-budget-card">
+    <h3 className="compact-card-title">Remaining Budget</h3>
+    <p className="compact-stat-value">P{remainingBudget.toLocaleString()}</p>
+    <p className="compact-card-subtext">56% of Total Budget </p>
+    <span className="compact-badge">Available for Allocation</span>
+  </div>
+</div>
 
         {/* Monthly Budget vs Actual */}
         <div className="card chart-card">

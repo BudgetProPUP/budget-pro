@@ -120,7 +120,7 @@ body {
   left: 0;
   width: 220px;
   background-color: var(--white);
-  border-radius: 4px;
+  border-radius: 12px;
   box-shadow: var(--box-shadow);
   overflow: hidden;
   z-index: 1000;
@@ -171,7 +171,7 @@ body {
   right: 0;
   width: 280px;
   background-color: #fff;
-  border-radius: 12px;
+  border-radius: 16px;
   box-shadow: 0 10px 25px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
   border: 1px solid #e5e7eb;
   z-index: 50;
@@ -192,7 +192,7 @@ body {
   cursor: pointer;
   padding: 0.25rem;
   margin-right: 0.75rem;
-  border-radius: 4px;
+  border-radius: 24px;
   color: #6b7280;
   transition: all 0.2s;
   display: flex;
@@ -309,7 +309,7 @@ body {
   background-color: #3b82f6;
   color: white;
   border: none;
-  border-radius: 8px;
+  border-radius: 24px;
   font-size: 0.875rem;
   font-weight: 500;
   cursor: pointer;
@@ -356,7 +356,7 @@ body {
   width: 100%;
   padding: 0.625rem 2.5rem 0.625rem 1rem;
   border: 1px solid var(--gray-300);
-  border-radius: 4px;
+  border-radius: 24px;
   font-size: 0.875rem;
   outline: none;
   transition: border-color 0.2s;
@@ -377,7 +377,7 @@ body {
   color: var(--gray-500);
   cursor: pointer;
   padding: 0.25rem;
-  border-radius: 2px;
+  border-radius: 50%;
   transition: color 0.2s ease;
 }
 
@@ -399,10 +399,10 @@ body {
   display: flex;
   align-items: center;
   gap: 0.5rem;
-  padding: 0.625rem 1rem;
+  padding: 0.625rem 1.5rem;
   background-color: var(--white);
   border: 1px solid var(--gray-300);
-  border-radius: 4px;
+  border-radius: 24px;
   font-size: 0.875rem;
   cursor: pointer;
   color: var(--gray-700);
@@ -421,7 +421,7 @@ body {
   left: 0;
   width: 200px;
   background-color: var(--white);
-  border-radius: 4px;
+  border-radius: 12px;
   box-shadow: var(--box-shadow);
   z-index: 100;
   max-height: 300px;
@@ -447,15 +447,16 @@ body {
   color: var(--white);
 }
 
-.add-expense-btn {
+.add-expense-btn,
+.add-budget-btn {
   display: flex;
   align-items: center;
   gap: 0.5rem;
-  padding: 0.625rem 1rem;
+  padding: 0.625rem 1.5rem;
   background-color: var(--primary-color);
   color: var(--white);
   border: none;
-  border-radius: 4px;
+  border-radius: 24px;
   font-weight: 500;
   cursor: pointer;
   font-size: 0.875rem;
@@ -463,7 +464,8 @@ body {
   white-space: nowrap;
 }
 
-.add-expense-btn:hover {
+.add-expense-btn:hover,
+.add-budget-btn:hover {
   background-color: var(--hover-primary);
 }
 
@@ -471,29 +473,42 @@ body {
 .budget-summary {
   display: flex;
   gap: 1.5rem;
-  margin-bottom: 2rem;
+  margin-bottom: 1.5rem;
+  justify-content: flex-start;
+  flex-wrap: wrap;
+  /* Match the exact table container margins */
+  width: 95%;
+  margin-left: auto;
+  margin-right: auto;
+  /* Additional padding to match table internal spacing */
+  padding-left: 24px;
+  padding-right: 24px;
 }
 
 .budget-card {
-  flex: 1;
   background-color: var(--white);
-  border-radius: 8px;
-  padding: 1.5rem;
-  box-shadow: var(--shadow);
+  border-radius: 20px;
+  padding: 2rem 2.5rem;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
   display: flex;
   flex-direction: column;
   position: relative;
-  transition: box-shadow 0.2s ease;
+  transition: all 0.3s ease;
+  flex: 0 1 calc(50% - 0.75rem);
+  min-width: 280px;
 }
 
 .budget-card:hover {
-  box-shadow: var(--box-shadow);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.12);
+  transform: translateY(-2px);
 }
 
 .budget-card-label {
-  color: var(--gray-600);
-  font-size: 0.875rem;
-  margin-bottom: 0.75rem;
+  color: var(--gray-500);
+  font-size: 0.9rem;
+  margin-bottom: 1rem;
+  font-weight: 500;
+  text-align: left;
 }
 
 .budget-card-label p {
@@ -501,24 +516,81 @@ body {
 }
 
 .budget-card-amount {
-  font-size: 2.5rem;
+  font-size: 2.8rem;
   font-weight: 700;
   line-height: 1.1;
-  margin-bottom: 0.75rem;
-  color: var(--gray-800);
+  margin-bottom: 1rem;
+  color: var(--primary-color);
+  text-align: left;
 }
 
 .budget-card-footer {
   font-size: 1rem;
   color: var(--gray-600);
   margin-top: auto;
-  font-weight: 500;
+  font-weight: 600;
+  text-align: left;
+}
+
+/* Alternative approach if you want to match the table container exactly */
+.budget-summary-alt {
+  display: flex;
+  gap: 1.5rem;
+  margin-bottom: 1.5rem;
+  justify-content: flex-start;
+  flex-wrap: wrap;
+  /* Match the table container padding from paste-2.txt */
+  padding-left: 24px;
+  padding-right: 24px;
+  margin-left: 0;
+  margin-right: 0;
+}
+
+/* Responsive adjustments */
+@media (max-width: 992px) {
+  .budget-summary {
+    flex-direction: column;
+    align-items: stretch;
+    /* Keep same width and padding structure */
+    width: 95%;
+    padding-left: 16px;
+    padding-right: 16px;
+  }
+  
+  .budget-card {
+    max-width: 100%;
+  }
+}
+
+@media (max-width: 768px) {
+  .budget-summary {
+    gap: 1rem;
+    /* Match mobile container structure */
+    width: 100%;
+    padding-left: 10px;
+    padding-right: 10px;
+  }
+  
+  .budget-card-amount {
+    font-size: 2.2rem;
+  }
+}
+
+@media (max-width: 576px) {
+  .budget-summary {
+    /* Match mobile content container padding exactly */
+    width: calc(100% - 1.5rem);
+    padding-left: 0.75rem;
+    padding-right: 0.75rem;
+    margin-left: auto;
+    margin-right: auto;
+  }
 }
 
 /* ============== TABLE STYLES ============== */
 .transactions-table-wrapper {
   background-color: var(--white);
-  border-radius: 8px;
+  border-radius: 16px;
   box-shadow: var(--shadow);
   overflow: hidden;
   flex: 1;
@@ -608,7 +680,7 @@ body {
 .pagination-btn {
   width: 32px;
   height: 32px;
-  border-radius: 4px;
+  border-radius: 16px;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -636,7 +708,7 @@ body {
 .pagination-number {
   width: 32px;
   height: 32px;
-  border-radius: 4px;
+  border-radius: 16px;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -674,7 +746,7 @@ body {
 
 .modal-container {
   background-color: var(--light-bg);
-  border-radius: 8px;
+  border-radius: 16px;
   width: 100%;
   max-width: 550px;
   max-height: 90vh;
@@ -707,7 +779,7 @@ body {
   justify-content: center;
   width: 32px;
   height: 32px;
-  border-radius: 4px;
+  border-radius: 16px;
   transition: all 0.2s ease;
 }
 
@@ -751,7 +823,7 @@ body {
   width: 100%;
   padding: 0.625rem;
   border: 1px solid var(--gray-300);
-  border-radius: 4px;
+  border-radius: 12px;
   font-size: 0.875rem;
   transition: border-color 0.2s ease;
   background: white;
@@ -774,10 +846,10 @@ body {
 }
 
 .cancel-btn {
-  padding: 0.625rem 1.25rem;
+  padding: 0.625rem 1.5rem;
   background-color: var(--white);
   border: 1px solid var(--gray-300);
-  border-radius: 4px;
+  border-radius: 24px;
   cursor: pointer;
   font-weight: 500;
   color: var(--gray-700);
@@ -790,11 +862,11 @@ body {
 }
 
 .submit-btn {
-  padding: 0.625rem 1.25rem;
+  padding: 0.625rem 1.5rem;
   background-color: var(--primary-color);
   color: var(--white);
   border: none;
-  border-radius: 4px;
+  border-radius: 24px;
   cursor: pointer;
   font-weight: 500;
   transition: background-color 0.2s ease;
@@ -812,6 +884,11 @@ body {
   
   .budget-summary {
     flex-direction: column;
+    align-items: stretch;
+  }
+  
+  .budget-card {
+    max-width: 100%;
   }
   
   .controls-row {
@@ -857,7 +934,11 @@ body {
   }
   
   .budget-card-amount {
-    font-size: 2rem;
+    font-size: 2.2rem;
+  }
+  
+  .budget-summary {
+    gap: 1rem;
   }
 }
 
@@ -886,7 +967,8 @@ body {
   }
   
   .filter-dropdown-btn,
-  .add-expense-btn {
+  .add-expense-btn,
+  .add-budget-btn {
     justify-content: center;
   }
 }
@@ -908,6 +990,7 @@ body {
   border: none;
   background: transparent;
   padding: 0.5rem;
+  border-radius: 8px;
 }
 
 .amount-date-table input:focus {

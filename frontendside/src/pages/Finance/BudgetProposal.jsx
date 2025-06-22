@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { ChevronDown, Search, ArrowLeft, ChevronLeft, ChevronRight, User, Mail, Briefcase, LogOut } from 'lucide-react';
 import { Link, useNavigate } from 'react-router-dom';
-import LOGOMAP from '../../assets/LOGOMAP.png';
+import LOGOMAP from '../../assets/MAP.jpg';
 import './BudgetProposal.css';
 
 const BudgetProposal = () => {
@@ -31,6 +31,13 @@ const BudgetProposal = () => {
     email: "Johndoe@gmail.com",
     role: "Finance Head",
     avatar: "https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?ixlib=rb-1.2.1&ixid=eyJhcHBfaWQiOjEyMDd9&auto=format&fit=facearea&facepad=2&w=256&h=256&q=80"
+  };
+
+  // Budget summary data - Updated to match the image
+  const budgetData = {
+    totalProposals: 6,
+    pendingApproval: 3,
+    budgetTotal: '₱3,326,025.75'
   };
 
   // Close dropdowns when clicking outside - updated to include profile
@@ -147,6 +154,8 @@ const BudgetProposal = () => {
   
   // Status options
   const statusOptions = ['All Status', 'pending', 'approved', 'rejected'];
+
+  const pendingCount = proposals.filter(p => p.status === 'pending').length;
 
   // Filter proposals based on search term, category and status
   const filteredProposals = proposals.filter(proposal => {
@@ -305,8 +314,6 @@ const BudgetProposal = () => {
     closePendingStatusPopup();
   };
 
-  const pendingCount = proposals.filter(p => p.status === 'pending').length;
-
   return (
     <div className="app-container">
       {/* Header - Updated to match Dashboard exactly */}
@@ -424,10 +431,6 @@ const BudgetProposal = () => {
                     <img src={userProfile.avatar} alt="Profile" className="profile-avatar-img" />
                   </div>
                   
-                  <div className="profile-link">
-                    <span className="profile-link-text">My Profile</span>
-                  </div>
-                  
                   <div className="profile-info">
                     <div className="profile-field">
                       <div className="profile-field-header">
@@ -466,170 +469,208 @@ const BudgetProposal = () => {
       </header>
 
       <div className="content-container">
-        <h2 className="page-title">Budget Proposal</h2>
-        
-        {/* Search and Filter Controls */}
-        <div className="controls-row">
-          <div className="search-box">
-            <input 
-              type="text" 
-              placeholder="Search by project or budget" 
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="search-input"
-            />
-            <button className="search-icon-btn">
-              <Search size={18} />
-            </button>
+        {/* Budget Summary Cards - Updated to match the image */}
+        <div className="budget-summary" style={{ display: 'flex', gap: '1rem', justifyContent: 'space-between' }}>
+          <div className="budget-card" style={{ flex: '1', minWidth: '200px' }}>
+            <div className="budget-card-label">
+              <p>Total Proposals</p>
+            </div>
+            <div className="budget-card-amount">{budgetData.totalProposals}</div>
           </div>
 
-          <div className="filter-controls">
-            <div className="filter-dropdown">
-              <button className="filter-dropdown-btn" onClick={toggleCategoryDropdown}>
-                <span>{selectedCategory}</span>
-                <ChevronDown size={14} />
-              </button>
-              {showCategoryDropdown && (
-                <div className="category-dropdown-menu">
-                  {categories.map((category, index) => (
-                    <div
-                      key={index}
-                      className={`category-dropdown-item ${selectedCategory === category ? 'active' : ''}`}
-                      onClick={() => handleCategorySelect(category)}
-                    >
-                      {category}
-                    </div>
-                  ))}
-                </div>
-              )}
+          <div className="budget-card" style={{ flex: '1', minWidth: '200px' }}>
+            <div className="budget-card-label">
+              <p>Pending Approval</p>
             </div>
-            
-            <div className="filter-dropdown">
-              <button className="filter-dropdown-btn" onClick={toggleStatusDropdown}>
-                <span>{selectedStatus}</span>
-                <ChevronDown size={14} />
-              </button>
-              {showStatusDropdown && (
-                <div className="category-dropdown-menu">
-                  {statusOptions.map((status, index) => (
-                    <div
-                      key={index}
-                      className={`category-dropdown-item ${selectedStatus === status ? 'active' : ''}`}
-                      onClick={() => handleStatusSelect(status)}
-                    >
-                      {status === 'pending' ? 'Pending' :
-                       status === 'approved' ? 'Approved' :
-                       status === 'rejected' ? 'Rejected' : status}
-                    </div>
-                  ))}
-                </div>
-              )}
+            <div className="budget-card-amount">{budgetData.pendingApproval}</div>
+          </div>
+
+          <div className="budget-card" style={{ flex: '1', minWidth: '200px' }}>
+            <div className="budget-card-label">
+              <p>Budget Total</p>
             </div>
+            <div className="budget-card-amount">{budgetData.budgetTotal}</div>
           </div>
         </div>
 
-        {/* Summary Cards */}
-        <div className="summary-cards">
-          <div className="summary-card">
-            <div className="card-content">
-              <div className="card-title">Total Proposals</div>
-              <div className="card-value">{proposals.length}</div>
-            </div>
-          </div>
-          <div className="summary-card">
-            <div className="card-content">
-              <div className="card-title">Pending Approval</div>
-              <div className="card-value">{pendingCount}</div>
-            </div>
-          </div>
-          <div className="summary-card budget-total">
-            <div className="card-content">
-              <div className="card-title">Budget Total</div>
-              <div className="card-value">₱3,326,025.75</div>
-            </div>
-          </div>
-        </div>
-
-        {/* Proposals Table */}
-        <div className="transactions-table-wrapper">
-          <table className="transactions-table">
-            <thead>
-              <tr>
-                <th style={{ width: '25%', textAlign: 'left' }}>Subject</th>
-                <th style={{ width: '20%', textAlign: 'left' }}>Category</th>
-                <th style={{ width: '15%', textAlign: 'left' }}>Submitted By</th>
-                <th style={{ width: '10%', textAlign: 'right' }}>Amount</th>
-                <th style={{ width: '15%', textAlign: 'center' }}>Status</th>
-                <th style={{ width: '10%', textAlign: 'center' }}>Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              {currentProposals.map((proposal) => (
-                <tr 
-                  key={proposal.id} 
-                  onClick={() => handleReviewClick(proposal)}
-                  style={{ cursor: 'pointer' }}
-                >
-                  <td style={{ textAlign: 'left' }}>{proposal.subject}</td>
-                  <td style={{ textAlign: 'left' }}>{proposal.category}</td>
-                  <td style={{ textAlign: 'left' }}>{proposal.submittedBy}</td>
-                  <td style={{ textAlign: 'right' }}>{proposal.amount}</td>
-                  <td style={{ textAlign: 'center' }}>
-                    <span className={`status-badge ${proposal.status}`}>
-                      {proposal.status === 'pending' ? 'Pending' : 
-                      proposal.status === 'approved' ? 'Approved' : 'Rejected'}
-                    </span>
-                  </td>
-                  <td style={{ textAlign: 'center' }}>
+        {/* Main Content */}
+        <div className="page">
+          <div className="container">
+            {/* Header Section with Title and Controls */}
+            <div className="top">
+              <h2 
+                style={{ 
+                  margin: 0, 
+                  fontSize: '29px', 
+                  fontWeight: 'bold', 
+                   color:'#242424',
+                }}
+              >
+                Budget Proposal 
+              </h2>
+              
+              <div className="header-controls">
+                <div className="filter-controls" style={{ 
+                  display: 'flex', 
+                  justifyContent: 'flex-end',
+                  alignItems: 'center',
+                  gap: '1rem',
+                  width: '100%'
+                }}>
+                  <input
+                    type="text"
+                    placeholder="Search proposals"
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                    className="search-account-input"
+                  />
+                  
+                  {/* Category Filter */}
+                  <div className="filter-dropdown">
                     <button 
-                      className="blue-button action-btn"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        handleReviewClick(proposal);
-                      }}
+                      className="filter-dropdown-btn" 
+                      onClick={toggleCategoryDropdown}
                     >
-                      {proposal.action}
+                      <span>{selectedCategory}</span>
+                      <ChevronDown size={19} />
                     </button>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-
-          {/* Pagination Controls */}
-          <div className="pagination-controls">
-            <button 
-              className={`pagination-btn ${currentPage === 1 ? 'disabled' : ''}`} 
-              onClick={prevPage}
-              disabled={currentPage === 1}
-            >
-              <ChevronLeft size={14} />
-            </button>
-            
-            <div className="pagination-numbers">
-              {Array.from({ length: totalPages }, (_, i) => (
-                <button
-                  key={i + 1}
-                  className={`pagination-number ${currentPage === i + 1 ? 'active' : ''}`}
-                  onClick={() => paginate(i + 1)}
-                >
-                  {i + 1}
-                </button>
-              ))}
+                    {showCategoryDropdown && (
+                      <div className="category-dropdown-menu">
+                        {categories.map((category) => (
+                          <div
+                            key={category}
+                            className={`category-dropdown-item ${
+                              selectedCategory === category ? 'active' : ''
+                            }`}
+                            onClick={() => handleCategorySelect(category)}
+                          >
+                            {category}
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                  
+                  {/* Status Filter */}
+                  <div className="filter-dropdown">
+                    <button 
+                      className="filter-dropdown-btn" 
+                      onClick={toggleStatusDropdown}
+                    >
+                      <span>Status: {selectedStatus}</span>
+                      <ChevronDown size={15} />
+                    </button>
+                    {showStatusDropdown && (
+                      <div className="category-dropdown-menu">
+                        {statusOptions.map((status) => (
+                          <div
+                            key={status}
+                            className={`category-dropdown-item ${
+                              selectedStatus === status ? 'active' : ''
+                            }`}
+                            onClick={() => handleStatusSelect(status)}
+                          >
+                            {status === 'pending' ? 'Pending' :
+                             status === 'approved' ? 'Approved' :
+                             status === 'rejected' ? 'Rejected' : status}
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
             </div>
-            
-            <button 
-              className={`pagination-btn ${currentPage === totalPages ? 'disabled' : ''}`}
-              onClick={nextPage}
-              disabled={currentPage === totalPages}
-            >
-              <ChevronRight size={14} />
-            </button>
+
+            {/* Proposals Table */}
+            <table>
+              <thead>
+                <tr>
+                 <th style={{ width: '24%' }}>SUBJECT</th>
+                <th style={{ width: '21%' }}>CATEGORY</th>
+                 <th style={{ width: '19%' }}>SUBMITTED BY</th>
+                 <th style={{ width: '15%' }}>AMOUNT</th>
+                <th style={{ width: '15%' }}>STATUS</th>
+                <th style={{ width: '10%' }}>ACTIONS</th>
+                </tr>
+              </thead>
+              <tbody>
+                {currentProposals.map((proposal) => (
+                  <tr 
+                    key={proposal.id} 
+                    onClick={() => handleReviewClick(proposal)}
+                    style={{ cursor: 'pointer' }}
+                  >
+                    <td style={{ color: '#3b82f6', fontWeight: '500' }}>
+                      {proposal.subject}
+                    </td>
+                    <td>{proposal.category}</td>
+                    <td>{proposal.submittedBy}</td>
+                    <td>{proposal.amount}</td>
+                    <td>
+                      <span 
+                        className={`status-badge ${
+                          proposal.status === 'approved' ? 'active' : 
+                          proposal.status === 'pending' ? 'pending' : 'inactive'
+                        }`}
+                      >
+                        {proposal.status === 'pending' ? 'Pending' : 
+                         proposal.status === 'approved' ? 'Approved' : 'Rejected'}
+                      </span>
+                    </td>
+                    <td>
+                      <button 
+                        className="blue-button action-btn"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleReviewClick(proposal);
+                        }}
+                      >
+                        {proposal.action}
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+
+            {/* Pagination */}
+            {totalPages > 1 && (
+              <div className="pagination">
+                <button 
+                  onClick={prevPage} 
+                  disabled={currentPage === 1}
+                  className="pagination-btn"
+                >
+                  <ChevronLeft size={16} />
+                </button>
+                
+                {[...Array(totalPages)].map((_, index) => (
+                  <button
+                    key={index + 1}
+                    onClick={() => paginate(index + 1)}
+                    className={`pagination-btn ${
+                      currentPage === index + 1 ? 'active' : ''
+                    }`}
+                  >
+                    {index + 1}
+                  </button>
+                ))}
+                
+                <button 
+                  onClick={nextPage} 
+                  disabled={currentPage === totalPages}
+                  className="pagination-btn"
+                >
+                  <ChevronRight size={16} />
+                </button>
+              </div>
+            )}
           </div>
         </div>
       </div>
 
-      {/* Review Popup - Updated UI */}
+      {/* Review Popup */}
       {showReviewPopup && selectedProposal && (
         <div className="popup-overlay">
           <div className="review-popup">
@@ -731,7 +772,7 @@ const BudgetProposal = () => {
         </div>
       )}
 
-      {/* NEW: Pending Status Popup */}
+      {/* Pending Status Popup */}
       {showPendingStatusPopup && selectedProposal && (
         <div className="popup-overlay">
           <div className="pending-status-popup">
@@ -760,7 +801,7 @@ const BudgetProposal = () => {
                 {selectedProposal.subject}
               </h3>
               
-              {/* Project Details - Updated with inline format */}
+              {/* Project Details */}
               <div className="project-info-section">
                 <div className="project-detail-inline">
                   <strong>Budget Amount:</strong> {selectedProposal.budgetAmount}
@@ -796,7 +837,7 @@ const BudgetProposal = () => {
         </div>
       )}
 
-      {/* UPDATED: Approval/Rejection Status Popup */}
+      {/* Approval/Rejection Status Popup */}
       {showConfirmationPopup && selectedProposal && (
         <div className="popup-overlay">
           <div className="approval-status-popup">
@@ -831,7 +872,7 @@ const BudgetProposal = () => {
                 {selectedProposal.subject}
               </h3>
               
-              {/* Project Details - Updated with inline format */}
+              {/* Project Details */}
               <div className="project-info-section">
                 <div className="project-detail-inline">
                   <strong>Budget Amount:</strong> {selectedProposal.budgetAmount}
@@ -867,7 +908,7 @@ const BudgetProposal = () => {
         </div>
       )}
 
-      {/* Comment Popup - Updated with inline format */}
+      {/* Comment Popup */}
       {showCommentPopup && selectedProposal && (
         <div className="popup-overlay">
           <div className="approval-status-popup">
@@ -896,7 +937,7 @@ const BudgetProposal = () => {
                 {selectedProposal.subject}
               </h3>
               
-              {/* Project Details - Updated with inline format */}
+              {/* Project Details */}
               <div className="project-info-section">
                 <div className="project-detail-inline">
                   <strong>Budget Amount:</strong> {selectedProposal.budgetAmount}

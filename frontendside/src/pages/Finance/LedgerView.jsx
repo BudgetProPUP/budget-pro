@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Search, ChevronDown, ArrowLeft, ChevronLeft, ChevronRight, User, Mail, Briefcase, LogOut } from 'lucide-react';
 import { Link, useNavigate } from 'react-router-dom';
-import LOGOMAP from '../../assets/LOGOMAP.png';
+import LOGOMAP from '../../assets/MAP.jpg';
 import './LedgerView.css';
 
 const LedgerView = () => {
@@ -81,7 +81,7 @@ const LedgerView = () => {
   ]);
 
   // State for UI elements
-  const [currentDate, setCurrentDate] = useState(new Date());
+  const [, setCurrentDate] = useState(new Date());
   const [searchTerm, setSearchTerm] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
   const [activeFilters, setActiveFilters] = useState({
@@ -233,12 +233,12 @@ const LedgerView = () => {
   const handleLogout = () => {
     try {
       // Clear any stored authentication data
-      localStorage.removeItem('authToken');
-      localStorage.removeItem('userSession');
-      localStorage.removeItem('userProfile');
+      // localStorage.removeItem('authToken');
+      // localStorage.removeItem('userSession');
+      // localStorage.removeItem('userProfile');
       
       // Clear session storage
-      sessionStorage.clear();
+      // sessionStorage.clear();
       
       // Close the profile popup
       setShowProfilePopup(false);
@@ -418,66 +418,83 @@ const LedgerView = () => {
         </div>
       </header>
 
-      <div className="content-container">
-        <h2 className="page-title">Ledger View</h2>
-
-        <div className="controls-row">
-          <div className="search-box">
-            <input
-              type="text"
-              placeholder="Search Transactions"
-              value={searchTerm}
-              onChange={handleSearchChange}
-              className="search-input"
-            />
-            <button className="search-icon-btn">
-              <Search size={18} />
-            </button>
-          </div>
-
-          <div className="filter-controls">
-            <div className="filter-dropdown">
-              <button className="filter-dropdown-btn" onClick={toggleCategoryDropdown}>
-                <span>{activeFilters.category || 'All Categories'}</span>
-                <ChevronDown size={14} />
-              </button>
-              {showCategoryDropdown && (
-                <div className="category-dropdown-menu">
-                  <div
-                    className={`category-dropdown-item ${activeFilters.category === '' ? 'active' : ''}`}
-                    onClick={() => handleCategoryChange('')}
-                  >
-                    All Categories
-                  </div>
-                  {categoryOptions.map((category, index) => (
-                    <div
-                      key={index}
-                      className={`category-dropdown-item ${activeFilters.category === category ? 'active' : ''}`}
-                      onClick={() => handleCategoryChange(category)}
-                    >
-                      {category}
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
+      {/* Main Content */}
+      <div className="page">
+        <div className="container">
+          {/* Header Section with Title and Controls - Matching Account Setup */}
+          <div className="top">
+            <h2 
+              style={{ 
+              margin: 0, 
+              fontSize: '29px', 
+             fontWeight: 'bold', 
+             color:'#242424',
+              }}
+            >
+              Ledger View 
+            </h2>
             
-            <button className="export-button" onClick={handleExport}>
-              Export
-            </button>
+            <div>
+              <div className="filter-controls" style={{ 
+                display: 'flex', 
+                justifyContent: 'flex-end', // This pushes everything to the right
+                alignItems: 'center',
+                gap: '1rem',
+                width: '100%'
+              }}>
+              </div>
+              <input
+                type="text"
+                placeholder="Search Transactions"
+                value={searchTerm}
+                onChange={handleSearchChange}
+                className="search-account-input"
+              />
+              
+              <div className="filter-dropdown">
+                <button 
+                  className={`filter-dropdown-btn ${showCategoryDropdown ? 'active' : ''}`} 
+                  onClick={toggleCategoryDropdown}
+                >
+                  <span>{activeFilters.category || 'All Categories'}</span>
+                  <ChevronDown size={14} />
+                </button>
+                {showCategoryDropdown && (
+                  <div className="category-dropdown-menu">
+                    <div
+                      className={`category-dropdown-item ${activeFilters.category === '' ? 'active' : ''}`}
+                      onClick={() => handleCategoryChange('')}
+                    >
+                      All Categories
+                    </div>
+                    {categoryOptions.map((category, index) => (
+                      <div
+                        key={index}
+                        className={`category-dropdown-item ${activeFilters.category === category ? 'active' : ''}`}
+                        onClick={() => handleCategoryChange(category)}
+                      >
+                        {category}
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+              
+              <button className="filter-dropdown-btn" onClick={handleExport}>
+                Export
+              </button>
+            </div>
           </div>
-        </div>
 
-        <div className="transactions-table-wrapper">
-          <table className="transactions-table">
+          <table>
             <thead>
               <tr>
-                <th style={{ width: '15%' }}>Reference</th>
-                <th style={{ width: '15%' }}>Date</th>
-                <th style={{ width: '20%' }}>Category</th>
-                <th style={{ width: '20%' }}>Description</th>
-                <th style={{ width: '15%' }}>Account</th> 
-                <th style={{ width: '15%', textAlign: 'right' }}>Amount</th>
+                    <th style={{ width: '12%' }}>REFERENCE</th>
+                    <th style={{ width: '15%' }}>DATE</th>
+                    <th style={{ width: '19%' }}>CATEGORY</th>
+                    <th style={{ width: '17%' }}>DESCRIPTION</th>
+                    <th style={{ width: '17%' }}>ACCOUNT</th>
+                    <th style={{ width: '10%' }}>AMOUNT</th>
               </tr>
             </thead>
             <tbody>
@@ -488,13 +505,13 @@ const LedgerView = () => {
                     <td>{transaction.date}</td>
                     <td>{transaction.category}</td>
                     <td>{transaction.description}</td>
-                    <td>{transaction.type}</td> 
-                    <td style={{ textAlign: 'right' }}>{transaction.amount}</td>
+                    <td>{transaction.type}</td>
+                    <td>{transaction.amount}</td>
                   </tr>
                 ))
               ) : (
                 <tr>
-                  <td colSpan="6" className="no-results">
+                  <td colSpan="6" style={{ textAlign: 'center', color: '#64748b', fontStyle: 'italic', padding: '2rem' }}>
                     No transactions match your search criteria.
                   </td>
                 </tr>
@@ -503,35 +520,37 @@ const LedgerView = () => {
           </table>
           
           {/* Pagination Controls */}
-          <div className="pagination-controls">
-            <button 
-              className={`pagination-btn ${currentPage === 1 ? 'disabled' : ''}`} 
-              onClick={prevPage}
-              disabled={currentPage === 1}
-            >
-              <ChevronLeft size={14} />
-            </button>
-            
-            <div className="pagination-numbers">
-              {Array.from({ length: totalPages }, (_, i) => (
+          {totalPages > 1 && (
+            <div className="pagination">
+              <button 
+                onClick={prevPage} 
+                disabled={currentPage === 1}
+                className="pagination-btn"
+              >
+                <ChevronLeft size={16} />
+              </button>
+              
+              {[...Array(totalPages)].map((_, index) => (
                 <button
-                  key={i + 1}
-                  className={`pagination-number ${currentPage === i + 1 ? 'active' : ''}`}
-                  onClick={() => paginate(i + 1)}
+                  key={index + 1}
+                  onClick={() => paginate(index + 1)}
+                  className={`pagination-btn ${
+                    currentPage === index + 1 ? 'active' : ''
+                  }`}
                 >
-                  {i + 1}
+                  {index + 1}
                 </button>
               ))}
+              
+              <button 
+                onClick={nextPage} 
+                disabled={currentPage === totalPages}
+                className="pagination-btn"
+              >
+                <ChevronRight size={16} />
+              </button>
             </div>
-            
-            <button 
-              className={`pagination-btn ${currentPage === totalPages ? 'disabled' : ''}`}
-              onClick={nextPage}
-              disabled={currentPage === totalPages}
-            >
-              <ChevronRight size={14} />
-            </button>
-          </div>
+          )}
         </div>
       </div>
     </div>

@@ -18,7 +18,8 @@ export default defineConfig({
       'frontend-production-906f.up.railway.app',
       '.railway.app',
       'localhost',
-      '127.0.0.1'
+      '127.0.0.1',
+      'frontend-r2az.onrender.com'
     ]
   },
   build: {

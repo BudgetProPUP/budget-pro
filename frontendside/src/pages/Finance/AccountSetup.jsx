@@ -29,11 +29,7 @@ const AccountSetup = () => {
   const [error, setError] = useState(null);
   const [totalCount, setTotalCount] = useState(0);
   const [fiscalYears, setFiscalYears] = useState([]);
-  
-
-  // Initialize selectedFiscalYear to null
-  const [selectedFiscalYear, setSelectedFiscalYear] = useState(null); 
-
+  const [selectedFiscalYear, setSelectedFiscalYear] = useState(null);
 
   const itemsPerPage = 5;
   const navigate = useNavigate();
@@ -54,48 +50,75 @@ const AccountSetup = () => {
   const accountTypes = ['All', 'Assets', 'Liabilities', 'Expenses'];
   const statusOptions = ['All', 'Active', 'Inactive'];
 
+  const handleLogout = () => {
+    localStorage.removeItem('authToken');
+    localStorage.removeItem('user');
+    localStorage.removeItem('refreshToken');
+    sessionStorage.clear();
+    setShowProfilePopup(false);
+    navigate('/login', { replace: true });
+  };
+
   // Fetch fiscal years from API
   const fetchFiscalYears = async () => {
     try {
       const token = localStorage.getItem('authToken');
+      if (!token) {
+        handleLogout();
+        return;
+      }
+
+
       const response = await axios.get(FISCAL_YEARS_URL, {
         headers: {
           'Authorization': `Bearer ${token}`,
           'Accept': 'application/json'
         }
       });
-      if (response.data && response.data.results.length > 0) {
-        setFiscalYears(response.data.results);
-        // --- START OF FIX ---
-        // Set the selected fiscal year to hardcoded '2'
-        const hardcodedYearExists = response.data.results.some(year => year.id === 2);
-        setSelectedFiscalYear(hardcodedYearExists ? 2 : response.data.results[0].id);
-        // --- END OF FIX ---
+
+
+      if (response.data && response.data.length > 0) {
+        setFiscalYears(response.data);
+        const hardcodedYearExists = response.data.some(year => year.id === 2);
+        setSelectedFiscalYear(hardcodedYearExists ? 2 : response.data[0].id);
       } else {
-        setError("No fiscal years found. Please configure them in the system.");
-        setLoading(false);
+        // FiscalYearDropdownView returns a simple array, not a paginated response.
+        // So check response.data.length
+        setFiscalYears(response.data || []);
+        if (response.data && response.data.length > 0) {
+          const hardcodedYearExists = response.data.some(year => year.id === 2);
+          setSelectedFiscalYear(hardcodedYearExists ? 2 : response.data[0].id);
+        } else {
+           setError("No fiscal years found. Please configure them in the system.");
+           setLoading(false);
+        }
       }
     } catch (err) {
       console.error('Error fetching fiscal years:', err);
-      setError("Failed to load fiscal years.");
-      setLoading(false);
+      if (err.response?.status === 401) {
+        handleLogout();
+      } else {
+        setError("Failed to load fiscal years. Please try again.");
+        setLoading(false);
+      }
     }
   };
 
   // Fetch accounts from API
   const fetchAccounts = async (fiscalYearId) => {
-    // --- START OF FIX ---
-    //  Don't fetch if the fiscalYearId is not set yet
-    if (!fiscalYearId) return; 
-    // --- END OF FIX ---
+    if (!fiscalYearId) return;
 
     setLoading(true);
     setError(null);
     try {
       const token = localStorage.getItem('authToken');
+       if (!token) {
+        handleLogout();
+        return;
+      }
       const response = await axios.get(API_BASE_URL, {
         params: {
-          fiscal_year_id: fiscalYearId, // Use the passed-in fiscal year ID
+          fiscal_year_id: fiscalYearId,
           page: currentPage,
           page_size: itemsPerPage,
           ...(searchQuery && { search: searchQuery }),
@@ -109,18 +132,15 @@ const AccountSetup = () => {
         },
         withCredentials: true
       });
-      
-      // The API response is paginated, so expect response.data.results
+
       const transformedAccounts = response.data.results.map(account => ({
         id: account.id,
         code: account.code || 'N/A',
         account_type: account.account_type || 'Unknown',
         name: account.name || 'No description',
-        // The serializer does not return 'accountlabel', so provide a fallback
-        accountlabel: account.accountlabel || '', 
+        accountlabel: account.accountlabel || '',
         is_active: account.is_active || false,
-        // The serializer returns 'accomplished', not 'is_accomplished'
-        is_accomplished: account.accomplished || false, 
+        is_accomplished: account.accomplished || false,
         accomplishment_date: account.accomplishment_date || '-'
       }));
 
@@ -136,7 +156,6 @@ const AccountSetup = () => {
           setError(`Server error: ${err.response.status} - ${err.response.data?.detail || 'Unknown error'}`);
         }
       } else if (err.request) {
-        console.error('Network error details:', err.message);
         setError('Cannot connect to server. Please check your internet connection and try again.');
       } else {
         setError(err.message || 'Failed to fetch accounts');
@@ -146,7 +165,6 @@ const AccountSetup = () => {
     }
   };
 
-  // --- START OF FIX ---
   // Effect to fetch fiscal years ONCE on component mount
   useEffect(() => {
     fetchFiscalYears();
@@ -158,7 +176,6 @@ const AccountSetup = () => {
       fetchAccounts(selectedFiscalYear);
     }
   }, [currentPage, searchQuery, selectedAccountType, selectedStatus, selectedFiscalYear]);
-  // --- END OF FIX ---
 
   // Close dropdowns when clicking outside
   useEffect(() => {
@@ -182,17 +199,8 @@ const AccountSetup = () => {
     setShowProfilePopup(false);
   };
 
-  const handleLogout = () => {
-    localStorage.removeItem('authToken');
-    localStorage.removeItem('user');
-    localStorage.removeItem('refreshToken');
-    sessionStorage.clear();
-    setShowProfilePopup(false);
-    navigate('/login', { replace: true });
-  };
-
   const handleAccountSelect = (id) => {
-    setSelectedAccounts(prev => 
+    setSelectedAccounts(prev =>
       prev.includes(id) ? prev.filter(accountId => accountId !== id) : [...prev, id]
     );
   };
@@ -253,8 +261,8 @@ const AccountSetup = () => {
     setShowStatusFilter(!showStatusFilter);
     setShowAccountTypeFilter(false);
   };
-  
-  // more robust loading state for the initial load
+
+  //more robust loading state for the initial load
   if (loading && fiscalYears.length === 0) {
     return (
       <div className="app-container">
@@ -265,7 +273,7 @@ const AccountSetup = () => {
           <div className="container">
             <div className="loading-overlay">
               <Loader2 className="spinner" size={48} />
-              <p>Loading account data...</p>
+              <p>Loading initial data...</p>
             </div>
           </div>
         </div>
@@ -282,11 +290,11 @@ const AccountSetup = () => {
         <div className="page">
           <div className="container">
             <div className="error-container">
-              <h3>Error Loading Accounts</h3>
+              <h3>Error Loading Page</h3>
               <p className="error-message">{error}</p>
               <div className="error-actions">
-                <button onClick={() => fetchAccounts(selectedFiscalYear)} className="retry-btn">
-                  Retry
+                <button onClick={() => window.location.reload()} className="retry-btn">
+                  Reload Page
                 </button>
                 <button onClick={handleLogout} className="logout-btn">
                   Logout

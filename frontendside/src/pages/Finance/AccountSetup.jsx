@@ -31,10 +31,9 @@ const AccountSetup = () => {
   const [fiscalYears, setFiscalYears] = useState([]);
   const [selectedFiscalYear, setSelectedFiscalYear] = useState(null);
 
-  const itemsPerPage = 5;
-  const navigate = useNavigate();
-
-  // API Configuration
+  // --- API ENDPOINTS ---
+  // API_BASE_URL: Lists accounts for the Account Setup page.
+  // FISCAL_YEARS_URL: Lists available fiscal years for selection.
   const API_BASE_URL = 'https://budget-pro.onrender.com/api/accounts/setup/';
   const FISCAL_YEARS_URL = 'https://budget-pro.onrender.com/api/dropdowns/fiscal-years/';
 
@@ -59,6 +58,12 @@ const AccountSetup = () => {
     navigate('/login', { replace: true });
   };
 
+  // --- FISCAL YEAR EXPLANATION ---
+  // Fiscal years are 12-month periods (e.g., 2024, 2025) used for budgeting.
+  // All account data is tied to a specific fiscal year.
+  // The dropdown below lets the user pick which fiscal year to view/edit.
+  // The selected fiscal year is required for all account API requests.
+
   // Fetch fiscal years from API
   const fetchFiscalYears = async () => {
     try {
@@ -68,7 +73,7 @@ const AccountSetup = () => {
         return;
       }
 
-
+      // GET /api/dropdowns/fiscal-years/ returns [{id, name}, ...]
       const response = await axios.get(FISCAL_YEARS_URL, {
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -76,14 +81,12 @@ const AccountSetup = () => {
         }
       });
 
-
+      // Set fiscal years for dropdown, default to year with id=2 if present, else first year
       if (response.data && response.data.length > 0) {
         setFiscalYears(response.data);
         const hardcodedYearExists = response.data.some(year => year.id === 2);
         setSelectedFiscalYear(hardcodedYearExists ? 2 : response.data[0].id);
       } else {
-        // FiscalYearDropdownView returns a simple array, not a paginated response.
-        // So check response.data.length
         setFiscalYears(response.data || []);
         if (response.data && response.data.length > 0) {
           const hardcodedYearExists = response.data.some(year => year.id === 2);
@@ -94,6 +97,8 @@ const AccountSetup = () => {
         }
       }
     } catch (err) {
+      // 401 = not logged in, force logout
+      // Other errors: show error message
       console.error('Error fetching fiscal years:', err);
       if (err.response?.status === 401) {
         handleLogout();
@@ -104,6 +109,12 @@ const AccountSetup = () => {
     }
   };
 
+  // --- ACCOUNT SETUP API EXPLANATION ---
+  // This fetches the list of accounts for the selected fiscal year.
+  // Required param: fiscal_year_id (from dropdown)
+  // Optional params: search, type, status, page, page_size
+  // Example: GET /api/accounts/setup/?fiscal_year_id=2&type=assets&status=active&page=1&page_size=5
+
   // Fetch accounts from API
   const fetchAccounts = async (fiscalYearId) => {
     if (!fiscalYearId) return;
@@ -112,10 +123,11 @@ const AccountSetup = () => {
     setError(null);
     try {
       const token = localStorage.getItem('authToken');
-       if (!token) {
+      if (!token) {
         handleLogout();
         return;
       }
+      // Query params: fiscal_year_id, page, page_size, search, type, status
       const response = await axios.get(API_BASE_URL, {
         params: {
           fiscal_year_id: fiscalYearId,
@@ -133,6 +145,8 @@ const AccountSetup = () => {
         withCredentials: true
       });
 
+      // API returns paginated results: { count, results: [ ...accounts ] }
+      // Each account: code, name, account_type, is_active, accomplished, accomplishment_date
       const transformedAccounts = response.data.results.map(account => ({
         id: account.id,
         code: account.code || 'N/A',
@@ -148,6 +162,8 @@ const AccountSetup = () => {
       setTotalCount(response.data.count);
 
     } catch (err) {
+      // 401 = not logged in, force logout
+      // Other errors: show error message
       if (err.response) {
         if (err.response.status === 401) {
           setError('Authentication required. Please login again.');
@@ -164,6 +180,13 @@ const AccountSetup = () => {
       setLoading(false);
     }
   };
+
+  // --- FRONTEND DEV NOTES ---
+  // 1. Always require a fiscal year selection before fetching accounts.
+  // 2. Pass all filters (search, type, status) as query params to the API.
+  // 3. All API requests require an Authorization header with a JWT token.
+  // 4. Handle loading and error states for both fiscal year and account fetches.
+  // 5. Use the API Docs link for full endpoint details and try-it-out.
 
   // Effect to fetch fiscal years ONCE on component mount
   useEffect(() => {
@@ -446,6 +469,7 @@ const AccountSetup = () => {
               {/* Fiscal Year Selector */}
               {fiscalYears.length > 0 && selectedFiscalYear && (
                 <div className="fiscal-year-selector">
+                  {/* This dropdown lets the user pick which fiscal year to view accounts for */}
                   <label htmlFor="fiscal-year">Fiscal Year:</label>
                   <select
                     id="fiscal-year"
@@ -518,6 +542,7 @@ const AccountSetup = () => {
               </div>
 
               {/* API Documentation Link */}
+              {/* This button links to the full OpenAPI docs for all endpoints */}
               <a 
                 href="https://budget-pro.onrender.com/api/docs/"
                 target="_blank" 

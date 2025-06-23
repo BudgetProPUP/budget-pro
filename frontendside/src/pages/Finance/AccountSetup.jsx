@@ -1,3 +1,5 @@
+// src/pages/AccountSetup.jsx
+
 import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { Search, ChevronDown, ChevronLeft, ChevronRight, ArrowLeft, User, Mail, Briefcase, LogOut, Loader2 } from 'lucide-react';
@@ -27,11 +29,12 @@ const AccountSetup = () => {
   const [error, setError] = useState(null);
   const [totalCount, setTotalCount] = useState(0);
   const [fiscalYears, setFiscalYears] = useState([]);
-  const [selectedFiscalYear, setSelectedFiscalYear] = useState(1001);
-  const [isInitialLoad, setIsInitialLoad] = useState(true);
-  const [isRefreshing, setIsRefreshing] = useState(false);
-  const [apiCache, setApiCache] = useState({});
   
+
+  // Initialize selectedFiscalYear to null
+  const [selectedFiscalYear, setSelectedFiscalYear] = useState(null); 
+
+
   const itemsPerPage = 5;
   const navigate = useNavigate();
 
@@ -39,7 +42,7 @@ const AccountSetup = () => {
   const API_BASE_URL = 'https://budget-pro.onrender.com/api/accounts/setup/';
   const FISCAL_YEARS_URL = 'https://budget-pro.onrender.com/api/dropdowns/fiscal-years/';
 
-  // User profile data
+  // User profile data (Replace with dynamic data later)
   const userProfile = {
     name: "John Doe",
     email: "Johndoe@gmail.com",
@@ -51,123 +54,111 @@ const AccountSetup = () => {
   const accountTypes = ['All', 'Assets', 'Liabilities', 'Expenses'];
   const statusOptions = ['All', 'Active', 'Inactive'];
 
-  // Helper function to validate API response structure
-  const validateApiResponse = (data) => {
-    if (!data || typeof data !== 'object') return false;
-    if (!Array.isArray(data.results)) return false;
-    if (typeof data.count !== 'number') return false;
-    return true;
-  };
-
-  // API request with retry mechanism
-  const fetchWithRetry = async (url, options, retries = 3) => {
-    try {
-      const response = await axios.get(url, {
-        ...options,
-        timeout: 10000 // 10 seconds timeout
-      });
-      return response;
-    } catch (err) {
-      if (retries > 0 && err.response?.status >= 500) {
-        await new Promise(resolve => setTimeout(resolve, 1000));
-        return fetchWithRetry(url, options, retries - 1);
-      }
-      throw err;
-    }
-  };
-
-const checkNetworkConnection = async () => {
-  try {
-    await axios.get('https://www.google.com', { timeout: 3000 });
-    return true;
-  } catch {
-    return false;
-  }
-};
-
-
   // Fetch fiscal years from API
   const fetchFiscalYears = async () => {
     try {
       const token = localStorage.getItem('authToken');
-      const response = await fetchWithRetry(FISCAL_YEARS_URL, {
+      const response = await axios.get(FISCAL_YEARS_URL, {
         headers: {
           'Authorization': `Bearer ${token}`,
           'Accept': 'application/json'
         }
       });
-      setFiscalYears(response.data.results);
+      if (response.data && response.data.results.length > 0) {
+        setFiscalYears(response.data.results);
+        // --- START OF FIX ---
+        // Set the selected fiscal year to hardcoded '2'
+        const hardcodedYearExists = response.data.results.some(year => year.id === 2);
+        setSelectedFiscalYear(hardcodedYearExists ? 2 : response.data.results[0].id);
+        // --- END OF FIX ---
+      } else {
+        setError("No fiscal years found. Please configure them in the system.");
+        setLoading(false);
+      }
     } catch (err) {
       console.error('Error fetching fiscal years:', err);
+      setError("Failed to load fiscal years.");
+      setLoading(false);
     }
   };
 
-// Fetch accounts from API
-const fetchAccounts = async () => {
-  setLoading(true);
-  setError(null);
-  try {
-    const token = localStorage.getItem('authToken');
-    const response = await axios.get(API_BASE_URL, {
-      params: {
-        fiscal_year_id: selectedFiscalYear,
-        page: currentPage,
-        page_size: itemsPerPage,
-        ...(searchQuery && { search: searchQuery }),
-        ...(selectedAccountType !== 'All' && { type: selectedAccountType.toLowerCase() }),
-        ...(selectedStatus !== 'All' && { status: selectedStatus.toLowerCase() })
-      },
-      headers: {
-        'Authorization': `Bearer ${token}`,
-        'Content-Type': 'application/json',
-        'Accept': 'application/json'
-      },
-      withCredentials: true
-    });
+  // Fetch accounts from API
+  const fetchAccounts = async (fiscalYearId) => {
+    // --- START OF FIX ---
+    //  Don't fetch if the fiscalYearId is not set yet
+    if (!fiscalYearId) return; 
+    // --- END OF FIX ---
 
-    // Keep your existing response handling:
-    const transformedAccounts = response.data.results.map(account => ({
-      id: account.id,
-      code: account.code || 'N/A',
-      account_type: account.account_type || 'Unknown',
-      name: account.name || 'No description',
-      accountlabel: account.accountlabel || '',
-      is_active: account.is_active || false,
-      is_accomplished: account.is_accomplished || false,
-      accomplishment_date: account.accomplishment_date || '-'
-    }));
+    setLoading(true);
+    setError(null);
+    try {
+      const token = localStorage.getItem('authToken');
+      const response = await axios.get(API_BASE_URL, {
+        params: {
+          fiscal_year_id: fiscalYearId, // Use the passed-in fiscal year ID
+          page: currentPage,
+          page_size: itemsPerPage,
+          ...(searchQuery && { search: searchQuery }),
+          ...(selectedAccountType !== 'All' && { type: selectedAccountType.toLowerCase() }),
+          ...(selectedStatus !== 'All' && { status: selectedStatus.toLowerCase() })
+        },
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+          'Accept': 'application/json'
+        },
+        withCredentials: true
+      });
+      
+      // The API response is paginated, so expect response.data.results
+      const transformedAccounts = response.data.results.map(account => ({
+        id: account.id,
+        code: account.code || 'N/A',
+        account_type: account.account_type || 'Unknown',
+        name: account.name || 'No description',
+        // The serializer does not return 'accountlabel', so provide a fallback
+        accountlabel: account.accountlabel || '', 
+        is_active: account.is_active || false,
+        // The serializer returns 'accomplished', not 'is_accomplished'
+        is_accomplished: account.accomplished || false, 
+        accomplishment_date: account.accomplishment_date || '-'
+      }));
 
-    setAccounts(transformedAccounts);
-    setTotalCount(response.data.count);
+      setAccounts(transformedAccounts);
+      setTotalCount(response.data.count);
 
-  } catch (err) {
-    if (err.response) {
-      if (err.response.status === 401) {
-        setError('Authentication required. Please login again.');
-        handleLogout();
+    } catch (err) {
+      if (err.response) {
+        if (err.response.status === 401) {
+          setError('Authentication required. Please login again.');
+          handleLogout();
+        } else {
+          setError(`Server error: ${err.response.status} - ${err.response.data?.detail || 'Unknown error'}`);
+        }
+      } else if (err.request) {
+        console.error('Network error details:', err.message);
+        setError('Cannot connect to server. Please check your internet connection and try again.');
       } else {
-        setError(`Server error: ${err.response.status} - ${err.response.data?.detail || 'Unknown error'}`);
+        setError(err.message || 'Failed to fetch accounts');
       }
-    } else if (err.request) {
-      console.error('Network error details:', err.message);
-      setError('Cannot connect to server. Please check your internet connection and try again.');
-    } else {
-      setError(err.message || 'Failed to fetch accounts');
+    } finally {
+      setLoading(false);
     }
-  } finally {
-    setLoading(false);
-    setIsRefreshing(false);
-    setIsInitialLoad(false);
-  }
-};
-  // Fetch data on component mount and when dependencies change
+  };
+
+  // --- START OF FIX ---
+  // Effect to fetch fiscal years ONCE on component mount
   useEffect(() => {
     fetchFiscalYears();
   }, []);
 
+  // Effect to fetch accounts whenever a dependency changes, but only if selectedFiscalYear is not null
   useEffect(() => {
-    fetchAccounts();
+    if (selectedFiscalYear) {
+      fetchAccounts(selectedFiscalYear);
+    }
   }, [currentPage, searchQuery, selectedAccountType, selectedStatus, selectedFiscalYear]);
+  // --- END OF FIX ---
 
   // Close dropdowns when clicking outside
   useEffect(() => {
@@ -193,6 +184,8 @@ const fetchAccounts = async () => {
 
   const handleLogout = () => {
     localStorage.removeItem('authToken');
+    localStorage.removeItem('user');
+    localStorage.removeItem('refreshToken');
     sessionStorage.clear();
     setShowProfilePopup(false);
     navigate('/login', { replace: true });
@@ -260,12 +253,13 @@ const fetchAccounts = async () => {
     setShowStatusFilter(!showStatusFilter);
     setShowAccountTypeFilter(false);
   };
-
-  if (loading && accounts.length === 0) {
+  
+  // more robust loading state for the initial load
+  if (loading && fiscalYears.length === 0) {
     return (
       <div className="app-container">
         <header className="app-header">
-          {/* Header content remains the same */}
+          {/* Header content can be minimal here or a placeholder */}
         </header>
         <div className="page">
           <div className="container">
@@ -283,7 +277,7 @@ const fetchAccounts = async () => {
     return (
       <div className="app-container">
         <header className="app-header">
-          {/* Header content remains the same */}
+          {/* Header content can be minimal here or a placeholder */}
         </header>
         <div className="page">
           <div className="container">
@@ -291,7 +285,7 @@ const fetchAccounts = async () => {
               <h3>Error Loading Accounts</h3>
               <p className="error-message">{error}</p>
               <div className="error-actions">
-                <button onClick={fetchAccounts} className="retry-btn">
+                <button onClick={() => fetchAccounts(selectedFiscalYear)} className="retry-btn">
                   Retry
                 </button>
                 <button onClick={handleLogout} className="logout-btn">
@@ -442,7 +436,7 @@ const fetchAccounts = async () => {
               <h2 className="page-title">Account Setup</h2>
               
               {/* Fiscal Year Selector */}
-              {fiscalYears.length > 0 && (
+              {fiscalYears.length > 0 && selectedFiscalYear && (
                 <div className="fiscal-year-selector">
                   <label htmlFor="fiscal-year">Fiscal Year:</label>
                   <select
@@ -517,7 +511,7 @@ const fetchAccounts = async () => {
 
               {/* API Documentation Link */}
               <a 
-                href="https://budget-gro-production.us-reliway.app/api/docs/" 
+                href="https://budget-pro.onrender.com/api/docs/"
                 target="_blank" 
                 rel="noopener noreferrer"
                 className="api-docs-btn"
@@ -635,7 +629,7 @@ const fetchAccounts = async () => {
 };
 
 AccountSetup.propTypes = {
-  // Add your prop types here if needed
+  //Add prop types if needed
 };
 
 export default AccountSetup;

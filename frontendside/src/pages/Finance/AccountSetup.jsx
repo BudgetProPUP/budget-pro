@@ -36,7 +36,8 @@ const AccountSetup = () => {
   const navigate = useNavigate();
 
   // API Configuration
-  const API_BASE_URL = 'https://budget-pro.onrender.com/api/accounts/setup/';
+// const API_BASE_URL = 'https://budget-pro.onrender.com/api/accounts/setup/';
+  const API_BASE_URL = 'https://budget-pro.onrender.com/api/departments/'; // Test
   const FISCAL_YEARS_URL = 'https://budget-pro.onrender.com/api/dropdowns/fiscal-years/';
 
   // User profile data

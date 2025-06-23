@@ -117,7 +117,7 @@ AUTHENTICATION_BACKENDS = [
 CORS_ALLOWED_ORIGINS = [
     "http://localhost:5173", # Local frontend
     os.getenv('FRONTEND_URL'), # Deployed frontend
-    # os.getenv('AUTH_SERVICE_URL'), # If auth_service makes direct calls to budget_service (unlikely for typical auth flow)
+    os.getenv('AUTH_SERVICE_URL'),
 ]
 CORS_ALLOWED_ORIGINS = [origin for origin in CORS_ALLOWED_ORIGINS if origin]
 

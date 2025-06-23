@@ -31,10 +31,9 @@ const AccountSetup = () => {
   const [fiscalYears, setFiscalYears] = useState([]);
   const [selectedFiscalYear, setSelectedFiscalYear] = useState(null);
 
-  const itemsPerPage = 5;
-  const navigate = useNavigate();
-
-  // API Configuration
+  // --- API ENDPOINTS ---
+  // API_BASE_URL: Lists accounts for the Account Setup page.
+  // FISCAL_YEARS_URL: Lists available fiscal years for selection.
   const API_BASE_URL = 'https://budget-pro.onrender.com/api/accounts/setup/';
   const FISCAL_YEARS_URL = 'https://budget-pro.onrender.com/api/dropdowns/fiscal-years/';
 

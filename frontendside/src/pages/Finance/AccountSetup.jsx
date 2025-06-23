@@ -36,8 +36,8 @@ const AccountSetup = () => {
   const navigate = useNavigate();
 
   // API Configuration
-  const API_BASE_URL = 'https://budget-gro-production.up.railway.app/api/accounts/setup/';
-  const FISCAL_YEARS_URL = 'https://budget-gro-production.us-reliway.app/api/fiscal-years/';
+  const API_BASE_URL = 'https://budget-pro.onrender.com/api/accounts/setup/';
+  const FISCAL_YEARS_URL = 'https://budget-pro.onrender.com/api/dropdowns/fiscal-years/';
 
   // User profile data
   const userProfile = {

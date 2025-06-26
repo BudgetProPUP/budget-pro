@@ -79,7 +79,7 @@ RENDER_EXTERNAL_HOSTNAME = os.getenv('RENDER_EXTERNAL_HOSTNAME')
 
 
 if DEBUG:
-    ALLOWED_HOSTS.extend(['localhost', '127.0.0.1'])
+    ALLOWED_HOSTS.extend(['localhost', '127.0.0.1','auth_service',])
 else:
     # Add Railway hostname if available
     if RAILWAY_PUBLIC_DOMAIN:

@@ -56,7 +56,7 @@ RAILWAY_APP_HOSTNAME = os.getenv('RAILWAY_PUBLIC_DOMAIN') # Check Railway docs f
 RENDER_EXTERNAL_HOSTNAME = os.getenv('RENDER_EXTERNAL_HOSTNAME')
 
 if DEBUG:
-    ALLOWED_HOSTS.extend(['localhost', '127.0.0.1'])
+    ALLOWED_HOSTS.extend(['localhost', '127.0.0.1', 'auth_service'])
 else:
     if RAILWAY_APP_HOSTNAME:
         ALLOWED_HOSTS.append(RAILWAY_APP_HOSTNAME)

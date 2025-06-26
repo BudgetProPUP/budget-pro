@@ -89,7 +89,63 @@ class BudgetProposalDetailSerializer(serializers.ModelSerializer):
                                       created_at__gte=review_history.action_at).order_by('created_at').first()
         return ProposalCommentSerializer(comment, context=self.context).data if comment else None
 
+class BudgetProposalStatusSerializer(serializers.ModelSerializer):
+    """
+    Lean serializer for external systems to check the status of a proposal.
+    """
+    bms_proposal_id = serializers.IntegerField(source='id')
+    review_timestamp = serializers.SerializerMethodField()
+    comments = serializers.SerializerMethodField()
+    bms_proposal_link = serializers.SerializerMethodField()
 
+    class Meta:
+        model = BudgetProposal
+        fields = [
+            'bms_proposal_id',
+            'external_system_id',
+            'title',
+            'status',
+            'last_modified',
+            'approved_by_name',
+            'rejected_by_name',
+            'review_timestamp',
+            'comments',
+            'bms_proposal_link',
+        ]
+
+    def get_review_timestamp(self, obj):
+        if obj.status == 'APPROVED' and obj.approval_date:
+            return obj.approval_date.isoformat()
+        elif obj.status == 'REJECTED' and obj.rejection_date:
+            return obj.rejection_date.isoformat()
+        return None
+
+    def get_comments(self, obj):
+        # Return the comment associated with the last major status change (approval/rejection)
+        review_history = obj.history.filter(
+            action__in=['APPROVED', 'REJECTED']).order_by('-action_at').first()
+        if review_history and review_history.comments:
+            return review_history.comments
+
+        # Fallback to the latest comment if no specific review comment is found
+        latest_comment = obj.comments.order_by('-created_at').first()
+        if latest_comment:
+            return latest_comment.comment
+
+        return None
+
+    def get_bms_proposal_link(self, obj):
+        request = self.context.get('request')
+        if request:
+            # This will generate a link to the detail view within the BudgetProposalViewSet
+            from django.urls import reverse
+            try:
+                # The viewset uses pk, which is the proposal's id
+                return request.build_absolute_uri(reverse('external-budget-proposals-detail', kwargs={'pk': obj.pk}))
+            except Exception:
+                return None
+        return None
+    
 class ProposalHistorySerializer(serializers.ModelSerializer):
     proposal_title = serializers.CharField(
         source='proposal.title', read_only=True)

@@ -1,7 +1,7 @@
 import csv
 import json
 from decimal import Decimal
-
+import datetime
 import requests
 import openpyxl
 from openpyxl.utils import get_column_letter
@@ -47,7 +47,8 @@ from .serializers_budget import (
     LedgerViewSerializer,
     ProposalCommentSerializer,
     ProposalHistorySerializer,
-    ProposalReviewSerializer
+    ProposalReviewSerializer,
+    BudgetProposalStatusSerializer
 )
 
 
@@ -128,6 +129,59 @@ class BudgetProposalDetailView(generics.RetrieveAPIView):  # Logic seems fine
     )
     def get(self, request, *args, **kwargs):
         return super().get(request, *args, **kwargs)
+
+# --- View for External Systems to Check Status ---
+@extend_schema(
+    tags=['External Status Check'],
+    summary="Get Proposal Status by External Ticket ID",
+    description="Allows a trusted external service (like DTS) to retrieve the current status and details of a budget proposal using the external system's own ticket ID (`external_system_id`). Authentication is required via an API Key in the `X-API-Key` header.",
+    parameters=[
+        OpenApiParameter(
+            name='external_system_id',
+            type=OpenApiTypes.STR,
+            location=OpenApiParameter.PATH,
+            description="The unique identifier for the proposal from the external system (e.g., 'DTS-FIN-2026-001')."
+        )
+    ],
+    responses={
+        200: OpenApiResponse(
+            response=BudgetProposalStatusSerializer,
+            description="Successfully retrieved the proposal status.",
+            examples=[
+                OpenApiExample(
+                    name="Approved Proposal Status",
+                    value={
+                        "bms_proposal_id": 101,
+                        "external_system_id": "DTS-FIN-2026-001",
+                        "title": "Q1 System Upgrade 2026",
+                        "status": "APPROVED",
+                        "last_modified": "2024-08-15T14:30:00Z",
+                        "approved_by_name": "Jane Doe",
+                        "rejected_by_name": None,
+                        "review_timestamp": "2024-08-15T14:25:10Z",
+                        "comments": "This proposal meets all criteria and is approved.",
+                        "bms_proposal_link": "https://bms.example.com/api/external-budget-proposals/101/"
+                    },
+                    summary="Example response for an approved proposal."
+                )
+            ]
+        ),
+        404: OpenApiResponse(description="Proposal with the specified external_system_id not found."),
+        401: OpenApiResponse(
+            description="Authentication credentials were not provided or are invalid (Invalid API Key)."),
+    }
+)
+class BudgetProposalStatusByTicketView(generics.RetrieveAPIView):
+    """
+    Provides the status of a BudgetProposal, looked up by its `external_system_id`.
+    This endpoint is intended for use by other trusted microservices.
+    """
+    queryset = BudgetProposal.objects.filter(is_deleted=False)
+    serializer_class = BudgetProposalStatusSerializer
+    permission_classes = [IsTrustedService]  # Requires a valid service API Key
+    lookup_field = 'external_system_id'
+    lookup_url_kwarg = 'external_system_id'  # The name of the kwarg in the URL pattern
+
 
 
 # --- Proposal History Page View ---
@@ -716,7 +770,7 @@ Create a new Budget Proposal.
             "external_system_id": proposal.external_system_id,
             "new_status": proposal.status,
             "reviewed_by_name": reviewer_name,
-            "review_timestamp": timezone.now().isoformat(),
+            "review_timestamp": timezone.now().astimezone(datetime.timezone.utc).isoformat(),
             "comments": comment_text if comment_text else None,
             "bms_proposal_link": request.build_absolute_uri(f"/api/external-budget-proposals/{proposal.id}/")
         }

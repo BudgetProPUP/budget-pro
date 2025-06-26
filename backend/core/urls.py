@@ -2,7 +2,7 @@ from django.urls import path, include
 from rest_framework_simplejwt.views import TokenRefreshView
 from rest_framework.routers import DefaultRouter
 
-from .views_budget import AccountDropdownView, AccountSetupListView, BudgetProposalDetailView, BudgetProposalListView, BudgetProposalSummaryView, BudgetVarianceReportView, FiscalYearDropdownView, JournalEntryCreateView, JournalEntryListView, LedgerExportView, ProposalHistoryView, LedgerViewList, export_budget_proposal_excel, journal_choices, DepartmentDropdownView, AccountTypeDropdownView
+from .views_budget import AccountDropdownView, AccountSetupListView, BudgetProposalDetailView, BudgetProposalListView, BudgetProposalStatusByTicketView, BudgetProposalSummaryView, BudgetVarianceReportView, FiscalYearDropdownView, JournalEntryCreateView, JournalEntryListView, LedgerExportView, ProposalHistoryView, LedgerViewList, export_budget_proposal_excel, journal_choices, DepartmentDropdownView, AccountTypeDropdownView
 from . import views_expense, views_dashboard  # ,TokenObtainPairView
 from .views_dashboard import MonthlyBudgetActualViewSet, TopCategoryBudgetAllocationView, get_all_projects
 from .views import (
@@ -49,9 +49,9 @@ urlpatterns = [
          name='dashboard-budget-summary'),
     path('dashboard/department-actual/',
          views_dashboard.get_department_budget_status, name='dashboard-budget-summary'),
-     # API endpoint for returning all project (even with no allocations)
-     path('projects/all/', get_all_projects, name='get-all-projects'),
-     
+    # API endpoint for returning all project (even with no allocations)
+    path('projects/all/', get_all_projects, name='get-all-projects'),
+
     # API endpoints for budget proposal page
     path('budget-proposals/', BudgetProposalListView.as_view(),
          name='budget-proposal-list'),
@@ -59,7 +59,8 @@ urlpatterns = [
          name='budget-proposal-summary'),
     path('budget-proposals/<int:pk>/', BudgetProposalDetailView.as_view(),
          name='budget-proposal-detail'),
-
+    path('proposals/status-by-ticket/<str:external_system_id>/',
+         BudgetProposalStatusByTicketView.as_view(), name='proposal-status-by-ticket-id'),
     # API endpoints for proposal history page
     path('budget-proposals/history/',
          ProposalHistoryView.as_view(), name='proposal-history'),

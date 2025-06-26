@@ -10,11 +10,16 @@ services:
     environment:
       - POSTGRES_DB=budgetpro_auth
       - POSTGRES_USER=postgres
-      - POSTGRES_PASSWORD=a4d  # Added this line
+      - POSTGRES_PASSWORD=a4d
     ports:
-      - "5433:5432" # Expose auth_db on host port 5433 to avoid conflict
+      - "5433:5432"
     networks:
       - my_network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
 
   auth_service:
     build: ./auth_service
@@ -23,11 +28,12 @@ services:
     volumes:
       - ./auth_service:/app
     ports:
-      - "8001:8000" # Expose auth_service on host port 8001
+      - "8001:8000"
     env_file:
       - ./auth_service/.env.docker
     depends_on:
-      - auth_db
+      auth_db:
+        condition: service_healthy
     networks:
       - my_network
 
@@ -40,11 +46,16 @@ services:
     environment:
       - POSTGRES_DB=budgetpro_db
       - POSTGRES_USER=postgres
-      - POSTGRES_PASSWORD=a4d  # Added this line
+      - POSTGRES_PASSWORD=a4d
     ports:
-      - "5432:5432" # Expose budget_db on host port 5432
+      - "5432:5432"
     networks:
       - my_network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
 
   budget_service:
     build: ./backend
@@ -53,12 +64,14 @@ services:
     volumes:
       - ./backend:/app
     ports:
-      - "8000:8000" # Expose budget_service on host port 8000
+      - "8000:8000"
     env_file:
       - ./backend/.env.docker
     depends_on:
-      - budget_db
-      - auth_service # Depends on both its DB and the auth service
+      budget_db:
+        condition: service_healthy
+      auth_service:
+        condition: service_started
     networks:
       - my_network
 

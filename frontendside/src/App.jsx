@@ -3,7 +3,6 @@ import { useState } from 'react';
 import LoginPage from './pages/Finance/LoginPage';
 import ForgotPasswordPage from './pages/Finance/ForgotPasswordPage'; // Import the ForgotPassword component
 import Dashboard from './pages/Finance/Dashboard';
-import AccountSetup from './pages/Finance/AccountSetup';
 import LedgerView from './pages/Finance/LedgerView';
 import JournalEntry from './pages/Finance/JournalEntry';
 import BudgetProposal from './pages/Finance/BudgetProposal';
@@ -45,17 +44,6 @@ function App() {
           } 
         />
 
-        {/* Protected Finance Routes */}
-        <Route 
-          path="/finance/account-setup" 
-          element={
-            isAuthenticated ? (
-              <AccountSetup />
-            ) : (
-              <Navigate to="/login" replace />
-            )
-          } 
-        />
 
         <Route 
           path="/finance/ledger-view" 

@@ -9,12 +9,25 @@ const ProposalHistory = () => {
   const [showExpenseDropdown, setShowExpenseDropdown] = useState(false);
   const [showStatusDropdown, setShowStatusDropdown] = useState(false);
   const [showProfilePopup, setShowProfilePopup] = useState(false);
+  const [showModifyBudgetPopup, setShowModifyBudgetPopup] = useState(false);
   const [selectedStatus, setSelectedStatus] = useState('All Status');
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const navigate = useNavigate();
   const [currentPage, setCurrentPage] = useState(1);
   const [currentDate, setCurrentDate] = useState(new Date());
+  
+  // Form state for Modify Budget
+  const [modifyBudgetForm, setModifyBudgetForm] = useState({
+    referenceNo: '',
+    componentName: '',
+    date: '',
+    category: '',
+    account: '',
+    description: '',
+    transactionType: '',
+    amount: ''
+  });
   
   // User profile data - copied from Dashboard
   const userProfile = {
@@ -94,7 +107,10 @@ const ProposalHistory = () => {
   // Close dropdowns when clicking outside - copied from Dashboard
   useEffect(() => {
     const handleClickOutside = (event) => {
-      if (!event.target.closest('.nav-dropdown') && !event.target.closest('.profile-container') && !event.target.closest('.status-dropdown-container')) {
+      if (!event.target.closest('.nav-dropdown') && 
+          !event.target.closest('.profile-container') && 
+          !event.target.closest('.status-dropdown-container') &&
+          !event.target.closest('.modify-budget-popup')) {
         setShowBudgetDropdown(false);
         setShowExpenseDropdown(false);
         setShowProfilePopup(false);
@@ -139,6 +155,25 @@ const ProposalHistory = () => {
 
   const toggleStatusDropdown = () => {
     setShowStatusDropdown(!showStatusDropdown);
+  };
+
+  const toggleModifyBudgetPopup = () => {
+    setShowModifyBudgetPopup(!showModifyBudgetPopup);
+  };
+
+  const handleModifyBudgetChange = (e) => {
+    const { name, value } = e.target;
+    setModifyBudgetForm(prev => ({
+      ...prev,
+      [name]: value
+    }));
+  };
+
+  const handleModifyBudgetSubmit = (e) => {
+    e.preventDefault();
+    // Handle form submission here
+    console.log('Modify Budget Form Submitted:', modifyBudgetForm);
+    setShowModifyBudgetPopup(false);
   };
 
   // New function from Dashboard
@@ -235,12 +270,6 @@ const ProposalHistory = () => {
                   </div>
                   <div
                     className="dropdown-item"
-                    onClick={() => handleNavigate('/finance/account-setup')}
-                  >
-                    Account Setup
-                  </div>
-                  <div
-                    className="dropdown-item"
                     onClick={() => handleNavigate('/finance/ledger-view')}
                   >
                     Ledger View
@@ -249,7 +278,7 @@ const ProposalHistory = () => {
                     className="dropdown-item"
                     onClick={() => handleNavigate('/finance/journal-entry')}
                   >
-                    Journal Entries
+                    Budget Allocation
                   </div>
                   <div
                     className="dropdown-item"
@@ -557,10 +586,10 @@ const ProposalHistory = () => {
           <table>
             <thead>
               <tr>
-                 <th style={{ width: '5%' }}>PROPOSAL ID</th>
-                    <th style={{ width: '19%' }}>PROPOSAL</th>
-                    <th style={{ width: '13%' }}>LAST MODIFIED</th>
-                    <th style={{ width: '8%' }}>STATUS</th>
+                <th style={{ width: '20%' }}>PROPOSAL ID</th>
+                <th style={{ width: '40%' }}>PROPOSAL</th>
+                <th style={{ width: '20%' }}>LAST MODIFIED</th>
+                <th style={{ width: '20%' }}>STATUS</th>
               </tr>
             </thead>
             <tbody>
@@ -611,6 +640,313 @@ const ProposalHistory = () => {
           </div>
         </div>
       </div>
+
+      {/* Modify Budget Popup */}
+      {showModifyBudgetPopup && (
+        <div className="modify-budget-popup" style={{
+          position: 'fixed',
+          top: '0',
+          left: '0',
+          right: '0',
+          bottom: '0',
+          backgroundColor: 'rgba(0, 0, 0, 0.5)',
+          display: 'flex',
+          justifyContent: 'center',
+          alignItems: 'center',
+          zIndex: 1000
+        }}>
+          <div style={{
+            backgroundColor: 'white',
+            borderRadius: '8px',
+            width: '500px',
+            maxWidth: '90%',
+            boxShadow: '0 4px 20px rgba(0, 0, 0, 0.15)'
+          }}>
+            <div style={{
+              padding: '20px',
+              borderBottom: '1px solid #e2e8f0',
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'center'
+            }}>
+              <h3 style={{ margin: '0', fontSize: '18px', fontWeight: '600', color: '#1e293b' }}>
+                Modify Budget
+              </h3>
+              <button 
+                onClick={toggleModifyBudgetPopup}
+                style={{
+                  background: 'none',
+                  border: 'none',
+                  cursor: 'pointer',
+                  fontSize: '16px',
+                  color: '#64748b'
+                }}
+              >
+                ×
+              </button>
+            </div>
+            
+            <form onSubmit={handleModifyBudgetSubmit} style={{ padding: '20px' }}>
+              <div style={{ marginBottom: '16px' }}>
+                <label style={{
+                  display: 'block',
+                  marginBottom: '8px',
+                  fontSize: '14px',
+                  fontWeight: '500',
+                  color: '#334155'
+                }}>
+                  Reference No.*
+                </label>
+                <input
+                  type="text"
+                  name="referenceNo"
+                  value={modifyBudgetForm.referenceNo}
+                  onChange={handleModifyBudgetChange}
+                  style={{
+                    width: '100%',
+                    padding: '10px',
+                    border: '1px solid #e2e8f0',
+                    borderRadius: '4px',
+                    fontSize: '14px'
+                  }}
+                  required
+                />
+              </div>
+              
+              <div style={{ marginBottom: '16px' }}>
+                <label style={{
+                  display: 'block',
+                  marginBottom: '8px',
+                  fontSize: '14px',
+                  fontWeight: '500',
+                  color: '#334155'
+                }}>
+                  Component Name
+                </label>
+                <input
+                  type="text"
+                  name="componentName"
+                  value={modifyBudgetForm.componentName}
+                  onChange={handleModifyBudgetChange}
+                  style={{
+                    width: '100%',
+                    padding: '10px',
+                    border: '1px solid #e2e8f0',
+                    borderRadius: '4px',
+                    fontSize: '14px'
+                  }}
+                />
+              </div>
+              
+              <div style={{ marginBottom: '16px' }}>
+                <label style={{
+                  display: 'block',
+                  marginBottom: '8px',
+                  fontSize: '14px',
+                  fontWeight: '500',
+                  color: '#334155'
+                }}>
+                  Date
+                </label>
+                <input
+                  type="date"
+                  name="date"
+                  value={modifyBudgetForm.date}
+                  onChange={handleModifyBudgetChange}
+                  style={{
+                    width: '100%',
+                    padding: '10px',
+                    border: '1px solid #e2e8f0',
+                    borderRadius: '4px',
+                    fontSize: '14px'
+                  }}
+                />
+              </div>
+              
+              <div style={{ marginBottom: '16px' }}>
+                <label style={{
+                  display: 'block',
+                  marginBottom: '8px',
+                  fontSize: '14px',
+                  fontWeight: '500',
+                  color: '#334155'
+                }}>
+                  Category *
+                </label>
+                <select
+                  name="category"
+                  value={modifyBudgetForm.category}
+                  onChange={handleModifyBudgetChange}
+                  style={{
+                    width: '100%',
+                    padding: '10px',
+                    border: '1px solid #e2e8f0',
+                    borderRadius: '4px',
+                    fontSize: '14px',
+                    backgroundColor: 'white'
+                  }}
+                  required
+                >
+                  <option value="">Search for Category</option>
+                  <option value="IT">IT</option>
+                  <option value="HR">HR</option>
+                  <option value="Operations">Operations</option>
+                  <option value="Marketing">Marketing</option>
+                </select>
+              </div>
+              
+              <div style={{ marginBottom: '16px' }}>
+                <label style={{
+                  display: 'block',
+                  marginBottom: '8px',
+                  fontSize: '14px',
+                  fontWeight: '500',
+                  color: '#334155'
+                }}>
+                  Account
+                </label>
+                <select
+                  name="account"
+                  value={modifyBudgetForm.account}
+                  onChange={handleModifyBudgetChange}
+                  style={{
+                    width: '100%',
+                    padding: '10px',
+                    border: '1px solid #e2e8f0',
+                    borderRadius: '4px',
+                    fontSize: '14px',
+                    backgroundColor: 'white'
+                  }}
+                >
+                  <option value="">Search for Manufacturer</option>
+                  <option value="Dell">Dell</option>
+                  <option value="HP">HP</option>
+                  <option value="Lenovo">Lenovo</option>
+                  <option value="Apple">Apple</option>
+                </select>
+              </div>
+              
+              <div style={{ marginBottom: '16px' }}>
+                <label style={{
+                  display: 'block',
+                  marginBottom: '8px',
+                  fontSize: '14px',
+                  fontWeight: '500',
+                  color: '#334155'
+                }}>
+                  Description
+                </label>
+                <textarea
+                  name="description"
+                  value={modifyBudgetForm.description}
+                  onChange={handleModifyBudgetChange}
+                  style={{
+                    width: '100%',
+                    padding: '10px',
+                    border: '1px solid #e2e8f0',
+                    borderRadius: '4px',
+                    fontSize: '14px',
+                    minHeight: '80px'
+                  }}
+                  placeholder="Type here..."
+                />
+              </div>
+              
+              <div style={{ marginBottom: '16px' }}>
+                <label style={{
+                  display: 'block',
+                  marginBottom: '8px',
+                  fontSize: '14px',
+                  fontWeight: '500',
+                  color: '#334155'
+                }}>
+                  Transaction Type
+                </label>
+                <select
+                  name="transactionType"
+                  value={modifyBudgetForm.transactionType}
+                  onChange={handleModifyBudgetChange}
+                  style={{
+                    width: '100%',
+                    padding: '10px',
+                    border: '1px solid #e2e8f0',
+                    borderRadius: '4px',
+                    fontSize: '14px',
+                    backgroundColor: 'white'
+                  }}
+                >
+                  <option value="">Select Transaction type</option>
+                  <option value="Debit">Debit</option>
+                  <option value="Credit">Credit</option>
+                </select>
+              </div>
+              
+              <div style={{ marginBottom: '24px' }}>
+                <label style={{
+                  display: 'block',
+                  marginBottom: '8px',
+                  fontSize: '14px',
+                  fontWeight: '500',
+                  color: '#334155'
+                }}>
+                  Amount
+                </label>
+                <input
+                  type="number"
+                  name="amount"
+                  value={modifyBudgetForm.amount}
+                  onChange={handleModifyBudgetChange}
+                  style={{
+                    width: '100%',
+                    padding: '10px',
+                    border: '1px solid #e2e8f0',
+                    borderRadius: '4px',
+                    fontSize: '14px'
+                  }}
+                />
+              </div>
+              
+              <div style={{
+                display: 'flex',
+                justifyContent: 'flex-end',
+                gap: '12px'
+              }}>
+                <button
+                  type="button"
+                  onClick={toggleModifyBudgetPopup}
+                  style={{
+                    padding: '10px 16px',
+                    backgroundColor: '#f1f5f9',
+                    color: '#334155',
+                    border: 'none',
+                    borderRadius: '4px',
+                    cursor: 'pointer',
+                    fontSize: '14px',
+                    fontWeight: '500'
+                  }}
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  style={{
+                    padding: '10px 16px',
+                    backgroundColor: '#3b82f6',
+                    color: 'white',
+                    border: 'none',
+                    borderRadius: '4px',
+                    cursor: 'pointer',
+                    fontSize: '14px',
+                    fontWeight: '500'
+                  }}
+                >
+                  Save Changes
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

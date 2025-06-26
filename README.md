@@ -273,3 +273,31 @@ git reset --soft HEAD~1  # Undo last commit and keep changes in the staging area
    token['user_id'] = 3  # Replace with the ID of a user in your local DB
    print(str(token))
 ```
+
+
+# Docker
+
+## In project root directory, run:
+``` 
+bash
+docker-compose up --build
+
+```
+
+## To stop the containers, press CTRL+C in the terminal, then run:
+
+```
+bash
+docker-compose down
+```
+
+### docker-compose down (stops and removes containers)
+### docker-compose stop (stops containers but keeps them)
+
+# Docker Workflow
+
+## Workflow:
+- Create Dockerfile per service
+- Define services in docker-compose.yml
+- Run docker-compose up instead of activating venv
+- Stop with docker-compose down instead of deactivating

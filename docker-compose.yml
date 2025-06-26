@@ -1,0 +1,71 @@
+version: '3.9'
+
+services:
+  # --- Authentication Service ---
+  auth_db:
+    image: postgres:15-alpine
+    container_name: auth_db
+    volumes:
+      - postgres_auth_data:/var/lib/postgresql/data/
+    environment:
+      - POSTGRES_DB=budgetpro_auth
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=a4d  # Added this line
+    ports:
+      - "5433:5432" # Expose auth_db on host port 5433 to avoid conflict
+    networks:
+      - my_network
+
+  auth_service:
+    build: ./auth_service
+    container_name: auth_service
+    command: gunicorn core.wsgi:application --bind 0.0.0.0:8000
+    volumes:
+      - ./auth_service:/app
+    ports:
+      - "8001:8000" # Expose auth_service on host port 8001
+    env_file:
+      - ./auth_service/.env.docker
+    depends_on:
+      - auth_db
+    networks:
+      - my_network
+
+  # --- Budget Service ---
+  budget_db:
+    image: postgres:15-alpine
+    container_name: budget_db
+    volumes:
+      - postgres_budget_data:/var/lib/postgresql/data/
+    environment:
+      - POSTGRES_DB=budgetpro_db
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=a4d  # Added this line
+    ports:
+      - "5432:5432" # Expose budget_db on host port 5432
+    networks:
+      - my_network
+
+  budget_service:
+    build: ./backend
+    container_name: budget_service
+    command: gunicorn capstone.wsgi:application --bind 0.0.0.0:8000
+    volumes:
+      - ./backend:/app
+    ports:
+      - "8000:8000" # Expose budget_service on host port 8000
+    env_file:
+      - ./backend/.env.docker
+    depends_on:
+      - budget_db
+      - auth_service # Depends on both its DB and the auth service
+    networks:
+      - my_network
+
+networks:
+  my_network:
+    driver: bridge
+
+volumes:
+  postgres_auth_data:
+  postgres_budget_data:

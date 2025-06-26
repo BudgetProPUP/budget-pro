@@ -55,5 +55,10 @@ dist/
 .env
 
 
+### Static Files ###
+
+staticfiles_auth/
+staticfiles/
+
 ### Database migrations (optional) ###
 # migrations/

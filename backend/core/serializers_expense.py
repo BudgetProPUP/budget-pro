@@ -9,8 +9,8 @@ class ExpenseHistorySerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Expense
-        # MODIFIED: Added 'id' to the fields list
-        fields = ['id', 'date', 'description', 'category_name', 'amount']
+        fields = ['date', 'description', 'category_name', 'amount']
+        
 class ExpenseTrackingSerializer(serializers.ModelSerializer):
     # ADDED: Map model fields to the new UI column names
     reference_no = serializers.CharField(source='transaction_id', read_only=True)

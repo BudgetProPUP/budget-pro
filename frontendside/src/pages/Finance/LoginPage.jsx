@@ -1,21 +1,26 @@
+// LoginPage.jsx
+
 import { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { Eye, EyeOff } from 'lucide-react';
-import { useAuth } from '../../context/AuthContext';
+import axios from 'axios'; // Import axios
 import './loginPage.css';
 import backgroundImage from '../../assets/BUDGET1.png';
 
-function LoginPage() {
+
+const AUTH_API_URL = import.meta.env.VITE_AUTH_API_URL || 'https://auth-service-cdln.onrender.com';
+
+
+function LoginPage({ setIsAuthenticated }) {
   const [loginData, setLoginData] = useState({ 
     email: '', 
-    phone_number: '', 
+    phone_number: '', // Include this even if blank
     password: '' 
   });
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const navigate = useNavigate();
-  const { login } = useAuth();
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -23,11 +28,32 @@ function LoginPage() {
     setIsLoading(true);
 
     try {
-      await login(loginData);
-      navigate('/dashboard');
+      // Call authentication service
+      const response = await axios.post(`${AUTH_API_URL}/login/`, loginData);
+      
+
+      if (response.data && response.data.access) {
+        // Store token
+        localStorage.setItem('authToken', response.data.access);
+        
+        // Store token and refresh info
+        localStorage.setItem('refreshToken', response.data.refresh);
+        localStorage.setItem('user', JSON.stringify(response.data.user));
+
+        setIsAuthenticated(true);
+        navigate('/dashboard');
+      } else {
+        // Handle cases where the API returns 200 but no token
+        setError('Login failed: Invalid response from server.');
+      }
     } catch (err) {
-      const errorDetail = err.detail || 'Login failed. Please check your credentials.';
-      setError(errorDetail);
+      if (err.response && err.response.data) {
+        // Display specific error from the backend
+        const errorDetail = err.response.data.detail || err.response.data.non_field_errors || ['Login failed. Please try again.'];
+        setError(Array.isArray(errorDetail) ? errorDetail.join(' ') : errorDetail);
+      } else {
+        setError('Login failed. Cannot connect to the server.');
+      }
       console.error('Login error:', err);
     } finally {
       setIsLoading(false);
@@ -41,6 +67,8 @@ function LoginPage() {
       [name]: value
     }));
   };
+
+  // Removed Fake Auth Function
 
   return (
     <div 

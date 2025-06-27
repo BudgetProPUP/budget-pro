@@ -16,13 +16,10 @@ import { useAuth } from "../../context/AuthContext";
 import "./BudgetProposal.css";
 import LOGOMAP from "../../assets/MAP.jpg";
 
-const API_URL = "https://budget-pro.onrender.com/api/budget-proposals/";
-
 function BudgetProposal() {
   const navigate = useNavigate();
   const { logout } = useAuth();
 
-  // User profile data
   const userProfile = {
     name: "John Doe",
     email: "john.doe@company.com",
@@ -31,17 +28,14 @@ function BudgetProposal() {
       "https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?ixlib=rb-1.2.1&ixid=eyJhcHBfaWQiOjEyMDd9&auto=format&fit=facearea&facepad=2&w=256&h=256&q=80",
   };
 
-  // API Data State
   const [proposals, setProposals] = useState([]);
   const [summaryData, setSummaryData] = useState({
-    totalProposals: 0,
-    pendingApprovals: 0,
+    total_proposals: 0, // Corrected key
+    pending_approvals: 0, // Corrected key
     total_budget: 0,
   });
   const [overviewData, setOverviewData] = useState(null);
   const [categories, setCategories] = useState([]);
-
-  // UI State
   const [selectedProposal, setSelectedProposal] = useState(null);
   const [showReviewPopup, setShowReviewPopup] = useState(false);
   const [showConfirmationPopup, setShowConfirmationPopup] = useState(false);
@@ -51,8 +45,6 @@ function BudgetProposal() {
   const [isModalLoading, setIsModalLoading] = useState(false);
   const [showBudgetDropdown, setShowBudgetDropdown] = useState(false);
   const [showExpenseDropdown, setShowExpenseDropdown] = useState(false);
-
-  // Filter & Pagination State
   const [searchTerm, setSearchTerm] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
   const [paginationInfo, setPaginationInfo] = useState({
@@ -68,8 +60,6 @@ function BudgetProposal() {
     name: "All Status",
     value: "",
   });
-
-  // Dropdown UI State
   const [showCategoryDropdown, setShowCategoryDropdown] = useState(false);
   const [showStatusDropdown, setShowStatusDropdown] = useState(false);
   const [showProfilePopup, setShowProfilePopup] = useState(false);
@@ -83,7 +73,6 @@ function BudgetProposal() {
     { name: "Rejected", value: "REJECTED" },
   ];
 
-  // --- API CALLS ---
   const fetchProposals = useCallback(async () => {
     setIsLoading(true);
     try {
@@ -107,7 +96,7 @@ function BudgetProposal() {
     try {
       const [summaryRes, catRes] = await Promise.all([
         api.get("/budget-proposals/summary/"),
-        api.get("/dropdowns/expense-categories/"),
+        api.get("/dropdowns/account-types/"), // Fetching account types for categories
       ]);
       setSummaryData(summaryRes.data);
       const categoryOptions = [
@@ -128,31 +117,10 @@ function BudgetProposal() {
     fetchProposals();
   }, [fetchProposals]);
 
-  useEffect(() => {
-    const handleClickOutside = (event) => {
-      if (
-        !event.target.closest(".nav-dropdown") &&
-        !event.target.closest(".profile-container")
-      ) {
-        setShowBudgetDropdown(false);
-        setShowExpenseDropdown(false);
-        setShowProfilePopup(false);
-      }
-    };
-
-    document.addEventListener("mousedown", handleClickOutside);
-    return () => {
-      document.removeEventListener("mousedown", handleClickOutside);
-    };
-  }, []);
-
-  // --- MODAL & ACTION HANDLERS ---
   const handleReviewClick = async (proposal) => {
     setSelectedProposal(proposal);
-    setReviewStatus(proposal.status);
-    setReviewComment("");
-    setShowReviewPopup(true);
     setIsModalLoading(true);
+    setShowReviewPopup(true);
     try {
       const [overviewRes, detailRes] = await Promise.all([
         api.get(`/budget-proposals/${proposal.id}/review-overview/`),
@@ -172,6 +140,7 @@ function BudgetProposal() {
   const closeReviewPopup = () => {
     setShowReviewPopup(false);
     setSelectedProposal(null);
+    setOverviewData(null);
   };
 
   const handleStatusChange = (status) => {
@@ -181,7 +150,6 @@ function BudgetProposal() {
 
   const handleSubmitReview = async () => {
     if (!selectedProposal) return;
-
     try {
       await api.post(
         `/external-budget-proposals/${selectedProposal.id}/review/`,
@@ -193,9 +161,7 @@ function BudgetProposal() {
       setShowConfirmationPopup(false);
       closeReviewPopup();
       fetchProposals();
-      api
-        .get("/budget-proposals/summary/")
-        .then((res) => setSummaryData(res.data));
+      fetchInitialData(); // Refetch summary data as well
     } catch (error) {
       console.error("Error submitting review:", error);
       alert(
@@ -210,11 +176,11 @@ function BudgetProposal() {
     logout();
   };
 
-  const totalPages = Math.ceil(paginationInfo.count / 5);
+  // Correctly calculate totalPages from the API response's 'count'
+  const totalPages = Math.ceil(paginationInfo.count / itemsPerPage);
 
   return (
     <div className="app-container">
-      {/* Header */}
       <header className="app-header">
         <div className="header-left">
           <div className="app-logo">
@@ -224,11 +190,9 @@ function BudgetProposal() {
             <Link to="/dashboard" className="nav-item">
               Dashboard
             </Link>
-
-            {/* Budget Dropdown */}
             <div className="nav-dropdown">
               <div
-                className={`nav-item ${showBudgetDropdown ? "active" : ""}`}
+                className="nav-item active"
                 onClick={() => setShowBudgetDropdown(!showBudgetDropdown)}
               >
                 Budget <ChevronDown size={14} />
@@ -236,7 +200,7 @@ function BudgetProposal() {
               {showBudgetDropdown && (
                 <div className="dropdown-menu">
                   <div
-                    className="dropdown-item"
+                    className="dropdown-item active"
                     onClick={() => navigate("/finance/budget-proposal")}
                   >
                     Budget Proposal
@@ -255,12 +219,6 @@ function BudgetProposal() {
                   </div>
                   <div
                     className="dropdown-item"
-                    onClick={() => navigate("/finance/journal-entry")}
-                  >
-                    Budget Allocation
-                  </div>
-                  <div
-                    className="dropdown-item"
                     onClick={() => navigate("/finance/budget-variance-report")}
                   >
                     Budget Variance Report
@@ -268,11 +226,9 @@ function BudgetProposal() {
                 </div>
               )}
             </div>
-
-            {/* Expense Dropdown */}
             <div className="nav-dropdown">
               <div
-                className={`nav-item ${showExpenseDropdown ? "active" : ""}`}
+                className="nav-item"
                 onClick={() => setShowExpenseDropdown(!showExpenseDropdown)}
               >
                 Expense <ChevronDown size={14} />
@@ -296,7 +252,6 @@ function BudgetProposal() {
             </div>
           </nav>
         </div>
-
         <div className="header-right">
           <div className="profile-container">
             <div
@@ -309,8 +264,6 @@ function BudgetProposal() {
                 className="avatar-img"
               />
             </div>
-
-            {/* Profile Popup */}
             {showProfilePopup && (
               <div className="profile-popup">
                 <div className="profile-popup-header">
@@ -322,7 +275,6 @@ function BudgetProposal() {
                   </button>
                   <h3 className="profile-popup-title">Profile</h3>
                 </div>
-
                 <div className="profile-popup-content">
                   <div className="profile-avatar-large">
                     <img
@@ -331,31 +283,28 @@ function BudgetProposal() {
                       className="profile-avatar-img"
                     />
                   </div>
-
                   <div className="profile-info">
                     <div className="profile-field">
                       <div className="profile-field-header">
-                        <User size={16} className="profile-field-icon" />
+                        <User size={16} />
                         <span className="profile-field-label">Name:</span>
                       </div>
                       <div className="profile-field-value">
                         {userProfile.name}
                       </div>
                     </div>
-
                     <div className="profile-field">
                       <div className="profile-field-header">
-                        <Mail size={16} className="profile-field-icon" />
+                        <Mail size={16} />
                         <span className="profile-field-label">E-mail:</span>
                       </div>
                       <div className="profile-field-value profile-email">
                         {userProfile.email}
                       </div>
                     </div>
-
                     <div className="profile-field">
                       <div className="profile-field-header">
-                        <Briefcase size={16} className="profile-field-icon" />
+                        <Briefcase size={16} />
                         <span className="profile-field-label">Role:</span>
                       </div>
                       <div className="profile-field-value profile-role">
@@ -363,7 +312,6 @@ function BudgetProposal() {
                       </div>
                     </div>
                   </div>
-
                   <button className="logout-btn" onClick={handleLogout}>
                     <LogOut size={16} />
                     Log Out
@@ -489,7 +437,7 @@ function BudgetProposal() {
                 proposals.map((proposal) => (
                   <tr key={proposal.id}>
                     <td>{proposal.reference}</td>
-                    <td>{proposal.subject}</td>
+                    <td>{proposal.title}</td>
                     <td>{proposal.category}</td>
                     <td>{proposal.submitted_by}</td>
                     <td>
@@ -543,11 +491,9 @@ function BudgetProposal() {
         </div>
       </div>
 
-      {/* Review Popup */}
       {showReviewPopup && selectedProposal && (
         <div className="popup-overlay">
           <div className="review-popup">
-            {/* Header */}
             <div className="popup-header">
               <button className="back-button" onClick={closeReviewPopup}>
                 <ArrowLeft size={20} />
@@ -662,11 +608,9 @@ function BudgetProposal() {
         </div>
       )}
 
-      {/* Approval/Rejection Status Popup */}
       {showConfirmationPopup && selectedProposal && (
         <div className="popup-overlay">
           <div className="approval-status-popup">
-            {/* Header */}
             <div className="approval-status-header">
               <button
                 className="back-button"
@@ -678,7 +622,6 @@ function BudgetProposal() {
                 Confirm {reviewStatus === "approved" ? "Approval" : "Rejection"}
               </h2>
             </div>
-
             <div className="approval-status-content">
               <h3 className="project-title-section">
                 {selectedProposal.title}
@@ -692,25 +635,20 @@ function BudgetProposal() {
                       selectedProposal.items?.reduce(
                         (sum, item) => sum + parseFloat(item.estimated_cost),
                         0
-                      ) ||
-                        selectedProposal.amount ||
-                        0
+                      ) || 0
                     ).toLocaleString()}
                   </span>
                 </div>
                 <div className="detail-item">
                   <span className="detail-label">Category:</span>
                   <span className="detail-value">
-                    {selectedProposal.items?.[0]?.account_code ||
-                      selectedProposal.category ||
-                      "N/A"}
+                    {selectedProposal.items?.[0]?.account_code || "N/A"}
                   </span>
                 </div>
                 <div className="detail-item">
                   <span className="detail-label">Submitted by:</span>
                   <span className="detail-value">
-                    {selectedProposal.submitted_by_name ||
-                      selectedProposal.submitted_by}
+                    {selectedProposal.submitted_by_name}
                   </span>
                 </div>
               </div>
@@ -724,8 +662,6 @@ function BudgetProposal() {
                 ></textarea>
               </div>
             </div>
-
-            {/* Footer with right-aligned blue button */}
             <div className="approval-status-footer">
               <button
                 className="submit-approval-button"

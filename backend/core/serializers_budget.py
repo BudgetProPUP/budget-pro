@@ -16,43 +16,33 @@ class BudgetProposalSummarySerializer(serializers.Serializer):
 
 
 class BudgetProposalListSerializer(serializers.ModelSerializer):
-    # RENAMED from department_name to match proposal table
-    department = serializers.CharField(
-        source='department.name', read_only=True)
-    # RENAMED from submitted_by_name to match proposal table
     submitted_by = serializers.CharField(
         source='submitted_by_name', read_only=True)
-    # ADDED: Dynamically determine category
-    category = serializers.SerializerMethodField()
-    # ADDED: Total cost of the proposal
     amount = serializers.SerializerMethodField()
-    # ADDED: Reference ID for the table
     reference = serializers.CharField(source='external_system_id', read_only=True)
+    
+    # MODIFIED: Change source back to 'title' to match the model field.
+    # The frontend will use 'proposal.title'.
+    subject = serializers.CharField(source='title', read_only=True)
+    
+    category = serializers.SerializerMethodField()
 
     class Meta:
         model = BudgetProposal
+        # MODIFIED: The key here should be 'title', not 'subject', to match the model.
+        # The frontend will map this to the "Subject" column.
         fields = [
-            'id', 'reference', 'title', 'category', 'department', 'submitted_by',
+            'id', 'reference', 'subject', 'title', 'category', 'submitted_by',
             'amount', 'status'
         ]
 
     def get_amount(self, obj):
-        # Calculates the sum of estimated_cost for all items in the proposal
         return obj.items.aggregate(total=Sum('estimated_cost'))['total'] or 0
 
     def get_category(self, obj):
-        # Derives the category from the proposal's items as requested
-        # Uses the category of the first item as the representative category
         first_item = obj.items.first()
-        if first_item and hasattr(first_item, 'account') and first_item.account:
-             # This assumes that the category can be derived from the account of the item.
-             # If items have a direct category link, that should be used instead.
-             # For now, using a placeholder logic. A more robust solution would be needed
-             # if items can belong to multiple, distinct expense categories.
-             # Let's assume the first item's account type is a good proxy.
+        if first_item and first_item.account and first_item.account.account_type:
             return first_item.account.account_type.name
-        
-        # Fallback for proposals with no items or items without accounts
         return "Uncategorized"
 
 class BudgetProposalItemSerializer(serializers.ModelSerializer):

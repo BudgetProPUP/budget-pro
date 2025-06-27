@@ -9,12 +9,14 @@ import {
   Mail,
   Briefcase,
   LogOut,
+  Search,
 } from "lucide-react";
 import api from "../../api";
 import { useAuth } from "../../context/AuthContext";
 import "./BudgetProposal.css";
+import LOGOMAP from "../../assets/MAP.jpg";
 
-const API_URL = 'https://budget-pro.onrender.com/api/budget-proposals/';
+const API_URL = "https://budget-pro.onrender.com/api/budget-proposals/";
 
 function BudgetProposal() {
   const navigate = useNavigate();
@@ -25,7 +27,8 @@ function BudgetProposal() {
     name: "John Doe",
     email: "john.doe@company.com",
     role: "Finance Manager",
-    avatar: "https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?ixlib=rb-1.2.1&ixid=eyJhcHBfaWQiOjEyMDd9&auto=format&fit=facearea&facepad=2&w=256&h=256&q=80"
+    avatar:
+      "https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?ixlib=rb-1.2.1&ixid=eyJhcHBfaWQiOjEyMDd9&auto=format&fit=facearea&facepad=2&w=256&h=256&q=80",
   };
 
   // API Data State
@@ -70,7 +73,7 @@ function BudgetProposal() {
   const [showCategoryDropdown, setShowCategoryDropdown] = useState(false);
   const [showStatusDropdown, setShowStatusDropdown] = useState(false);
   const [showProfilePopup, setShowProfilePopup] = useState(false);
-  
+
   const itemsPerPage = 5;
 
   const statusOptions = [
@@ -147,7 +150,7 @@ function BudgetProposal() {
   const handleReviewClick = async (proposal) => {
     setSelectedProposal(proposal);
     setReviewStatus(proposal.status);
-    setReviewComment('');
+    setReviewComment("");
     setShowReviewPopup(true);
     setIsModalLoading(true);
     try {
@@ -215,7 +218,7 @@ function BudgetProposal() {
       <header className="app-header">
         <div className="header-left">
           <div className="app-logo">
-            <h1>BUDGET PRO</h1>
+            <img src={LOGOMAP} alt="BudgetPro Logo" className="logo-image" />
           </div>
           <nav className="nav-menu">
             <Link to="/dashboard" className="nav-item">
@@ -306,7 +309,7 @@ function BudgetProposal() {
                 className="avatar-img"
               />
             </div>
-            
+
             {/* Profile Popup */}
             {showProfilePopup && (
               <div className="profile-popup">
@@ -319,7 +322,7 @@ function BudgetProposal() {
                   </button>
                   <h3 className="profile-popup-title">Profile</h3>
                 </div>
-                
+
                 <div className="profile-popup-content">
                   <div className="profile-avatar-large">
                     <img
@@ -328,16 +331,18 @@ function BudgetProposal() {
                       className="profile-avatar-img"
                     />
                   </div>
-                  
+
                   <div className="profile-info">
                     <div className="profile-field">
                       <div className="profile-field-header">
                         <User size={16} className="profile-field-icon" />
                         <span className="profile-field-label">Name:</span>
                       </div>
-                      <div className="profile-field-value">{userProfile.name}</div>
+                      <div className="profile-field-value">
+                        {userProfile.name}
+                      </div>
                     </div>
-                    
+
                     <div className="profile-field">
                       <div className="profile-field-header">
                         <Mail size={16} className="profile-field-icon" />
@@ -347,7 +352,7 @@ function BudgetProposal() {
                         {userProfile.email}
                       </div>
                     </div>
-                    
+
                     <div className="profile-field">
                       <div className="profile-field-header">
                         <Briefcase size={16} className="profile-field-icon" />
@@ -358,7 +363,7 @@ function BudgetProposal() {
                       </div>
                     </div>
                   </div>
-                  
+
                   <button className="logout-btn" onClick={handleLogout}>
                     <LogOut size={16} />
                     Log Out
@@ -407,6 +412,9 @@ function BudgetProposal() {
                 onChange={(e) => setSearchTerm(e.target.value)}
                 className="search-input"
               />
+              <button className="search-icon-btn" type="button">
+                <Search size={16} />
+              </button>
             </div>
             <div className="filter-controls">
               <div className="filter-dropdown">
@@ -670,7 +678,7 @@ function BudgetProposal() {
                 Confirm {reviewStatus === "approved" ? "Approval" : "Rejection"}
               </h2>
             </div>
-            
+
             <div className="approval-status-content">
               <h3 className="project-title-section">
                 {selectedProposal.title}
@@ -684,20 +692,25 @@ function BudgetProposal() {
                       selectedProposal.items?.reduce(
                         (sum, item) => sum + parseFloat(item.estimated_cost),
                         0
-                      ) || selectedProposal.amount || 0
+                      ) ||
+                        selectedProposal.amount ||
+                        0
                     ).toLocaleString()}
                   </span>
                 </div>
                 <div className="detail-item">
                   <span className="detail-label">Category:</span>
                   <span className="detail-value">
-                    {selectedProposal.items?.[0]?.account_code || selectedProposal.category || "N/A"}
+                    {selectedProposal.items?.[0]?.account_code ||
+                      selectedProposal.category ||
+                      "N/A"}
                   </span>
                 </div>
                 <div className="detail-item">
                   <span className="detail-label">Submitted by:</span>
                   <span className="detail-value">
-                    {selectedProposal.submitted_by_name || selectedProposal.submitted_by}
+                    {selectedProposal.submitted_by_name ||
+                      selectedProposal.submitted_by}
                   </span>
                 </div>
               </div>
@@ -711,7 +724,7 @@ function BudgetProposal() {
                 ></textarea>
               </div>
             </div>
-            
+
             {/* Footer with right-aligned blue button */}
             <div className="approval-status-footer">
               <button

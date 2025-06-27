@@ -1,4 +1,4 @@
-import { createContext, useContext, useState, useEffect } from 'react';
+import { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import axios from 'axios';
 import { useNavigate } from 'react-router-dom';
 
@@ -11,27 +11,24 @@ export const AuthProvider = ({ children }) => {
 
   const viteAuthApiUrl = import.meta.env.VITE_AUTH_API_URL;
 
-  // Configure Axios with base URL and interceptors
-  const api = axios.create({
+  // This is the internal axios instance for the Auth Service
+  const authApi = axios.create({
     baseURL: viteAuthApiUrl,
     headers: {
       'Content-Type': 'application/json',
     },
   });
 
-  // Add request interceptor to attach access token
-  api.interceptors.request.use(
-    (config) => {
-      if (accessToken) {
-        config.headers.Authorization = `Bearer ${accessToken}`;
-      }
-      return config;
-    },
-    (error) => Promise.reject(error)
-  );
+  const logout = useCallback(() => {
+    setUser(null);
+    setAccessToken(null);
+    localStorage.removeItem('accessToken');
+    localStorage.removeItem('refreshToken');
+    navigate('/login');
+  }, [navigate]);
 
-  // Add response interceptor for token refresh
-  api.interceptors.response.use(
+  // Interceptor for token refresh
+  authApi.interceptors.response.use(
     (response) => response,
     async (error) => {
       const originalRequest = error.config;
@@ -39,28 +36,31 @@ export const AuthProvider = ({ children }) => {
         originalRequest._retry = true;
         try {
           const refreshToken = localStorage.getItem('refreshToken');
+          if (!refreshToken) {
+            logout();
+            return Promise.reject(new Error("No refresh token available."));
+          }
           const response = await axios.post(`${viteAuthApiUrl}/token/refresh/`, {
             refresh: refreshToken,
           });
           const newAccessToken = response.data.access;
           setAccessToken(newAccessToken);
           localStorage.setItem('accessToken', newAccessToken);
+          authApi.defaults.headers.common['Authorization'] = `Bearer ${newAccessToken}`;
           originalRequest.headers.Authorization = `Bearer ${newAccessToken}`;
-          return api(originalRequest);
+          return authApi(originalRequest);
         } catch (refreshError) {
           logout();
-          navigate('/login');
           return Promise.reject(refreshError);
         }
       }
       return Promise.reject(error);
     }
   );
-
-  // Login function
+  
   const login = async (credentials) => {
     try {
-      const response = await api.post('/login/', credentials);
+      const response = await authApi.post('/login/', credentials);
       const { access, refresh, user } = response.data;
       setAccessToken(access);
       setUser(user);
@@ -72,38 +72,35 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
-  // Logout function
-  const logout = async () => {
+  // ADDED: Function to handle password reset requests
+  const requestPasswordReset = async (email) => {
     try {
-      await api.post('/logout/', { refresh: localStorage.getItem('refreshToken') }); // Sends refresh token to backend and blacklisted
+      // This uses the correctly configured authApi instance
+      await authApi.post('/password/request-reset/', { email });
     } catch (error) {
-      console.error('Logout failed:', error);
-    } finally {
-      setUser(null);
-      setAccessToken(null);
-      localStorage.removeItem('accessToken');
-      localStorage.removeItem('refreshToken');
-      navigate('/login');
+      throw error.response?.data || { detail: 'Request failed' };
     }
   };
 
-  // Check authentication on mount
+  // ADDED: Function to handle the final password reset confirmation
+  const confirmPasswordReset = async ({ uid, token, password }) => {
+    try {
+      await authApi.post('/password/reset/confirm/', { uid, token, password });
+    } catch (error) {
+      throw error.response?.data || { detail: 'Confirmation failed' };
+    }
+  };
+
   useEffect(() => {
-    const verifyToken = async () => {
-      if (accessToken) {
-        try {
-          const response = await api.get('/profile/');
-          setUser(response.data);
-        } catch (error) {
-          logout();
-        }
-      }
-    };
-    verifyToken();
-  }, [accessToken]);
+    const token = localStorage.getItem('accessToken');
+    if (token) {
+      setAccessToken(token);
+    }
+  }, []);
 
   return (
-    <AuthContext.Provider value={{ user, login, logout, api }}>
+    // MODIFIED: Provide the new functions in the context value
+    <AuthContext.Provider value={{ user, accessToken, login, logout, requestPasswordReset, confirmPasswordReset }}>
       {children}
     </AuthContext.Provider>
   );

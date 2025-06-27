@@ -46,29 +46,32 @@ SECRET_KEY = os.getenv('DJANGO_SECRET_KEY')
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = os.getenv('DEBUG', 'False').lower() == 'true'  # Disable in production
 
-ALLOWED_HOSTS = [] # Start with an empty list
-
-# Get the hostname provided by Railway (if any)
-# Railway typically sets a variable like RAILWAY_PUBLIC_DOMAIN or you might have a custom domain
-RAILWAY_APP_HOSTNAME = os.getenv('RAILWAY_PUBLIC_DOMAIN') # Check Railway docs for the exact variable name they provide for the service's public domain
-                                                        # Or, if you set a custom domain, use that.
+# ALLOWED_HOSTS Configuration - Updated for Render with Railway fallback
+ALLOWED_HOSTS = []
 
 if DEBUG:
     ALLOWED_HOSTS.extend(['localhost', '127.0.0.1'])
 else:
+    # Render configuration (primary)
+    RENDER_EXTERNAL_HOSTNAME = os.getenv('RENDER_EXTERNAL_HOSTNAME')
+    if RENDER_EXTERNAL_HOSTNAME:
+        ALLOWED_HOSTS.append(RENDER_EXTERNAL_HOSTNAME)
+    
+    # Add Render service domains
+    ALLOWED_HOSTS.extend([
+        'budget-pro.onrender.com',  # Your budget service domain
+        '.onrender.com',  # All Render subdomains
+    ])
+    
+    # Railway fallback configuration (keep for potential return)
+    RAILWAY_APP_HOSTNAME = os.getenv('RAILWAY_PUBLIC_DOMAIN')
     if RAILWAY_APP_HOSTNAME:
         ALLOWED_HOSTS.append(RAILWAY_APP_HOSTNAME)
-    # Add any other specific production domains if necessary
-    # It's generally safer to be specific than to use wildcards like '.railway.app'
-    # if you know the exact hostname(s).
-    # If Railway provides a variable like RAILWAY_PRIVATE_DOMAIN for internal traffic, add that too if needed.
-
-# If you still want to allow all railway subdomains (less secure but might be needed if hostnames are dynamic and unpredictable)
-# You had this before, it's a broader approach:
-if not DEBUG: # Only for production-like environments
+    
+    # Railway domains as fallback
     ALLOWED_HOSTS.extend(['.railway.app', '.up.railway.app'])
 
-# Ensure there are no duplicates and filter out any potential None values if os.getenv returned None
+# Remove duplicates and None values
 ALLOWED_HOSTS = list(set(filter(None, ALLOWED_HOSTS)))
 
 if not ALLOWED_HOSTS and not DEBUG:
@@ -112,12 +115,21 @@ AUTHENTICATION_BACKENDS = [
     'django.contrib.auth.backends.ModelBackend',
 ]
 
-# CORS - Add deployed frontend and auth_service URL (if budget_service needs to call back, unlikely for auth)
+# CORS - Updated for Render with Railway fallback
 CORS_ALLOWED_ORIGINS = [
-    "http://localhost:5173", # Local frontend
-    os.getenv('FRONTEND_URL'), # Deployed frontend
-    # os.getenv('AUTH_SERVICE_URL'), # If auth_service makes direct calls to budget_service (unlikely for typical auth flow)
+    "http://localhost:5173",  # Local frontend
+    "https://frontend-r2az.onrender.com",  # Render frontend
+    "https://auth-service-cdln.onrender.com",  # Render auth service
+    os.getenv('FRONTEND_URL'),  # Environment variable
+    os.getenv('AUTH_SERVICE_URL'),  # Environment variable
 ]
+
+# Added Railway URLs as fallback
+railway_frontend = os.getenv('RAILWAY_FRONTEND_URL')
+if railway_frontend:
+    CORS_ALLOWED_ORIGINS.append(railway_frontend)
+
+# Filter out None values
 CORS_ALLOWED_ORIGINS = [origin for origin in CORS_ALLOWED_ORIGINS if origin]
 
 

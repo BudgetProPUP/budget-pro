@@ -70,20 +70,32 @@ DEBUG = os.getenv('DEBUG', 'False').lower() == 'true'
 
 
 
-# ALLOWED_HOSTS Configuration - Simplified and more robust
+# ALLOWED_HOSTS Configuration - Updated for Render with Railway fallback
 ALLOWED_HOSTS = ['localhost', '127.0.0.1']
 
-
-if DEBUG:
-    ALLOWED_HOSTS = ['localhost', '127.0.0.1']
-else:
-    # Get the Railway public domain
+if not DEBUG:
+    # Render configuration (primary)
+    RENDER_EXTERNAL_HOSTNAME = os.getenv('RENDER_EXTERNAL_HOSTNAME')
+    if RENDER_EXTERNAL_HOSTNAME:
+        ALLOWED_HOSTS.append(RENDER_EXTERNAL_HOSTNAME)
+    
+    # Add Render service domains
+    ALLOWED_HOSTS.extend([
+        'auth-service-cdln.onrender.com',  # Your auth service domain
+        '.onrender.com',  # All Render subdomains
+    ])
+    
+    # Railway fallback configuration
     RAILWAY_PUBLIC_DOMAIN = os.getenv('RAILWAY_PUBLIC_DOMAIN')
     if RAILWAY_PUBLIC_DOMAIN:
-        ALLOWED_HOSTS = [RAILWAY_PUBLIC_DOMAIN]
-    else:
-        ALLOWED_HOSTS = []  # Or a default if you have one
-        print("WARNING: RAILWAY_PUBLIC_DOMAIN not set. ALLOWED_HOSTS is empty.")
+        ALLOWED_HOSTS.append(RAILWAY_PUBLIC_DOMAIN)
+    
+    # Railway domains as fallback
+    if os.getenv('RAILWAY_ENVIRONMENT'):
+        ALLOWED_HOSTS.extend([
+            '.railway.app',
+            '.up.railway.app',
+        ])
 
 # Remove duplicates and empty strings
 ALLOWED_HOSTS = sorted(list(set(filter(None, ALLOWED_HOSTS))))
@@ -221,15 +233,26 @@ USE_I18N = True
 USE_TZ = True
 
 
-DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
-
-# CORS - Add deployed frontend and budget_service URLs
+# CORS - Updated for Render with Railway fallback
 CORS_ALLOWED_ORIGINS = [
-    "http://localhost:5173", # Local frontend
-    os.getenv('FRONTEND_URL'), # Deployed frontend
-    os.getenv('BUDGET_SERVICE_PUBLIC_URL') # Public URL of budget_service
+    "http://localhost:5173",  # Local frontend
+    "https://frontend-r2az.onrender.com",  # Render frontend
+    "https://budget-pro.onrender.com",  # Render budget service
+    os.getenv('FRONTEND_URL'),  # Environment variable
+    os.getenv('BUDGET_SERVICE_PUBLIC_URL'),  # Environment variable
 ]
+
+# Add Railway URLs as fallback
+railway_frontend = os.getenv('RAILWAY_FRONTEND_URL')
+railway_budget = os.getenv('RAILWAY_BUDGET_URL')
+if railway_frontend:
+    CORS_ALLOWED_ORIGINS.append(railway_frontend)
+if railway_budget:
+    CORS_ALLOWED_ORIGINS.append(railway_budget)
+
+# Filter out None values
 CORS_ALLOWED_ORIGINS = [origin for origin in CORS_ALLOWED_ORIGINS if origin]
+
 CORS_ALLOW_ALL_ORIGINS = DEBUG  # Restrict in production
 CORS_ALLOW_CREDENTIALS = True
 

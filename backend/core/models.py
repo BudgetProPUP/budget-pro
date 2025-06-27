@@ -443,11 +443,11 @@ class BudgetAllocation(models.Model):
             '(if this allocation was approved from one).'
         )
     )
-    project = models.OneToOneField(
+    project = models.ForeignKey(
         'Project',
         on_delete=models.CASCADE,
-        related_name='budget',
-        help_text='The one budget allocation for this project.'
+        related_name='allocations',
+        help_text='The project this budget allocation belongs to.'
     )
 
     created_by_name = models.CharField(max_length=255, null=True, blank=True)

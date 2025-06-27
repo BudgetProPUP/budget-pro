@@ -206,25 +206,31 @@ class Command(BaseCommand):
         current_year = datetime.now().year
         current_fy = next((fy for fy in fiscal_years if fy.name == f'FY {current_year}'), fiscal_years[0])
         proposals = []
+        # MODIFIED: Changed range(2) to range(30) to create 150 proposals (5 depts * 30 proposals)
         for i, department in enumerate(departments):
-            for j in range(2): # Create 2 proposals per department
+            for j in range(30): # Create 30 proposals per department
                 sim_submitter = random.choice(SIMULATED_USERS) # Get a simulated user
                 proposal_data = {
-                    'title': f"{department.name} Q{j+1} Initiative {current_year}",
-                    'project_summary': f"Summary for {department.name} Q{j+1}",
-                    'project_description': f"Detailed description for {department.name} Q{j+1}",
+                    'title': f"{department.name} Initiative #{j+1} FY{current_year}",
+                    'project_summary': f"Summary for {department.name} initiative #{j+1}",
+                    'project_description': f"Detailed description for {department.name} initiative #{j+1}",
                     'department': department,
                     'fiscal_year': current_fy,
                     'submitted_by_name': sim_submitter['full_name'], # UPDATED
-                    'performance_start_date': current_fy.start_date + timedelta(days=90*j),
-                    'performance_end_date': current_fy.start_date + timedelta(days=90*(j+1)-1),
-                    'external_system_id': f"EXT-{department.code}-{current_year}-Q{j+1}-{i}",
-                    'status': random.choice(['SUBMITTED', 'APPROVED']), # Assuming proposals are already approved or submitted
+                    'performance_start_date': current_fy.start_date + timedelta(days=12*j),
+                    'performance_end_date': current_fy.start_date + timedelta(days=12*(j+1)-1),
+                    'external_system_id': f"EXT-{department.code}-{current_year}-{j+1:03d}",
+                    'status': random.choice(['SUBMITTED', 'APPROVED', 'APPROVED', 'REJECTED']), # Skew towards approved
                 }
                 if proposal_data['status'] == 'APPROVED':
                     sim_approver = random.choice(SIMULATED_USERS)
                     proposal_data['approved_by_name'] = sim_approver['full_name']
-                    proposal_data['approval_date'] = timezone.now()
+                    proposal_data['approval_date'] = timezone.now() - timedelta(days=random.randint(1,30))
+                
+                if proposal_data['status'] == 'REJECTED':
+                    sim_rejector = random.choice(SIMULATED_USERS)
+                    proposal_data['rejected_by_name'] = sim_rejector['full_name']
+                    proposal_data['rejection_date'] = timezone.now() - timedelta(days=random.randint(1,30))
 
                 proposal, _ = BudgetProposal.objects.update_or_create(
                     external_system_id=proposal_data['external_system_id'], # Use a unique field
@@ -275,31 +281,43 @@ class Command(BaseCommand):
         return projects
 
 
-    def create_budget_allocations(self, projects, accounts, sim_creator_user, categories): # MODIFIED: takes simulated creator
+    def create_budget_allocations(self, projects, accounts, sim_creator_user, categories):
         self.stdout.write('Creating budget allocations...')
-        allocations = []
-        expense_accounts = [acc for acc in accounts if acc.account_type.name == 'Expense'] or accounts
-        if not projects: return []
+        allocations_created = 0
+        if not projects or not categories:
+            self.stdout.write(self.style.WARNING("Skipping budget allocation creation due to missing projects or categories."))
+            return []
+
         for project in projects:
-            if not project.budget_proposal: continue # Should not happen if created from proposal
-            total_proposal_cost = project.budget_proposal.items.aggregate(Sum('estimated_cost'))['estimated_cost__sum'] or Decimal(0)
-            if total_proposal_cost > 0:
-                alloc, _ = BudgetAllocation.objects.get_or_create(
+            # Ensure the project is linked to a proposal with items
+            if not hasattr(project, 'budget_proposal') or not project.budget_proposal.items.exists():
+                continue
+
+            # Iterate through each item in the approved proposal to create a specific allocation line
+            for item in project.budget_proposal.items.all():
+                chosen_category = random.choice(categories)
+
+                # IDEMPOTENCY: Use a logical key (project, account, category) to prevent duplicates.
+                # This creates multiple, distinct allocation lines for a single project.
+                alloc, created = BudgetAllocation.objects.update_or_create(
                     project=project,
+                    account=item.account,
+                    category=chosen_category,
                     defaults={
                         'fiscal_year': project.budget_proposal.fiscal_year,
                         'department': project.department,
-                        'category': random.choice(categories) if categories else None,
-                        'account': random.choice(expense_accounts), # Simplified account choice
                         'proposal': project.budget_proposal,
-                        'created_by_name': sim_creator_user['full_name'], # UPDATED
-                        'amount': total_proposal_cost,
+                        'created_by_name': sim_creator_user['full_name'],
+                        'amount': item.estimated_cost,  # Allocate the cost from the proposal item
                         'is_active': True
                     }
                 )
-                allocations.append(alloc)
-        self.stdout.write(self.style.SUCCESS(f'Created/Updated {len(allocations)} budget allocations'))
-        return allocations
+                if created:
+                    allocations_created += 1
+
+        self.stdout.write(self.style.SUCCESS(f'Created/Updated {allocations_created} budget allocations. (Existing ones were skipped)'))
+        # Return all relevant allocations for subsequent seeder steps
+        return list(BudgetAllocation.objects.filter(project__in=projects))
 
     def create_budget_transfers(self, fiscal_years, allocations): # IDEMPOTENT
         self.stdout.write('Creating budget transfers...')
@@ -524,19 +542,31 @@ class Command(BaseCommand):
             return
             
         logs = []
+        # MODIFIED: Mapped log types to valid choices from the UserActivityLog model
         log_actions_budget = [
-            ('PROPOSAL_CREATE', 'SUCCESS'), ('PROPOSAL_UPDATE', 'SUCCESS'),
-            ('EXPENSE_CREATE', 'SUCCESS'), ('EXPENSE_APPROVE', 'SUCCESS'),
-            ('REPORT_EXPORT', 'SUCCESS')
+            ('CREATE', 'SUCCESS'), 
+            ('UPDATE', 'SUCCESS'),
+            ('CREATE', 'SUCCESS'), 
+            ('UPDATE', 'SUCCESS'), # Approval is an update to the record
+            ('EXPORT', 'SUCCESS'),
+            ('ERROR', 'FAILED') # Add some error logs
         ]
-        for _ in range(30): # Create some budget-specific logs
+        log_action_descriptions = [
+            "Proposal created", "Proposal status updated",
+            "Expense submitted", "Expense approved",
+            "Report exported to Excel", "Failed to connect to external service"
+        ]
+
+        for i in range(30): # Create some budget-specific logs
             sim_user = random.choice(SIMULATED_USERS)
             log_type, status = random.choice(log_actions_budget)
+            action_desc = log_action_descriptions[i % len(log_action_descriptions)]
+
             UserActivityLog.objects.create(
                 user_id=sim_user['id'],
                 user_username=sim_user['username'],
                 log_type=log_type,
-                action=f"{log_type} action performed in budget_service by {sim_user['username']}",
+                action=f"{action_desc} by {sim_user['username']}",
                 status=status,
                 details={'ip_address': f"10.0.0.{random.randint(1,100)}"}
             )

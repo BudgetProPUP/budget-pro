@@ -1,5 +1,77 @@
 /* BudgetPro LedgerView Styles */
 
+/* ====================== */
+/* CATEGORY DROPDOWN FIXES */
+/* ====================== */
+
+
+
+.filter-dropdown {
+  position: relative;
+  min-width: 200px; /* Ensures dropdown has enough width */
+}
+
+.filter-dropdown-btn {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  width: 100%;
+  padding: 12px 16px;
+  background: white;
+  border: 1px solid #e2e8f0;
+  border-radius: 50px !important;
+  cursor: pointer;
+}
+
+.category-dropdown-menu {
+  position: absolute !important;
+  top: 100% !important;
+  left: 0 !important;
+  width: 100% !important;
+  max-height: 300px !important;
+  overflow-y: auto !important;
+  background: white !important;
+  border: 1px solid #e2e8f0 !important;
+  border-radius: 8px !important;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1) !important;
+  z-index: 1000 !important;
+  margin-top: 4px !important;
+  display: block !important; /* Override any flex displays */
+}
+
+.category-dropdown-item {
+  display: block !important; /* Force block-level display */
+  width: 100% !important;
+  padding: 12px 16px !important;
+  text-align: left !important;
+  background: none !important;
+  border: none !important;
+  cursor: pointer !important;
+  color: #4a5568 !important;
+  font-size: 14px !important;
+  box-sizing: border-box !important;
+  white-space: nowrap !important;
+}
+
+.category-dropdown-item:hover {
+  background-color: #f7fafc !important;
+}
+
+.category-dropdown-item.active {
+  background-color: #ebf8ff !important;
+  color: #3182ce !important;
+  font-weight: 500 !important;
+}
+
+/* Nuclear option to prevent any horizontal layout */
+.category-dropdown-menu > * {
+  float: none !important;
+  clear: both !important;
+  display: block !important;
+  width: 100% !important;
+}
+
+
 .app-container {
   font-family: Poppins, 'Poppins', sans-serif;
   min-height: 100vh;
@@ -95,14 +167,6 @@
 .dropdown-item.active {
   background-color: #eff6ff;
   color: #2563eb;
-}
-
-.dropdown-item:first-child {
-  border-radius: 0.5rem 0.5rem 0 0;
-}
-
-.dropdown-item:last-child {
-  border-radius: 0 0 0.5rem 0.5rem;
 }
 
 .header-right {
@@ -323,14 +387,15 @@
 }
 
 /* Title styling */
-.page .top .title {
+.page-title {
+  margin: 0;
   font-size: 29px;
-  font-weight: 600;
-  color: #007bff;
+  font-weight: bold;
+  color: #242424;
 }
 
-/* Controls container for search and filters */
-.page .top .controls-container {
+/* Controls container */
+.controls-container {
   display: flex;
   align-items: center;
   gap: 1rem;
@@ -345,16 +410,7 @@
   width: 300px;
   height: 50px;
   max-width: 300px;
-  margin-left: 1rem;
   transition: all 0.2s ease;
-}
-
-/* Active typing state - when input has text */
-.search-account-input:not(:empty),
-.search-account-input:focus:not(:placeholder-shown) {
-  border-color: #3b82f6;
-  background-color: #f0f7ff;
-  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
 }
 
 .search-account-input:hover {
@@ -368,25 +424,12 @@
   box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.2);
 }
 
-/* Text color when typing */
-.search-account-input:not(:placeholder-shown) {
-  color: #242424;
-}
-
-/* Filter controls */
-.page .top .filter-controls {
-  display: flex;
-  gap: 1rem;
-  align-items: center;
-}
-
 /* Filter dropdown */
 .filter-dropdown {
   position: relative;
 }
 
-/* Dropdown button styling - clean white design */
-.page .top .filter-dropdown-btn {
+.filter-dropdown-btn {
   position: relative;
   display: flex;
   align-items: center;
@@ -398,26 +441,25 @@
   cursor: pointer;
   font-size: 0.875rem;
   color: #4a5568;
-  min-width: 120px;
+  min-width: 160px;
   height: 50px;
   transition: all 0.2s ease;
   box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1);
 }
 
-.page .top .filter-dropdown-btn:hover {
+.filter-dropdown-btn:hover {
   background-color: #f7fafc;
   border-color: #cbd5e0;
   box-shadow: 0 2px 4px 0 rgba(0, 0, 0, 0.1);
 }
 
-.page .top .filter-dropdown-btn:focus {
-  outline: none;
+.filter-dropdown-btn.active {
   border-color: #3b82f6;
   box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
 }
 
-/* Dropdown menu styling */
-.filter-dropdown .dropdown-menu {
+/* Category dropdown menu */
+.category-dropdown-menu {
   position: absolute;
   top: 100%;
   left: 0;
@@ -431,9 +473,11 @@
   overflow: hidden;
   max-height: 300px;
   overflow-y: auto;
+  display: flex;
+  flex-direction: column;
 }
 
-.filter-dropdown .dropdown-item {
+.category-dropdown-item {
   display: block;
   width: 100%;
   padding: 0.75rem 1rem;
@@ -444,25 +488,38 @@
   color: #4a5568;
   cursor: pointer;
   transition: background-color 0.15s ease;
+  white-space: nowrap;
 }
 
-.filter-dropdown .dropdown-item:hover {
+.category-dropdown-item:hover {
   background-color: #f7fafc;
 }
 
-.filter-dropdown .dropdown-item.selected {
+.category-dropdown-item.active {
   background-color: #ebf8ff;
   color: #3182ce;
   font-weight: 500;
 }
 
-/* Hide dropdown by default */
-.filter-dropdown .dropdown-menu {
-  display: none;
+/* Export button */
+.export-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.75rem 1rem;
+  background-color: #3b82f6;
+  color: white;
+  border: none;
+  border-radius: 30px !important;
+  cursor: pointer;
+  font-size: 0.875rem;
+  font-weight: 500;
+  height: 50px;
+  transition: background-color 0.2s;
 }
 
-.filter-dropdown-btn.active + .dropdown-menu {
-  display: block;
+.export-btn:hover {
+  background-color: #2563eb;
 }
 
 /* Main table styles */
@@ -502,39 +559,6 @@
   padding-left: 16px;
   font-size: 0.875rem;
   color: #1e293b;
-}
-
-/* Specific column widths */
-.page table th:nth-child(1), 
-.page table td:nth-child(1) {
-  width: 12%;
-}
-
-.page table th:nth-child(2), 
-.page table td:nth-child(2) {
-  width: 12%;
-}
-
-.page table th:nth-child(3), 
-.page table td:nth-child(3) {
-  width: 20%;
-}
-
-.page table th:nth-child(4), 
-.page table td:nth-child(4) {
-  width: 25%;
-}
-
-.page table th:nth-child(5), 
-.page table td:nth-child(5) {
-  width: 18%;
-}
-
-.page table th:nth-child(6), 
-.page table td:nth-child(6) {
-  width: 13%;
-  text-align: right;
-  padding-right: 16px;
 }
 
 /* No results styling */
@@ -607,23 +631,18 @@
     gap: 1rem;
   }
   
-  .page .top .controls-container {
+  .controls-container {
     width: 100%;
-    justify-content: space-between;
+    flex-direction: column;
+    align-items: stretch;
   }
   
   .search-account-input {
-    width: 250px;
-    margin-left: 0;
+    width: 100%;
   }
   
-  .page .top .filter-controls {
-    justify-content: flex-end;
-    flex-wrap: wrap;
-  }
-  
-  .page .top .filter-dropdown-btn {
-    min-width: 100px;
+  .filter-dropdown-btn {
+    min-width: 100%;
   }
 
   .page table {
@@ -633,5 +652,6 @@
   .page .container {
     width: 98%;
     border-radius: 20px;
+    overflow-x: auto;
   }
 }

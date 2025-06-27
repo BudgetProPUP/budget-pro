@@ -62,22 +62,6 @@ const LedgerView = () => {
       amount: '₱5,800',
       type: 'Operational Expenditure' 
     },
-    { 
-      reference: 'PR-001', 
-      date: '03-15-2025', 
-      category: 'Training & Development', 
-      description: 'Website Redesign', 
-      amount: '₱45,000',
-      type: 'Capital Expenditure' 
-    },
-    { 
-      reference: 'VC-001', 
-      date: '03-10-2025', 
-      category: 'Professional Services', 
-      description: 'Annual Software License', 
-      amount: '₱65,000',
-      type: 'Operational Expenditure'
-    },
   ]);
 
   // State for UI elements
@@ -229,27 +213,13 @@ const LedgerView = () => {
     setShowProfilePopup(false);
   };
 
-  // Updated logout function with navigation to login screen
   const handleLogout = () => {
     try {
-      // Clear any stored authentication data
-      // localStorage.removeItem('authToken');
-      // localStorage.removeItem('userSession');
-      // localStorage.removeItem('userProfile');
-      
-      // Clear session storage
-      // sessionStorage.clear();
-      
-      // Close the profile popup
       setShowProfilePopup(false);
-      
-      // Navigate to login screen
       navigate('/login', { replace: true });
-      
       console.log('User logged out successfully');
     } catch (error) {
       console.error('Error during logout:', error);
-      // Still navigate to login even if there's an error clearing storage
       navigate('/login', { replace: true });
     }
   };
@@ -257,7 +227,6 @@ const LedgerView = () => {
   // Handle export button click
   const handleExport = () => {
     alert('Exporting data...');
-    // Implementation for exporting data
   };
 
   return (
@@ -298,7 +267,6 @@ const LedgerView = () => {
                     Proposal History
                   </div>
                   <div
-                  
                     className="dropdown-item active"
                     onClick={() => handleNavigate('/finance/ledger-view')}
                   >
@@ -309,12 +277,6 @@ const LedgerView = () => {
                     onClick={() => handleNavigate('/finance/journal-entry')}
                   >
                     Budget Allocation
-                  </div>
-                  <div
-                    className="dropdown-item"
-                    onClick={() => handleNavigate('/finance/budget-variance-report')}
-                  >
-                    Budget Variance Report
                   </div>
                 </div>
               )}
@@ -416,28 +378,13 @@ const LedgerView = () => {
       {/* Main Content */}
       <div className="page">
         <div className="container">
-          {/* Header Section with Title and Controls - Matching Account Setup */}
+          {/* Header Section with Title and Controls */}
           <div className="top">
-            <h2 
-              style={{ 
-              margin: 0, 
-              fontSize: '29px', 
-             fontWeight: 'bold', 
-             color:'#242424',
-              }}
-            >
+            <h2 className="page-title">
               Ledger View 
             </h2>
             
-            <div>
-              <div className="filter-controls" style={{ 
-                display: 'flex', 
-                justifyContent: 'flex-end', // This pushes everything to the right
-                alignItems: 'center',
-                gap: '1rem',
-                width: '100%'
-              }}>
-              </div>
+            <div className="controls-container">
               <input
                 type="text"
                 placeholder="Search Transactions"
@@ -475,7 +422,7 @@ const LedgerView = () => {
                 )}
               </div>
               
-              <button className="filter-dropdown-btn" onClick={handleExport}>
+              <button className="export-btn" onClick={handleExport}>
                 Export
               </button>
             </div>
@@ -484,12 +431,12 @@ const LedgerView = () => {
           <table>
             <thead>
               <tr>
-                    <th style={{ width: '12%' }}>REFERENCE</th>
-                    <th style={{ width: '15%' }}>DATE</th>
-                    <th style={{ width: '19%' }}>CATEGORY</th>
-                    <th style={{ width: '17%' }}>DESCRIPTION</th>
-                    <th style={{ width: '17%' }}>ACCOUNT</th>
-                    <th style={{ width: '10%' }}>AMOUNT</th>
+                <th style={{ width: '12%' }}>REFERENCE</th>
+                <th style={{ width: '15%' }}>DATE</th>
+                <th style={{ width: '19%' }}>CATEGORY</th>
+                <th style={{ width: '17%' }}>DESCRIPTION</th>
+                <th style={{ width: '17%' }}>ACCOUNT</th>
+                <th style={{ width: '10%' }}>AMOUNT</th>
               </tr>
             </thead>
             <tbody>
@@ -506,7 +453,7 @@ const LedgerView = () => {
                 ))
               ) : (
                 <tr>
-                  <td colSpan="6" style={{ textAlign: 'center', color: '#64748b', fontStyle: 'italic', padding: '2rem' }}>
+                  <td colSpan="6" className="no-results">
                     No transactions match your search criteria.
                   </td>
                 </tr>

@@ -29,7 +29,7 @@ from .models import (
     ProposalComment, ProposalHistory, UserActivityLog, Project
 )
 from .permissions import IsTrustedService
-from .pagination import FiveResultsSetPagination, SixResultsSetPagination, StandardResultsSetPagination
+from .pagination import FiveResultsSetPagination, StandardResultsSetPagination
 from .serializers import FiscalYearSerializer
 from .serializers_budget import (
     AccountDropdownSerializer,
@@ -67,25 +67,29 @@ from .serializers_budget import (
 class BudgetProposalListView(generics.ListAPIView):
     serializer_class = BudgetProposalListSerializer
     permission_classes = [IsAuthenticated]
-    # MODIFIED: Use new pagination class for 5 items per page
-    pagination_class = FiveResultsSetPagination
+    pagination_class = FiveResultsSetPagination # MODIFIED
 
-    def get_queryset(self):  # Logic seems fine
-        queryset = BudgetProposal.objects.select_related('department').filter(
-            is_deleted=False)  # Added select_related and is_deleted filter
+    def get_queryset(self):
+        queryset = BudgetProposal.objects.prefetch_related('items__account__account_type').filter(is_deleted=False) # MODIFIED: prefetch for category
+        
         department_code = self.request.query_params.get('department')
         status_filter = self.request.query_params.get('status')
         search = self.request.query_params.get('search')
+        category_filter = self.request.query_params.get('category') # ADDED
+
         if department_code:
             queryset = queryset.filter(department__code=department_code)
         if status_filter:
             queryset = queryset.filter(status=status_filter)
         if search:
             queryset = queryset.filter(
-                Q(title__icontains=search) | Q(
-                    external_system_id__icontains=search)
+                Q(title__icontains=search) | Q(external_system_id__icontains=search)
             )
-        return queryset.order_by('-created_at')  # Added default ordering
+        # ADDED: Filter by category based on the account type of the items
+        if category_filter:
+            queryset = queryset.filter(items__account__account_type__name__iexact=category_filter).distinct()
+
+        return queryset.order_by('-created_at')
 
 
 class BudgetProposalSummaryView(generics.GenericAPIView):
@@ -97,23 +101,27 @@ class BudgetProposalSummaryView(generics.GenericAPIView):
         summary="Get summary of budget proposals (cards)",
         responses={200: BudgetProposalSummarySerializer}
     )
-    def get(self, request):  # Logic seems fine
-        # Consider filtering by active fiscal year if necessary
-        active_proposals = BudgetProposal.objects.filter(
-            is_deleted=False)  # Filter out deleted
+    def get(self, request):
+        active_proposals = BudgetProposal.objects.filter(is_deleted=False)
+        
         total = active_proposals.count()
-        # Assuming PENDING means SUBMITTED for approval
         pending = active_proposals.filter(status='SUBMITTED').count()
 
-        # Total budget from items of *approved* proposals if that's the intent for "total budget card"
-        # Or all non-rejected proposals. Clarify business rule for "total budget" card.
-        # For now, using all non-deleted proposals as per original:
-        total_budget = active_proposals.aggregate(
-            total=Sum('items__estimated_cost'))['total'] or 0
-        data = {'total_proposals': total,
-                'pending_approvals': pending, 'total_budget': total_budget}
-        serializer = BudgetProposalSummarySerializer(
-            data)  # Serialize the data
+        # MODIFIED: Calculate total budget ONLY from APPROVED proposals.
+        # This aligns with the business logic that "Budget Total" represents approved funds.
+        total_budget = BudgetProposal.objects.filter(
+            is_deleted=False, 
+            status='APPROVED'
+        ).aggregate(
+            total=Coalesce(Sum('items__estimated_cost'), Decimal('0.00'))
+        )['total']
+
+        data = {
+            'total_proposals': total,
+            'pending_approvals': pending, 
+            'total_budget': total_budget
+        }
+        serializer = BudgetProposalSummarySerializer(data)
         return Response(serializer.data)
 
 
@@ -151,8 +159,7 @@ class BudgetProposalDetailView(generics.RetrieveAPIView):  # Logic seems fine
 class ProposalHistoryView(generics.ListAPIView):
     serializer_class = ProposalHistorySerializer
     permission_classes = [IsAuthenticated]
-    # MODIFIED: Use new pagination class for 6 items per page
-    pagination_class = SixResultsSetPagination
+    pagination_class = StandardResultsSetPagination # MODIFIED: Use standard pagination, as 6 is no longer needed
 
     def get_queryset(self):
         # This should query ProposalHistory model
@@ -934,6 +941,51 @@ def export_budget_proposal_excel(request, proposal_id):
     wb.save(response)
 
     return response
+@extend_schema(
+    tags=["Budget Proposal Page Actions"],
+    summary="Get budget overview for a proposal review",
+    description="Provides financial context for a department's budget when reviewing a specific proposal.",
+    responses={200: ProposalReviewBudgetOverviewSerializer}
+)
+
+class ProposalReviewBudgetOverview(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request, proposal_id):
+        try:
+            proposal = BudgetProposal.objects.select_related('department', 'fiscal_year').get(id=proposal_id)
+        except BudgetProposal.DoesNotExist:
+            return Response({"error": "Proposal not found"}, status=status.HTTP_404_NOT_FOUND)
+
+        department = proposal.department
+        fiscal_year = proposal.fiscal_year
+        proposal_cost = proposal.items.aggregate(total=Coalesce(Sum('estimated_cost'), Decimal('0')))['total']
+
+        # 1. Total budget allocated to the department for the fiscal year
+        total_dept_budget = BudgetAllocation.objects.filter(
+            department=department, fiscal_year=fiscal_year, is_active=True
+        ).aggregate(total=Coalesce(Sum('amount'), Decimal('0')))['total']
+
+        # 2. Total spent by the department so far (matches UI "currently allocated")
+        currently_allocated = Expense.objects.filter(
+            department=department, budget_allocation__fiscal_year=fiscal_year, status='APPROVED'
+        ).aggregate(total=Coalesce(Sum('amount'), Decimal('0')))['total']
+        
+        # 3. Available budget before considering this new proposal
+        available_budget = total_dept_budget - currently_allocated
+
+        # 4. Budget after this proposal is approved
+        budget_after_proposal = available_budget - proposal_cost
+
+        data = {
+            "total_department_budget": total_dept_budget,
+            "currently_allocated": currently_allocated,
+            "available_budget": available_budget,
+            "budget_after_proposal": budget_after_proposal
+        }
+
+        serializer = ProposalReviewBudgetOverviewSerializer(data)
+        return Response(serializer.data)
 
 
 class BudgetVarianceReportView(APIView):

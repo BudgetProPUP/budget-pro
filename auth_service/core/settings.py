@@ -232,13 +232,17 @@ TIME_ZONE = 'UTC'
 USE_I18N = True
 USE_TZ = True
 
-
+if DEBUG:
+    FRONTEND_URL = os.getenv('FRONTEND_URL', 'http://localhost:5173')
+else:
+    FRONTEND_URL = os.getenv('FRONTEND_URL', 'https://frontend-r2az.onrender.com')
+    
 # CORS - Updated for Render with Railway fallback
 CORS_ALLOWED_ORIGINS = [
     "http://localhost:5173",  # Local frontend
     "https://frontend-r2az.onrender.com",  # Render frontend
     "https://budget-pro.onrender.com",  # Render budget service
-    os.getenv('FRONTEND_URL'),  # Environment variable
+    FRONTEND_URL,  # Use the fallback variable instead of os.getenv
     os.getenv('BUDGET_SERVICE_PUBLIC_URL'),  # Environment variable
 ]
 
@@ -305,6 +309,8 @@ REST_FRAMEWORK = {
     #     'anon': '100/day',
     #     'user': '1000/day'
     # }
+    'UNAUTHENTICATED_USER': 'django.contrib.auth.models.AnonymousUser',
+    'UNAUTHENTICATED_TOKEN': None,
 }
 
 SPECTACULAR_SETTINGS = {

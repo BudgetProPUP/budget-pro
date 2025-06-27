@@ -12,11 +12,19 @@ class ExpenseHistorySerializer(serializers.ModelSerializer):
         fields = ['date', 'description', 'category_name', 'amount']
         
 class ExpenseTrackingSerializer(serializers.ModelSerializer):
-    category_name = serializers.CharField(source='category.name', read_only=True)
+    # ADDED: Map model fields to the new UI column names
+    reference_no = serializers.CharField(source='transaction_id', read_only=True)
+    type = serializers.CharField(source='account.account_type.name', read_only=True)
+    accomplished = serializers.SerializerMethodField()
 
     class Meta:
         model = Expense
-        fields = ['id', 'date', 'description', 'category_name', 'amount', 'status']
+        # UPDATED: Fields to match the new UI table
+        fields = ['id', 'reference_no', 'type', 'description', 'status', 'accomplished', 'date']
+
+    def get_accomplished(self, obj):
+        # An expense is considered "Accomplished" if it has been approved.
+        return "Yes" if obj.status == 'APPROVED' else "No"
 
 
 class ExpenseCreateSerializer(serializers.ModelSerializer):
@@ -119,7 +127,68 @@ class ExpenseCreateSerializer(serializers.ModelSerializer):
         )
         return expense
     
+class BudgetAllocationCreateSerializer(serializers.ModelSerializer):
+    """
+    Serializer for the 'Add Budget' modal. Creates a new BudgetAllocation.
+    """
+    # The UI shows 'Reference No.', which should map to a Project for a new allocation.
+    project_id = serializers.IntegerField(write_only=True)
+    # The UI shows 'Category', which maps to an ExpenseCategory.
+    category_id = serializers.IntegerField(write_only=True)
+    # We need an account to associate the allocation with.
+    account_id = serializers.IntegerField(write_only=True)
+    # Description field from the modal
+    description = serializers.CharField(required=False, allow_blank=True)
+
+    class Meta:
+        model = BudgetAllocation
+        fields = [
+            'project_id', 'category_id', 'account_id', 'amount', 'description'
+        ]
+
+    def validate_project_id(self, value):
+        if not Project.objects.filter(id=value).exists():
+            raise serializers.ValidationError("Project not found.")
+        return value
+
+    def validate_category_id(self, value):
+        if not ExpenseCategory.objects.filter(id=value, is_active=True).exists():
+            raise serializers.ValidationError("Active expense category not found.")
+        return value
     
+    def validate_account_id(self, value):
+        if not Account.objects.filter(id=value, is_active=True).exists():
+            raise serializers.ValidationError("Active account not found.")
+        return value
+
+    def create(self, validated_data):
+        project = Project.objects.get(id=validated_data['project_id'])
+        user = self.context['request'].user
+        
+        # Create the new budget allocation
+        allocation = BudgetAllocation.objects.create(
+            project=project,
+            category_id=validated_data['category_id'],
+            account_id=validated_data['account_id'],
+            amount=validated_data['amount'],
+            # Inherit key properties from the project
+            fiscal_year=project.budget_proposal.fiscal_year,
+            department=project.department,
+            proposal=project.budget_proposal,
+            # Set creator and active status
+            created_by_name=getattr(user, 'username', 'N/A'),
+            is_active=True
+        )
+        # Note: The 'description' from the modal is not a field on BudgetAllocation.
+        # It could be logged or added to a 'notes' field if one were added to the model.
+        return allocation
+
+class ExpenseTrackingSummarySerializer(serializers.Serializer):
+    """
+    Serializer for the summary cards on the Expense Tracking page.
+    """
+    budget_remaining = serializers.DecimalField(max_digits=15, decimal_places=2)
+    total_expenses_this_month = serializers.DecimalField(max_digits=15, decimal_places=2)
     
 class ExpenseCategoryDropdownSerializer(serializers.ModelSerializer):
     class Meta:

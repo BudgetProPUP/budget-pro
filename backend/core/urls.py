@@ -2,14 +2,23 @@ from django.urls import path, include
 from rest_framework_simplejwt.views import TokenRefreshView
 from rest_framework.routers import DefaultRouter
 
-from .views_budget import AccountDropdownView, AccountSetupListView, BudgetProposalDetailView, BudgetProposalListView, BudgetProposalSummaryView, BudgetVarianceReportView, FiscalYearDropdownView, JournalEntryCreateView, JournalEntryListView, LedgerExportView, ProposalHistoryView, LedgerViewList, export_budget_proposal_excel, journal_choices, DepartmentDropdownView, AccountTypeDropdownView
+from .views_budget import AccountDropdownView, AccountSetupListView, BudgetAdjustmentView, BudgetProposalDetailView, BudgetProposalListView, BudgetProposalSummaryView, BudgetVarianceReportView, FiscalYearDropdownView, JournalEntryCreateView, JournalEntryListView, LedgerExportView, ProposalHistoryView, LedgerViewList, ProposalReviewBudgetOverview, export_budget_proposal_excel, export_budget_variance_excel, journal_choices, DepartmentDropdownView, AccountTypeDropdownView
 from . import views_expense, views_dashboard  # ,TokenObtainPairView
-from .views_dashboard import MonthlyBudgetActualViewSet, TopCategoryBudgetAllocationView, get_all_projects
+from .views_dashboard import (
+    DepartmentBudgetView, MonthlyBudgetActualViewSet, TopCategoryBudgetAllocationView, 
+    get_all_projects, get_dashboard_budget_summary, get_department_budget_status,
+    overall_monthly_budget_actual, get_category_budget_status
+)
 from .views import (
     DepartmentViewSet,
     ValidProjectAccountView
 )
 
+from .views_expense import (
+    ExpenseHistoryView, ExpenseTrackingView, ExpenseCreateView,
+    ExpenseCategoryDropdownView, ExpenseTrackingSummaryView, 
+    BudgetAllocationCreateView
+)
 from core import views_budget
 
 
@@ -22,114 +31,86 @@ user_management_router.register(
 router = DefaultRouter()
 router.register(r'external-budget-proposals',
                 views_budget.BudgetProposalViewSet, basename='external-budget-proposals')
+
 urlpatterns = [
     path('', include(router.urls)),
-    # Authentication endpoints
-    #     path('auth/login/', LoginView.as_view(), name='login'),
-    #     path('auth/logout/', LogoutView.as_view(), name='logout'),
-    #     path('auth/token/refresh/',
-    #          CustomTokenRefreshView.as_view(), name='token_refresh'),
-    # User management
-    #     path('auth/profile/', UserProfileView.as_view(), name='user_profile'),
 
-    # Security endpoint
-    #     path('auth/login-attempts/', LoginAttemptsView.as_view(), name='login_attempts'),
-
-    # path('api/expenses/dashboard/', views_expense.get_expense_dashboard_data, name='expense-dashboard'),
-
-    # Department and user management endpoints
-    path('user-management/', include(user_management_router.urls)),
-
-    # API endpoints for dashboard elements
-    path('department-budget/', views_dashboard.DepartmentBudgetView.as_view(),
-         name='department-budget'),
-    path('dashboard/project/', views_dashboard.get_project_status_list,
-         name='project-table'),
+    # --- Dashboard Endpoints ---
     path('dashboard/budget-summary/', views_dashboard.get_dashboard_budget_summary,
          name='dashboard-budget-summary'),
-    path('dashboard/department-actual/',
-         views_dashboard.get_department_budget_status, name='dashboard-budget-summary'),
-     # API endpoint for returning all project (even with no allocations)
-     path('projects/all/', get_all_projects, name='get-all-projects'),
-     
-    # API endpoints for budget proposal page
+    path('dashboard/project-status/',
+         views_dashboard.get_project_status_list, name='project-table'),
+    path('dashboard/department-status/', views_dashboard.get_department_budget_status,
+         name='dashboard-department-status'),
+    path('dashboard/top-category-allocations/',
+         views_dashboard.TopCategoryBudgetAllocationView.as_view(), name='top-category-allocations'),
+    # ADDED: New Dashboard URLs
+    path('dashboard/overall-monthly-flow/', overall_monthly_budget_actual,
+         name='dashboard-overall-monthly-flow'),
+    path('dashboard/category-budget-status/', get_category_budget_status,
+         name='dashboard-category-budget-status'),
+
+    # --- Budget Proposal Endpoints ---
     path('budget-proposals/', BudgetProposalListView.as_view(),
          name='budget-proposal-list'),
     path('budget-proposals/summary/', BudgetProposalSummaryView.as_view(),
          name='budget-proposal-summary'),
     path('budget-proposals/<int:pk>/', BudgetProposalDetailView.as_view(),
          name='budget-proposal-detail'),
-
-    # API endpoints for proposal history page
     path('budget-proposals/history/',
          ProposalHistoryView.as_view(), name='proposal-history'),
-
-    # API endpoints for account setup page
-    path('accounts/setup/', AccountSetupListView.as_view(),
-         name='account-setup-list'),
-
-    # API endpoints for fiscal year dropdown
-    path('dropdowns/fiscal-years/', FiscalYearDropdownView.as_view(),
-         name='fiscal-year-dropdown'),
-
-    path('ledger/', LedgerViewList.as_view(), name='ledger-view'),
-
-    # API endpoint for the ledger file download
-    path('ledger/export/', LedgerExportView.as_view(), name='ledger-export'),
-
-    # API endpoint for the journal entry page
-    path('journal-entries/', JournalEntryListView.as_view(),
-         name='journal-entry-list'),
-    path('journal-entries/create/', JournalEntryCreateView.as_view(),
-         name='journal-entry-create'),
-
-
-]
-
-urlpatterns += [
-    path('journal/accounts/', AccountDropdownView.as_view(),
-         name='journal-account-dropdown'),
-    path('journal/choices/', journal_choices, name='journal-choices'),
-    # Dropdown endpoints for forms and filters
-    path('journal/accounts/', AccountDropdownView.as_view(),
-         name='journal-account-dropdown'),
-    path('journal/choices/', journal_choices, name='journal-choices'),
-    path('departments/', DepartmentDropdownView.as_view(),
-         name='department-dropdown'),
-    path('account-types/', AccountTypeDropdownView.as_view(),
-         name='account-type-dropdown'),
-
-    # API endpoint for the Expense pages
-    path('expenses/history/', views_expense.ExpenseHistoryView.as_view(),
-         name='expense-history'),
-    path('expenses/tracking/', views_expense.ExpenseTrackingView.as_view(),
-         name='expense-tracking'),
-    path('expenses/submit/', views_expense.ExpenseCreateView.as_view(),
-         name='submit-expense'),
-
-
-    # API endpoint for quickly finding valid project with accounts and is active.
-    path('expenses/valid-project-accounts/',
-         ValidProjectAccountView.as_view(), name='valid-project-accounts'),
-
-    # Dropdown endpoints for categories
-    path('expense-categories/', views_expense.ExpenseCategoryDropdownView.as_view(),
-         name='expense-category-dropdown'),
-]
-
-
-# Added URLS
-urlpatterns += [
-    path('dashboard/top-category-allocations/',
-         TopCategoryBudgetAllocationView.as_view(), name='top-category-allocations'),
-    # For budget variance report page
-    path('reports/budget-variance/', BudgetVarianceReportView.as_view(),
-         name='budget-variance-report'),
-]
-
-# For budget proposal exporting ; GET /api/budget-proposals/{proposal_id}/export/
-
-urlpatterns += [
     path('budget-proposals/<int:proposal_id>/export/',
          export_budget_proposal_excel, name='budget-proposal-export'),
+    # ADDED: New URL for the review modal overview
+    path('budget-proposals/<int:proposal_id>/review-overview/',
+         ProposalReviewBudgetOverview.as_view(), name='proposal-review-overview'),
+
+    # --- Budget Adjustment & Journal Entry Endpoints ---
+    path('journal-entries/', JournalEntryListView.as_view(),
+         name='journal-entry-list'),  # Used for Budget Adjustment page table
+    # ADDED: New URL for the "Modify Budget" modal action
+    path('budget-adjustments/', BudgetAdjustmentView.as_view(),
+         name='budget-adjustment-create'),
+
+    # --- Ledger Endpoints ---
+    path('ledger/', LedgerViewList.as_view(), name='ledger-view'),
+    path('ledger/export/', LedgerExportView.as_view(), name='ledger-export'),
+
+    # --- Report Endpoints ---
+    path('reports/budget-variance/', BudgetVarianceReportView.as_view(),
+         name='budget-variance-report'),
+    # ADDED: New URL for variance report export
+    path('reports/budget-variance/export/',
+         export_budget_variance_excel, name='budget-variance-export'),
+
+    # --- Expense Endpoints ---
+    path('expenses/history/', ExpenseHistoryView.as_view(), name='expense-history'),
+    path('expenses/tracking/', ExpenseTrackingView.as_view(), name='expense-tracking'),
+    # ADDED: URL for the summary cards on the expense tracking page
+    path('expenses/tracking/summary/', ExpenseTrackingSummaryView.as_view(), name='expense-tracking-summary'),
+    # ADDED: URL for the "Add Budget" modal
+    path('expenses/add-budget/', BudgetAllocationCreateView.as_view(), name='add-budget'),
+    path('expenses/submit/', ExpenseCreateView.as_view(), name='submit-expense'),
+    path('expenses/valid-project-accounts/', ValidProjectAccountView.as_view(), name='valid-project-accounts'),
+
+    # --- General & Dropdown Endpoints ---
+    path('user-management/', include(user_management_router.urls)),
+    path('projects/all/', get_all_projects, name='get-all-projects'),
+    path('accounts/setup/', AccountSetupListView.as_view(),
+         name='account-setup-list'),
+    path('dropdowns/fiscal-years/', FiscalYearDropdownView.as_view(),
+         name='fiscal-year-dropdown'),
+    path('dropdowns/departments/', DepartmentDropdownView.as_view(),
+         name='department-dropdown'),
+    path('dropdowns/account-types/', AccountTypeDropdownView.as_view(),
+         name='account-type-dropdown'),
+    path('dropdowns/accounts/', AccountDropdownView.as_view(),
+         name='account-dropdown'),
+    path('dropdowns/journal-choices/', journal_choices, name='journal-choices'),
+    path('dropdowns/expense-categories/',
+         views_expense.ExpenseCategoryDropdownView.as_view(), name='expense-category-dropdown'),
+    path('department-budget/', views_dashboard.DepartmentBudgetView.as_view(),
+         name='department-budget'),
+    path('journal-entries/create/', JournalEntryCreateView.as_view(),
+         name='journal-entry-create'),
 ]

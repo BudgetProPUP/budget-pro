@@ -1,17 +1,19 @@
 from datetime import timedelta
+from decimal import Decimal
 from django.utils import timezone
 from rest_framework import generics, filters
 from django_filters.rest_framework import DjangoFilterBackend
 from drf_spectacular.utils import extend_schema, OpenApiParameter, OpenApiExample
-from core.models import Department, Expense, ExpenseCategory
-from .serializers_expense import ExpenseCategoryDropdownSerializer, ExpenseCreateSerializer, ExpenseHistorySerializer, ExpenseTrackingSerializer
-from core.pagination import StandardResultsSetPagination
+from core.models import BudgetAllocation, Department, Expense, ExpenseCategory, FiscalYear
+from .serializers_expense import BudgetAllocationCreateSerializer, ExpenseCategoryDropdownSerializer, ExpenseCreateSerializer, ExpenseHistorySerializer, ExpenseTrackingSerializer, ExpenseTrackingSummarySerializer
+from core.pagination import FiveResultsSetPagination, StandardResultsSetPagination
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.views import APIView
 from rest_framework import serializers
 from rest_framework.response import Response
 from rest_framework import status
-
+from django.db.models import Sum
+from django.db.models.functions import Coalesce
 
 def get_date_range_from_filter(filter_value):
     today = timezone.now().date()
@@ -81,7 +83,8 @@ class ExpenseHistoryView(generics.ListAPIView):
 class ExpenseTrackingView(generics.ListAPIView):
     serializer_class = ExpenseTrackingSerializer
     permission_classes = [IsAuthenticated]
-    pagination_class = StandardResultsSetPagination
+    # MODIFIED: Uses new pagination class for 5 items per page
+    pagination_class = FiveResultsSetPagination
     filter_backends = [filters.SearchFilter] # Only search, category is manual
     search_fields = ['description', 'vendor']
 
@@ -129,6 +132,71 @@ class ExpenseTrackingView(generics.ListAPIView):
         return super().get(request, *args, **kwargs)
 
 
+@extend_schema(
+    tags=['Expense Tracking Page'],
+    summary="Get summary data for expense tracking cards",
+    description="Returns the remaining budget and total expenses for the current month for the user's department.",
+    responses={200: ExpenseTrackingSummarySerializer}
+)
+class ExpenseTrackingSummaryView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request, *args, **kwargs):
+        user = request.user
+        if not hasattr(user, 'department_id'):
+            return Response({"error": "User has no associated department."}, status=status.HTTP_400_BAD_REQUEST)
+        
+        try:
+            department = Department.objects.get(id=user.department_id)
+        except Department.DoesNotExist:
+            return Response({"error": "Department not found."}, status=status.HTTP_404_NOT_FOUND)
+
+        today = timezone.now().date()
+        active_fiscal_year = FiscalYear.objects.filter(start_date__lte=today, end_date__gte=today, is_active=True).first()
+        if not active_fiscal_year:
+            return Response({"error": "No active fiscal year found."}, status=status.HTTP_404_NOT_FOUND)
+
+        # 1. Calculate Budget Remaining for the department
+        total_budget = BudgetAllocation.objects.filter(
+            department=department, fiscal_year=active_fiscal_year, is_active=True
+        ).aggregate(total=Coalesce(Sum('amount'), Decimal('0.0')))['total']
+        
+        total_spent = Expense.objects.filter(
+            department=department, budget_allocation__fiscal_year=active_fiscal_year, status='APPROVED'
+        ).aggregate(total=Coalesce(Sum('amount'), Decimal('0.0')))['total']
+
+        budget_remaining = total_budget - total_spent
+
+        # 2. Calculate Total Expenses This Month for the department
+        total_expenses_this_month = Expense.objects.filter(
+            department=department,
+            status='APPROVED',
+            date__year=today.year,
+            date__month=today.month
+        ).aggregate(total=Coalesce(Sum('amount'), Decimal('0.0')))['total']
+
+        data = {
+            'budget_remaining': budget_remaining,
+            'total_expenses_this_month': total_expenses_this_month
+        }
+        serializer = ExpenseTrackingSummarySerializer(data)
+        return Response(serializer.data)
+
+
+@extend_schema(
+    tags=['Expense Tracking Page'],
+    summary="Add a new budget allocation (Add Budget Modal)",
+    description="Creates a new budget allocation for a specific project.",
+    request=BudgetAllocationCreateSerializer,
+    responses={201: BudgetAllocationCreateSerializer}
+)
+class BudgetAllocationCreateView(generics.CreateAPIView):
+    permission_classes = [IsAuthenticated]
+    serializer_class = BudgetAllocationCreateSerializer
+
+    def perform_create(self, serializer):
+        # The serializer's create method handles the logic
+        serializer.save(context={'request': self.request})
 class ExpenseCreateView(APIView):
     permission_classes = [IsAuthenticated]
 

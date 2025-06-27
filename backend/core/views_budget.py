@@ -29,12 +29,13 @@ from .models import (
     ProposalComment, ProposalHistory, UserActivityLog, Project
 )
 from .permissions import IsTrustedService
-from .pagination import StandardResultsSetPagination
+from .pagination import FiveResultsSetPagination, SixResultsSetPagination, StandardResultsSetPagination
 from .serializers import FiscalYearSerializer
 from .serializers_budget import (
     AccountDropdownSerializer,
     AccountSetupSerializer,
     AccountTypeDropdownSerializer,
+    BudgetAdjustmentSerializer,
     BudgetProposalListSerializer,
     BudgetProposalMessageSerializer,
     ProposalCommentCreateSerializer,
@@ -47,6 +48,7 @@ from .serializers_budget import (
     LedgerViewSerializer,
     ProposalCommentSerializer,
     ProposalHistorySerializer,
+    ProposalReviewBudgetOverviewSerializer,
     ProposalReviewSerializer
 )
 
@@ -65,7 +67,8 @@ from .serializers_budget import (
 class BudgetProposalListView(generics.ListAPIView):
     serializer_class = BudgetProposalListSerializer
     permission_classes = [IsAuthenticated]
-    pagination_class = StandardResultsSetPagination
+    # MODIFIED: Use new pagination class for 5 items per page
+    pagination_class = FiveResultsSetPagination
 
     def get_queryset(self):  # Logic seems fine
         queryset = BudgetProposal.objects.select_related('department').filter(
@@ -148,7 +151,8 @@ class BudgetProposalDetailView(generics.RetrieveAPIView):  # Logic seems fine
 class ProposalHistoryView(generics.ListAPIView):
     serializer_class = ProposalHistorySerializer
     permission_classes = [IsAuthenticated]
-    pagination_class = StandardResultsSetPagination
+    # MODIFIED: Use new pagination class for 6 items per page
+    pagination_class = SixResultsSetPagination
 
     def get_queryset(self):
         # This should query ProposalHistory model
@@ -258,7 +262,8 @@ class FiscalYearDropdownView(generics.ListAPIView):
 # --- Ledger and Journal Entry Views ---
 class LedgerViewList(generics.ListAPIView):
     serializer_class = LedgerViewSerializer
-    pagination_class = StandardResultsSetPagination
+    # MODIFIED: Use new pagination class for 5 items per page
+    pagination_class = FiveResultsSetPagination
     permission_classes = [IsAuthenticated]
 
     def get_queryset(self):
@@ -269,7 +274,8 @@ class LedgerViewList(generics.ListAPIView):
         transaction_type = self.request.query_params.get('transaction_type')
         if search:
             queryset = queryset.filter(Q(journal_entry__description__icontains=search) | Q(
-                journal_entry__category__icontains=search) | Q(account__name__icontains=search) | Q(account__code__icontains=search))
+                description__icontains=search) | # Also search line item description
+                Q(journal_entry__category__icontains=search) | Q(account__name__icontains=search) | Q(account__code__icontains=search))
         if category:
             queryset = queryset.filter(
                 journal_entry__category__iexact=category)
@@ -278,7 +284,6 @@ class LedgerViewList(generics.ListAPIView):
                 journal_transaction_type__iexact=transaction_type)
         # Added secondary sort
         return queryset.order_by('-journal_entry__date', 'journal_entry__entry_id')
-
 
 @extend_schema(
     tags=['Ledger View'],
@@ -299,40 +304,30 @@ class LedgerViewList(generics.ListAPIView):
         )
     }
 )
-class LedgerExportView(APIView):  # Logic seems fine
+class LedgerExportView(APIView):
     permission_classes = [IsAuthenticated]
 
-    def get(self, request):  # CSV export logic is fine
-        search = request.query_params.get('search')
-        category = request.query_params.get('category')
-        transaction_type = request.query_params.get('transaction_type')
-        queryset = JournalEntryLine.objects.select_related(
-            'journal_entry', 'account')
-        if search:
-            queryset = queryset.filter(Q(journal_entry__description__icontains=search) | Q(
-                journal_entry__category__icontains=search) | Q(account__name__icontains=search) | Q(account__code__icontains=search))
-        if category:
-            queryset = queryset.filter(
-                journal_entry__category__iexact=category)
-        if transaction_type:
-            queryset = queryset.filter(
-                journal_transaction_type__iexact=transaction_type)
+    def get(self, request):
+        # This logic reuses the get_queryset from LedgerViewList for consistency
+        list_view = LedgerViewList()
+        list_view.request = request # Mock the request for the view
+        queryset = list_view.get_queryset()
 
         response = HttpResponse(
-            content_type='text/csv; charset=utf-8')  # Added charset
+            content_type='text/csv; charset=utf-8')
         response['Content-Disposition'] = 'attachment; filename="ledger_export.csv"'
+        
         writer = csv.writer(response)
-        writer.writerow(['Reference', 'Date', 'Category',
-                        'Transaction Type', 'Description', 'Account', 'Amount (PHP)'])
-        for line in queryset.order_by('-journal_entry__date', 'journal_entry__entry_id'):
+        # UPDATED: Match the new table columns
+        writer.writerow(['Reference ID', 'Date', 'Category', 'Description', 'Account', 'Amount (PHP)'])
+
+        for line in queryset:
             writer.writerow([
                 line.journal_entry.entry_id,
                 line.journal_entry.date.strftime('%Y-%m-%d'),
                 line.journal_entry.category,
-                line.get_journal_transaction_type_display(),
-                # Use line description
                 line.description.replace('\n', ' ').strip(),
-                f"{line.account.code} - {line.account.name}",
+                line.account.name,
                 "{:,.2f}".format(line.amount)
             ])
         return response
@@ -1034,3 +1029,249 @@ class BudgetVarianceReportView(APIView):
         result = [aggregate_node(cat) for cat in top_categories]
 
         return Response(result)
+    
+@extend_schema(
+    tags=["Budget Proposal Page Actions"],
+    summary="Get budget overview for a proposal review",
+    description="Provides financial context for a department's budget when reviewing a specific proposal.",
+    responses={200: ProposalReviewBudgetOverviewSerializer}
+)
+class ProposalReviewBudgetOverview(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request, proposal_id):
+        try:
+            proposal = BudgetProposal.objects.select_related('department', 'fiscal_year').get(id=proposal_id)
+        except BudgetProposal.DoesNotExist:
+            return Response({"error": "Proposal not found"}, status=status.HTTP_404_NOT_FOUND)
+
+        department = proposal.department
+        fiscal_year = proposal.fiscal_year
+        proposal_cost = proposal.items.aggregate(total=Coalesce(Sum('estimated_cost'), Decimal('0')))['total']
+
+        # 1. Total budget allocated to the department for the fiscal year
+        total_dept_budget = BudgetAllocation.objects.filter(
+            department=department, fiscal_year=fiscal_year, is_active=True
+        ).aggregate(total=Coalesce(Sum('amount'), Decimal('0')))['total']
+
+        # 2. Total spent by the department so far
+        total_spent = Expense.objects.filter(
+            department=department, budget_allocation__fiscal_year=fiscal_year, status='APPROVED'
+        ).aggregate(total=Coalesce(Sum('amount'), Decimal('0')))['total']
+        
+        # UI's "Currently Allocated" seems to mean "already spent"
+        currently_allocated = total_spent
+
+        # 3. Available budget before considering this new proposal
+        available_budget = total_dept_budget - total_spent
+
+        # 4. Budget after this proposal is approved
+        budget_after_proposal = available_budget - proposal_cost
+
+        data = {
+            "total_department_budget": total_dept_budget,
+            "currently_allocated": currently_allocated,
+            "available_budget": available_budget,
+            "budget_after_proposal": budget_after_proposal
+        }
+
+        serializer = ProposalReviewBudgetOverviewSerializer(data)
+        return Response(serializer.data)
+
+
+@extend_schema(
+    tags=["Budget Variance Reports"],
+    summary="Export Budget Variance Report to Excel",
+    description="Exports the hierarchical budget variance report to an XLSX file.",
+    parameters=[
+        OpenApiParameter(name="fiscal_year_id", required=True, type=int)
+    ],
+    responses={
+        200: OpenApiResponse(description="XLSX file of the budget variance report"),
+        400: OpenApiResponse(description="fiscal_year_id is required"),
+        404: OpenApiResponse(description="Fiscal Year not found"),
+    }
+)
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def export_budget_variance_excel(request):
+    fiscal_year_id = request.query_params.get('fiscal_year_id')
+    if not fiscal_year_id:
+        return Response({"error": "fiscal_year_id is required"}, status=status.HTTP_400_BAD_REQUEST)
+
+    try:
+        fiscal_year = FiscalYear.objects.get(id=fiscal_year_id)
+    except FiscalYear.DoesNotExist:
+        return Response({"error": "Fiscal Year not found"}, status=status.HTTP_404_NOT_FOUND)
+
+    # Re-use the logic from BudgetVarianceReportView to get the data
+    top_categories = ExpenseCategory.objects.filter(level=1, is_active=True)
+    
+    def aggregate_node(category):
+        budget = BudgetAllocation.objects.filter(
+            category=category, fiscal_year=fiscal_year, is_active=True
+        ).aggregate(total=Coalesce(Sum('amount'), 0, output_field=DecimalField()))['total']
+
+        actual = Expense.objects.filter(
+            category=category,
+            budget_allocation__fiscal_year=fiscal_year,
+            status='APPROVED'
+        ).aggregate(total=Coalesce(Sum('amount'), 0, output_field=DecimalField()))['total']
+
+        children_data = [aggregate_node(child) for child in category.subcategories.all()]
+
+        if children_data:
+            child_budget = sum(c['budget'] for c in children_data)
+            child_actual = sum(c['actual'] for c in children_data)
+            return {
+                "name": category.name, "budget": child_budget, "actual": child_actual,
+                "available": child_budget - child_actual, "children": children_data
+            }
+        else:
+            return {
+                "name": category.name, "budget": budget, "actual": actual,
+                "available": budget - actual, "children": []
+            }
+            
+    report_data = [aggregate_node(cat) for cat in top_categories]
+
+    # --- Excel Generation ---
+    wb = openpyxl.Workbook()
+    ws = wb.active
+    ws.title = "Budget Variance Report"
+
+    header = ["Category", "Budget", "Actual", "Available"]
+    ws.append(header)
+    for col in range(1, len(header) + 1):
+        ws.cell(row=1, column=col).font = Font(bold=True)
+
+    def write_rows(data, indent=0):
+        for item in data:
+            ws.append([
+                f"{' ' * indent * 4}{item['name']}",
+                item['budget'],
+                item['actual'],
+                item['available']
+            ])
+            if item.get('children'):
+                write_rows(item['children'], indent + 1)
+
+    write_rows(report_data)
+
+    for col in ws.columns:
+        max_length = max(len(str(cell.value)) for cell in col)
+        ws.column_dimensions[get_column_letter(col[0].column)].width = max(max_length + 2, 12)
+
+    response = HttpResponse(content_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+    filename = f"budget_variance_report_{fiscal_year.name}.xlsx"
+    response["Content-Disposition"] = f'attachment; filename="{filename}"'
+    wb.save(response)
+    return response
+
+@extend_schema(
+    tags=["Budget Adjustment Page"],
+    summary="Create a Budget Adjustment",
+    description="Modifies a budget by transferring funds between allocations or adjusting against a reserve account, while creating a corresponding journal entry for audit purposes.",
+    request=BudgetAdjustmentSerializer,
+    responses={201: JournalEntryListSerializer} # Returns the created journal entry
+)
+
+class BudgetAdjustmentView(generics.CreateAPIView):
+    """
+    Handles the creation of a budget adjustment.
+    - If both source and destination allocations are provided, it performs a transfer.
+    - If only a source is provided, it adjusts the budget against an offsetting account.
+    In both cases, it creates a balanced Journal Entry.
+    """
+    permission_classes = [IsAuthenticated]
+    serializer_class = BudgetAdjustmentSerializer
+
+    def perform_create(self, serializer):
+        validated_data = serializer.validated_data
+        user = self.request.user
+        
+        source_alloc = BudgetAllocation.objects.get(id=validated_data['source_allocation_id'])
+        dest_alloc = None
+        if validated_data.get('destination_allocation_id'):
+            dest_alloc = BudgetAllocation.objects.get(id=validated_data['destination_allocation_id'])
+
+        offsetting_account = Account.objects.get(id=validated_data['offsetting_account_id'])
+        amount = validated_data['amount']
+        description = validated_data['description']
+        date = validated_data['date']
+
+        with transaction.atomic():
+            # Create the parent Journal Entry
+            journal_entry = JournalEntry.objects.create(
+                date=date,
+                category='PROJECTS', # Or a new 'ADJUSTMENTS' category
+                description=description,
+                total_amount=amount,
+                status='POSTED',
+                created_by_user_id=user.id,
+                created_by_username=getattr(user, 'username', 'N/A')
+            )
+
+            if dest_alloc: # This is a transfer between two allocations
+                # 1. Decrease source allocation
+                source_alloc.amount -= amount
+                source_alloc.save(update_fields=['amount'])
+                
+                # 2. Increase destination allocation
+                dest_alloc.amount += amount
+                dest_alloc.save(update_fields=['amount'])
+
+                # 3. Create Journal Entry Lines for the transfer
+                # Credit the source allocation's account
+                JournalEntryLine.objects.create(
+                    journal_entry=journal_entry, account=source_alloc.account,
+                    transaction_type='CREDIT', journal_transaction_type='TRANSFER',
+                    amount=amount, description=f"Transfer from {source_alloc.project.name}"
+                )
+                # Debit the destination allocation's account
+                JournalEntryLine.objects.create(
+                    journal_entry=journal_entry, account=dest_alloc.account,
+                    transaction_type='DEBIT', journal_transaction_type='TRANSFER',
+                    amount=amount, description=f"Transfer to {dest_alloc.project.name}"
+                )
+            
+            else: # This is an adjustment against a single allocation
+                # For this to be a balanced transaction, we need to decide if it's an increase or decrease
+                # The UI modal's Debit/Credit can determine this. Let's assume the serializer will provide it.
+                # For now, let's assume it's a decrease from the source allocation.
+                
+                # 1. Decrease source allocation
+                source_alloc.amount -= amount
+                source_alloc.save(update_fields=['amount'])
+                
+                # 2. Create Journal Entry Lines for the adjustment
+                # Credit the source allocation's account (reducing its budget)
+                JournalEntryLine.objects.create(
+                    journal_entry=journal_entry, account=source_alloc.account,
+                    transaction_type='CREDIT', journal_transaction_type='OPERATIONAL_EXPENDITURE', # Or similar
+                    amount=amount, description=f"Budget reduction for {source_alloc.project.name}"
+                )
+                # Debit the offsetting account (e.g., funds return to a general reserve)
+                JournalEntryLine.objects.create(
+                    journal_entry=journal_entry, account=offsetting_account,
+                    transaction_type='DEBIT', journal_transaction_type='TRANSFER',
+                    amount=amount, description="Return of funds to reserve"
+                )
+        
+        # We return the created journal entry as proof of the transaction
+        return_serializer = JournalEntryListSerializer(journal_entry)
+        # The DRF CreateAPIView will wrap this in a 201 Response automatically.
+        # To set the data for the response, we can set it on the instance.
+        self.created_instance = journal_entry
+
+
+    def create(self, request, *args, **kwargs):
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        self.perform_create(serializer)
+        
+        # Use the serializer for the list view to format the response
+        response_serializer = JournalEntryListSerializer(self.created_instance)
+        headers = self.get_success_headers(response_serializer.data)
+        return Response(response_serializer.data, status=status.HTTP_201_CREATED, headers=headers)
+    

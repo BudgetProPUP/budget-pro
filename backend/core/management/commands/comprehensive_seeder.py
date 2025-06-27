@@ -439,22 +439,28 @@ class Command(BaseCommand):
         self.stdout.write('Creating proposal history...')
         for proposal in proposals:
             sim_actor = random.choice(SIMULATED_USERS)
-            ProposalHistory.objects.get_or_create(                                  # IDEMPOTENCY: Use get_or_create with a unique key.
-                proposal=proposal, action='SUBMITTED',
-                defaults={
-                    'action_by_name': proposal.submitted_by_name or sim_actor['full_name'],
-                    'new_status': 'SUBMITTED', 'comments': "Initial submission."
-                }
-            )
-            if proposal.status in ['APPROVED', 'REJECTED']:
-                ProposalHistory.objects.get_or_create(                              # IDEMPOTENCY: Use get_or_create with a unique key.
-                    proposal=proposal, action=proposal.status,
-                    defaults={
-                        'action_by_name': proposal.approved_by_name or proposal.rejected_by_name or sim_actor['full_name'],
-                        'previous_status': 'SUBMITTED', 'new_status': proposal.status,
-                        'comments': f"Proposal {proposal.status.lower()}."
-                    }
+            
+            # Check if SUBMITTED history already exists
+            if not ProposalHistory.objects.filter(proposal=proposal, action='SUBMITTED').exists():
+                ProposalHistory.objects.create(
+                    proposal=proposal, 
+                    action='SUBMITTED',
+                    action_by_name=proposal.submitted_by_name or sim_actor['full_name'],
+                    new_status='SUBMITTED', 
+                    comments="Initial submission."
                 )
+            
+            # Check if approval/rejection history already exists
+            if proposal.status in ['APPROVED', 'REJECTED']:
+                if not ProposalHistory.objects.filter(proposal=proposal, action=proposal.status).exists():
+                    ProposalHistory.objects.create(
+                        proposal=proposal, 
+                        action=proposal.status,
+                        action_by_name=proposal.approved_by_name or proposal.rejected_by_name or sim_actor['full_name'],
+                        previous_status='SUBMITTED', 
+                        new_status=proposal.status,
+                        comments=f"Proposal {proposal.status.lower()}."
+                    )
         self.stdout.write(self.style.SUCCESS(f'Created proposal history entries for {len(proposals)} proposals.'))
 
 

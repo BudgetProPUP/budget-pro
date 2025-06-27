@@ -20,7 +20,7 @@ function BudgetProposal() {
   const navigate = useNavigate();
   const { logout } = useAuth();
 
-  // User profile data - add this
+  // User profile data
   const userProfile = {
     name: "John Doe",
     email: "john.doe@company.com",
@@ -69,9 +69,8 @@ function BudgetProposal() {
   // Dropdown UI State
   const [showCategoryDropdown, setShowCategoryDropdown] = useState(false);
   const [showStatusDropdown, setShowStatusDropdown] = useState(false);
-  const [selectedCategory, setSelectedCategory] = useState('All Categories');
-  const [selectedStatus, setSelectedStatus] = useState('All Status');
   const [showProfilePopup, setShowProfilePopup] = useState(false);
+  
   const itemsPerPage = 5;
 
   const statusOptions = [
@@ -80,9 +79,6 @@ function BudgetProposal() {
     { name: "Approved", value: "APPROVED" },
     { name: "Rejected", value: "REJECTED" },
   ];
-  
-  // Status options
-  const statusOptions = ['All Status', 'pending', 'approved', 'rejected'];
 
   // --- API CALLS ---
   const fetchProposals = useCallback(async () => {
@@ -102,23 +98,32 @@ function BudgetProposal() {
     } finally {
       setIsLoading(false);
     }
+  }, [currentPage, searchTerm, selectedStatus.value, selectedCategory.value]);
 
-    const fetchProposals = async () => {
-      try {
-        const [summaryRes, catRes] = await Promise.all([
-          api.get("/budget-proposals/summary/"),
-          api.get("/dropdowns/expense-categories/"),
-        ]);
-        setSummaryData(summaryRes.data);
-        const categoryOptions = [
-          { name: "All Categories", value: "" },
-          ...catRes.data.map((c) => ({ name: c.name, value: c.name })),
-        ];
-        setCategories(categoryOptions);
-      } catch (err) {
-        console.error("Error fetching initial page data:", err);
-      }
-    };
+  const fetchInitialData = useCallback(async () => {
+    try {
+      const [summaryRes, catRes] = await Promise.all([
+        api.get("/budget-proposals/summary/"),
+        api.get("/dropdowns/expense-categories/"),
+      ]);
+      setSummaryData(summaryRes.data);
+      const categoryOptions = [
+        { name: "All Categories", value: "" },
+        ...catRes.data.map((c) => ({ name: c.name, value: c.name })),
+      ];
+      setCategories(categoryOptions);
+    } catch (err) {
+      console.error("Error fetching initial page data:", err);
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchInitialData();
+  }, [fetchInitialData]);
+
+  useEffect(() => {
+    fetchProposals();
+  }, [fetchProposals]);
 
   useEffect(() => {
     const handleClickOutside = (event) => {
@@ -144,6 +149,7 @@ function BudgetProposal() {
     setReviewStatus(proposal.status);
     setReviewComment('');
     setShowReviewPopup(true);
+    setIsModalLoading(true);
     try {
       const [overviewRes, detailRes] = await Promise.all([
         api.get(`/budget-proposals/${proposal.id}/review-overview/`),
@@ -173,7 +179,6 @@ function BudgetProposal() {
   const handleSubmitReview = async () => {
     if (!selectedProposal) return;
 
-    const token = localStorage.getItem('authToken');
     try {
       await api.post(
         `/external-budget-proposals/${selectedProposal.id}/review/`,
@@ -453,7 +458,6 @@ function BudgetProposal() {
                 )}
               </div>
             </div>
-            <div className="budget-card-amount">{budgetData.totalProposals}</div>
           </div>
 
           <table className="transactions-table">
@@ -527,176 +531,7 @@ function BudgetProposal() {
                 <ChevronRight size={16} />
               </button>
             </div>
-            <div className="budget-card-amount">{budgetData.pendingApproval}</div>
-          </div>
-
-          <div className="budget-card">
-            <div className="budget-card-label">
-              <p>Budget Total</p>
-            </div>
-            <div className="budget-card-amount">{budgetData.budgetTotal}</div>
-          </div>
-        </div>
-
-        {/* Main Content */}
-        <div className="page">
-          <div className="container">
-            {/* Header Section with Title and Controls */}
-            <div className="top">
-              <h2>Budget Proposal</h2>
-              
-              <div className="header-controls">
-                <div className="filter-controls">
-                  <input
-                    type="text"
-                    placeholder="Search proposals"
-                    value={searchTerm}
-                    onChange={(e) => setSearchTerm(e.target.value)}
-                    className="search-account-input"
-                  />
-                  
-                  {/* Category Filter */}
-                  <div className="filter-dropdown">
-                    <button 
-                      className="filter-dropdown-btn" 
-                      onClick={toggleCategoryDropdown}
-                    >
-                      <span>{selectedCategory}</span>
-                      <ChevronDown size={19} />
-                    </button>
-                    {showCategoryDropdown && (
-                      <div className="category-dropdown-menu">
-                        {categories.map((category) => (
-                          <div
-                            key={category}
-                            className={`category-dropdown-item ${
-                              selectedCategory === category ? 'active' : ''
-                            }`}
-                            onClick={() => handleCategorySelect(category)}
-                          >
-                            {category}
-                          </div>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-                  
-                  {/* Status Filter */}
-                  <div className="filter-dropdown">
-                    <button 
-                      className="filter-dropdown-btn" 
-                      onClick={toggleStatusDropdown}
-                    >
-                      <span>Status: {selectedStatus}</span>
-                      <ChevronDown size={15} />
-                    </button>
-                    {showStatusDropdown && (
-                      <div className="category-dropdown-menu">
-                        {statusOptions.map((status) => (
-                          <div
-                            key={status}
-                            className={`category-dropdown-item ${
-                              selectedStatus === status ? 'active' : ''
-                            }`}
-                            onClick={() => handleStatusSelect(status)}
-                          >
-                            {status === 'pending' ? 'Pending' :
-                             status === 'approved' ? 'Approved' :
-                             status === 'rejected' ? 'Rejected' : status}
-                          </div>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            {/* Proposals Table */}
-            <table>
-              <thead>
-                <tr>
-                  <th>REFERENCE</th>
-                  <th>SUBJECT</th>
-                  <th>CATEGORY</th>
-                  <th>SUBMITTED BY</th>
-                  <th>AMOUNT</th>
-                  <th>STATUS</th>
-                  <th>ACTIONS</th>
-                </tr>
-              </thead>
-              <tbody>
-                {currentProposals.map((proposal) => (
-                  <tr 
-                    key={proposal.id} 
-                    onClick={() => handleReviewClick(proposal)}
-                    style={{ cursor: 'pointer' }}
-                  >
-                    <td>{proposal.reference}</td>
-                    <td>{proposal.subject}</td>
-                    <td>{proposal.category}</td>
-                    <td>{proposal.submitted_by}</td>
-                    <td>{proposal.amount}</td>
-                    <td>
-                      <span 
-                        className={`status-badge ${
-                          proposal.status === 'approved' ? 'active' : 
-                          proposal.status === 'pending' ? 'pending' : 'inactive'
-                        }`}
-                      >
-                        {proposal.status === 'pending' ? 'Pending' : 
-                         proposal.status === 'approved' ? 'Approved' : 'Rejected'}
-                      </span>
-                    </td>
-                    <td>
-                      <button 
-                        className="blue-button action-btn"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          handleReviewClick(proposal);
-                        }}
-                      >
-                        {proposal.status === 'pending' ? 'Review' : 'View'}
-                      </button>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-
-            {/* Pagination */}
-            {totalPages > 1 && (
-              <div className="pagination">
-                <button 
-                  onClick={prevPage} 
-                  disabled={currentPage === 1}
-                  className="pagination-btn"
-                >
-                  <ChevronLeft size={16} />
-                </button>
-                
-                {[...Array(totalPages)].map((_, index) => (
-                  <button
-                    key={index + 1}
-                    onClick={() => paginate(index + 1)}
-                    className={`pagination-btn ${
-                      currentPage === index + 1 ? 'active' : ''
-                    }`}
-                  >
-                    {index + 1}
-                  </button>
-                ))}
-                
-                <button 
-                  onClick={nextPage} 
-                  disabled={currentPage === totalPages}
-                  className="pagination-btn"
-                >
-                  <ChevronRight size={16} />
-                </button>
-              </div>
-            )}
-          </div>
+          )}
         </div>
       </div>
 
@@ -846,23 +681,23 @@ function BudgetProposal() {
                   <span className="detail-value">
                     ₱
                     {parseFloat(
-                      selectedProposal.items.reduce(
+                      selectedProposal.items?.reduce(
                         (sum, item) => sum + parseFloat(item.estimated_cost),
                         0
-                      )
+                      ) || selectedProposal.amount || 0
                     ).toLocaleString()}
                   </span>
                 </div>
                 <div className="detail-item">
                   <span className="detail-label">Category:</span>
                   <span className="detail-value">
-                    {selectedProposal.items[0]?.account_code || "N/A"}
+                    {selectedProposal.items?.[0]?.account_code || selectedProposal.category || "N/A"}
                   </span>
                 </div>
                 <div className="detail-item">
                   <span className="detail-label">Submitted by:</span>
                   <span className="detail-value">
-                    {selectedProposal.submitted_by_name}
+                    {selectedProposal.submitted_by_name || selectedProposal.submitted_by}
                   </span>
                 </div>
               </div>

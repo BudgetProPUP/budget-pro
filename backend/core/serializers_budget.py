@@ -17,22 +17,21 @@ class BudgetProposalSummarySerializer(serializers.Serializer):
 
 class BudgetProposalListSerializer(serializers.ModelSerializer):
     # RENAMED from department_name to match proposal table
-    department = serializers.CharField(
-        source='department.name', read_only=True)
-    # RENAMED from submitted_by_name to match proposal table
     submitted_by = serializers.CharField(
         source='submitted_by_name', read_only=True)
-    # ADDED: Dynamically determine category
-    category = serializers.SerializerMethodField()
     # ADDED: Total cost of the proposal
     amount = serializers.SerializerMethodField()
     # ADDED: Reference ID for the table
     reference = serializers.CharField(source='external_system_id', read_only=True)
+    # RENAMED from title to subject to match UI
+    subject = serializers.CharField(source='title', read_only=True)
+    # ADDED: Dynamically determine category from the first item
+    category = serializers.SerializerMethodField()
 
     class Meta:
         model = BudgetProposal
         fields = [
-            'id', 'reference', 'title', 'category', 'department', 'submitted_by',
+            'id', 'reference', 'subject', 'category', 'submitted_by',
             'amount', 'status'
         ]
 
@@ -41,18 +40,10 @@ class BudgetProposalListSerializer(serializers.ModelSerializer):
         return obj.items.aggregate(total=Sum('estimated_cost'))['total'] or 0
 
     def get_category(self, obj):
-        # Derives the category from the proposal's items as requested
-        # Uses the category of the first item as the representative category
+        # Derives the category from the first item's account type.
         first_item = obj.items.first()
-        if first_item and hasattr(first_item, 'account') and first_item.account:
-             # This assumes that the category can be derived from the account of the item.
-             # If items have a direct category link, that should be used instead.
-             # For now, using a placeholder logic. A more robust solution would be needed
-             # if items can belong to multiple, distinct expense categories.
-             # Let's assume the first item's account type is a good proxy.
+        if first_item and first_item.account and first_item.account.account_type:
             return first_item.account.account_type.name
-        
-        # Fallback for proposals with no items or items without accounts
         return "Uncategorized"
 
 class BudgetProposalItemSerializer(serializers.ModelSerializer):
@@ -118,18 +109,14 @@ class BudgetProposalDetailSerializer(serializers.ModelSerializer):
 
 
 class ProposalHistorySerializer(serializers.ModelSerializer):
-    # ADDED: Proposal ID (external) for the history table
+    # MODIFIED: Renamed fields to match the UI table columns
     proposal_id = serializers.CharField(
         source='proposal.external_system_id', read_only=True)
-    # RENAMED: from proposal_title to proposal to match UI
     proposal = serializers.CharField(
         source='proposal.title', read_only=True)
-    # RENAMED: from action_by_name to match UI
     last_modified_by = serializers.CharField(
         source='action_by_name', read_only=True)
-    # RENAMED: from action_at to match UI
     last_modified = serializers.DateTimeField(source='action_at', read_only=True)
-    # RENAMED: from new_status to match UI
     status = serializers.CharField(source='new_status', read_only=True)
 
     class Meta:
@@ -420,7 +407,15 @@ class BudgetProposalMessageSerializer(serializers.ModelSerializer):
             )
         return instance
 
-
+class ProposalReviewBudgetOverviewSerializer(serializers.Serializer):
+    """
+    Serializer for the budget overview section in the proposal review modal.
+    """
+    total_department_budget = serializers.DecimalField(max_digits=15, decimal_places=2)
+    currently_allocated = serializers.DecimalField(max_digits=15, decimal_places=2)
+    available_budget = serializers.DecimalField(max_digits=15, decimal_places=2)
+    budget_after_proposal = serializers.DecimalField(max_digits=15, decimal_places=2)
+    
 # For the review action in BudgetProposalViewSet
 class ProposalReviewSerializer(serializers.Serializer):
     status = serializers.ChoiceField(choices=['APPROVED', 'REJECTED'])

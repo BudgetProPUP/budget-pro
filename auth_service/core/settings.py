@@ -305,6 +305,8 @@ REST_FRAMEWORK = {
     #     'anon': '100/day',
     #     'user': '1000/day'
     # }
+    'UNAUTHENTICATED_USER': 'django.contrib.auth.models.AnonymousUser',
+    'UNAUTHENTICATED_TOKEN': None,
 }
 
 SPECTACULAR_SETTINGS = {

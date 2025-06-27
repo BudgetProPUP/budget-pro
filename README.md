@@ -646,3 +646,42 @@ This guide provides frontend developers with the necessary information to intera
 *   `GET /api/dropdowns/expense-categories/` -> Populates **Category** dropdowns.
 *   `GET /api/dropdowns/accounts/` -> Populates **Account** dropdowns.
 *   `GET /api/projects/all/` -> Populates **Project** dropdowns (e.g., for "Add Budget" modal).
+
+
+
+## Frontend Authentication Guide (`AuthContext`)
+
+To make authentication handling robust and avoid bugs (like having multiple different access tokens stored), we have centralized all authentication logic into a React Context. Here’s how it works:
+
+### 1. The Core: `src/context/AuthContext.jsx`
+
+-   **What it is:** This file is the single source of truth for authentication.
+-   **What it does:**
+    -   It holds the global state for the `user` object and the `accessToken`.
+    -   It provides the `login()` and `logout()` functions that the rest of the app can use.
+    -   It automatically saves the `accessToken` and `refreshToken` to `localStorage` with the correct keys (`accessToken`, `refreshToken`).
+    -   It automatically handles refreshing the access token if it expires.
+
+### 2. The Wrapper: `src/App.jsx`
+
+-   **What it does:** It wraps the entire application inside `<AuthProvider>`. This makes the authentication state and functions (`user`, `login`, `logout`) available to every component in the app.
+-   **`ProtectedRoute`:** A new component that checks if an `accessToken` exists. If not, it automatically redirects the user to the `/login` page. This protects all our finance pages.
+
+### 3. The Login Page: `src/pages/Finance/LoginPage.jsx`
+
+-   **What changed:** This component is now much simpler.
+-   **How it works:**
+    1.  It imports the `useAuth` hook: `const { login } = useAuth();`
+    2.  When the user submits the form, it simply calls the `login(credentials)` function from the context.
+    3.  It no longer handles storing tokens or navigating to the dashboard itself; the `AuthContext` takes care of that.
+
+### 4. The API Client: `src/api.js`
+
+-   **What it is:** This is a pre-configured `axios` instance for making requests to the **budget service**.
+-   **How it works:**
+    -   Its `baseURL` is set from the `VITE_BUDGET_API_URL` environment variable.
+    -   It has an "interceptor" that automatically attaches the `Authorization: Bearer <token>` header to every single request. It retrieves the token from `localStorage` using the key `accessToken`, which is the standard key set by our `AuthContext`.
+-   **How to use it:** Instead of `axios.get(...)`, you should now import and use `api.get(...)` for all budget service calls.
+
+---
+

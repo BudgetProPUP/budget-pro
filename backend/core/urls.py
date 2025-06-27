@@ -15,7 +15,7 @@ from .views import (
 )
 
 from .views_expense import (
-    ExpenseHistoryView, ExpenseTrackingView, ExpenseCreateView,
+    ExpenseDetailView, ExpenseHistoryView, ExpenseTrackingView, ExpenseCreateView,
     ExpenseCategoryDropdownView, ExpenseTrackingSummaryView, 
     BudgetAllocationCreateView
 )
@@ -85,6 +85,7 @@ urlpatterns = [
 
     # --- Expense Endpoints ---
     path('expenses/history/', ExpenseHistoryView.as_view(), name='expense-history'),
+    path('expenses/<int:pk>/', ExpenseDetailView.as_view(), name='expense-detail'), # ADDED
     path('expenses/tracking/', ExpenseTrackingView.as_view(), name='expense-tracking'),
     # ADDED: URL for the summary cards on the expense tracking page
     path('expenses/tracking/summary/', ExpenseTrackingSummaryView.as_view(), name='expense-tracking-summary'),

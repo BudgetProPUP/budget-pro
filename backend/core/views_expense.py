@@ -33,7 +33,7 @@ def get_date_range_from_filter(filter_value):
 class ExpenseHistoryView(generics.ListAPIView):
     serializer_class = ExpenseHistorySerializer
     permission_classes = [IsAuthenticated]
-    pagination_class = StandardResultsSetPagination
+    pagination_class = FiveResultsSetPagination  # or ProjectStatusPagination
     filter_backends = [DjangoFilterBackend, filters.SearchFilter]
     search_fields = ['description', 'vendor']
     filterset_fields = ['category__code']
@@ -244,3 +244,23 @@ class ExpenseCategoryDropdownView(generics.ListAPIView):
     @extend_schema(parameters=[])
     def get(self, request, *args, **kwargs):
         return super().get(request, *args, **kwargs)
+    
+# ADDED: A simple serializer for the expense detail view
+class ExpenseDetailForModalSerializer(serializers.ModelSerializer):
+    project_id = serializers.IntegerField(source='project.id', read_only=True)
+    proposal_id = serializers.IntegerField(source='project.budget_proposal.id', read_only=True)
+
+    class Meta:
+        model = Expense
+        fields = ['id', 'project_id', 'proposal_id']
+        
+@extend_schema(
+    tags=['Expense History Page'],
+    summary="Get a single expense to find its related proposal ID",
+    description="Returns the project and proposal ID for a given expense, used to fetch full details for the 'View' modal.",
+    responses={200: ExpenseDetailForModalSerializer}
+)
+class ExpenseDetailView(generics.RetrieveAPIView):
+    permission_classes = [IsAuthenticated]
+    serializer_class = ExpenseDetailForModalSerializer
+    queryset = Expense.objects.select_related('project__budget_proposal').all()

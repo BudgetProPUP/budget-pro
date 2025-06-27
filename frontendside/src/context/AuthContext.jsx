@@ -1,4 +1,4 @@
-import { createContext, useContext, useState, useEffect } from 'react';
+import { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import axios from 'axios';
 import { useNavigate } from 'react-router-dom';
 
@@ -6,32 +6,47 @@ const AuthContext = createContext();
 
 export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
-  const [accessToken, setAccessToken] = useState(localStorage.getItem('accessToken'));
+  const [accessToken, setAccessToken] = useState(() => localStorage.getItem('accessToken'));
   const navigate = useNavigate();
 
-  const viteAuthApiUrl = import.meta.env.VITE_AUTH_API_URL;
+  const viteAuthApiUrl = import.meta.env.VITE_AUTH_API_URL || 'http://localhost:8001/api/auth';
 
-  // Configure Axios with base URL and interceptors
-  const api = axios.create({
+  // Configure Axios instance for the Auth Service
+  const authApi = axios.create({
     baseURL: viteAuthApiUrl,
     headers: {
       'Content-Type': 'application/json',
     },
   });
 
-  // Add request interceptor to attach access token
-  api.interceptors.request.use(
+  // Interceptor to add the token to authApi requests
+  authApi.interceptors.request.use(
     (config) => {
-      if (accessToken) {
-        config.headers.Authorization = `Bearer ${accessToken}`;
+      const token = localStorage.getItem('accessToken');
+      if (token) {
+        config.headers.Authorization = `Bearer ${token}`;
       }
       return config;
     },
     (error) => Promise.reject(error)
   );
 
-  // Add response interceptor for token refresh
-  api.interceptors.response.use(
+  // Define logout here so it can be used in the interceptor
+  const logout = useCallback(() => {
+    setUser(null);
+    setAccessToken(null);
+    // Clean up all possible old token keys
+    localStorage.removeItem('accessToken');
+    localStorage.removeItem('refreshToken');
+    localStorage.removeItem('authToken');
+    localStorage.removeItem('access_token');
+    localStorage.removeItem('refresh_token');
+    localStorage.removeItem('user');
+    navigate('/login');
+  }, [navigate]);
+
+  // Add response interceptor for token refresh to authApi
+  authApi.interceptors.response.use(
     (response) => response,
     async (error) => {
       const originalRequest = error.config;
@@ -39,6 +54,10 @@ export const AuthProvider = ({ children }) => {
         originalRequest._retry = true;
         try {
           const refreshToken = localStorage.getItem('refreshToken');
+          if (!refreshToken) {
+            logout();
+            return Promise.reject(error);
+          }
           const response = await axios.post(`${viteAuthApiUrl}/token/refresh/`, {
             refresh: refreshToken,
           });
@@ -46,10 +65,9 @@ export const AuthProvider = ({ children }) => {
           setAccessToken(newAccessToken);
           localStorage.setItem('accessToken', newAccessToken);
           originalRequest.headers.Authorization = `Bearer ${newAccessToken}`;
-          return api(originalRequest);
+          return authApi(originalRequest);
         } catch (refreshError) {
           logout();
-          navigate('/login');
           return Promise.reject(refreshError);
         }
       }
@@ -60,50 +78,54 @@ export const AuthProvider = ({ children }) => {
   // Login function
   const login = async (credentials) => {
     try {
-      const response = await api.post('/login/', credentials);
+      const response = await authApi.post('/login/', credentials);
       const { access, refresh, user } = response.data;
       setAccessToken(access);
       setUser(user);
       localStorage.setItem('accessToken', access);
       localStorage.setItem('refreshToken', refresh);
-      navigate('/dashboard');
+      localStorage.setItem('user', JSON.stringify(user)); // Store user info
+      // Navigation is now handled by the component calling login
     } catch (error) {
       throw error.response?.data || { detail: 'Login failed' };
     }
   };
 
-  // Logout function
-  const logout = async () => {
+  // ADDED: New function to handle password reset request
+  const requestPasswordReset = async (email) => {
     try {
-      await api.post('/logout/', { refresh: localStorage.getItem('refreshToken') }); // Sends refresh token to backend and blacklisted
+      // This function uses the correctly configured authApi instance
+      await authApi.post('/password/request-reset/', { email });
     } catch (error) {
-      console.error('Logout failed:', error);
-    } finally {
-      setUser(null);
-      setAccessToken(null);
-      localStorage.removeItem('accessToken');
-      localStorage.removeItem('refreshToken');
-      navigate('/login');
+      // Re-throw the error so the component can handle it
+      throw error.response?.data || { detail: 'Request failed' };
     }
   };
 
+  // ADDED: New function to handle password reset confirmation
+  const confirmPasswordReset = async ({ uid, token, password }) => {
+    try {
+      await authApi.post('/password/reset/confirm/', { uid, token, password });
+    } catch (error) {
+      throw error.response?.data || { detail: 'Confirmation failed' };
+    }
+  };
+  
   // Check authentication on mount
   useEffect(() => {
-    const verifyToken = async () => {
-      if (accessToken) {
-        try {
-          const response = await api.get('/profile/');
-          setUser(response.data);
-        } catch (error) {
-          logout();
-        }
+    const storedToken = localStorage.getItem('accessToken');
+    const storedUser = localStorage.getItem('user');
+    if (storedToken) {
+      setAccessToken(storedToken);
+      if (storedUser) {
+        setUser(JSON.parse(storedUser));
       }
-    };
-    verifyToken();
-  }, [accessToken]);
+    }
+  }, []);
 
   return (
-    <AuthContext.Provider value={{ user, login, logout, api }}>
+    // MODIFIED: Added authApi, requestPasswordReset, and confirmPasswordReset to the value
+    <AuthContext.Provider value={{ user, accessToken, login, logout, authApi, requestPasswordReset, confirmPasswordReset }}>
       {children}
     </AuthContext.Provider>
   );

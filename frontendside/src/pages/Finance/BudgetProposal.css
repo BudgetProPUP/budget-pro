@@ -63,10 +63,12 @@ body::-webkit-scrollbar {
 }
 
 .app-container {
+  height: 100vh;
+  width: 100vw;
   display: flex;
   flex-direction: column;
-  min-height: 100vh;
-  font-family: Poppins, Poppins, 'Poppins', Poppins, Poppins;
+  overflow: hidden;
+  font-family: Poppins, 'Poppins', sans-serif;
 }
 
 /* Header/Navigation */
@@ -341,10 +343,12 @@ body::-webkit-scrollbar {
 
 /* Content Container */
 .content-container {
+  flex: 1; /* This makes the content area take up remaining space */
   padding: 1.5rem;
+  overflow-y: auto; /* Allows only the content to scroll */
+  width: 100%;
   max-width: 1280px;
   margin: 0 auto;
-  width: 100%;
 }
 
 .page-title {
@@ -377,6 +381,8 @@ body::-webkit-scrollbar {
   font-family: var(--font-family);
   font-size: 0.875rem;
   outline: none;
+  background-color: var(--white);
+  color: var(--dark-color);
 }
 
 .search-input:focus {

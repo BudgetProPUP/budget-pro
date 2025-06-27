@@ -206,9 +206,9 @@ class Command(BaseCommand):
         current_year = datetime.now().year
         current_fy = next((fy for fy in fiscal_years if fy.name == f'FY {current_year}'), fiscal_years[0])
         proposals = []
-        # MODIFIED: Changed range(2) to range(30) to create 150 proposals (5 depts * 30 proposals)
+        # MODIFIED: Changed range(2) to range(32) to create 160 proposals (5 depts * 32 proposals)
         for i, department in enumerate(departments):
-            for j in range(30): # Create 30 proposals per department
+            for j in range(32): # Create 32 proposals per department
                 sim_submitter = random.choice(SIMULATED_USERS) # Get a simulated user
                 proposal_data = {
                     'title': f"{department.name} Initiative #{j+1} FY{current_year}",

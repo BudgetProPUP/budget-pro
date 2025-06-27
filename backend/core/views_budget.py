@@ -710,7 +710,8 @@ Create a new Budget Proposal.
             )
             return Response({"detail": f"An error occurred: {str(e)}"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
-        # ... (Outbound notification logic to DTS/TTS - this part is fine) ...
+        # --- Outbound Notification to DTS/TTS ---
+        # Construct the payload as per the specification
         notification_payload = {
             "bms_proposal_id": proposal.id,
             "external_system_id": proposal.external_system_id,
@@ -720,32 +721,50 @@ Create a new Budget Proposal.
             "comments": comment_text if comment_text else None,
             "bms_proposal_link": request.build_absolute_uri(f"/api/external-budget-proposals/{proposal.id}/")
         }
+
+        # Get target URL and optional API key from settings
         target_dts_url = getattr(settings, 'DTS_STATUS_UPDATE_URL', None)
         api_key_for_dts = getattr(settings, 'BMS_AUTH_KEY_FOR_DTS', None)
-        if target_dts_url and api_key_for_dts:
+
+        # Proceed if the target URL is configured
+        if target_dts_url:
             try:
-                headers = {'Content-Type': 'application/json', 'X-DTS-API-Key': api_key_for_dts} # Adjust header name
+                # Prepare headers. API key is added only if it exists.
+                headers = {'Content-Type': 'application/json'}
+                if api_key_for_dts:
+                    headers['X-API-Key'] = api_key_for_dts
+                
                 response_to_dts = requests.post(target_dts_url, json=notification_payload, headers=headers, timeout=10)
-                response_to_dts.raise_for_status()
-                print(f"Successfully notified DTS about proposal {proposal.external_system_id} status: {proposal.status}")
+                response_to_dts.raise_for_status() # Raise an exception for bad status codes (4xx or 5xx)
+
+                print(f"Successfully notified external system about proposal {proposal.external_system_id} status: {proposal.status}")
                 UserActivityLog.objects.create(
                     user_id=request.user.id, user_username=reviewer_name, log_type='PROCESS',
-                    action=f'Sent status update for proposal {proposal.id} ({proposal.external_system_id}) to DTS. Status: {proposal.status}', status='SUCCESS',
-                    details={'target_system': 'DTS', 'payload_sent': notification_payload, 'response_status': response_to_dts.status_code}
+                    action=f'Sent status update for proposal {proposal.id} ({proposal.external_system_id}) to external system. Status: {proposal.status}', status='SUCCESS',
+                    details={
+                        'target_system': 'DTS/TTS', 
+                        'target_url': target_dts_url,
+                        'payload_sent': notification_payload, 
+                        'response_status': response_to_dts.status_code
+                    }
                 )
             except requests.RequestException as e:
-                print(f"Error notifying DTS about proposal {proposal.external_system_id}: {e}")
+                print(f"Error notifying external system about proposal {proposal.external_system_id}: {e}")
                 UserActivityLog.objects.create(
                     user_id=request.user.id, user_username=reviewer_name, log_type='ERROR',
-                    action=f'Failed to send status update for proposal {proposal.id} ({proposal.external_system_id}) to DTS.', status='FAILED',
-                    details={'target_system': 'DTS', 'error': str(e), 'payload_attempted': notification_payload}
+                    action=f'Failed to send status update for proposal {proposal.id} ({proposal.external_system_id}) to external system.', status='FAILED',
+                    details={
+                        'target_system': 'DTS/TTS', 
+                        'target_url': target_dts_url,
+                        'error': str(e), 
+                        'payload_attempted': notification_payload
+                    }
                 )
                 # Important: Do not let this failure break the response to the BMS user.
                 # The proposal review in BMS was successful.
-        elif not target_dts_url:
-            print(f"Warning: DTS_STATUS_UPDATE_URL not configured in settings. Cannot notify DTS for proposal {proposal.id}.")
-        elif not api_key_for_dts:
-            print(f"Warning: BMS_API_KEY_FOR_DTS not configured in settings. Cannot authenticate to DTS for proposal {proposal.id}.")
+        else:
+            # Log a warning if the URL is not set, so we know why notifications aren't being sent.
+            print(f"Warning: DTS_STATUS_UPDATE_URL not configured in settings. Cannot notify external system for proposal {proposal.id}.")
 
 
         output_serializer = BudgetProposalDetailSerializer(proposal, context={'request': request})

@@ -83,10 +83,16 @@ class ExpenseHistoryView(generics.ListAPIView):
 class ExpenseTrackingView(generics.ListAPIView):
     serializer_class = ExpenseTrackingSerializer
     permission_classes = [IsAuthenticated]
-    # MODIFIED: Uses new pagination class for 5 items per page
     pagination_class = FiveResultsSetPagination
-    filter_backends = [filters.SearchFilter] # Only search, category is manual
-    search_fields = ['description', 'vendor']
+    filter_backends = [filters.SearchFilter]
+    
+    # MODIFIED: Expanded the search fields to include reference number and type
+    search_fields = [
+        'description', 
+        'vendor', 
+        'transaction_id',  # For "REF NO." column
+        'account__account_type__name' # For "TYPE" column
+    ]
 
     def get_queryset(self):
         user = self.request.user # This is CustomUser or TokenUser
@@ -117,10 +123,10 @@ class ExpenseTrackingView(generics.ListAPIView):
     @extend_schema(
         tags=['Expense Tracking Page'],
         summary="Get expense tracking data",
-        description="Paginated list of expenses with filters for category and date range. Valid Category Codes: # Level 1 (parent): 'OPS', 'CAP', 'HRM'. # Level 2 (Child): 'OPS-UTIL', 'OPS-RENT', 'OPS-SUP', 'CAP-IT', 'CAP-FAC', 'HRM-SAL', 'HRM-BEN', 'HRM-TRN'. # Level 3 (Grandchild): 'HRM-TRN-INT', 'HRM-TRN-EXT', 'CAP-IT-HW', 'CAP-IT-SW'",
+        description="Paginated list of expenses with filters for category and date range. The search parameter now looks in the 'REF NO.', 'TYPE', 'DESCRIPTION', and vendor fields.", # MODIFIED: Updated description
         parameters=[
             OpenApiParameter(
-                name="search", description="Search in description/vendor", required=False, type=str),
+                name="search", description="Search by Ref No, Type, Description, or Vendor", required=False, type=str), # MODIFIED: Updated description
             OpenApiParameter(
                 name="category__code", description="Filter by category code", required=False, type=str),
             OpenApiParameter(

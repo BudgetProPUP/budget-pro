@@ -298,12 +298,7 @@ const LedgerView = () => {
                     Proposal History
                   </div>
                   <div
-                    className="dropdown-item"
-                    onClick={() => handleNavigate('/finance/account-setup')}
-                  >
-                    Account Setup
-                  </div>
-                  <div
+                  
                     className="dropdown-item active"
                     onClick={() => handleNavigate('/finance/ledger-view')}
                   >
@@ -313,7 +308,7 @@ const LedgerView = () => {
                     className="dropdown-item"
                     onClick={() => handleNavigate('/finance/journal-entry')}
                   >
-                    Journal Entries
+                    Budget Allocation
                   </div>
                   <div
                     className="dropdown-item"

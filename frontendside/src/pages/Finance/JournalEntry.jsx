@@ -213,12 +213,7 @@ function JournalEntry() {
                     Proposal History
                   </div>
                   <div
-                    className="dropdown-item"
-                    onClick={() => handleNavigate('/finance/account-setup')}
-                  >
-                    Account Setup
-                  </div>
-                  <div
+                 
                     className="dropdown-item"
                     onClick={() => handleNavigate('/finance/ledger-view')}
                   >
@@ -228,7 +223,7 @@ function JournalEntry() {
                     className="dropdown-item"
                     onClick={() => handleNavigate('/finance/journal-entry')}
                   >
-                    Journal Entries
+                    Budget Allocation
                   </div>
                   <div
                     className="dropdown-item"
@@ -346,7 +341,7 @@ function JournalEntry() {
                 color: '#242424',
               }}
             >
-              Journal Entries 
+              Budget Adjustment 
             </h2>
             
             <div>
@@ -397,7 +392,7 @@ function JournalEntry() {
               </div>
               
               <button className="add-journal-button" onClick={openAddJournalModal}>
-                Add Journal
+                Modify Budget
               </button>
             </div>
           </div>
@@ -464,7 +459,7 @@ function JournalEntry() {
         <div className="modal-overlay">
           <div className="modal-container">
             <div className="modal-content">
-              <h3 className="modal-title">Add Journal Entry</h3>
+              <h3 className="modal-title">Modify Budget Entry</h3>
               
               <div className="form-group">
                 <label htmlFor="entryId">Entry ID (System generated)</label>

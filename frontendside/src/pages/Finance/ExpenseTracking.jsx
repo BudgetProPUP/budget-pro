@@ -22,6 +22,7 @@ const ExpenseTracking = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedExpenses, setSelectedExpenses] = useState([]);
   const [newExpense, setNewExpense] = useState({
+    referenceNo: '',
     description: '',
     category: '',
     amount: '',
@@ -60,6 +61,7 @@ const ExpenseTracking = () => {
   const [expenses, setExpenses] = useState([
     {
       id: 1,
+      referenceNo: 'REF-001',
       date: '04-12-2025',
       description: 'Website Redesign Project',
       category: 'Training & Development',
@@ -71,6 +73,7 @@ const ExpenseTracking = () => {
     },
     {
       id: 2,
+      referenceNo: 'REF-002',
       date: '03-20-2025',
       description: 'Software Subscription',
       category: 'Professional Services',
@@ -82,6 +85,7 @@ const ExpenseTracking = () => {
     },
     {
       id: 3,
+      referenceNo: 'REF-003',
       date: '03-15-2025',
       description: 'Cloud Hosting',
       category: 'Professional Services',
@@ -93,6 +97,7 @@ const ExpenseTracking = () => {
     },
     {
       id: 4,
+      referenceNo: 'REF-004',
       date: '02-25-2025',
       description: 'Company Laptops',
       category: 'Equipment & Maintenance',
@@ -104,6 +109,7 @@ const ExpenseTracking = () => {
     },
     {
       id: 5,
+      referenceNo: 'REF-005',
       date: '01-25-2025',
       description: 'Office Printers',
       category: 'Equipment & Maintenance',
@@ -115,6 +121,7 @@ const ExpenseTracking = () => {
     },
     {
       id: 6,
+      referenceNo: 'REF-006',
       date: '12-19-2024',
       description: 'AI Workshop Series',
       category: 'Training & Development',
@@ -156,7 +163,8 @@ const ExpenseTracking = () => {
   // Filter expenses based on search query, selected category, and date
   const filteredExpenses = expenses.filter(expense => {
     const matchesSearch = expense.description.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                         expense.category.toLowerCase().includes(searchQuery.toLowerCase());
+                         expense.category.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                         expense.referenceNo.toLowerCase().includes(searchQuery.toLowerCase());
     const matchesCategory = selectedCategory === 'All Categories' || expense.category === selectedCategory;
     // In a real app, you would implement date filtering logic here
     const matchesDate = true; // Simplified for now
@@ -260,6 +268,7 @@ const ExpenseTracking = () => {
     setShowAddExpenseModal(false);
     // Reset form
     setNewExpense({
+      referenceNo: '',
       description: '',
       category: '',
       amount: '',
@@ -287,6 +296,7 @@ const ExpenseTracking = () => {
     // Add new expense to the list
     const newExpenseEntry = {
       id: expenses.length + 1,
+      referenceNo: newExpense.referenceNo,
       date: formattedDate,
       description: newExpense.description,
       category: newExpense.category,
@@ -339,12 +349,7 @@ const ExpenseTracking = () => {
                     Proposal History
                   </div>
                   <div
-                    className="dropdown-item"
-                    onClick={() => handleNavigate('/finance/account-setup')}
-                  >
-                    Account Setup
-                  </div>
-                  <div
+                  
                     className="dropdown-item"
                     onClick={() => handleNavigate('/finance/ledger-view')}
                   >
@@ -354,7 +359,7 @@ const ExpenseTracking = () => {
                     className="dropdown-item"
                     onClick={() => handleNavigate('/finance/journal-entry')}
                   >
-                    Journal Entries
+                    Budget Allocation
                   </div>
                   <div
                     className="dropdown-item"
@@ -607,12 +612,12 @@ const ExpenseTracking = () => {
             <table>
               <thead>
                 <tr>
-                   <th style={{ width: '12%' }}>CODE</th>
-                    <th style={{ width: '15%' }}>TYPE</th>
-                    <th style={{ width: '19%' }}>DESCRIPTION</th>
-                    <th style={{ width: '17%' }}>STATUS</th>
-                    <th style={{ width: '17%' }}>ACCOMPLISHED</th>
-                    <th style={{ width: '10%' }}>DATE</th>
+                  <th style={{ width: '15%' }}>REF NO.</th>
+                  <th style={{ width: '20%' }}>TYPE</th>
+                  <th style={{ width: '25%' }}>DESCRIPTION</th>
+                  <th style={{ width: '15%' }}>STATUS</th>
+                  <th style={{ width: '15%' }}>ACCOMPLISHED</th>
+                  <th style={{ width: '10%' }}>DATE</th>
                 </tr>
               </thead>
               <tbody>
@@ -623,9 +628,7 @@ const ExpenseTracking = () => {
                     style={{ cursor: 'pointer' }}
                     className={selectedExpenses.includes(expense.id) ? 'selected' : ''}
                   >
-                    <td style={{ color: '#3b82f6', fontWeight: '500' }}>
-                      {expense.id}00{expense.id}
-                    </td>
+                    <td>{expense.referenceNo}</td>
                     <td>
                       {expense.category.includes('Equipment') ? 'Assets' : 
                        expense.category.includes('Training') ? 'Expenses' : 'Liabilities'}
@@ -702,6 +705,19 @@ const ExpenseTracking = () => {
             <div className="modal-content">
               <form onSubmit={handleSubmitExpense} className="budget-form">
                 <div className="form-section">
+                  <div className="form-group">
+                    <label htmlFor="referenceNo">Reference No.</label>
+                    <input 
+                      type="text" 
+                      id="referenceNo" 
+                      name="referenceNo"
+                      value={newExpense.referenceNo}
+                      onChange={handleInputChange}
+                      placeholder="Enter reference number"
+                      required
+                    />
+                  </div>
+
                   <div className="form-group">
                     <label htmlFor="description">Description</label>
                     <input 

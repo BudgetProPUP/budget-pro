@@ -16,6 +16,7 @@ export default defineConfig({
     host: '0.0.0.0',
     allowedHosts: [
       'frontend-production-906f.up.railway.app',
+      '.onrender.com',
       '.railway.app',
       'localhost',
       '127.0.0.1'

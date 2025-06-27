@@ -1,7 +1,6 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
-import './ForgotPassword.css'; 
 
 function ForgotPasswordPage() {
   const [email, setEmail] = useState('');
@@ -15,7 +14,7 @@ function ForgotPasswordPage() {
     try {
       await axios.post('http://localhost:8000/api/auth/password/reset/', { email });
       setMessage('If this email is registered, you will receive a password reset link shortly.');
-    } catch {
+    } catch (error) {
       setMessage('Error sending reset email. Please try again.');
     } finally {
       setIsLoading(false);

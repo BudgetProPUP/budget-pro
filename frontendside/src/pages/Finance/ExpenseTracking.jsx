@@ -1,47 +1,130 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { Search, ChevronDown, ArrowLeft, ChevronLeft, ChevronRight, Plus, Calendar, FileText, User, Mail, Briefcase, LogOut } from 'lucide-react';
 import { Link, useNavigate } from 'react-router-dom';
 import LOGOMAP from '../../assets/MAP.jpg';
+import api from '../../api'; // ADDED: Import the configured Axios instance
 
-// CSS Imports (organized by component) - matching Account Setup
-import '../../components/Styles/Layout.css';       // Main layout styles
-import '../../components/Header.css';              // Header components
-import '../../components/Tables.css';              // Table styles
+// CSS Imports
+import '../../components/Styles/Layout.css';
+import '../../components/Header.css';
+import '../../components/Tables.css';
 import './ExpenseTracking.css';
 
 const ExpenseTracking = () => {
+  // --- STATE MANAGEMENT ---
+  // MODIFIED: State for API data, loading, and errors
+  const [summaryData, setSummaryData] = useState({ budget_remaining: 0, total_expenses_this_month: 0 });
+  const [expenses, setExpenses] = useState([]);
+  const [categories, setCategories] = useState([]);
+  const [projects, setProjects] = useState([]);
+  const [accounts, setAccounts] = useState([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState(null);
+  const [paginationInfo, setPaginationInfo] = useState({ count: 0, next: null, previous: null });
+
+  // State for UI controls
   const [showBudgetDropdown, setShowBudgetDropdown] = useState(false);
   const [showExpenseDropdown, setShowExpenseDropdown] = useState(false);
   const [showProfilePopup, setShowProfilePopup] = useState(false);
   const [showCategoryDropdown, setShowCategoryDropdown] = useState(false);
   const [showDateDropdown, setShowDateDropdown] = useState(false);
-  const [selectedCategory, setSelectedCategory] = useState('All Categories');
-  const [selectedDate, setSelectedDate] = useState('All Time');
   const [showAddExpenseModal, setShowAddExpenseModal] = useState(false);
+  
+  // State for filters and pagination
   const [currentPage, setCurrentPage] = useState(1);
   const [searchQuery, setSearchQuery] = useState('');
-  const [selectedExpenses, setSelectedExpenses] = useState([]);
+  const [selectedCategory, setSelectedCategory] = useState({ code: '', name: 'All Categories' });
+  const [selectedDate, setSelectedDate] = useState({ value: 'all_time', name: 'All Time' });
+
+  // State for the "Add Expense" modal form
   const [newExpense, setNewExpense] = useState({
-    referenceNo: '',
-    description: '',
-    category: '',
+    project_id: '',
+    account_code: '',
+    category_code: '',
     amount: '',
     date: new Date().toISOString().split('T')[0],
-    projectSummary: '',
-    dueDate: ''
+    description: '',
+    vendor: '',
   });
-  const itemsPerPage = 5; // Number of transactions per page
+
   const navigate = useNavigate();
 
-  // User profile data - Same as Dashboard
+  // User profile data (can be replaced with context/global state later)
   const userProfile = {
     name: "John Doe",
     email: "Johndoe@gmail.com",
     role: "Finance Head",
     avatar: "https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?ixlib=rb-1.2.1&ixid=eyJhcHBfaWQiOjEyMDd9&auto=format&fit=facearea&facepad=2&w=256&h=256&q=80"
   };
+  
+  // --- API DATA FETCHING ---
 
-  // Close dropdowns when clicking outside - Same as Dashboard
+  // MODIFIED: Removed /api prefix
+  const fetchSummaryData = useCallback(async () => {
+    try {
+      const response = await api.get('/expenses/tracking/summary/');
+      setSummaryData(response.data);
+    } catch (err) {
+      console.error("Error fetching summary data:", err);
+      setError("Could not load summary data.");
+    }
+  }, []);
+
+  // MODIFIED: Removed /api prefix
+  const fetchExpenses = useCallback(async () => {
+    setIsLoading(true);
+    setError(null);
+    try {
+      const params = new URLSearchParams({
+        page: currentPage,
+        search: searchQuery,
+        category__code: selectedCategory.code,
+        date_filter: selectedDate.value,
+      });
+      const response = await api.get(`/expenses/tracking/?${params.toString()}`);
+      setExpenses(response.data.results);
+      setPaginationInfo({
+        count: response.data.count,
+        next: response.data.next,
+        previous: response.data.previous,
+      });
+    } catch (err) {
+      console.error("Error fetching expenses:", err);
+      setError("Failed to fetch expenses. Please try again later.");
+    } finally {
+      setIsLoading(false);
+    }
+  }, [currentPage, searchQuery, selectedCategory.code, selectedDate.value]);
+
+  // MODIFIED: Removed /api prefixes
+  useEffect(() => {
+    const fetchDropdownData = async () => {
+      try {
+        const [catRes, projRes, accRes] = await Promise.all([
+          api.get('/dropdowns/expense-categories/'),
+          api.get('/projects/all/'),
+          api.get('/dropdowns/accounts/')
+        ]);
+        setCategories(catRes.data);
+        setProjects(projRes.data);
+        setAccounts(accRes.data);
+      } catch (err) {
+        console.error("Error fetching dropdown data:", err);
+        setError("Could not load form options.");
+      }
+    };
+    fetchSummaryData();
+    fetchDropdownData();
+  }, [fetchSummaryData]);
+  
+  // ADDED: Refetch expenses when filters change
+  useEffect(() => {
+    fetchExpenses();
+  }, [fetchExpenses]);
+
+  // --- UI HANDLERS ---
+
+  // Close dropdowns when clicking outside
   useEffect(() => {
     const handleClickOutside = (event) => {
       if (!event.target.closest('.nav-dropdown') && !event.target.closest('.profile-container')) {
@@ -50,409 +133,132 @@ const ExpenseTracking = () => {
         setShowProfilePopup(false);
       }
     };
-
     document.addEventListener('mousedown', handleClickOutside);
-    return () => {
-      document.removeEventListener('mousedown', handleClickOutside);
-    };
+    return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
-
-  // Sample data for expense tracking
-  const [expenses, setExpenses] = useState([
-    {
-      id: 1,
-      referenceNo: 'REF-001',
-      date: '04-12-2025',
-      description: 'Website Redesign Project',
-      category: 'Training & Development',
-      amount: '₱50,000.00',
-      status: 'pending',
-      accomplished: false,
-      projectSummary: 'This Budget Proposal provides necessary costs associated with the website redesign project.',
-      dueDate: 'April 30, 2025'
-    },
-    {
-      id: 2,
-      referenceNo: 'REF-002',
-      date: '03-20-2025',
-      description: 'Software Subscription',
-      category: 'Professional Services',
-      amount: '₱15,750.00',
-      status: 'approved',
-      accomplished: true,
-      projectSummary: 'Annual subscription for productivity software suite.',
-      dueDate: 'March 31, 2025'
-    },
-    {
-      id: 3,
-      referenceNo: 'REF-003',
-      date: '03-15-2025',
-      description: 'Cloud Hosting',
-      category: 'Professional Services',
-      amount: '₱12,500.00',
-      status: 'paid',
-      accomplished: true,
-      projectSummary: 'Monthly cloud infrastructure costs for all company applications.',
-      dueDate: 'March 20, 2025'
-    },
-    {
-      id: 4,
-      referenceNo: 'REF-004',
-      date: '02-25-2025',
-      description: 'Company Laptops',
-      category: 'Equipment & Maintenance',
-      amount: '₱450,000.00',
-      status: 'approved',
-      accomplished: true,
-      projectSummary: 'Purchase of new laptops for the engineering team.',
-      dueDate: 'February 28, 2025'
-    },
-    {
-      id: 5,
-      referenceNo: 'REF-005',
-      date: '01-25-2025',
-      description: 'Office Printers',
-      category: 'Equipment & Maintenance',
-      amount: '₱180,000.00',
-      status: 'paid',
-      accomplished: true,
-      projectSummary: 'Acquisition of networked printers for all departments.',
-      dueDate: 'January 30, 2025'
-    },
-    {
-      id: 6,
-      referenceNo: 'REF-006',
-      date: '12-19-2024',
-      description: 'AI Workshop Series',
-      category: 'Training & Development',
-      amount: '₱25,000.00',
-      status: 'rejected',
-      accomplished: false,
-      projectSummary: 'Training program for staff on AI technologies and applications.',
-      dueDate: 'December 31, 2024'
-    }
-  ]);
-
-  // Budget summary data
-  const budgetData = {
-    remaining: <span style={{ color: '#0d6efd' }}>₱3,326,025.75</span>,
-    expensesThisMonth: <span style={{ color: '#0d6efd' }}>₱800,025.75</span>
-  };
-
-  // Define categories directly instead of extracting from expenses
-  const categories = [
-    'All Categories',
-    'Travel', 
-    'Office Supplies', 
-    'Utilities', 
-    'Marketing & Advertising', 
-    'Professional Services', 
-    'Training & Development', 
-    'Equipment & Maintenance', 
-    'Miscellaneous'
-  ];
-  
-  // Date filter options
-  const dateOptions = ['All Time', 'This Month', 'Last Month', 'Last 3 Months', 'This Year'];
 
   const handleSearch = (e) => {
     setSearchQuery(e.target.value);
-    setCurrentPage(1); // Reset to first page when search changes
+    setCurrentPage(1);
   };
-
-  // Filter expenses based on search query, selected category, and date
-  const filteredExpenses = expenses.filter(expense => {
-    const matchesSearch = expense.description.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                         expense.category.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                         expense.referenceNo.toLowerCase().includes(searchQuery.toLowerCase());
-    const matchesCategory = selectedCategory === 'All Categories' || expense.category === selectedCategory;
-    // In a real app, you would implement date filtering logic here
-    const matchesDate = true; // Simplified for now
-    return matchesSearch && matchesCategory && matchesDate;
-  });
-
-  // Pagination logic
-  const indexOfLastItem = currentPage * itemsPerPage;
-  const indexOfFirstItem = indexOfLastItem - itemsPerPage;
-  const currentExpenses = filteredExpenses.slice(indexOfFirstItem, indexOfLastItem);
-  const totalPages = Math.ceil(filteredExpenses.length / itemsPerPage);
-
-  const paginate = (pageNumber) => setCurrentPage(pageNumber);
-  const nextPage = () => setCurrentPage(prev => Math.min(prev + 1, totalPages));
-  const prevPage = () => setCurrentPage(prev => Math.max(prev - 1, 1));
-
-  // Navigation functions - Updated to match Dashboard
-  const toggleBudgetDropdown = () => {
-    setShowBudgetDropdown(!showBudgetDropdown);
-    if (showExpenseDropdown) setShowExpenseDropdown(false);
-    if (showProfilePopup) setShowProfilePopup(false);
-  };
-
-  const toggleExpenseDropdown = () => {
-    setShowExpenseDropdown(!showExpenseDropdown);
-    if (showBudgetDropdown) setShowBudgetDropdown(false);
-    if (showProfilePopup) setShowProfilePopup(false);
-  };
-
-  const toggleProfilePopup = () => {
-    setShowProfilePopup(!showProfilePopup);
-    if (showBudgetDropdown) setShowBudgetDropdown(false);
-    if (showExpenseDropdown) setShowExpenseDropdown(false);
-  };
-
-  const toggleCategoryDropdown = () => {
-    setShowCategoryDropdown(!showCategoryDropdown);
-    if (showDateDropdown) setShowDateDropdown(false);
-  };
-
-  const toggleDateDropdown = () => {
-    setShowDateDropdown(!showDateDropdown);
-    if (showCategoryDropdown) setShowCategoryDropdown(false);
-  };
-
+  
   const handleCategorySelect = (category) => {
     setSelectedCategory(category);
-    setCurrentPage(1); // Reset to first page when category changes
+    setCurrentPage(1);
     setShowCategoryDropdown(false);
   };
 
   const handleDateSelect = (date) => {
     setSelectedDate(date);
-    setCurrentPage(1); // Reset to first page when date changes
+    setCurrentPage(1);
     setShowDateDropdown(false);
-  };
-
-  const handleNavigate = (path) => {
-    navigate(path);
-    setShowBudgetDropdown(false);
-    setShowExpenseDropdown(false);
-    setShowProfilePopup(false);
-  };
-
-  // Updated logout function with navigation to login screen - Same as Dashboard
-  const handleLogout = () => {
-    try {
-      // Clear any stored authentication data
-      localStorage.removeItem('authToken');
-      localStorage.removeItem('userSession');
-      localStorage.removeItem('userProfile');
-      
-      // Clear session storage
-      sessionStorage.clear();
-      
-      // Close the profile popup
-      setShowProfilePopup(false);
-      
-      // Navigate to login screen
-      navigate('/login', { replace: true });
-      
-      console.log('User logged out successfully');
-    } catch (error) {
-      console.error('Error during logout:', error);
-      // Still navigate to login even if there's an error clearing storage
-      navigate('/login', { replace: true });
-    }
-  };
-
-  const handleExpenseSelect = (id) => {
-    setSelectedExpenses(prev => 
-      prev.includes(id) ? prev.filter(expenseId => expenseId !== id) : [...prev, id]
-    );
-  };
-
-  const handleAddExpense = () => {
-    setShowAddExpenseModal(true);
-  };
-
-  const handleCloseModal = () => {
-    setShowAddExpenseModal(false);
-    // Reset form
-    setNewExpense({
-      referenceNo: '',
-      description: '',
-      category: '',
-      amount: '',
-      date: new Date().toISOString().split('T')[0],
-      projectSummary: '',
-      dueDate: ''
-    });
   };
 
   const handleInputChange = (e) => {
     const { name, value } = e.target;
-    setNewExpense(prev => ({
-      ...prev,
-      [name]: value
-    }));
+    setNewExpense(prev => ({ ...prev, [name]: value }));
+  };
+  
+  // MODIFIED: Removed /api prefix
+  const handleSubmitExpense = async (e) => {
+    e.preventDefault();
+    try {
+      await api.post('/expenses/submit/', newExpense);
+      handleCloseModal();
+      fetchExpenses(); // Refetch to show the new expense
+      fetchSummaryData(); // Also refetch summary cards
+    } catch (err) {
+      console.error("Error submitting expense:", err.response?.data || err);
+      alert(`Failed to add expense: ${JSON.stringify(err.response?.data)}`);
+    }
   };
 
-  const handleSubmitExpense = (e) => {
-    e.preventDefault();
-    
-    // Format date to match the existing format
-    const dateParts = newExpense.date.split('-');
-    const formattedDate = `${dateParts[1]}-${dateParts[2]}-${dateParts[0]}`;
-    
-    // Add new expense to the list
-    const newExpenseEntry = {
-      id: expenses.length + 1,
-      referenceNo: newExpense.referenceNo,
-      date: formattedDate,
-      description: newExpense.description,
-      category: newExpense.category,
-      amount: `₱${parseFloat(newExpense.amount).toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})}`,
-      status: 'pending',
-      accomplished: false,
-      projectSummary: newExpense.projectSummary,
-      dueDate: newExpense.dueDate
-    };
-    
-    setExpenses([newExpenseEntry, ...expenses]);
-    handleCloseModal();
+  const handleCloseModal = () => {
+    setShowAddExpenseModal(false);
+    setNewExpense({
+      project_id: '', account_code: '', category_code: '',
+      amount: '', date: new Date().toISOString().split('T')[0],
+      description: '', vendor: '',
+    });
   };
+  
+  const totalPages = Math.ceil(paginationInfo.count / 5);
+  const paginate = (pageNumber) => setCurrentPage(pageNumber);
+  const nextPage = () => { if (paginationInfo.next) setCurrentPage(prev => prev + 1); };
+  const prevPage = () => { if (paginationInfo.previous) setCurrentPage(prev => prev - 1); };
+  const toggleBudgetDropdown = () => setShowBudgetDropdown(!showBudgetDropdown);
+  const toggleExpenseDropdown = () => setShowExpenseDropdown(!showExpenseDropdown);
+  const toggleProfilePopup = () => setShowProfilePopup(!showProfilePopup);
+  const toggleCategoryDropdown = () => setShowCategoryDropdown(!showCategoryDropdown);
+  const toggleDateDropdown = () => setShowDateDropdown(!showDateDropdown);
+  const handleNavigate = (path) => navigate(path);
+  const handleAddExpense = () => setShowAddExpenseModal(true);
+
+  const handleLogout = () => {
+    localStorage.removeItem('access_token');
+    localStorage.removeItem('refresh_token');
+    navigate('/login', { replace: true });
+  };
+  
+  const dateOptions = [
+    { value: 'all_time', name: 'All Time' },
+    { value: 'this_month', name: 'This Month' },
+    { value: 'last_month', name: 'Last Month' },
+    { value: 'last_3_months', name: 'Last 3 Months' },
+    { value: 'this_year', name: 'This Year' }
+  ];
 
   return (
     <div className="app-container">
-      {/* Header - Copied from Dashboard */}
       <header className="app-header">
+        {/* Header navigation remains the same */}
         <div className="header-left">
           <div className="app-logo">
-            <img 
-              src={LOGOMAP} 
-              alt="BudgetPro Logo" 
-              className="logo-image"
-            />
+            <img src={LOGOMAP} alt="Logo" className="logo-image" />
           </div>
           <nav className="nav-menu">
             <Link to="/dashboard" className="nav-item">Dashboard</Link>
-
-            {/* Budget Dropdown */}
             <div className="nav-dropdown">
-              <div 
-                className={`nav-item ${showBudgetDropdown ? 'active' : ''}`} 
-                onClick={toggleBudgetDropdown}
-              >
-                Budget <ChevronDown size={14} />
-              </div>
+              <div className="nav-item" onClick={toggleBudgetDropdown}>Budget <ChevronDown size={14} /></div>
               {showBudgetDropdown && (
                 <div className="dropdown-menu">
-                  <div
-                    className="dropdown-item"
-                    onClick={() => handleNavigate('/finance/budget-proposal')}
-                  >
-                    Budget Proposal
-                  </div>
-                  <div
-                    className="dropdown-item"
-                    onClick={() => handleNavigate('/finance/proposal-history')}
-                  >
-                    Proposal History
-                  </div>
-                  <div
-                  
-                    className="dropdown-item"
-                    onClick={() => handleNavigate('/finance/ledger-view')}
-                  >
-                    Ledger View
-                  </div>
-                  <div
-                    className="dropdown-item"
-                    onClick={() => handleNavigate('/finance/journal-entry')}
-                  >
-                    Budget Allocation
-                  </div>
-                  <div
-                    className="dropdown-item"
-                    onClick={() => handleNavigate('/finance/budget-variance-report')}
-                  >
-                    Budget Variance Report
-                  </div>
+                  <div className="dropdown-item" onClick={() => handleNavigate('/finance/budget-proposal')}>Budget Proposal</div>
+                  <div className="dropdown-item" onClick={() => handleNavigate('/finance/proposal-history')}>Proposal History</div>
+                  <div className="dropdown-item" onClick={() => handleNavigate('/finance/ledger-view')}>Ledger View</div>
+                  <div className="dropdown-item" onClick={() => handleNavigate('/finance/budget-variance-report')}>Budget Variance Report</div>
                 </div>
               )}
             </div>
-
-            {/* Expense Dropdown */}
             <div className="nav-dropdown">
-              <div 
-                className={`nav-item ${showExpenseDropdown ? 'active' : ''}`} 
-                onClick={toggleExpenseDropdown}
-              >
-                Expense <ChevronDown size={14} />
-              </div>
+              <div className="nav-item active" onClick={toggleExpenseDropdown}>Expense <ChevronDown size={14} /></div>
               {showExpenseDropdown && (
                 <div className="dropdown-menu">
-                  <div
-                    className="dropdown-item active"
-                    onClick={() => handleNavigate('/finance/expense-tracking')}
-                  >
-                    Expense Tracking
-                  </div>
-                  <div
-                    className="dropdown-item"
-                    onClick={() => handleNavigate('/finance/expense-history')}
-                  >
-                    Expense History
-                  </div>
+                  <div className="dropdown-item active" onClick={() => handleNavigate('/finance/expense-tracking')}>Expense Tracking</div>
+                  <div className="dropdown-item" onClick={() => handleNavigate('/finance/expense-history')}>Expense History</div>
                 </div>
               )}
             </div>
           </nav>
         </div>
-        
         <div className="header-right">
           <div className="profile-container">
             <div className="user-avatar" onClick={toggleProfilePopup}>
               <img src={userProfile.avatar} alt="User avatar" className="avatar-img" />
             </div>
-            
-            {/* Profile Popup - Same as Account Setup */}
             {showProfilePopup && (
               <div className="profile-popup">
                 <div className="profile-popup-header">
-                  <button 
-                    className="profile-back-btn"
-                    onClick={() => setShowProfilePopup(false)}
-                  >
-                    <ArrowLeft size={20} />
-                  </button>
+                  <button className="profile-back-btn" onClick={() => setShowProfilePopup(false)}><ArrowLeft size={20} /></button>
                   <h3 className="profile-popup-title">Profile</h3>
                 </div>
-                
                 <div className="profile-popup-content">
-                  <div className="profile-avatar-large">
-                    <img src={userProfile.avatar} alt="Profile" className="profile-avatar-img" />
-                  </div>
-                  
+                  <div className="profile-avatar-large"><img src={userProfile.avatar} alt="Profile" className="profile-avatar-img" /></div>
                   <div className="profile-info">
-                    <div className="profile-field">
-                      <div className="profile-field-header">
-                        <User size={16} className="profile-field-icon" />
-                        <span className="profile-field-label">Name:</span>
-                      </div>
-                      <span className="profile-field-value">{userProfile.name}</span>
-                    </div>
-                    
-                    <div className="profile-field">
-                      <div className="profile-field-header">
-                        <Mail size={16} className="profile-field-icon" />
-                        <span className="profile-field-label">E-mail:</span>
-                      </div>
-                      <span className="profile-field-value profile-email">{userProfile.email}</span>
-                    </div>
-                    
-                    <div className="profile-field">
-                      <div className="profile-field-header">
-                        <Briefcase size={16} className="profile-field-icon" />
-                        <span className="profile-field-label">Role:</span>
-                      </div>
-                      <span className="profile-field-value profile-role">{userProfile.role}</span>
-                    </div>
+                    <div className="profile-field"><div className="profile-field-header"><User size={16} /><span>Name:</span></div><span>{userProfile.name}</span></div>
+                    <div className="profile-field"><div className="profile-field-header"><Mail size={16} /><span>E-mail:</span></div><span>{userProfile.email}</span></div>
+                    <div className="profile-field"><div className="profile-field-header"><Briefcase size={16} /><span>Role:</span></div><span>{userProfile.role}</span></div>
                   </div>
-                  
-                  <button className="logout-btn" onClick={handleLogout}>
-                    <LogOut size={16} />
-                    Log Out
-                  </button>
+                  <button className="logout-btn" onClick={handleLogout}><LogOut size={16} />Log Out</button>
                 </div>
               </div>
             )}
@@ -461,154 +267,50 @@ const ExpenseTracking = () => {
       </header>
 
       <div className="content-container">
-        {/* Budget Summary Cards - Moved to top of content */}
+        {/* MODIFIED: Summary cards now use API data */}
         <div className="budget-summary">
           <div className="budget-card">
-            <div className="budget-card-label">
-              <p>As of now: May 12, 2025 at 1:05pm</p>
-            </div>
-            <div className="budget-card-amount">{budgetData.remaining}</div>
+            <div className="budget-card-label"><p>As of now: {new Date().toLocaleString()}</p></div>
+            <div className="budget-card-amount">₱{parseFloat(summaryData.budget_remaining).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>
             <div className="budget-card-footer">Budget Remaining</div>
           </div>
-
           <div className="budget-card">
-            <div className="budget-card-label">
-              <p>This month</p>
-            </div>
-            <div className="budget-card-amount">{budgetData.expensesThisMonth}</div>
+            <div className="budget-card-label"><p>This month</p></div>
+            <div className="budget-card-amount">₱{parseFloat(summaryData.total_expenses_this_month).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>
             <div className="budget-card-footer">Total Expenses</div>
           </div>
         </div>
-
-        {/* Main Content - Using Account Setup structure */}
+        
         <div className="page">
           <div className="container">
-            {/* Header Section with Title and Controls - Same as Account Setup */}
             <div className="top">
-              <h2 
-                style={{ 
-                  margin: 0, 
-                  fontSize: '29px', 
-                  fontWeight: 'bold', 
-                  color: '#242424',
-                }}
-              >
-                Expense Tracking 
-              </h2>
-              
+              <h2 style={{ margin: 0, fontSize: '29px', fontWeight: 'bold', color: '#242424' }}>Expense Tracking</h2>
               <div className="header-controls">
-                <div className="filter-controls" style={{ 
-                  display: 'flex', 
-                  justifyContent: 'flex-end',
-                  alignItems: 'center',
-                  gap: '1rem',
-                  width: '100%'
-                }}>
-                  <input
-                    type="text"
-                    placeholder="Search expenses"
-                    value={searchQuery}
-                    onChange={handleSearch}
-                    className="search-account-input"
-                    style={{ 
-                      width: '350px',
-                      minWidth: '300px',
-                      maxWidth: '380px',
-                      padding: '12px 20px',
-                      fontSize: '14px',
-                      border: '1px solid #d1d5db',
-                      borderRadius: '25px',
-                      backgroundColor: '#ffffff',
-                      color: '#374151',
-                      transition: 'all 0.2s ease-in-out',
-                      outline: 'none'
-                    }}
-                    onFocus={(e) => {
-                      e.target.style.borderColor = '#3b82f6';
-                      e.target.style.boxShadow = '0 0 0 3px rgba(59, 130, 246, 0.1)';
-                    }}
-                    onBlur={(e) => {
-                      e.target.style.borderColor = '#d1d5db';
-                      e.target.style.boxShadow = 'none';
-                    }}
-                  />
-                  
-                  {/* Category Filter */}
-                  <div 
-                    className="filter-dropdown" 
-                    style={{ 
-                      display: 'inline-block', 
-                    }}
-                  >
-                    <button 
-                      className="filter-dropdown-btn" 
-                      onClick={toggleCategoryDropdown}
-                    >
-                      <span>{selectedCategory}</span>
-                      <ChevronDown size={19} />
-                    </button>
+                <div className="filter-controls" style={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center', gap: '1rem', width: '100%' }}>
+                  <input type="text" placeholder="Search expenses" value={searchQuery} onChange={handleSearch} className="search-account-input" />
+                  <div className="filter-dropdown">
+                    <button className="filter-dropdown-btn" onClick={toggleCategoryDropdown}><span>{selectedCategory.name}</span><ChevronDown size={19} /></button>
                     {showCategoryDropdown && (
                       <div className="category-dropdown-menu">
-                        {categories.map((category) => (
-                          <div
-                            key={category}
-                            className={`category-dropdown-item ${
-                              selectedCategory === category ? 'active' : ''
-                            }`}
-                            onClick={() => handleCategorySelect(category)}
-                          >
-                            {category}
-                          </div>
-                        ))}
+                        <div className={`category-dropdown-item ${selectedCategory.code === '' ? 'active' : ''}`} onClick={() => handleCategorySelect({ code: '', name: 'All Categories' })}>All Categories</div>
+                        {categories.map((cat) => (<div key={cat.code} className={`category-dropdown-item ${selectedCategory.code === cat.code ? 'active' : ''}`} onClick={() => handleCategorySelect(cat)}>{cat.name}</div>))}
                       </div>
                     )}
                   </div>
-                  
-                  {/* Status Filter */}
-                  <div 
-                    className="filter-dropdown" 
-                    style={{ 
-                      display: 'inline-block', 
-                      position: 'relative' 
-                    }}
-                  >
-                    <button 
-                      className="filter-dropdown-btn" 
-                      onClick={toggleDateDropdown}
-                    >
-                      <span>Status: {selectedDate}</span>
-                      <ChevronDown size={15} />
-                    </button>
+                  <div className="filter-dropdown">
+                    <button className="filter-dropdown-btn" onClick={toggleDateDropdown}><span>{selectedDate.name}</span><ChevronDown size={15} /></button>
                     {showDateDropdown && (
                       <div className="category-dropdown-menu">
-                        {dateOptions.map((date) => (
-                          <div
-                            key={date}
-                            className={`category-dropdown-item ${
-                              selectedDate === date ? 'active' : ''
-                            }`}
-                            onClick={() => handleDateSelect(date)}
-                          >
-                            {date}
-                          </div>
-                        ))}
+                        {dateOptions.map((date) => (<div key={date.value} className={`category-dropdown-item ${selectedDate.value === date.value ? 'active' : ''}`} onClick={() => handleDateSelect(date)}>{date.name}</div>))}
                       </div>
                     )}
                   </div>
-
-                  {/* Add Budget Button */}
-                  <button 
-                    className="add-budget-btn" 
-                    onClick={handleAddExpense}
-                  >
-                    <Plus size={16} />
-                    Add Budget
-                  </button>
+                  {/* MODIFIED: Changed button text for clarity */}
+                  <button className="add-expense-btn" onClick={handleAddExpense}><Plus size={16} />Add Expense</button>
                 </div>
               </div>
             </div>
 
-            {/* Table - Using Account Setup table structure and styling */}
             <table>
               <thead>
                 <tr>
@@ -621,164 +323,87 @@ const ExpenseTracking = () => {
                 </tr>
               </thead>
               <tbody>
-                {currentExpenses.map((expense) => (
-                  <tr
-                    key={expense.id}
-                    onClick={() => handleExpenseSelect(expense.id)}
-                    style={{ cursor: 'pointer' }}
-                    className={selectedExpenses.includes(expense.id) ? 'selected' : ''}
-                  >
-                    <td>{expense.referenceNo}</td>
-                    <td>
-                      {expense.category.includes('Equipment') ? 'Assets' : 
-                       expense.category.includes('Training') ? 'Expenses' : 'Liabilities'}
-                    </td>
-                    <td>{expense.description}</td>
-                    <td>
-                      <span 
-                        className={`status-badge ${
-                          (expense.status === 'approved' || expense.status === 'paid') ? 'active' : 'inactive'
-                        }`}
-                      >
-                        {(expense.status === 'approved' || expense.status === 'paid') ? 'Active' : 'Inactive'}
-                      </span>
-                    </td>
-                    <td>
-                      <span 
-                        className={`accomplished-badge ${
-                          expense.accomplished ? 'accomplished' : 'pending'
-                        }`}
-                      >
-                        {expense.accomplished ? 'Yes' : 'No'}
-                      </span>
-                    </td>
-                    <td>{expense.accomplished ? expense.date : '-'}</td>
-                  </tr>
-                ))}
+                {isLoading ? (<tr><td colSpan="6">Loading...</td></tr>) : error ? (<tr><td colSpan="6">{error}</td></tr>) : (
+                  expenses.map((expense) => (
+                    <tr key={expense.id}>
+                      <td>{expense.reference_no}</td>
+                      <td>{expense.type}</td>
+                      <td>{expense.description}</td>
+                      <td><span className={`status-badge status-${expense.status.toLowerCase()}`}>{expense.status}</span></td>
+                      <td><span className={`accomplished-badge ${expense.accomplished === 'Yes' ? 'accomplished' : 'pending'}`}>{expense.accomplished}</span></td>
+                      <td>{new Date(expense.date).toLocaleDateString()}</td>
+                    </tr>
+                  ))
+                )}
               </tbody>
             </table>
 
-            {/* Pagination - Same as Account Setup */}
             {totalPages > 1 && (
               <div className="pagination">
-                <button 
-                  onClick={prevPage} 
-                  disabled={currentPage === 1}
-                  className="pagination-btn"
-                >
-                  <ChevronLeft size={16} />
-                </button>
-                
-                {[...Array(totalPages)].map((_, index) => (
-                  <button
-                    key={index + 1}
-                    onClick={() => paginate(index + 1)}
-                    className={`pagination-btn ${
-                      currentPage === index + 1 ? 'active' : ''
-                    }`}
-                  >
-                    {index + 1}
-                  </button>
-                ))}
-                
-                <button 
-                  onClick={nextPage} 
-                  disabled={currentPage === totalPages}
-                  className="pagination-btn"
-                >
-                  <ChevronRight size={16} />
-                </button>
+                <button onClick={prevPage} disabled={!paginationInfo.previous} className="pagination-btn"><ChevronLeft size={16} /></button>
+                <span>Page {currentPage} of {totalPages}</span>
+                <button onClick={nextPage} disabled={!paginationInfo.next} className="pagination-btn"><ChevronRight size={16} /></button>
               </div>
             )}
           </div>
         </div>
       </div>
-
-      {/* Add Expense Modal */}
+      
+      {/* MODIFIED: Add Expense Modal - now connects to backend */}
       {showAddExpenseModal && (
         <div className="modal-overlay" onClick={handleCloseModal}>
           <div className="modal-container" onClick={e => e.stopPropagation()}>
             <div className="modal-header">
-              <h3>Add Budget</h3>
+              <h3>Add Expense</h3>
               <button className="modal-close-btn" onClick={handleCloseModal}>×</button>
             </div>
             <div className="modal-content">
               <form onSubmit={handleSubmitExpense} className="budget-form">
                 <div className="form-section">
                   <div className="form-group">
-                    <label htmlFor="referenceNo">Reference No.</label>
-                    <input 
-                      type="text" 
-                      id="referenceNo" 
-                      name="referenceNo"
-                      value={newExpense.referenceNo}
-                      onChange={handleInputChange}
-                      placeholder="Enter reference number"
-                      required
-                    />
-                  </div>
-
-                  <div className="form-group">
-                    <label htmlFor="description">Description</label>
-                    <input 
-                      type="text" 
-                      id="description" 
-                      name="description"
-                      value={newExpense.description}
-                      onChange={handleInputChange}
-                      placeholder="Enter budget description"
-                      required
-                    />
-                  </div>
-
-                  <div className="form-group">
-                    <label htmlFor="category">Category</label>
-                    <select 
-                      id="category" 
-                      name="category"
-                      value={newExpense.category}
-                      onChange={handleInputChange}
-                      required
-                    >
-                      <option value="">Select a category</option>
-                      {categories.filter(cat => cat !== 'All Categories').map((cat, idx) => (
-                        <option key={idx} value={cat}>{cat}</option>
-                      ))}
+                    <label htmlFor="project_id">Project</label>
+                    <select id="project_id" name="project_id" value={newExpense.project_id} onChange={handleInputChange} required>
+                      <option value="">Select a project</option>
+                      {projects.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
                     </select>
                   </div>
-
+                  <div className="form-group">
+                    <label htmlFor="description">Description</label>
+                    <input type="text" id="description" name="description" value={newExpense.description} onChange={handleInputChange} placeholder="Enter expense description" required/>
+                  </div>
+                   <div className="form-group">
+                    <label htmlFor="vendor">Vendor</label>
+                    <input type="text" id="vendor" name="vendor" value={newExpense.vendor} onChange={handleInputChange} placeholder="Enter vendor name" required/>
+                  </div>
+                  <div className="form-row">
+                    <div className="form-group">
+                      <label htmlFor="category_code">Category</label>
+                      <select id="category_code" name="category_code" value={newExpense.category_code} onChange={handleInputChange} required>
+                        <option value="">Select a category</option>
+                        {categories.map(c => <option key={c.code} value={c.code}>{c.name}</option>)}
+                      </select>
+                    </div>
+                    <div className="form-group">
+                      <label htmlFor="account_code">Account</label>
+                      <select id="account_code" name="account_code" value={newExpense.account_code} onChange={handleInputChange} required>
+                        <option value="">Select an account</option>
+                        {accounts.map(a => <option key={a.id} value={a.code}>{a.code} - {a.name}</option>)}
+                      </select>
+                    </div>
+                  </div>
                   <div className="form-row">
                     <div className="form-group">
                       <label htmlFor="amount">Amount (₱)</label>
-                      <input 
-                        type="number" 
-                        id="amount" 
-                        name="amount"
-                        value={newExpense.amount}
-                        onChange={handleInputChange}
-                        placeholder="0.00"
-                        step="0.01"
-                        min="0"
-                        required
-                      />
+                      <input type="number" id="amount" name="amount" value={newExpense.amount} onChange={handleInputChange} placeholder="0.00" step="0.01" min="0" required/>
                     </div>
-
                     <div className="form-group">
                       <label htmlFor="date">Date</label>
-                      <input 
-                        type="date" 
-                        id="date" 
-                        name="date"
-                        value={newExpense.date}
-                        onChange={handleInputChange}
-                        required
-                      />
+                      <input type="date" id="date" name="date" value={newExpense.date} onChange={handleInputChange} required/>
                     </div>
                   </div>
-
                   <div className="form-actions">
                     <button type="button" className="cancel-btn" onClick={handleCloseModal}>Cancel</button>
-                    <button type="submit" className="submit-btn">Add Budget</button>
+                    <button type="submit" className="submit-btn">Add Expense</button>
                   </div>
                 </div>
               </form>

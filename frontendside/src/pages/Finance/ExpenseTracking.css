@@ -335,6 +335,10 @@ body {
   font-weight: 600;
   margin-bottom: 1.5rem;
   color: var(--gray-800);
+  /* Add these new properties */
+  font-weight: 700;
+  color: var(--primary-color);
+  text-shadow: 1px 1px 2px rgba(0,0,0,0.1);
 }
 
 /* ============== CONTROLS STYLES ============== */
@@ -344,22 +348,29 @@ body {
   align-items: center;
   margin-bottom: 1.5rem;
   gap: 1rem;
+  /* Add padding if needed */
+  padding: 0 20px;
 }
 
 .search-box {
   flex: 1;
   position: relative;
   max-width: 400px;
+  /* Add this to push it more to the right */
+  margin-left: auto;
+  margin-right: 20px;
 }
 
 .search-input {
-  width: 100%;
+  width: 80%;
   padding: 0.625rem 2.5rem 0.625rem 1rem;
   border: 1px solid var(--gray-300);
   border-radius: 24px;
   font-size: 0.875rem;
   outline: none;
   transition: border-color 0.2s;
+  /* Make the search input full width of its container */
+  width: 50%;
 }
 
 .search-input:focus {
@@ -476,11 +487,9 @@ body {
   margin-bottom: 1.5rem;
   justify-content: flex-start;
   flex-wrap: wrap;
-  /* Match the exact table container margins */
   width: 95%;
   margin-left: auto;
   margin-right: auto;
-  /* Additional padding to match table internal spacing */
   padding-left: 24px;
   padding-right: 24px;
 }
@@ -539,7 +548,6 @@ body {
   margin-bottom: 1.5rem;
   justify-content: flex-start;
   flex-wrap: wrap;
-  /* Match the table container padding from paste-2.txt */
   padding-left: 24px;
   padding-right: 24px;
   margin-left: 0;
@@ -551,7 +559,6 @@ body {
   .budget-summary {
     flex-direction: column;
     align-items: stretch;
-    /* Keep same width and padding structure */
     width: 95%;
     padding-left: 16px;
     padding-right: 16px;
@@ -565,7 +572,6 @@ body {
 @media (max-width: 768px) {
   .budget-summary {
     gap: 1rem;
-    /* Match mobile container structure */
     width: 100%;
     padding-left: 10px;
     padding-right: 10px;
@@ -578,7 +584,6 @@ body {
 
 @media (max-width: 576px) {
   .budget-summary {
-    /* Match mobile content container padding exactly */
     width: calc(100% - 1.5rem);
     padding-left: 0.75rem;
     padding-right: 0.75rem;
@@ -899,6 +904,7 @@ body {
   .search-box {
     max-width: 100%;
     margin-bottom: 1rem;
+    margin-right: 0;
   }
   
   .filter-controls {

@@ -109,7 +109,7 @@ const ProposalHistory = () => {
     const handleClickOutside = (event) => {
       if (!event.target.closest('.nav-dropdown') && 
           !event.target.closest('.profile-container') && 
-          !event.target.closest('.status-dropdown-container') &&
+          !event.target.closest('.filter-dropdown') &&
           !event.target.closest('.modify-budget-popup')) {
         setShowBudgetDropdown(false);
         setShowExpenseDropdown(false);
@@ -400,179 +400,48 @@ const ProposalHistory = () => {
               Proposal History 
             </h2>
             
-            <div>
-              <div className="filter-controls" style={{ 
-                display: 'flex', 
-                justifyContent: 'flex-end', // This pushes everything to the right
-                alignItems: 'center',
-                gap: '1rem',
-                width: '100%'
-              }}></div>
+            <div className="controls-container" style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
               <input
                 type="text"
                 placeholder="Search by proposal ID"
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
                 className="search-account-input"
+                style={{ width: '200px' }}
               />
               
-              {/* Updated Status Filter with Oblong Shape */}
-              <div 
-                className="status-dropdown-container" 
-                style={{ 
-                  display: 'inline-block', 
-                  position: 'relative' 
-                }}
-              >
+              {/* Updated Status Filter in one line with search */}
+              <div className="filter-dropdown">
                 <button 
-                  className="oblong-filter-btn" 
+                  className={`filter-dropdown-btn ${showStatusDropdown ? 'active' : ''}`} 
                   onClick={toggleStatusDropdown}
-                  style={{
-                    backgroundColor: '#f8f9fa',
-                    border: '1px solid #e2e8f0',
-                    borderRadius: '20px',
-                    padding: '8px 16px',
-                    fontSize: '14px',
-                    color: '#64748b',
-                    cursor: 'pointer',
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '8px',
-                    minWidth: '140px',
-                    justifyContent: 'space-between',
-                    transition: 'all 0.2s ease',
-                    outline: 'none'
-                  }}
-                  onMouseOver={(e) => {
-                    e.target.style.backgroundColor = '#f1f5f9';
-                    e.target.style.borderColor = '#cbd5e1';
-                  }}
-                  onMouseOut={(e) => {
-                    e.target.style.backgroundColor = '#f8f9fa';
-                    e.target.style.borderColor = '#e2e8f0';
-                  }}
                 >
                   <span>{selectedStatus}</span>
                   <ChevronDown size={14} />
                 </button>
                 {showStatusDropdown && (
-                  <div 
-                    className="oblong-dropdown-menu"
-                    style={{
-                      position: 'absolute',
-                      top: '100%',
-                      left: '0',
-                      right: '0',
-                      backgroundColor: 'white',
-                      border: '1px solid #e2e8f0',
-                      borderRadius: '12px',
-                      boxShadow: '0 4px 12px rgba(0, 0, 0, 0.1)',
-                      zIndex: 1000,
-                      marginTop: '4px',
-                      overflow: 'hidden'
-                    }}
-                  >
+                  <div className="category-dropdown-menu">
                     <div
-                      className={`oblong-dropdown-item ${
-                        selectedStatus === 'All Status' ? 'active' : ''
-                      }`}
+                      className={`category-dropdown-item ${selectedStatus === 'All Status' ? 'active' : ''}`}
                       onClick={() => handleStatusSelect('All Status')}
-                      style={{
-                        padding: '12px 16px',
-                        fontSize: '14px',
-                        cursor: 'pointer',
-                        transition: 'background-color 0.2s ease',
-                        color: selectedStatus === 'All Status' ? '#3b82f6' : '#64748b',
-                        backgroundColor: selectedStatus === 'All Status' ? '#f0f9ff' : 'white'
-                      }}
-                      onMouseOver={(e) => {
-                        if (selectedStatus !== 'All Status') {
-                          e.target.style.backgroundColor = '#f8f9fa';
-                        }
-                      }}
-                      onMouseOut={(e) => {
-                        if (selectedStatus !== 'All Status') {
-                          e.target.style.backgroundColor = 'white';
-                        }
-                      }}
                     >
                       All Status
                     </div>
                     <div
-                      className={`oblong-dropdown-item ${
-                        selectedStatus === 'Approved' ? 'active' : ''
-                      }`}
+                      className={`category-dropdown-item ${selectedStatus === 'Approved' ? 'active' : ''}`}
                       onClick={() => handleStatusSelect('Approved')}
-                      style={{
-                        padding: '12px 16px',
-                        fontSize: '14px',
-                        cursor: 'pointer',
-                        transition: 'background-color 0.2s ease',
-                        color: selectedStatus === 'Approved' ? '#3b82f6' : '#64748b',
-                        backgroundColor: selectedStatus === 'Approved' ? '#f0f9ff' : 'white'
-                      }}
-                      onMouseOver={(e) => {
-                        if (selectedStatus !== 'Approved') {
-                          e.target.style.backgroundColor = '#f8f9fa';
-                        }
-                      }}
-                      onMouseOut={(e) => {
-                        if (selectedStatus !== 'Approved') {
-                          e.target.style.backgroundColor = 'white';
-                        }
-                      }}
                     >
                       Approved
                     </div>
                     <div
-                      className={`oblong-dropdown-item ${
-                        selectedStatus === 'Rejected' ? 'active' : ''
-                      }`}
+                      className={`category-dropdown-item ${selectedStatus === 'Rejected' ? 'active' : ''}`}
                       onClick={() => handleStatusSelect('Rejected')}
-                      style={{
-                        padding: '12px 16px',
-                        fontSize: '14px',
-                        cursor: 'pointer',
-                        transition: 'background-color 0.2s ease',
-                        color: selectedStatus === 'Rejected' ? '#3b82f6' : '#64748b',
-                        backgroundColor: selectedStatus === 'Rejected' ? '#f0f9ff' : 'white'
-                      }}
-                      onMouseOver={(e) => {
-                        if (selectedStatus !== 'Rejected') {
-                          e.target.style.backgroundColor = '#f8f9fa';
-                        }
-                      }}
-                      onMouseOut={(e) => {
-                        if (selectedStatus !== 'Rejected') {
-                          e.target.style.backgroundColor = 'white';
-                        }
-                      }}
                     >
                       Rejected
                     </div>
                     <div
-                      className={`oblong-dropdown-item ${
-                        selectedStatus === 'Pending' ? 'active' : ''
-                      }`}
+                      className={`category-dropdown-item ${selectedStatus === 'Pending' ? 'active' : ''}`}
                       onClick={() => handleStatusSelect('Pending')}
-                      style={{
-                        padding: '12px 16px',
-                        fontSize: '14px',
-                        cursor: 'pointer',
-                        transition: 'background-color 0.2s ease',
-                        color: selectedStatus === 'Pending' ? '#3b82f6' : '#64748b',
-                        backgroundColor: selectedStatus === 'Pending' ? '#f0f9ff' : 'white'
-                      }}
-                      onMouseOver={(e) => {
-                        if (selectedStatus !== 'Pending') {
-                          e.target.style.backgroundColor = '#f8f9fa';
-                        }
-                      }}
-                      onMouseOut={(e) => {
-                        if (selectedStatus !== 'Pending') {
-                          e.target.style.backgroundColor = 'white';
-                        }
-                      }}
                     >
                       Pending
                     </div>

@@ -501,7 +501,7 @@ const ExpenseTracking = () => {
                   display: 'flex', 
                   justifyContent: 'flex-end',
                   alignItems: 'center',
-                  gap: '1rem',
+                  gap: '0rem',
                   width: '100%'
                 }}>
                   <input

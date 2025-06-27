@@ -245,42 +245,33 @@ const LedgerView = () => {
             <Link to="/dashboard" className="nav-item">Dashboard</Link>
 
             {/* Budget Dropdown */}
-            <div className="nav-dropdown">
-              <div 
-                className={`nav-item ${showBudgetDropdown ? 'active' : ''}`} 
-                onClick={toggleBudgetDropdown}
-              >
-                Budget <ChevronDown size={14} />
-              </div>
-              {showBudgetDropdown && (
-                <div className="dropdown-menu">
-                  <div
-                    className="dropdown-item"
-                    onClick={() => handleNavigate('/finance/budget-proposal')}
-                  >
-                    Budget Proposal
-                  </div>
-                  <div
-                    className="dropdown-item"
-                    onClick={() => handleNavigate('/finance/proposal-history')}
-                  >
-                    Proposal History
-                  </div>
-                  <div
-                    className="dropdown-item active"
-                    onClick={() => handleNavigate('/finance/ledger-view')}
-                  >
-                    Ledger View
-                  </div>
-                  <div
-                    className="dropdown-item"
-                    onClick={() => handleNavigate('/finance/journal-entry')}
-                  >
-                    Budget Allocation
-                  </div>
-                </div>
-              )}
-            </div>
+                        <div className="nav-dropdown">
+                          <div 
+                            className={`nav-item ${showBudgetDropdown ? 'active' : ''}`} 
+                            onClick={toggleBudgetDropdown}
+                          >
+                            Budget <ChevronDown size={14} />
+                          </div>
+                          {showBudgetDropdown && (
+                            <div className="dropdown-menu">
+                              <div className="dropdown-item" onClick={() => handleNavigate('/finance/budget-proposal')}>
+                                Budget Proposal
+                              </div>
+                              <div className="dropdown-item" onClick={() => handleNavigate('/finance/proposal-history')}>
+                                Proposal History
+                              </div>
+                              <div className="dropdown-item" onClick={() => handleNavigate('/finance/ledger-view')}>
+                                Ledger View
+                              </div>
+                              <div className="dropdown-item" onClick={() => handleNavigate('/finance/journal-entry')}>
+                                Budget Allocation
+                              </div>
+                              <div className="dropdown-item" onClick={() => handleNavigate('/finance/budget-variance-report')}>
+                                Budget Variance Report
+                              </div>
+                            </div>
+                          )}
+                        </div>
 
             {/* Expense Dropdown */}
             <div className="nav-dropdown">

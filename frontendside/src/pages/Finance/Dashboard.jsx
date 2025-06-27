@@ -297,7 +297,7 @@ function BudgetDashboard() {
                   <div className="dropdown-item" onClick={() => handleNavigate('/finance/ledger-view')}>
                     Ledger View
                   </div>
-                  <div className="dropdown-item" onClick={() => handleNavigate('/finance/budget-allocation')}>
+                  <div className="dropdown-item" onClick={() => handleNavigate('/finance/journal-entry')}>
                     Budget Allocation
                   </div>
                   <div className="dropdown-item" onClick={() => handleNavigate('/finance/budget-variance-report')}>

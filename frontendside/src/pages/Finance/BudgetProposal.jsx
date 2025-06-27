@@ -1,45 +1,32 @@
-// src/pages/Finance/BudgetProposal.jsx
 
-import React, { useEffect, useState } from 'react';
-import axios from 'axios';
-import { useNavigate } from 'react-router-dom';
-import { 
-  ChevronLeft, ChevronRight, ArrowLeft,
-  ChevronDown, User, Mail, Briefcase, LogOut
-} from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { ChevronDown, Search, ArrowLeft, ChevronLeft, ChevronRight, User, Mail, Briefcase, LogOut } from 'lucide-react';
+import { Link, useNavigate } from 'react-router-dom';
+import LOGOMAP from '../../assets/MAP.jpg';
 import './BudgetProposal.css';
 
-const API_URL = 'https://budget-pro.onrender.com/api/budget-proposals/';
-
-function BudgetProposal() {
-  const navigate = useNavigate();
-  const [proposals, setProposals] = useState([]);
-  const [filteredProposals, setFilteredProposals] = useState([]);
+const BudgetProposal = () => {
+  // State management
+  const [showBudgetDropdown, setShowBudgetDropdown] = useState(false);
+  const [showExpenseDropdown, setShowExpenseDropdown] = useState(false);
+  const [showProfilePopup, setShowProfilePopup] = useState(false);
   const [selectedProposal, setSelectedProposal] = useState(null);
   const [showReviewPopup, setShowReviewPopup] = useState(false);
+  const [showCommentPopup, setShowCommentPopup] = useState(false);
   const [showConfirmationPopup, setShowConfirmationPopup] = useState(false);
-  const [reviewStatus, setReviewStatus] = useState('');
+  const [showPendingStatusPopup, setShowPendingStatusPopup] = useState(false);
   const [reviewComment, setReviewComment] = useState('');
-  const [error, setError] = useState(false);
-  const [isLoading, setIsLoading] = useState(true);
+  const [reviewStatus, setReviewStatus] = useState('');
   const [searchTerm, setSearchTerm] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
   const [showCategoryDropdown, setShowCategoryDropdown] = useState(false);
   const [showStatusDropdown, setShowStatusDropdown] = useState(false);
   const [selectedCategory, setSelectedCategory] = useState('All Categories');
   const [selectedStatus, setSelectedStatus] = useState('All Status');
-  const [showProfilePopup, setShowProfilePopup] = useState(false);
-  const itemsPerPage = 5;
+  const itemsPerPage = 5; // Number of proposals per page
+  const navigate = useNavigate();
 
-  // Budget approval system state
-  const totalBudgetLimit = 500000.00;
-  const currentBudgetUsed = 420000.00;
-  const proposalAmount = selectedProposal ? parseFloat(selectedProposal.amount.replace(/[^0-9.-]+/g, "")) : 0;
-  const remainingBudget = totalBudgetLimit - currentBudgetUsed;
-  const budgetAfterApproval = remainingBudget - proposalAmount;
-  const isBudgetExceeded = budgetAfterApproval < 0;
-
-  // User profile data
+  // User profile data - copied from Dashboard
   const userProfile = {
     name: "John Doe",
     email: "Johndoe@gmail.com",
@@ -47,12 +34,117 @@ function BudgetProposal() {
     avatar: "https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?ixlib=rb-1.2.1&ixid=eyJhcHBfaWQiOjEyMDd9&auto=format&fit=facearea&facepad=2&w=256&h=256&q=80"
   };
 
-  // Budget summary data
-  const [budgetData, setBudgetData] = useState({
-    totalProposals: 0,
-    pendingApproval: 0,
-    budgetTotal: '₱0.00'
+  // Budget summary data - Updated to match the image
+  const budgetData = {
+    totalProposals: 6,
+    pendingApproval: 3,
+    budgetTotal: '₱3,326,025.75'
+  };
+
+  // Close dropdowns when clicking outside - updated to include profile
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (!event.target.closest('.nav-dropdown') && !event.target.closest('.profile-container')) {
+        setShowBudgetDropdown(false);
+        setShowExpenseDropdown(false);
+        setShowProfilePopup(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, []);
+
+  // Date and time formatting
+  const now = new Date();
+  const formattedDate = now.toLocaleDateString('en-US', { 
+    weekday: 'long', 
+    month: 'long', 
+    day: 'numeric', 
+    year: 'numeric' 
   });
+  const formattedTime = now.toLocaleTimeString('en-US', { 
+    hour: '2-digit', 
+    minute: '2-digit' 
+  });
+
+  // Sample data with updated categories and reference numbers
+  const proposals = [
+    { 
+      id: 1, 
+      reference: 'EX-001',
+      subject: 'Website Redesign Project',
+      category: 'Training & Development', 
+      amount: '₱50,000.00', 
+      submittedBy: 'J.Tompson', 
+      status: 'pending', 
+      action: 'Review',
+      budgetAmount: '100,000.00',
+      requestedBy: 'IT Department'
+    },
+    { 
+      id: 2, 
+      reference: 'AS-001',
+      subject: 'Cybersecurity Upgrade',
+      category: 'Professional Services', 
+      amount: '₱23,040.00', 
+      submittedBy: 'A.Williams', 
+      status: 'approved', 
+      action: 'View',
+      budgetAmount: '23,040.00',
+      requestedBy: 'Security Department'
+    },
+    { 
+      id: 3, 
+      reference: 'LI-001',
+      subject: 'Cloud Storage Expansion',
+      category: 'Professional Service', 
+      amount: '₱30,000.00', 
+      submittedBy: 'L.Chen', 
+      status: 'approved', 
+      action: 'View',
+      budgetAmount: '30,000.00',
+      requestedBy: 'Infrastructure Team'
+    },
+    { 
+      id: 4, 
+      reference: 'EX-002',
+      subject: 'AR Retail Solution',
+      category: 'Professional Service', 
+      amount: '₱47,079.00', 
+      submittedBy: 'K.Thomas', 
+      status: 'rejected', 
+      action: 'Review',
+      budgetAmount: '47,079.00',
+      requestedBy: 'Retail Department'
+    },
+    { 
+      id: 5, 
+      reference: 'AS-002',
+      subject: 'Training Program Development',
+      category: 'Training & Development', 
+      amount: '₱35,600.00', 
+      submittedBy: 'M.Johnson', 
+      status: 'pending', 
+      action: 'Review',
+      budgetAmount: '35,600.00',
+      requestedBy: 'HR Department'
+    },
+    { 
+      id: 6, 
+      reference: 'EX-003',
+      subject: 'Office Renovation',
+      category: 'Professional Service', 
+      amount: '₱125,400.00', 
+      submittedBy: 'R.Garcia', 
+      status: 'pending', 
+      action: 'Review',
+      budgetAmount: '125,400.00',
+      requestedBy: 'Facilities Department'
+    }
+  ];
 
   // Define all available categories
   const categories = [
@@ -70,74 +162,21 @@ function BudgetProposal() {
   // Status options
   const statusOptions = ['All Status', 'pending', 'approved', 'rejected'];
 
-  // Fetch proposals from API
-  useEffect(() => {
-    const token = localStorage.getItem('authToken');
-    if (!token) {
-      navigate('/login');
-      return;
-    }
-
-    const fetchProposals = async () => {
-      try {
-        setIsLoading(true);
-        const response = await axios.get(API_URL, {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        });
-        
-        setProposals(response.data);
-        setFilteredProposals(response.data);
-
-        const pendingCount = response.data.filter(p => p.status === 'pending').length;
-        const totalAmount = response.data.reduce((sum, proposal) => {
-          return sum + parseFloat(proposal.amount.replace(/[^0-9.-]+/g, ""));
-        }, 0);
-
-        setBudgetData({
-          totalProposals: response.data.length,
-          pendingApproval: pendingCount,
-          budgetTotal: `₱${totalAmount.toLocaleString('en-US', { minimumFractionDigits: 2 })}`
-        });
-
-      } catch (err) {
-        console.error('Error fetching proposals:', err);
-        if (err.response?.status === 401) {
-          // Token invalid or expired, logout
-          localStorage.removeItem('authToken');
-          localStorage.removeItem('refreshToken');
-          localStorage.removeItem('user');
-          navigate('/login');
-        } else {
-          setError(true);
-        }
-      } finally {
-        setIsLoading(false);
-      }
-    };
-
-    fetchProposals();
-  }, [navigate]);
+  const pendingCount = proposals.filter(p => p.status === 'pending').length;
 
   // Filter proposals based on search term, category and status
-  useEffect(() => {
-    const filtered = proposals.filter(proposal => {
-      const matchesSearch = proposal.subject?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-             proposal.category?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-             proposal.submitted_by?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-             proposal.reference?.toLowerCase().includes(searchTerm.toLowerCase());
-      
-      const matchesCategory = selectedCategory === 'All Categories' || proposal.category === selectedCategory;
-      
-      const matchesStatus = selectedStatus === 'All Status' || proposal.status === selectedStatus.toLowerCase();
-      
-      return matchesSearch && matchesCategory && matchesStatus;
-    });
-
-    setFilteredProposals(filtered);
-    setCurrentPage(1); // Reset to first page when filters change
-  }, [proposals, searchTerm, selectedCategory, selectedStatus]);
+  const filteredProposals = proposals.filter(proposal => {
+    const matchesSearch = proposal.subject.toLowerCase().includes(searchTerm.toLowerCase()) ||
+           proposal.category.toLowerCase().includes(searchTerm.toLowerCase()) ||
+           proposal.submittedBy.toLowerCase().includes(searchTerm.toLowerCase()) ||
+           proposal.reference.toLowerCase().includes(searchTerm.toLowerCase());
+    
+    const matchesCategory = selectedCategory === 'All Categories' || proposal.category === selectedCategory;
+    
+    const matchesStatus = selectedStatus === 'All Status' || proposal.status === selectedStatus.toLowerCase();
+    
+    return matchesSearch && matchesCategory && matchesStatus;
+  });
 
   // Pagination logic
   const indexOfLastItem = currentPage * itemsPerPage;
@@ -149,7 +188,25 @@ function BudgetProposal() {
   const nextPage = () => setCurrentPage(prev => Math.min(prev + 1, totalPages));
   const prevPage = () => setCurrentPage(prev => Math.max(prev - 1, 1));
 
-  // Navigation functions
+  // Navigation functions - updated to include profile popup
+  const toggleBudgetDropdown = () => {
+    setShowBudgetDropdown(!showBudgetDropdown);
+    if (showExpenseDropdown) setShowExpenseDropdown(false);
+    if (showProfilePopup) setShowProfilePopup(false);
+  };
+
+  const toggleExpenseDropdown = () => {
+    setShowExpenseDropdown(!showExpenseDropdown);
+    if (showBudgetDropdown) setShowBudgetDropdown(false);
+    if (showProfilePopup) setShowProfilePopup(false);
+  };
+
+  const toggleProfilePopup = () => {
+    setShowProfilePopup(!showProfilePopup);
+    if (showBudgetDropdown) setShowBudgetDropdown(false);
+    if (showExpenseDropdown) setShowExpenseDropdown(false);
+  };
+
   const toggleCategoryDropdown = () => {
     setShowCategoryDropdown(!showCategoryDropdown);
     if (showStatusDropdown) setShowStatusDropdown(false);
@@ -163,24 +220,48 @@ function BudgetProposal() {
   const handleCategorySelect = (category) => {
     setSelectedCategory(category);
     setShowCategoryDropdown(false);
+    setCurrentPage(1); // Reset to first page when filter changes
   };
 
   const handleStatusSelect = (status) => {
     setSelectedStatus(status);
     setShowStatusDropdown(false);
+    setCurrentPage(1); // Reset to first page when filter changes
   };
 
-  const toggleProfilePopup = () => {
-    setShowProfilePopup(!showProfilePopup);
+  const handleNavigate = (path) => {
+    navigate(path);
+    setShowBudgetDropdown(false);
+    setShowExpenseDropdown(false);
+    setShowProfilePopup(false);
   };
 
+  // Updated logout function with navigation to login screen - copied from Dashboard
   const handleLogout = () => {
-    localStorage.removeItem('authToken');
-    localStorage.removeItem('refreshToken');
-    localStorage.removeItem('user');
-    navigate('/login');
+    try {
+      // Clear any stored authentication data
+      localStorage.removeItem('authToken');
+      localStorage.removeItem('userSession');
+      localStorage.removeItem('userProfile');
+      
+      // Clear session storage
+      sessionStorage.clear();
+      
+      // Close the profile popup
+      setShowProfilePopup(false);
+      
+      // Navigate to login screen
+      navigate('/login', { replace: true });
+      
+      console.log('User logged out successfully');
+    } catch (error) {
+      console.error('Error during logout:', error);
+      // Still navigate to login even if there's an error clearing storage
+      navigate('/login', { replace: true });
+    }
   };
 
+  // Proposal review functions
   const handleReviewClick = (proposal) => {
     setSelectedProposal(proposal);
     setReviewStatus(proposal.status);
@@ -195,62 +276,137 @@ function BudgetProposal() {
 
   const handleStatusChange = (status) => {
     setReviewStatus(status);
-    setShowConfirmationPopup(true);
+    if (status === 'approved' || status === 'rejected') {
+      setShowConfirmationPopup(true);
+    }
+  };
+
+  // Updated pending button handler
+  const handlePendingClick = () => {
+    setShowPendingStatusPopup(true);
+  };
+
+  const closePendingStatusPopup = () => {
+    setShowPendingStatusPopup(false);
+  };
+
+  const handleCommentClick = () => {
+    setShowCommentPopup(true);
+  };
+
+  const closeCommentPopup = () => {
+    setShowCommentPopup(false);
   };
 
   const closeConfirmationPopup = () => {
     setShowConfirmationPopup(false);
   };
 
-  const handleSubmitReview = async () => {
-    if (!selectedProposal) return;
-
-    const token = localStorage.getItem('authToken');
-    try {
-      await axios.patch(
-        `${API_URL}${selectedProposal.id}/`,
-        {
-          status: reviewStatus,
-          comment: reviewComment,
-        },
-        {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        }
-      );
-
-      // Update local state
-      const updatedProposals = proposals.map(p => 
-        p.id === selectedProposal.id ? { ...p, status: reviewStatus } : p
-      );
-      
-      setProposals(updatedProposals);
-      setShowConfirmationPopup(false);
-      setShowReviewPopup(false);
-    } catch (error) {
-      console.error('Error submitting review:', error);
-    }
+  const handleSubmitComment = () => {
+    console.log('Comment submitted:', reviewComment);
+    closeCommentPopup();
   };
 
-  if (isLoading) {
-    return <div className="loading-container">Loading proposals...</div>;
-  }
+  const handleSubmitReview = () => {
+    console.log('Review submitted:', {
+      proposalId: selectedProposal?.id,
+      newStatus: reviewStatus,
+      comment: reviewComment
+    });
+    closeConfirmationPopup();
+    closeReviewPopup();
+  };
 
-  if (error) {
-    return <div className="error-container">Failed to load proposals. Please try again later.</div>;
-  }
+  const handleSubmitPendingStatus = () => {
+    console.log('Pending status comment submitted:', reviewComment);
+    closePendingStatusPopup();
+  };
 
   return (
     <div className="app-container">
-      {/* Header */}
+      {/* Header - Updated to match Dashboard exactly */}
       <header className="app-header">
         <div className="header-left">
           <div className="app-logo">
-            <h1>BUDGET PRO</h1>
+            <img 
+              src={LOGOMAP} 
+              alt="BudgetPro Logo" 
+              className="logo-image"
+            />
           </div>
           <nav className="nav-menu">
             <Link to="/dashboard" className="nav-item">Dashboard</Link>
+
+            {/* Budget Dropdown */}
+            <div className="nav-dropdown">
+              <div 
+                className={`nav-item ${showBudgetDropdown ? 'active' : ''}`} 
+                onClick={toggleBudgetDropdown}
+              >
+                Budget <ChevronDown size={14} />
+              </div>
+              {showBudgetDropdown && (
+                <div className="dropdown-menu">
+                  <div
+                    className="dropdown-item active"
+                    onClick={() => handleNavigate('/finance/budget-proposal')}
+                  >
+                    Budget Proposal
+                  </div>
+                  <div
+                    className="dropdown-item"
+                    onClick={() => handleNavigate('/finance/proposal-history')}
+                  >
+                    Proposal History
+                  </div>
+                  <div
+                   
+                    className="dropdown-item"
+                    onClick={() => handleNavigate('/finance/ledger-view')}
+                  >
+                    Ledger View
+                  </div>
+                  <div
+                    className="dropdown-item"
+                    onClick={() => handleNavigate('/finance/journal-entry')}
+                  >
+                    Budget Allocation
+                  </div>
+                  <div
+                    className="dropdown-item"
+                    onClick={() => handleNavigate('/finance/budget-variance-report')}
+                  >
+                    Budget Variance Report
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Expense Dropdown */}
+            <div className="nav-dropdown">
+              <div 
+                className={`nav-item ${showExpenseDropdown ? 'active' : ''}`} 
+                onClick={toggleExpenseDropdown}
+              >
+                Expense <ChevronDown size={14} />
+              </div>
+              {showExpenseDropdown && (
+                <div className="dropdown-menu">
+                  <div
+                    className="dropdown-item"
+                    onClick={() => handleNavigate('/finance/expense-tracking')}
+                  >
+                    Expense Tracking
+                  </div>
+                  <div
+                    className="dropdown-item"
+                    onClick={() => handleNavigate('/finance/expense-history')}
+                  >
+                    Expense History
+                  </div>
+                </div>
+              )}
+            </div>
           </nav>
         </div>
         
@@ -260,7 +416,7 @@ function BudgetProposal() {
               <img src={userProfile.avatar} alt="User avatar" className="avatar-img" />
             </div>
             
-            {/* Profile Popup */}
+            {/* Profile Popup - copied from Dashboard */}
             {showProfilePopup && (
               <div className="profile-popup">
                 <div className="profile-popup-header">
@@ -316,23 +472,23 @@ function BudgetProposal() {
       </header>
 
       <div className="content-container">
-        {/* Budget Summary Cards */}
-        <div className="budget-summary">
-          <div className="budget-card">
+        {/* Budget Summary Cards - Updated to match the image */}
+        <div className="budget-summary" style={{ display: 'flex', gap: '1rem', justifyContent: 'space-between' }}>
+          <div className="budget-card" style={{ flex: '1', minWidth: '200px' }}>
             <div className="budget-card-label">
               <p>Total Proposals</p>
             </div>
             <div className="budget-card-amount">{budgetData.totalProposals}</div>
           </div>
 
-          <div className="budget-card">
+          <div className="budget-card" style={{ flex: '1', minWidth: '200px' }}>
             <div className="budget-card-label">
               <p>Pending Approval</p>
             </div>
             <div className="budget-card-amount">{budgetData.pendingApproval}</div>
           </div>
 
-          <div className="budget-card">
+          <div className="budget-card" style={{ flex: '1', minWidth: '200px' }}>
             <div className="budget-card-label">
               <p>Budget Total</p>
             </div>
@@ -345,10 +501,25 @@ function BudgetProposal() {
           <div className="container">
             {/* Header Section with Title and Controls */}
             <div className="top">
-              <h2>Budget Proposal</h2>
+              <h2 
+                style={{ 
+                  margin: 0, 
+                  fontSize: '29px', 
+                  fontWeight: 'bold', 
+                   color:'#242424',
+                }}
+              >
+                Budget Proposal 
+              </h2>
               
               <div className="header-controls">
-                <div className="filter-controls">
+                <div className="filter-controls" style={{ 
+                  display: 'flex', 
+                  justifyContent: 'flex-end',
+                  alignItems: 'center',
+                  gap: '1rem',
+                  width: '100%'
+                }}>
                   <input
                     type="text"
                     placeholder="Search proposals"
@@ -418,13 +589,13 @@ function BudgetProposal() {
             <table>
               <thead>
                 <tr>
-                  <th>REFERENCE</th>
-                  <th>SUBJECT</th>
-                  <th>CATEGORY</th>
-                  <th>SUBMITTED BY</th>
-                  <th>AMOUNT</th>
-                  <th>STATUS</th>
-                  <th>ACTIONS</th>
+                  <th style={{ width: '15%' }}>REFERENCE</th>
+                  <th style={{ width: '24%' }}>SUBJECT</th>
+                  <th style={{ width: '18%' }}>CATEGORY</th>
+                  <th style={{ width: '16%' }}>SUBMITTED BY</th>
+                  <th style={{ width: '15%' }}>AMOUNT</th>
+                  <th style={{ width: '12%' }}>STATUS</th>
+                  <th style={{ width: '10%' }}>ACTIONS</th>
                 </tr>
               </thead>
               <tbody>
@@ -435,9 +606,11 @@ function BudgetProposal() {
                     style={{ cursor: 'pointer' }}
                   >
                     <td>{proposal.reference}</td>
-                    <td>{proposal.subject}</td>
+                    <td style={{ color: '#3b82f6', fontWeight: '500' }}>
+                      {proposal.subject}
+                    </td>
                     <td>{proposal.category}</td>
-                    <td>{proposal.submitted_by}</td>
+                    <td>{proposal.submittedBy}</td>
                     <td>{proposal.amount}</td>
                     <td>
                       <span 
@@ -458,7 +631,7 @@ function BudgetProposal() {
                           handleReviewClick(proposal);
                         }}
                       >
-                        {proposal.status === 'pending' ? 'Review' : 'View'}
+                        {proposal.action}
                       </button>
                     </td>
                   </tr>
@@ -512,81 +685,160 @@ function BudgetProposal() {
                 <ArrowLeft size={20} />
               </button>
               <h2 className="proposal-title">Budget Proposal</h2>
+              <div className="print-section">
+                <a href="#" className="print-link">Print File</a>
+              </div>
             </div>
             
             {/* Content */}
             <div className="popup-content">
-              {/* Budget Overview Section */}
-              <div className="budget-overview-container">
-                <h3 className="budget-overview-title">Budget Overview</h3>
-                
-                <div className="budget-row">
-                  <span className="budget-label">Total Department Budget:</span>
-                  <span className="budget-value">${totalBudgetLimit.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</span>
-                </div>
-                
-                <div className="budget-row">
-                  <span className="budget-label">Currently Allocated:</span>
-                  <span className="budget-value">${currentBudgetUsed.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</span>
-                </div>
-                
-                <div className="budget-row">
-                  <span className="budget-label">Available Budget:</span>
-                  <span className="budget-value">${remainingBudget.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</span>
-                </div>
-                
-                <hr className="divider" />
-
-                <div className="budget-row">
-                  <span className="budget-label">After This Proposal:</span>
-                  <span className="negative-value">
-                    {budgetAfterApproval < 0 ? '-' : ''}${Math.abs(budgetAfterApproval).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                  </span>
-                </div>
-                
-                {/* Budget Exceeded Warning */}
-                {budgetAfterApproval < 0 && (
-                  <div className="budget-alert">
-                    <h4>Budget Exceeded</h4>
-                    <p>
-                      This proposal exceeds the available budget by ${Math.abs(budgetAfterApproval).toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})}. 
-                      Approval is not possible without additional budget allocation.
-                    </p>
-                  </div>
-                )}
-              </div>
-
-              {/* Project Details */}
+              {/* Title and Date */}
               <div className="proposal-header">
                 <h3 className="proposal-project-title">{selectedProposal.subject}</h3>
+                <span className="proposal-date">April 30, 2025</span>
               </div>
               
               {/* Project Summary */}
               <div className="proposal-section">
                 <h4 className="section-label">PROJECT SUMMARY:</h4>
                 <p className="section-content">
-                  {selectedProposal.description || 'No description provided.'}
+                 A complete redesign initiative aimed at improving mobile user engagement and operational efficiency. This project aims to achieve a 35% increase in mobile conversion rates and ensure seamless integration with existing CRM systems, thereby enhancing customer lifecycle management. This aligns with organizational goals to optimize digital experiences and streamline sales workflows.
                 </p>
+              </div>
+              
+              {/* Project Description */}
+              <div className="proposal-section">
+                <h4 className="section-label">PROJECT DESCRIPTION:</h4>
+                <p className="section-content">
+                  ●	Responsive Design Implementation: Rebuild front-end interfaces to ensure full compatibility across all mobile and desktop devices.
+                  ●	CRM Integration: Connect website with Salesforce/HubSpot CRM to centralize lead capture and customer data.
+                  ●	E-commerce Functionality Upgrade: Improve checkout speed, payment gateways, and shopping cart UX to reduce abandonment rate.
+                  ●	UX Optimization: Conduct A/B testing, heatmap analysis, and apply best practices in user journey flow to boost engagement.
+
+                </p>
+              </div>
+              
+              {/* Period of Performance */}
+              <div className="proposal-section">
+                <h4 className="section-label">PERIOD OF PERFORMANCE:</h4>
+                <p className="section-content">
+                 6 months – From June 2025 to November 2025
+                </p>
+              </div>
+              
+              {/* Cost Elements Table */}
+              <div className="proposal-section">
+                <div className="cost-table">
+                  <div className="cost-table-header">
+                    <div className="cost-header-cell">COST ELEMENTS</div>
+                    <div className="cost-header-cell">DESCRIPTION</div>
+                    <div className="cost-header-cell">ESTIMATED COST</div>
+                  </div>
+                  
+                  <div className="cost-table-row">
+                    <div className="cost-cell">
+                      <span className="cost-bullet green"></span>
+                      Hardware
+                    </div>
+                    <div className="cost-cell">Purchase of workstations, servers, and mobile testing devices</div>
+                    <div className="cost-cell">₱25,000.00</div>
+                  </div>
+                  
+                  <div className="cost-table-row">
+                    <div className="cost-cell">
+                      <span className="cost-bullet green"></span>
+                      Software
+                    </div>
+                    <div className="cost-cell">Licenses for Figma, Adobe CC, browser testing tools, and CRM APIs</div>
+                    <div className="cost-cell">₱25,000.00</div>
+                  </div>
+                  
+                  <div className="cost-table-total">
+                    <div className="cost-cell"></div>
+                    <div className="cost-cell"></div>
+                    <div className="cost-cell total-amount" style={{ textAlign: 'right' }}>
+                      ₽50,000.00
+                    </div>
+                  </div>
+                </div>
               </div>
             </div>
             
             {/* Footer with Action Buttons */}
             <div className="popup-footer">
               <div className="action-buttons">
-                <button 
-                  className={`action-btn reject-btn`}
-                  onClick={() => handleStatusChange('rejected')}
-                >
-                  Reject
-                </button>
-                <button 
-                  className={`action-btn approve-btn ${isBudgetExceeded ? 'disabled-btn' : ''}`}
-                  onClick={() => handleStatusChange('approved')}
-                  disabled={isBudgetExceeded}
-                >
+                <button className="action-btn approve-btn" onClick={() => handleStatusChange('approved')}>
                   Approve
                 </button>
+                <button className="action-btn reject-btn" onClick={() => handleStatusChange('rejected')}>
+                  Reject
+                </button>
               </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Pending Status Popup */}
+      {showPendingStatusPopup && selectedProposal && (
+        <div className="popup-overlay">
+          <div className="pending-status-popup">
+            {/* Header */}
+            <div className="pending-status-header">
+              <button className="back-button" onClick={closePendingStatusPopup}>
+                <ArrowLeft size={20} />
+              </button>
+              <h2 className="pending-status-title">Pending Status</h2>
+            </div>
+            
+            <div className="pending-status-content">
+              {/* Status Indicator */}
+              <div className="status-section">
+                <div className="status-indicator">
+                  <div className="status-dot pending"></div>
+                  <span className="status-text">Review by Finance Department</span>
+                </div>
+                <div className="status-timestamp">
+                  Apr 01, 2025 at 16:00 - Alex Smith
+                </div>
+              </div>
+              
+              {/* Project Title */}
+              <h3 className="project-title-section">
+                {selectedProposal.subject}
+              </h3>
+              
+              {/* Project Details */}
+              <div className="project-info-section">
+                <div className="project-detail-inline">
+                  <strong>Budget Amount:</strong> {selectedProposal.budgetAmount}
+                </div>
+                <div className="project-detail-inline">
+                  <strong>Category:</strong> {selectedProposal.category}
+                </div>
+                <div className="project-detail-inline">
+                  <strong>Requested by:</strong> {selectedProposal.requestedBy}
+                </div>
+              </div>
+              
+              {/* Comment Section */}
+              <div className="comment-input-section">
+                <label className="comment-input-label">Comment:</label>
+                <textarea 
+                  className="comment-textarea-input" 
+                  value={reviewComment}
+                  onChange={(e) => setReviewComment(e.target.value)}
+                  placeholder=""
+                  rows="4"
+                ></textarea>
+              </div>
+            </div>
+            
+            {/* Footer */}
+            <div className="pending-status-footer">
+              <button className="submit-pending-button" onClick={handleSubmitPendingStatus}>
+                Submit
+              </button>
             </div>
           </div>
         </div>
@@ -601,24 +853,26 @@ function BudgetProposal() {
               <button className="back-button" onClick={closeConfirmationPopup}>
                 <ArrowLeft size={20} />
               </button>
-              <h2 className="approval-status-title">Approval Status</h2>
+              <h2 className="approval-status-title">
+                {reviewStatus === 'approved' ? 'Approval Status' : 'Rejected Status'}
+              </h2>
             </div>
             
             <div className="approval-status-content">
               {/* Status Indicator */}
               <div className="status-section">
                 <div className="status-indicator">
-                  <div className={`status-dot ${reviewStatus === 'approved' ? 'approved' : 'rejected'}`}></div>
+                  <div className={`status-dot ${reviewStatus}`}></div>
                   <span className="status-text">
-                    {reviewStatus === 'approved' ? 'APPROVED BY FINANCE DEPARTMENT' : 'REJECTED BY FINANCE DEPARTMENT'}
+                    {reviewStatus === 'approved' 
+                      ? 'Approved by Finance Department' 
+                      : 'Rejected by Finance Department'}
                   </span>
                 </div>
                 <div className="status-timestamp">
-                  {new Date().toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })} at {new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}
+                  Apr 01, 2025 at 16:00 - Alex Smith
                 </div>
               </div>
-              
-              <hr className="divider" />
               
               {/* Project Title */}
               <h3 className="project-title-section">
@@ -627,17 +881,14 @@ function BudgetProposal() {
               
               {/* Project Details */}
               <div className="project-info-section">
-                <div className="project-detail-row">
-                  <span className="detail-label">Amount:</span>
-                  <span className="detail-value">{selectedProposal.amount}</span>
+                <div className="project-detail-inline">
+                  <strong>Budget Amount:</strong> {selectedProposal.budgetAmount}
                 </div>
-                <div className="project-detail-row">
-                  <span className="detail-label">Category:</span>
-                  <span className="detail-value">{selectedProposal.category}</span>
+                <div className="project-detail-inline">
+                  <strong>Category:</strong> {selectedProposal.category}
                 </div>
-                <div className="project-detail-row">
-                  <span className="detail-label">Submitted by:</span>
-                  <span className="detail-value">{selectedProposal.submitted_by}</span>
+                <div className="project-detail-inline">
+                  <strong>Requested by:</strong> {selectedProposal.requestedBy}
                 </div>
               </div>
               
@@ -648,18 +899,80 @@ function BudgetProposal() {
                   className="comment-textarea-input" 
                   value={reviewComment}
                   onChange={(e) => setReviewComment(e.target.value)}
-                  placeholder="Add your comment here..."
+                  placeholder=""
                   rows="4"
                 ></textarea>
               </div>
             </div>
             
-            {/* Footer with right-aligned blue button */}
+            {/* Footer */}
             <div className="approval-status-footer">
-              <button 
-                className="submit-approval-button" 
-                onClick={handleSubmitReview}
-              >
+              <button className="submit-comment-button" onClick={handleSubmitReview}>
+                Submit
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Comment Popup */}
+      {showCommentPopup && selectedProposal && (
+        <div className="popup-overlay">
+          <div className="approval-status-popup">
+            {/* Header */}
+            <div className="approval-status-header">
+              <button className="back-button" onClick={closeCommentPopup}>
+                <ArrowLeft size={20} />
+              </button>
+              <h2 className="approval-status-title">Approval Status</h2>
+            </div>
+            
+            <div className="approval-status-content">
+              {/* Approval Status Indicator */}
+              <div className="status-section">
+                <div className="status-indicator">
+                  <div className="status-dot approved"></div>
+                  <span className="status-text">Approved by Finance Department</span>
+                </div>
+                <div className="status-timestamp">
+                  Apr 01, 2025 at 16:00 - Alex Smith
+                </div>
+              </div>
+              
+              {/* Project Title */}
+              <h3 className="project-title-section">
+                {selectedProposal.subject}
+              </h3>
+              
+              {/* Project Details */}
+              <div className="project-info-section">
+                <div className="project-detail-inline">
+                  <strong>Budget Amount:</strong> {selectedProposal.budgetAmount}
+                </div>
+                <div className="project-detail-inline">
+                  <strong>Category:</strong> {selectedProposal.category}
+                </div>
+                <div className="project-detail-inline">
+                  <strong>Requested by:</strong> {selectedProposal.requestedBy}
+                </div>
+              </div>
+              
+              {/* Comment Section */}
+              <div className="comment-input-section">
+                <label className="comment-input-label">Comment:</label>
+                <textarea 
+                  className="comment-textarea-input" 
+                  value={reviewComment}
+                  onChange={(e) => setReviewComment(e.target.value)}
+                  placeholder=""
+                  rows="4"
+                ></textarea>
+              </div>
+            </div>
+            
+            {/* Footer */}
+            <div className="approval-status-footer">
+              <button className="submit-comment-button" onClick={handleSubmitComment}>
                 Submit
               </button>
             </div>
@@ -668,6 +981,6 @@ function BudgetProposal() {
       )}
     </div>
   );
-}
+};
 
 export default BudgetProposal;

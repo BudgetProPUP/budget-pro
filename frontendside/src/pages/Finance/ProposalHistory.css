@@ -347,9 +347,9 @@
   border-radius: 8px;
   padding: 8px 16px;
   font-size: 14px;
-  width: 300px;
+  width: 500px !important;
   height: 50px;
-  max-width: 300px;
+  max-width: 500px;
   transition: all 0.2s ease;
 }
 
@@ -395,7 +395,7 @@
   display: flex;
   align-items: center;
   gap: 8px;
-  min-width: 140px;
+  min-width: 500px !important;
   justify-content: space-between;
   transition: all 0.2s ease;
   outline: none;
@@ -701,3 +701,68 @@
   }
 }
 
+.filter-dropdown {
+  position: relative;
+  min-width: 200px; /* Ensures dropdown has enough width */
+}
+
+.filter-dropdown-btn {
+  display: flex;
+  justify-content: space-between; /* This keeps the chevron on the right */
+  align-items: center;
+  width: 100%;
+  padding: 12px 16px;
+  background: white;
+  border: 1px solid #e2e8f0;
+  border-radius: 50px !important;
+  cursor: pointer;
+  text-align: left; /* Add this to align button text to left */
+}
+
+.category-dropdown-menu {
+  position: absolute !important;
+  top: 100% !important;
+  left: 0 !important;
+  width: 60% !important;
+  max-height: 300px !important;
+  overflow-y: auto !important;
+  background: white !important;
+  border: 1px solid #e2e8f0 !important;
+  border-radius: 8px !important;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1) !important;
+  z-index: 1000 !important;
+  margin-top: 4px !important;
+  display: block !important; /* Override any flex displays */
+}
+
+.category-dropdown-item {
+  display: block !important;
+  width: 60% !important;
+  padding: 12px 16px !important;
+  text-align: left !important; /* Ensure left alignment */
+  background: none !important;
+  border: none !important;
+  cursor: pointer !important;
+  color: #4a5568 !important;
+  font-size: 14px !important;
+  box-sizing: border-box !important;
+  white-space: nowrap !important;
+}
+
+.category-dropdown-item:hover {
+  background-color: #f7fafc !important;
+}
+
+.category-dropdown-item.active {
+  background-color: #ebf8ff !important;
+  color: #3182ce !important;
+  font-weight: 500 !important;
+}
+
+/* Nuclear option to prevent any horizontal layout */
+.category-dropdown-menu > * {
+  float: none !important;
+  clear: both !important;
+  display: block !important;
+  width: 100% !important;
+}

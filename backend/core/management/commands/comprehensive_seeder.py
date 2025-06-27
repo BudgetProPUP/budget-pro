@@ -195,10 +195,32 @@ class Command(BaseCommand):
         self.stdout.write(self.style.SUCCESS(f'Created/Updated {len(created_years)} fiscal years'))
         return created_years
 
-    def create_expense_categories(self): # No change needed here
+    def create_expense_categories(self):
         self.stdout.write('Creating expense categories...')
-        ExpenseCategory.objects.update_or_create(code='EXPENSE', defaults={'name': 'General Expenses', 'level': 1})
-        return list(ExpenseCategory.objects.all())
+        
+        # Define the categories based on your UI mockups and common business needs
+        categories_data = [
+            {'code': 'TRAIN', 'name': 'Training and Development', 'level': 1},
+            {'code': 'PROF_SERV', 'name': 'Professional Services', 'level': 1},
+            {'code': 'EQUIP', 'name': 'Equipment and Maintenance', 'level': 1},
+            {'code': 'TRAVEL', 'name': 'Travel', 'level': 1},
+            {'code': 'OFFICE', 'name': 'Office Supplies', 'level': 1},
+            {'code': 'UTIL', 'name': 'Utilities', 'level': 1},
+            {'code': 'MKTG', 'name': 'Marketing & Advertising', 'level': 1},
+            {'code': 'MISC', 'name': 'Miscellaneous', 'level': 1},
+        ]
+
+        created_categories = []
+        for cat_data in categories_data:
+            # Use update_or_create to ensure this is idempotent and safe to run multiple times
+            category, created = ExpenseCategory.objects.update_or_create(
+                code=cat_data['code'],
+                defaults={'name': cat_data['name'], 'level': cat_data['level'], 'is_active': True}
+            )
+            created_categories.append(category)
+
+        self.stdout.write(self.style.SUCCESS(f'Created/Updated {len(created_categories)} expense categories.'))
+        return created_categories
 
 
     def create_budget_proposals(self, departments, fiscal_years): # MODIFIED: removed users param

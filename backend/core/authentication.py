@@ -11,15 +11,22 @@ class CustomUser:
     def __init__(self, user_data):
         self.id = user_data.get('id')
         self.email = user_data.get('email')
+        self.username = user_data.get('username') # ADDED: Good practice to have username
         self.first_name = user_data.get('first_name', '')
         self.last_name = user_data.get('last_name', '')
         self.is_active = user_data.get('is_active', True)
         self.is_staff = user_data.get('is_staff', False)
         self.is_superuser = user_data.get('is_superuser', False)
         self.role = user_data.get('role', 'Finance')
-        self.department = user_data.get('department', '')
+        
+        # --- THIS IS THE CRITICAL FIX ---
+        # Correctly map the department info from the auth_service payload
+        self.department_id = user_data.get('department_id')
+        self.department_name = user_data.get('department_name')
+        # REMOVED: self.department = user_data.get('department', '')
     
-    def is_authenticated(self):
+    @property
+    def is_authenticated(self): # MODIFIED: Changed to a property for better compatibility
         return True
     
     def __str__(self):

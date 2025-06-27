@@ -1,10 +1,12 @@
+from decimal import Decimal
 from .models import (
-    Account, AccountType, BudgetProposal, BudgetProposalItem, Department,
+    Account, AccountType, BudgetAllocation, BudgetProposal, BudgetProposalItem, Department,
     FiscalYear, JournalEntry, JournalEntryLine, ProposalComment, ProposalHistory
 )
 from rest_framework import serializers
 from django.db.models import Sum
 from django.utils import timezone
+from django.core.validators import MinValueValidator
 
 
 class BudgetProposalSummarySerializer(serializers.Serializer):
@@ -14,19 +16,44 @@ class BudgetProposalSummarySerializer(serializers.Serializer):
 
 
 class BudgetProposalListSerializer(serializers.ModelSerializer):
-    department_name = serializers.CharField(
+    # RENAMED from department_name to match proposal table
+    department = serializers.CharField(
         source='department.name', read_only=True)
+    # RENAMED from submitted_by_name to match proposal table
+    submitted_by = serializers.CharField(
+        source='submitted_by_name', read_only=True)
+    # ADDED: Dynamically determine category
+    category = serializers.SerializerMethodField()
+    # ADDED: Total cost of the proposal
+    amount = serializers.SerializerMethodField()
+    # ADDED: Reference ID for the table
+    reference = serializers.CharField(source='external_system_id', read_only=True)
 
     class Meta:
         model = BudgetProposal
         fields = [
-            'id', 'external_system_id', 'title', 'department_name',
-            'submitted_by_name', 'status', 'created_at', 'performance_notes',
+            'id', 'reference', 'title', 'category', 'department', 'submitted_by',
+            'amount', 'status'
         ]
 
-    def get_total_cost(self, obj):
+    def get_amount(self, obj):
+        # Calculates the sum of estimated_cost for all items in the proposal
         return obj.items.aggregate(total=Sum('estimated_cost'))['total'] or 0
 
+    def get_category(self, obj):
+        # Derives the category from the proposal's items as requested
+        # Uses the category of the first item as the representative category
+        first_item = obj.items.first()
+        if first_item and hasattr(first_item, 'account') and first_item.account:
+             # This assumes that the category can be derived from the account of the item.
+             # If items have a direct category link, that should be used instead.
+             # For now, using a placeholder logic. A more robust solution would be needed
+             # if items can belong to multiple, distinct expense categories.
+             # Let's assume the first item's account type is a good proxy.
+            return first_item.account.account_type.name
+        
+        # Fallback for proposals with no items or items without accounts
+        return "Uncategorized"
 
 class BudgetProposalItemSerializer(serializers.ModelSerializer):
     account_code = serializers.CharField(source='account.code', read_only=True)
@@ -91,19 +118,25 @@ class BudgetProposalDetailSerializer(serializers.ModelSerializer):
 
 
 class ProposalHistorySerializer(serializers.ModelSerializer):
-    proposal_title = serializers.CharField(
+    # ADDED: Proposal ID (external) for the history table
+    proposal_id = serializers.CharField(
+        source='proposal.external_system_id', read_only=True)
+    # RENAMED: from proposal_title to proposal to match UI
+    proposal = serializers.CharField(
         source='proposal.title', read_only=True)
-    department_name = serializers.CharField(
-        source='proposal.department.name', read_only=True)
-    action_by_name = serializers.CharField(
-        read_only=True)  # Changed from last_modified_by
+    # RENAMED: from action_by_name to match UI
+    last_modified_by = serializers.CharField(
+        source='action_by_name', read_only=True)
+    # RENAMED: from action_at to match UI
+    last_modified = serializers.DateTimeField(source='action_at', read_only=True)
+    # RENAMED: from new_status to match UI
+    status = serializers.CharField(source='new_status', read_only=True)
 
     class Meta:
         model = ProposalHistory
-        fields = ['id', 'proposal_title', 'department_name', 'action',
-                  'action_by_name', 'action_at', 'previous_status', 'new_status', 'comments']
-
-
+        fields = ['id', 'proposal_id', 'proposal',
+                  'last_modified', 'last_modified_by', 'status']
+        
 class AccountSetupSerializer(serializers.ModelSerializer):
     account_type = serializers.CharField(source='account_type.name')
     accomplished = serializers.SerializerMethodField()
@@ -144,17 +177,21 @@ class AccountSetupSerializer(serializers.ModelSerializer):
 
 
 class LedgerViewSerializer(serializers.ModelSerializer):
-    reference = serializers.CharField(
+    # RENAMED to reference_id to be clearer for the frontend
+    reference_id = serializers.CharField(
         source='journal_entry.entry_id', read_only=True)
     date = serializers.DateField(source='journal_entry.date', read_only=True)
     category = serializers.CharField(
         source='journal_entry.category', read_only=True)
-    description = serializers.CharField(
-        source='journal_entry.description', read_only=True)
+    # CORRECTED: Use the description from the line item itself for more detail
+    description = serializers.CharField(read_only=True)
+    # ADDED: Include the account name as required by the UI
+    account = serializers.CharField(source='account.name', read_only=True)
 
     class Meta:
         model = JournalEntryLine
-        fields = ['reference', 'date', 'category', 'description', 'amount']
+        # UPDATED: Matched fields to the new UI columns
+        fields = ['reference_id', 'date', 'category', 'description', 'account', 'amount']
 
 
 class JournalEntryListSerializer(serializers.ModelSerializer):
@@ -394,6 +431,59 @@ class ProposalReviewSerializer(serializers.Serializer):
         if value not in ['APPROVED', 'REJECTED']:
             raise serializers.ValidationError("Invalid status for review.")
         return value
+    
+class ProposalReviewBudgetOverviewSerializer(serializers.Serializer):
+    """
+    Serializer for the budget overview section in the proposal review modal.
+    """
+    total_department_budget = serializers.DecimalField(max_digits=15, decimal_places=2)
+    currently_allocated = serializers.DecimalField(max_digits=15, decimal_places=2)
+    available_budget = serializers.DecimalField(max_digits=15, decimal_places=2)
+    budget_after_proposal = serializers.DecimalField(max_digits=15, decimal_places=2)
+
+class BudgetAdjustmentSerializer(serializers.Serializer):
+    """
+    Serializer for creating a budget adjustment. This modifies a budget allocation
+    and creates a corresponding journal entry for audit purposes.
+    """
+    date = serializers.DateField()
+    description = serializers.CharField(max_length=255)
+    
+    # The allocation to be modified
+    source_allocation_id = serializers.IntegerField()
+    # The allocation receiving the funds (optional, for transfers)
+    destination_allocation_id = serializers.IntegerField(required=False, allow_null=True)
+    
+    amount = serializers.DecimalField(max_digits=15, decimal_places=2, validators=[MinValueValidator(Decimal('0.01'))])
+    
+    # An account to represent the source of funds for an increase,
+    # or the destination for a decrease (e.g., a general reserve account)
+    offsetting_account_id = serializers.IntegerField()
+
+    def validate(self, data):
+        source_id = data.get('source_allocation_id')
+        dest_id = data.get('destination_allocation_id')
+
+        if source_id == dest_id and dest_id is not None:
+            raise serializers.ValidationError("Source and destination allocations cannot be the same.")
+        
+        try:
+            BudgetAllocation.objects.get(id=source_id, is_active=True)
+        except BudgetAllocation.DoesNotExist:
+            raise serializers.ValidationError({"source_allocation_id": "Active source allocation not found."})
+
+        if dest_id:
+            try:
+                BudgetAllocation.objects.get(id=dest_id, is_active=True)
+            except BudgetAllocation.DoesNotExist:
+                raise serializers.ValidationError({"destination_allocation_id": "Active destination allocation not found."})
+        
+        try:
+            Account.objects.get(id=data.get('offsetting_account_id'), is_active=True)
+        except Account.DoesNotExist:
+             raise serializers.ValidationError({"offsetting_account_id": "Active offsetting account not found."})
+
+        return data
 
 
 class ExpenseCategoryVarianceSerializer(serializers.Serializer):

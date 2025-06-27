@@ -35,3 +35,16 @@ class ProjectStatusPagination(PageNumberPagination):
             'previous': self.get_previous_link(),
             'results': data
         })
+        
+        
+class FiveResultsSetPagination(PageNumberPagination):
+    """ Pagination with a page size of 5. """
+    page_size = 5
+    page_size_query_param = 'page_size'
+    max_page_size = 20
+
+class SixResultsSetPagination(PageNumberPagination):
+    """ Pagination with a page size of 6. """
+    page_size = 6
+    page_size_query_param = 'page_size'
+    max_page_size = 24

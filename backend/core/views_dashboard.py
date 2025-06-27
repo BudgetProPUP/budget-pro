@@ -9,7 +9,7 @@ from django.db.models import Subquery, OuterRef, Q
 from core.pagination import ProjectStatusPagination, StandardResultsSetPagination
 from .models import Department, ExpenseCategory, FiscalYear, BudgetAllocation, Expense, Project
 from .serializers import DepartmentBudgetSerializer
-from .serializers_dashboard import CategoryAllocationSerializer, DashboardBudgetSummarySerializer, DepartmentBudgetStatusSerializer, ProjectStatusSerializer, SimpleProjectSerializer, TotalBudgetSerializer
+from .serializers_dashboard import CategoryAllocationSerializer, CategoryBudgetStatusSerializer, DashboardBudgetSummarySerializer, DepartmentBudgetStatusSerializer, ProjectStatusSerializer, SimpleProjectSerializer, TotalBudgetSerializer
 from rest_framework.permissions import IsAuthenticated
 from .serializers_dashboard import MonthlyBudgetActualSerializer
 from django.utils import timezone
@@ -716,3 +716,134 @@ class TopCategoryBudgetAllocationView(APIView):
         ).filter(total_allocated__gt=0).order_by('-total_allocated')[:limit]
         serializer = CategoryAllocationSerializer(category_allocations, many=True)
         return Response(serializer.data)
+    
+@extend_schema(
+    tags=["Dashboard"],
+    summary="Overall Monthly Budget vs Actual (Money Flow)",
+    description="Returns a monthly breakdown of the total budget vs. total actual expenses across ALL departments for a given fiscal year.",
+    parameters=[
+        OpenApiParameter(name='fiscal_year_id', type=int, required=False, description="ID of the fiscal year. If not provided, the current active fiscal year will be used."),
+    ],
+    responses={200: MonthlyBudgetActualSerializer(many=True)},
+    examples=[
+        OpenApiExample(
+            "Overall Monthly Budget Example",
+            value=[
+                {"month": 1, "month_name": "January", "budget": "150000.00", "actual": "110000.00"},
+                {"month": 2, "month_name": "February", "budget": "150000.00", "actual": "135000.00"},
+            ],
+            response_only=True
+        )
+    ]
+)
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def overall_monthly_budget_actual(request):
+    fiscal_year_id = request.query_params.get('fiscal_year_id')
+    
+    if fiscal_year_id:
+        try:
+            fiscal_year = FiscalYear.objects.get(id=fiscal_year_id)
+        except FiscalYear.DoesNotExist:
+            return Response({"error": "Fiscal year not found"}, status=status.HTTP_404_NOT_FOUND)
+    else:
+        today = timezone.now().date()
+        fiscal_year = FiscalYear.objects.filter(start_date__lte=today, end_date__gte=today, is_active=True).first()
+        if not fiscal_year:
+            return Response({"detail": "No active fiscal year found."}, status=status.HTTP_404_NOT_FOUND)
+
+    # Get total budget for the fiscal year
+    total_budget = BudgetAllocation.objects.filter(
+        fiscal_year=fiscal_year, is_active=True
+    ).aggregate(total=Coalesce(Sum('amount'), Decimal('0')))['total']
+
+    # Simple even distribution of budget across 12 months for the chart
+    monthly_budget = total_budget / 12
+
+    monthly_data = []
+    for month_num in range(1, 13):
+        # Get actual expenses for this month
+        actual_expenses = Expense.objects.filter(
+            status='APPROVED',
+            date__year=fiscal_year.start_date.year, # Assuming fiscal year is within one calendar year
+            date__month=month_num,
+            budget_allocation__fiscal_year=fiscal_year
+        ).aggregate(total=Coalesce(Sum('amount'), Decimal('0')))['total']
+        
+        monthly_data.append({
+            'month': month_num,
+            'month_name': calendar.month_name[month_num],
+            'budget': monthly_budget,
+            'actual': actual_expenses
+        })
+
+    serializer = MonthlyBudgetActualSerializer(monthly_data, many=True)
+    return Response(serializer.data)
+
+
+@extend_schema(
+    tags=["Dashboard"],
+    summary="Budget per Category Status",
+    description="Returns the budget, spending, and usage percentage for each expense category in the active fiscal year. This is for the 'Budget per Category' table.",
+    parameters=[
+        OpenApiParameter(name='fiscal_year_id', type=int, required=False, description="ID of the fiscal year. If not provided, the current active fiscal year will be used."),
+    ],
+    responses={200: CategoryBudgetStatusSerializer(many=True)},
+    examples=[
+        OpenApiExample(
+            "Example Response",
+            value=[
+                {"category_id": 1, "category_name": "Professional Services", "budget": "50000.00", "spent": "25000.00", "percentage_used": 50.0},
+                {"category_id": 2, "category_name": "Equipment and Maintenance", "budget": "120000.00", "spent": "100000.00", "percentage_used": 83.33},
+            ],
+            response_only=True
+        )
+    ]
+)
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def get_category_budget_status(request):
+    fiscal_year_id = request.query_params.get('fiscal_year_id')
+    
+    if fiscal_year_id:
+        try:
+            fiscal_year = FiscalYear.objects.get(id=fiscal_year_id)
+        except FiscalYear.DoesNotExist:
+            return Response({"error": "Fiscal year not found"}, status=status.HTTP_404_NOT_FOUND)
+    else:
+        today = timezone.now().date()
+        fiscal_year = FiscalYear.objects.filter(start_date__lte=today, end_date__gte=today, is_active=True).first()
+        if not fiscal_year:
+            return Response({"detail": "No active fiscal year found."}, status=status.HTTP_404_NOT_FOUND)
+
+    categories = ExpenseCategory.objects.filter(is_active=True)
+    result = []
+
+    for cat in categories:
+        # Get total budget allocated to this category for the fiscal year
+        budget = BudgetAllocation.objects.filter(
+            is_active=True,
+            fiscal_year=fiscal_year,
+            category=cat
+        ).aggregate(total=Coalesce(Sum('amount'), Decimal('0')))['total']
+
+        # Get total spent from this category for the fiscal year
+        spent = Expense.objects.filter(
+            status='APPROVED',
+            category=cat,
+            budget_allocation__fiscal_year=fiscal_year
+        ).aggregate(total=Coalesce(Sum('amount'), Decimal('0')))['total']
+        
+        # Only include categories that have a budget
+        if budget > 0:
+            percent_used = (spent / budget * 100) if budget > 0 else 0
+            result.append({
+                "category_id": cat.id,
+                "category_name": cat.name,
+                "budget": budget,
+                "spent": spent,
+                "percentage_used": round(percent_used, 2)
+            })
+
+    serializer = CategoryBudgetStatusSerializer(result, many=True)
+    return Response(serializer.data)

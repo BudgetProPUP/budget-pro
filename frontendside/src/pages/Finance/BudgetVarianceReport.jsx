@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { ChevronDown, ChevronLeft, ChevronRight, ArrowLeft, User, Mail, Briefcase, LogOut } from 'lucide-react';
+import { ChevronDown, ChevronLeft, ChevronRight, ArrowLeft, User, Mail, Briefcase, LogOut, Download } from 'lucide-react';
 import { Link, useNavigate } from 'react-router-dom';
 import LOGOMAP from '../../assets/MAP.jpg';
 import './BudgetVarianceReport.css';
@@ -8,9 +8,11 @@ const BudgetVarianceReport = () => {
   const [showBudgetDropdown, setShowBudgetDropdown] = useState(false);
   const [showExpenseDropdown, setShowExpenseDropdown] = useState(false);
   const [showProfilePopup, setShowProfilePopup] = useState(false);
+  const [selectedMonth, setSelectedMonth] = useState(new Date().getMonth() + 1);
+  const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
   const navigate = useNavigate();
 
-  // User profile data - copied from Dashboard
+  // User profile data
   const userProfile = {
     name: "John Doe",
     email: "Johndoe@gmail.com",
@@ -18,22 +20,27 @@ const BudgetVarianceReport = () => {
     avatar: "https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?ixlib=rb-1.2.1&ixid=eyJhcHBfaWQiOjEyMDd9&auto=format&fit=facearea&facepad=2&w=256&h=256&q=80"
   };
 
-  // Close dropdowns when clicking outside - copied from Dashboard
-  useEffect(() => {
-    const handleClickOutside = (event) => {
-      if (!event.target.closest('.nav-dropdown') && !event.target.closest('.profile-container')) {
-        setShowBudgetDropdown(false);
-        setShowExpenseDropdown(false);
-        setShowProfilePopup(false);
-      }
-    };
+  // Months for dropdown
+  const months = [
+    { value: 1, label: 'January' },
+    { value: 2, label: 'February' },
+    { value: 3, label: 'March' },
+    { value: 4, label: 'April' },
+    { value: 5, label: 'May' },
+    { value: 6, label: 'June' },
+    { value: 7, label: 'July' },
+    { value: 8, label: 'August' },
+    { value: 9, label: 'September' },
+    { value: 10, label: 'October' },
+    { value: 11, label: 'November' },
+    { value: 12, label: 'December' }
+  ];
 
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => {
-      document.removeEventListener('mousedown', handleClickOutside);
-    };
-  }, []);
+  // Years for dropdown
+  const currentYear = new Date().getFullYear();
+  const years = Array.from({ length: 11 }, (_, i) => currentYear - 5 + i);
 
+  // Budget data
   const budgetData = [
     {
       id: 1,
@@ -174,6 +181,22 @@ const BudgetVarianceReport = () => {
     }
   ];
 
+  // Close dropdowns when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (!event.target.closest('.nav-dropdown') && !event.target.closest('.profile-container')) {
+        setShowBudgetDropdown(false);
+        setShowExpenseDropdown(false);
+        setShowProfilePopup(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, []);
+
   const toggleBudgetDropdown = () => {
     setShowBudgetDropdown(!showBudgetDropdown);
     if (showExpenseDropdown) setShowExpenseDropdown(false);
@@ -199,113 +222,77 @@ const BudgetVarianceReport = () => {
     setShowProfilePopup(false);
   };
 
-  // Updated logout function with navigation to login screen - copied from Dashboard
   const handleLogout = () => {
     try {
-      // Clear any stored authentication data
       localStorage.removeItem('authToken');
       localStorage.removeItem('userSession');
       localStorage.removeItem('userProfile');
-      
-      // Clear session storage
       sessionStorage.clear();
-      
-      // Close the profile popup
       setShowProfilePopup(false);
-      
-      // Navigate to login screen
       navigate('/login', { replace: true });
-      
-      console.log('User logged out successfully');
     } catch (error) {
       console.error('Error during logout:', error);
-      // Still navigate to login even if there's an error clearing storage
       navigate('/login', { replace: true });
     }
   };
 
+  const handleExport = () => {
+    const csvContent = [
+      ['Category', 'Budget', 'Actual', 'Available'],
+      ...budgetData.map(item => [
+        item.category,
+        item.budget,
+        item.actual,
+        item.available
+      ])
+    ].map(e => e.join(',')).join('\n');
+
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.setAttribute('href', url);
+    link.setAttribute('download', `Budget_Variance_Report_${months[selectedMonth - 1].label}_${selectedYear}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
   return (
     <div className="app-container">
-      {/* Header - Using Dashboard Nav Structure */}
+      {/* Header Section */}
       <header className="app-header">
         <div className="header-left">
           <div className="app-logo">
-            <img 
-              src={LOGOMAP} 
-              alt="BudgetPro Logo" 
-              className="logo-image"
-            />
+            <img src={LOGOMAP} alt="BudgetPro Logo" className="logo-image" />
           </div>
           <nav className="nav-menu">
             <Link to="/dashboard" className="nav-item">Dashboard</Link>
-
+            
             {/* Budget Dropdown */}
             <div className="nav-dropdown">
-              <div 
-                className={`nav-item ${showBudgetDropdown ? 'active' : ''}`} 
-                onClick={toggleBudgetDropdown}
-              >
+              <div className={`nav-item ${showBudgetDropdown ? 'active' : ''}`} onClick={toggleBudgetDropdown}>
                 Budget <ChevronDown size={14} />
               </div>
               {showBudgetDropdown && (
                 <div className="dropdown-menu">
-                  <div
-                    className="dropdown-item"
-                    onClick={() => handleNavigate('/finance/budget-proposal')}
-                  >
-                    Budget Proposal
-                  </div>
-                  <div
-                    className="dropdown-item"
-                    onClick={() => handleNavigate('/finance/proposal-history')}
-                  >
-                    Proposal History
-                  </div>
-                  <div
-                  
-                    className="dropdown-item"
-                    onClick={() => handleNavigate('/finance/ledger-view')}
-                  >
-                    Ledger View
-                  </div>
-                  <div
-                    className="dropdown-item"
-                    onClick={() => handleNavigate('/finance/journal-entry')}
-                  >
-                    Budget Allocation
-                  </div>
-                  <div
-                    className="dropdown-item active"
-                    onClick={() => handleNavigate('/finance/budget-variance-report')}
-                  >
-                    Budget Variance Report
-                  </div>
+                  <div className="dropdown-item" onClick={() => handleNavigate('/finance/budget-proposal')}>Budget Proposal</div>
+                  <div className="dropdown-item" onClick={() => handleNavigate('/finance/proposal-history')}>Proposal History</div>
+                  <div className="dropdown-item" onClick={() => handleNavigate('/finance/ledger-view')}>Ledger View</div>
+                  <div className="dropdown-item" onClick={() => handleNavigate('/finance/budget-allocation')}>Budget Allocation</div>
+                  <div className="dropdown-item" onClick={() => handleNavigate('/finance/budget-variance-report')}>Budget Variance Report</div>
                 </div>
               )}
             </div>
-
+            
             {/* Expense Dropdown */}
             <div className="nav-dropdown">
-              <div 
-                className={`nav-item ${showExpenseDropdown ? 'active' : ''}`} 
-                onClick={toggleExpenseDropdown}
-              >
+              <div className={`nav-item ${showExpenseDropdown ? 'active' : ''}`} onClick={toggleExpenseDropdown}>
                 Expense <ChevronDown size={14} />
               </div>
               {showExpenseDropdown && (
                 <div className="dropdown-menu">
-                  <div
-                    className="dropdown-item"
-                    onClick={() => handleNavigate('/finance/expense-tracking')}
-                  >
-                    Expense Tracking
-                  </div>
-                  <div
-                    className="dropdown-item"
-                    onClick={() => handleNavigate('/finance/expense-history')}
-                  >
-                    Expense History
-                  </div>
+                  <div className="dropdown-item" onClick={() => handleNavigate('/finance/expense-tracking')}>Expense Tracking</div>
+                  <div className="dropdown-item" onClick={() => handleNavigate('/finance/expense-history')}>Expense History</div>
                 </div>
               )}
             </div>
@@ -317,29 +304,21 @@ const BudgetVarianceReport = () => {
             <div className="user-avatar" onClick={toggleProfilePopup}>
               <img src={userProfile.avatar} alt="User avatar" className="avatar-img" />
             </div>
-            
-            {/* Profile Popup */}
             {showProfilePopup && (
               <div className="profile-popup">
                 <div className="profile-popup-header">
-                  <button 
-                    className="profile-back-btn"
-                    onClick={() => setShowProfilePopup(false)}
-                  >
+                  <button className="profile-back-btn" onClick={() => setShowProfilePopup(false)}>
                     <ArrowLeft size={20} />
                   </button>
                   <h3 className="profile-popup-title">Profile</h3>
                 </div>
-                
                 <div className="profile-popup-content">
                   <div className="profile-avatar-large">
                     <img src={userProfile.avatar} alt="Profile" className="profile-avatar-img" />
                   </div>
-                  
                   <div className="profile-link">
                     <span className="profile-link-text">My Profile</span>
                   </div>
-                  
                   <div className="profile-info">
                     <div className="profile-field">
                       <div className="profile-field-header">
@@ -348,7 +327,6 @@ const BudgetVarianceReport = () => {
                       </div>
                       <span className="profile-field-value">{userProfile.name}</span>
                     </div>
-                    
                     <div className="profile-field">
                       <div className="profile-field-header">
                         <Mail size={16} className="profile-field-icon" />
@@ -356,7 +334,6 @@ const BudgetVarianceReport = () => {
                       </div>
                       <span className="profile-field-value profile-email">{userProfile.email}</span>
                     </div>
-                    
                     <div className="profile-field">
                       <div className="profile-field-header">
                         <Briefcase size={16} className="profile-field-icon" />
@@ -365,7 +342,6 @@ const BudgetVarianceReport = () => {
                       <span className="profile-field-value profile-role">{userProfile.role}</span>
                     </div>
                   </div>
-                  
                   <button className="logout-btn" onClick={handleLogout}>
                     <LogOut size={16} />
                     Log Out
@@ -377,16 +353,46 @@ const BudgetVarianceReport = () => {
         </div>
       </header>
 
-      {/* Main Content */}
+      {/* Main Content Section */}
       <div className="content-container">
-        {/* Report Background Container */}
         <div className="report-background-container">
-          {/* Page Header Inside Container */}
-          <div className="page-header">
-            <h2 className="page-title">Budget Variance Report</h2>
+          {/* Report Header with Title, Date, and Controls */}
+          <div className="report-header">
+            <div className="report-title-container">
+              <h2 className="report-title">Budget Variance Report</h2>
+              <div className="report-date-display">
+                {months[selectedMonth - 1].label} {selectedYear}
+              </div>
+            </div>
+            <div className="report-controls">
+              <div className="date-selection">
+                <select 
+                  className="month-select"
+                  value={selectedMonth}
+                  onChange={(e) => setSelectedMonth(parseInt(e.target.value))}
+                >
+                  {months.map(month => (
+                    <option key={month.value} value={month.value}>{month.label}</option>
+                  ))}
+                </select>
+                <select 
+                  className="year-select"
+                  value={selectedYear}
+                  onChange={(e) => setSelectedYear(parseInt(e.target.value))}
+                >
+                  {years.map(year => (
+                    <option key={year} value={year}>{year}</option>
+                  ))}
+                </select>
+              </div>
+              <button className="export-button" onClick={handleExport}>
+                <Download size={16} />
+                Export Report
+              </button>
+            </div>
           </div>
 
-          {/* Report Table Container */}
+          {/* Report Table */}
           <div className="report-table-container">
             <table className="report-table">
               <thead>

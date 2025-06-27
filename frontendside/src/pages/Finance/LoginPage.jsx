@@ -1,139 +1,172 @@
-// LoginPage.jsx
-
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { Eye, EyeOff } from 'lucide-react';
-import axios from 'axios'; // Import axios
-import './loginPage.css';
-import backgroundImage from '../../assets/BUDGET1.png';
-
-
-const AUTH_API_URL = import.meta.env.VITE_AUTH_API_URL || 'https://auth-service-cdln.onrender.com';
-
+import { useForm } from "react-hook-form";
+import './LoginPage.css';
+import backgroundImage from '../../assets/BUDGETPROLOGO.jpg';
 
 function LoginPage({ setIsAuthenticated }) {
-  const [loginData, setLoginData] = useState({ 
-    email: '', 
-    phone_number: '', // Include this even if blank
-    password: '' 
-  });
-  const [showPassword, setShowPassword] = useState(false);
-  const [error, setError] = useState('');
-  const [isLoading, setIsLoading] = useState(false);
   const navigate = useNavigate();
+  const [isInvalidCredentials, setInvalidCredentials] = useState(null);
+  const [isSubmitting, setSubmitting] = useState(false);
+  const [isShowPassword, setShowPassword] = useState(false);
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    setError('');
-    setIsLoading(true);
+  const {
+    register,
+    handleSubmit,
+    formState: { errors, isValid },
+    watch,
+  } = useForm({
+    mode: "all",
+  });
+
+  const password = watch("password", "");
+
+  const submission = async (data) => {
+    const { email, password } = data;
+    setSubmitting(true);
 
     try {
-      // Call authentication service
-      const response = await axios.post(`${AUTH_API_URL}/login/`, loginData);
+      // Replace with your actual authentication logic
+      const response = await fakeAuthAPI({ email, password });
       
-
-      if (response.data && response.data.access) {
-        // Store token
-        localStorage.setItem('authToken', response.data.access);
-        
-        // Store token and refresh info
-        localStorage.setItem('refreshToken', response.data.refresh);
-        localStorage.setItem('user', JSON.stringify(response.data.user));
-
+      if (response.success) {
+        setInvalidCredentials(false);
         setIsAuthenticated(true);
         navigate('/dashboard');
       } else {
-        // Handle cases where the API returns 200 but no token
-        setError('Login failed: Invalid response from server.');
+        setInvalidCredentials(true);
       }
-    } catch (err) {
-      if (err.response && err.response.data) {
-        // Display specific error from the backend
-        const errorDetail = err.response.data.detail || err.response.data.non_field_errors || ['Login failed. Please try again.'];
-        setError(Array.isArray(errorDetail) ? errorDetail.join(' ') : errorDetail);
-      } else {
-        setError('Login failed. Cannot connect to the server.');
-      }
-      console.error('Login error:', err);
+    } catch (error) {
+      console.log("login failed!");
+      setInvalidCredentials(true);
     } finally {
-      setIsLoading(false);
+      setSubmitting(false);
     }
   };
 
-  const handleInputChange = (e) => {
-    const { name, value } = e.target;
-    setLoginData(prev => ({
-      ...prev,
-      [name]: value
-    }));
+  // Mock authentication function - replace with real API call
+  const fakeAuthAPI = async ({ email, password }) => {
+    return new Promise(resolve => {
+      setTimeout(() => {
+        // Basic validation - replace with real authentication
+        const isValid = email && password && password.length >= 6;
+        resolve({ 
+          success: isValid
+        });
+      }, 1000);
+    });
   };
 
-  // Removed Fake Auth Function
+  useEffect(() => {
+    if (isInvalidCredentials) {
+      setTimeout(() => {
+        setInvalidCredentials(false);
+      }, 5000);
+    }
+  }, [isInvalidCredentials]);
+
+  // Reset the value of isShowPassword state when the password input is empty.
+  useEffect(() => {
+    if (password.length == 0) {
+      setShowPassword(false);
+    }
+  }, [password]);
 
   return (
-    <div 
-      className="login-container"
-      style={{ 
-        backgroundImage: `url(${backgroundImage})`,
-        backgroundSize: 'cover',
-        backgroundPosition: 'center',
-        backgroundRepeat: 'no-repeat'
-      }}
-    >
-      <form className="form" onSubmit={handleSubmit}>
-        <h1>BUDGET PRO</h1>
-        <p>Welcome! Please provide the credentials to log in</p>
+    <>
+      {isInvalidCredentials && (
+        <div className="error-message">Invalid credentials.</div>
+      )}
 
-        {error && <div className="error-message">{error}</div>}
-
-        <div className="input-group">
-          <input
-            id="email"
-            name="email"
-            type="email"
-            placeholder="Email"
-            value={loginData.email}
-            onChange={handleInputChange}
-            required
+      <main className="login-page">
+        <section className="left-panel">
+          <img
+            src={backgroundImage}
+            alt="login-illustration"
+            className="asset-image"
           />
-        </div>
+        </section>
+        
+        <section className="right-panel">
+          <header className="form-header">
+            <section className="logo">
+              <h1 className="logo-text">BUDGET PRO</h1>
+            </section>
+            <p>Welcome! Please provide the credentials to log in</p>
+          </header>
 
-        <div className="input-group">
-          <div className="password-input-container">
-            <input
-              id="password"
-              name="password"
-              type={showPassword ? "text" : "password"}
-              placeholder="Password"
-              value={loginData.password}
-              onChange={handleInputChange}
-              required
-              minLength="6"
-            />
-            <button 
-              type="button" 
-              className="password-toggle"
-              onClick={() => setShowPassword(!showPassword)}
-              aria-label={showPassword ? "Hide password" : "Show password"}
+          <form onSubmit={handleSubmit(submission)}>
+            <fieldset>
+              <label>Email:</label>
+
+              {errors.email && <span>{errors.email.message}</span>}
+
+              <input
+                type="email"
+                name="email"
+                placeholder="Enter your email"
+                {...register("email", {
+                  required: "Must not empty",
+                  pattern: {
+                    value: /^[^\s@]+@[^\s@]+\.[^\s@]+$/,
+                    message: "Invalid email format",
+                  },
+                })}
+              />
+            </fieldset>
+
+            <fieldset>
+              <label>Password:</label>
+
+              {errors.password && <span>{errors.password.message}</span>}
+
+              <div className="password-container">
+                <input
+                  type={isShowPassword ? "text" : "password"}
+                  name="password"
+                  placeholder="Enter your password"
+                  {...register("password", { 
+                    required: "Must not empty",
+                    minLength: {
+                      value: 6,
+                      message: "Password must be at least 6 characters"
+                    }
+                  })}
+                />
+
+                {password.length > 0 && (
+                  <button
+                    type="button"
+                    className="show-password"
+                    onClick={() => setShowPassword(!isShowPassword)}
+                    aria-label={isShowPassword ? "Hide password" : "Show password"}
+                  >
+                    {isShowPassword ? (
+                      <EyeOff size={18} color="#808080" /> 
+                    ) : (
+                      <Eye size={18} color="#808080" />
+                    )}
+                  </button>
+                )}
+              </div>
+            </fieldset>
+
+            <button
+              type="submit"
+              disabled={!isValid || isSubmitting}
+              className="log-in-button"
             >
-              {showPassword ? <EyeOff size={18} color="#808080" /> : <Eye size={18} color="#808080" />}
+              {!isSubmitting ? "LOG IN" : "LOGGING IN..."}
             </button>
-          </div>
-        </div>
+          </form>
 
-        <button 
-          type="submit" 
-          className="form-button"
-          disabled={isLoading}
-        >
-          {isLoading ? 'LOGGING IN...' : 'LOG IN'}
-        </button>
-
-        <div className="forgot-password">
-          <Link to="/forgot-password">Forgot Password?</Link>
-        </div>
-      </form>
-    </div>
+          <Link to="/forgot-password" className="forgot-password-link">
+            Forgot Password?
+          </Link>
+        </section>
+      </main>
+    </>
   );
 }
 

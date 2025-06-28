@@ -192,7 +192,7 @@ function BudgetProposal() {
             </Link>
             <div className="nav-dropdown">
               <div
-                className="nav-item active"
+                className="nav-item active" // This page is active
                 onClick={() => setShowBudgetDropdown(!showBudgetDropdown)}
               >
                 Budget <ChevronDown size={14} />
@@ -200,7 +200,7 @@ function BudgetProposal() {
               {showBudgetDropdown && (
                 <div className="dropdown-menu">
                   <div
-                    className="dropdown-item active"
+                    className="dropdown-item active" // Mark this item as active
                     onClick={() => navigate("/finance/budget-proposal")}
                   >
                     Budget Proposal
@@ -216,6 +216,13 @@ function BudgetProposal() {
                     onClick={() => navigate("/finance/ledger-view")}
                   >
                     Ledger View
+                  </div>
+                  {/* ADDED: Missing Budget Allocation item */}
+                  <div
+                    className="dropdown-item"
+                    onClick={() => navigate("/finance/journal-entry")}
+                  >
+                    Budget Allocation
                   </div>
                   <div
                     className="dropdown-item"

@@ -616,7 +616,7 @@ class Expense(models.Model):
         max_length=50, unique=True, editable=False)
     date = models.DateField()
     amount = models.DecimalField(
-        max_digits=15, decimal_places=2, validators=[MinValueValidator(0)])
+        max_digits=15, decimal_places=2, validators=[MinValueValidator(Decimal('0.00'))]) # MODIFIED: Changed 0 to Decimal('0.00')
     description = models.TextField()
     vendor = models.CharField(max_length=200)
     notes = models.TextField(blank=True)

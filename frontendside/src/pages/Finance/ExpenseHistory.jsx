@@ -27,6 +27,7 @@ const ExpenseHistory = () => {
     count: 0,
     next: null,
     previous: null,
+    page_size: 5, // Default to match the new backend pagination
   });
 
   // UI State
@@ -69,6 +70,7 @@ const ExpenseHistory = () => {
         count: response.data.count,
         next: response.data.next,
         previous: response.data.previous,
+        page_size: response.data.page_size,
       });
     } catch (err) {
       console.error("Error fetching expense history:", err);
@@ -95,12 +97,13 @@ const ExpenseHistory = () => {
   }, []);
 
   // --- HANDLERS ---
-  const handleViewExpense = async (expenseId) => {
+  // MODIFIED: Pass the entire transaction object to carry over its amount
+  const handleViewExpense = async (transaction) => {
     setIsModalLoading(true);
-    setSelectedExpense({ id: expenseId }); // Set a temporary object to show the modal
+    setSelectedExpense({ id: transaction.id }); // Show loading modal
     try {
       // Step 1: Get the expense to find its proposal ID
-      const expenseRes = await api.get(`/expenses/${expenseId}/`);
+      const expenseRes = await api.get(`/expenses/${transaction.id}/`);
       const proposalId = expenseRes.data.proposal_id;
 
       if (!proposalId) {
@@ -109,7 +112,12 @@ const ExpenseHistory = () => {
 
       // Step 2: Get the full proposal details for the modal
       const proposalRes = await api.get(`/budget-proposals/${proposalId}/`);
-      setSelectedExpense(proposalRes.data);
+
+      // MODIFIED: Merge proposal data with the specific expense amount
+      setSelectedExpense({
+        ...proposalRes.data,
+        specific_expense_amount: transaction.amount,
+      });
     } catch (err) {
       console.error("Error fetching expense details:", err);
       alert(
@@ -132,9 +140,7 @@ const ExpenseHistory = () => {
     setShowCategoryDropdown(false);
   };
 
-  // Other handlers remain the same
   const handleBackToList = () => setSelectedExpense(null);
-  const paginate = (pageNumber) => setCurrentPage(pageNumber);
   const nextPage = () => {
     if (paginationInfo.next) setCurrentPage((prev) => prev + 1);
   };
@@ -152,12 +158,14 @@ const ExpenseHistory = () => {
     localStorage.clear();
     navigate("/login");
   };
+  // MODIFIED: Use the page_size from state for accurate total page calculation
   const totalPages = paginationInfo.count
     ? Math.ceil(paginationInfo.count / (paginationInfo.page_size || 5))
     : 1;
 
   return (
     <div className="app-container">
+      {/* Header remains unchanged */}
       <header className="app-header">
         <div className="header-left">
           <div className="app-logo">
@@ -289,6 +297,7 @@ const ExpenseHistory = () => {
 
       <div className="page">
         {!selectedExpense ? (
+          // Main table view
           <div className="container">
             <div className="top">
               <h2 className="expense-title">Expense History</h2>
@@ -366,7 +375,7 @@ const ExpenseHistory = () => {
                   <tr>
                     <td colSpan="5">{error}</td>
                   </tr>
-                ) : (
+                ) : transactions.length > 0 ? (
                   transactions.map((transaction) => (
                     <tr key={transaction.id}>
                       <td>{new Date(transaction.date).toLocaleDateString()}</td>
@@ -380,18 +389,24 @@ const ExpenseHistory = () => {
                         )}
                       </td>
                       <td style={{ textAlign: "center" }}>
+                        {/* MODIFIED: Pass the whole transaction object */}
                         <button
                           className="view-btn"
-                          onClick={() => handleViewExpense(transaction.id)}
+                          onClick={() => handleViewExpense(transaction)}
                         >
                           View
                         </button>
                       </td>
                     </tr>
                   ))
+                ) : (
+                  <tr>
+                    <td colSpan="5">No approved expenses found.</td>
+                  </tr>
                 )}
               </tbody>
             </table>
+            {/* This will now render correctly because totalPages will be > 1 */}
             {totalPages > 1 && (
               <div className="pagination">
                 <button
@@ -415,6 +430,7 @@ const ExpenseHistory = () => {
             )}
           </div>
         ) : (
+          // MODAL VIEW
           <div className="container">
             {isModalLoading ? (
               <p>Loading details...</p>
@@ -426,12 +442,21 @@ const ExpenseHistory = () => {
                 </button>
                 <div className="proposal-header">
                   <h3 className="proposal-title">{selectedExpense.title}</h3>
+                  {/* ADDED: Display the specific expense amount */}
+                  {/* <div className="expense-amount-display">
+                    <span className="amount-label">Amount:</span>
+                    <span className="amount-value">
+                      ₱
+                      {parseFloat(
+                        selectedExpense.specific_expense_amount
+                      ).toLocaleString("en-US", {
+                        minimumFractionDigits: 2,
+                        maximumFractionDigits: 2,
+                      })}
+                    </span>
+                  </div> */}
                   <div className="proposal-date">
-                    Performance Period:{" "}
-                    {new Date(
-                      selectedExpense.performance_start_date
-                    ).toLocaleDateString()}{" "}
-                    -{" "}
+                    Due Date:{" "}
                     {new Date(
                       selectedExpense.performance_end_date
                     ).toLocaleDateString()}

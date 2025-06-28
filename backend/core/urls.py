@@ -15,7 +15,7 @@ from .views import (
 )
 
 from .views_expense import (
-    ExpenseHistoryView, ExpenseTrackingView, ExpenseCreateView,
+    ExpenseDetailView, ExpenseHistoryView, ExpenseTrackingView, ExpenseCreateView,
     ExpenseCategoryDropdownView, ExpenseTrackingSummaryView, 
     BudgetAllocationCreateView
 )
@@ -89,6 +89,7 @@ urlpatterns = [
     # ADDED: URL for the summary cards on the expense tracking page
     path('expenses/tracking/summary/', ExpenseTrackingSummaryView.as_view(), name='expense-tracking-summary'),
     # ADDED: URL for the "Add Budget" modal
+    path('expenses/<int:pk>/', ExpenseDetailView.as_view(), name='expense-detail'),
     path('expenses/add-budget/', BudgetAllocationCreateView.as_view(), name='add-budget'),
     path('expenses/submit/', ExpenseCreateView.as_view(), name='submit-expense'),
     path('expenses/valid-project-accounts/', ValidProjectAccountView.as_view(), name='valid-project-accounts'),

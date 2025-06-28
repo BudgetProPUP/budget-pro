@@ -9,7 +9,7 @@ class ExpenseHistorySerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Expense
-        fields = ['date', 'description', 'category_name', 'amount']
+        fields = ['id', 'date', 'description', 'category_name', 'amount']
         
 class ExpenseTrackingSerializer(serializers.ModelSerializer):
     # ADDED: Map model fields to the new UI column names
@@ -26,7 +26,17 @@ class ExpenseTrackingSerializer(serializers.ModelSerializer):
         # An expense is considered "Accomplished" if it has been approved.
         return "Yes" if obj.status == 'APPROVED' else "No"
 
+class ExpenseDetailForModalSerializer(serializers.ModelSerializer):
+    """
+    Serializer to get the proposal_id from an expense,
+    which is needed by the frontend to fetch the full proposal details.
+    """
+    proposal_id = serializers.IntegerField(source='project.budget_proposal.id', read_only=True)
 
+    class Meta:
+        model = Expense
+        fields = ['id', 'proposal_id']
+        
 class ExpenseCreateSerializer(serializers.ModelSerializer):
     project_id = serializers.IntegerField(write_only=True)
     account_code = serializers.CharField(write_only=True)
@@ -52,65 +62,66 @@ class ExpenseCreateSerializer(serializers.ModelSerializer):
     def validate(self, data):
         project_id = data.get('project_id')
         account_code = data.get('account_code')
-        category_code = data.get('category_code') # Get category_code for validation
+        category_code = data.get('category_code')
+        expense_amount = data.get('amount')
 
         try:
             project = Project.objects.get(id=project_id)
-            data['project_obj'] = project # Store for use in create
+            data['project_obj'] = project
         except Project.DoesNotExist:
             raise serializers.ValidationError({'project_id': 'Project not found'})
 
         today = timezone.now().date()
-        if project.status == 'COMPLETED' or (project.end_date and today > project.end_date): # Check project.end_date exists
-            raise serializers.ValidationError({'project_id': 'Cannot create expense for completed or past-due project'})
+        if project.status == 'COMPLETED' or (project.end_date and today > project.end_date):
+            raise serializers.ValidationError({'project_id': 'Cannot create expense for a completed or past-due project.'})
 
         try:
-            account = Account.objects.get(code=account_code, is_active=True) # Ensure account is active
-            data['account_obj'] = account # Store for use in create
+            account = Account.objects.get(code=account_code, is_active=True)
+            data['account_obj'] = account
         except Account.DoesNotExist:
-            raise serializers.ValidationError({'account_code': 'Active account not found'})
+            raise serializers.ValidationError({'account_code': 'Active account not found.'})
 
         try:
-            category = ExpenseCategory.objects.get(code=category_code, is_active=True) # Ensure category is active
-            data['category_obj'] = category # Store for use in create
+            category = ExpenseCategory.objects.get(code=category_code, is_active=True)
+            data['category_obj'] = category
         except ExpenseCategory.DoesNotExist:
-            raise serializers.ValidationError({'category_code': 'Active expense category not found'})
+            raise serializers.ValidationError({'category_code': 'Active expense category not found.'})
 
-        try:
-            # Allocation check should consider the project's department as well for clarity
-            allocation = BudgetAllocation.objects.get(
-                project=project,
-                # account=account, # Can also filter by account if allocation is that specific
-                department=project.department, # Expenses are usually tied to the project's department allocation
-                is_active=True
-            )
-            data['allocation_obj'] = allocation # Store for use in create
-        except BudgetAllocation.DoesNotExist:
-            raise serializers.ValidationError({'non_field_errors': f'No active budget allocation found for project "{project.name}" in department "{project.department.name}".'})
-        except BudgetAllocation.MultipleObjectsReturned:
-             raise serializers.ValidationError({'non_field_errors': f'Multiple active budget allocations found for project "{project.name}". Please review allocations.'})
+        # --- MODIFIED VALIDATION LOGIC ---
+        # Instead of getting one allocation, we check the total project budget vs. spending.
+        
+        # 1. Find all active allocations for the project.
+        allocations = BudgetAllocation.objects.filter(project=project, is_active=True)
+        if not allocations.exists():
+            raise serializers.ValidationError({'non_field_errors': f'No active budget allocations found for project "{project.name}".'})
 
+        # 2. Calculate the project's total budget and total spent so far.
+        project_total_budget = allocations.aggregate(total=Sum('amount'))['total'] or Decimal('0.00')
+        project_total_spent = Expense.objects.filter(project=project, status='APPROVED').aggregate(total=Sum('amount'))['total'] or Decimal('0.00')
+        
+        project_remaining_budget = project_total_budget - project_total_spent
 
-        # Check sufficient funds using the fetched allocation
-        # Ensure amount is a Decimal for comparison
-        expense_amount = data.get('amount')
-        if not isinstance(expense_amount, Decimal):
-            try:
-                expense_amount = Decimal(str(expense_amount))
-            except:
-                raise serializers.ValidationError({'amount': 'Invalid amount format.'})
-
-
-        if expense_amount > allocation.get_remaining_budget():
-            raise serializers.ValidationError({'amount': f'Insufficient funds. Remaining: {allocation.get_remaining_budget()}'})
+        if expense_amount > project_remaining_budget:
+            raise serializers.ValidationError({'amount': f'Insufficient funds for this project. Remaining: ₱{project_remaining_budget:,.2f}'})
+        
+        # We still need to associate the expense with one allocation. We'll pick the first one.
+        # A more advanced system might let the user choose which allocation to draw from.
+        data['allocation_obj'] = allocations.first()
+        # --- END OF MODIFIED VALIDATION LOGIC ---
 
         return data
 
     def create(self, validated_data):
+        # Pop the objects we added in validation
         project = validated_data.pop('project_obj')
         account = validated_data.pop('account_obj')
         category = validated_data.pop('category_obj')
         allocation = validated_data.pop('allocation_obj')
+
+        # Pop the original write-only fields to prevent passing them to the model create method
+        validated_data.pop('project_id', None)
+        validated_data.pop('account_code', None)
+        validated_data.pop('category_code', None)
 
         request_user = self.context['request'].user # User from JWT
 
@@ -120,10 +131,10 @@ class ExpenseCreateSerializer(serializers.ModelSerializer):
             account=account,
             department=project.department, # Expense department is same as project's department
             category=category,
-            submitted_by_user_id=request_user.id, # UPDATED
-            submitted_by_username=getattr(request_user, 'username', 'N/A'), # UPDATED
+            submitted_by_user_id=request_user.id,
+            submitted_by_username=getattr(request_user, 'username', 'N/A'),
             status='SUBMITTED', # Default status on creation
-            **validated_data # Contains amount, date, description, vendor, receipt
+            **validated_data # Now only contains amount, date, description, vendor, receipt
         )
         return expense
     
@@ -190,6 +201,49 @@ class ExpenseTrackingSummarySerializer(serializers.Serializer):
     budget_remaining = serializers.DecimalField(max_digits=15, decimal_places=2)
     total_expenses_this_month = serializers.DecimalField(max_digits=15, decimal_places=2)
     
+    
+class ExpenseDetailSerializer(serializers.ModelSerializer):
+    """
+    Provides a detailed view of a single expense record, including related
+    project, account, and category information. Used for the 'View' modal
+    on the Expense History page.
+    """
+    project_name = serializers.CharField(source='project.name', read_only=True, default=None)
+    account_details = serializers.CharField(source='account.__str__', read_only=True)
+    category_name = serializers.CharField(source='category.name', read_only=True)
+    department_name = serializers.CharField(source='department.name', read_only=True)
+    # Use SerializerMethodField to handle cases where receipt might not exist
+    receipt_url = serializers.SerializerMethodField()
+
+    class Meta:
+        model = Expense
+        fields = [
+            'id',
+            'transaction_id',
+            'date',
+            'amount',
+            'description',
+            'vendor',
+            'status',
+            'notes',
+            'receipt_url',
+            'project_name',
+            'account_details',
+            'category_name',
+            'department_name',
+            'submitted_by_username',
+            'submitted_at',
+            'approved_by_username',
+            'approved_at',
+        ]
+    
+    def get_receipt_url(self, obj):
+        if obj.receipt:
+            request = self.context.get('request')
+            if request:
+                return request.build_absolute_uri(obj.receipt.url)
+        return None
+
 class ExpenseCategoryDropdownSerializer(serializers.ModelSerializer):
     class Meta:
         model = ExpenseCategory

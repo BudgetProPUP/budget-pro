@@ -53,3 +53,17 @@ class IsOwnerOrFinanceHead(permissions.BasePermission):
             return getattr(obj, user_field) == request.user
             
         return False
+    
+class IsTrustedService(permissions.BasePermission):
+    """
+    Allows access only to authenticated services (via API Key).
+    """
+    def has_permission(self, request, view):
+        # Check if request.user is an instance of the ServicePrincipal
+        # and potentially check request.user.service_name
+        from .service_authentication import ServicePrincipal # Avoid circular import if in same file
+        
+        return (request.user and
+                request.user.is_authenticated and
+                isinstance(request.user, ServicePrincipal) and
+                request.user.service_name in ["DTS", "TTS"])

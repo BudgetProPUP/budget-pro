@@ -57,91 +57,6 @@ class AccountType(models.Model):
         return self.name
 
 
-class CustomUserManager(BaseUserManager):
-    def create_user(self, email, username, password=None, **extra_fields):
-        if not email:
-            raise ValueError('Email is required')
-        if not username:
-            raise ValueError('Username is required')
-
-        email = self.normalize_email(email)
-        user = self.model(email=email, username=username, **extra_fields)
-        user.set_password(password)
-        user.save(using=self._db)
-        return user
-
-    def create_superuser(self, email, username, password=None, **extra_fields):
-        extra_fields.setdefault('is_staff', True)
-        extra_fields.setdefault('is_superuser', True)
-        return self.create_user(email, username, password, **extra_fields)
-
-
-class User(AbstractBaseUser, PermissionsMixin):
-    ROLE_CHOICES = [
-        ('ADMIN',        'Administrator'),
-        ('FINANCE_HEAD', 'Finance Head'),
-    ]
-
-    email = models.EmailField(unique=True)
-    username = models.CharField(max_length=150, unique=True)
-    first_name = models.CharField(max_length=100)
-    last_name = models.CharField(max_length=100)
-    role = models.CharField(max_length=20, choices=ROLE_CHOICES)
-    department = models.ForeignKey(
-        Department, on_delete=models.SET_NULL, null=True, blank=True)
-    phone_number = models.CharField(
-        max_length=20, unique=True, null=True, blank=True)
-
-    is_active = models.BooleanField(default=True)
-    is_staff = models.BooleanField(default=False)
-
-    created_at = models.DateTimeField(auto_now_add=True)
-    updated_at = models.DateTimeField(auto_now=True)
-    last_login = models.DateTimeField(null=True, blank=True)
-
-    objects = CustomUserManager()
-
-    USERNAME_FIELD = 'email'
-    REQUIRED_FIELDS = ['username']
-
-    def __str__(self):
-        return self.username
-
-    def get_full_name(self):
-        return f"{self.first_name} {self.last_name}"
-
-
-class LoginAttempt(models.Model):
-    user = models.ForeignKey(
-        User, on_delete=models.CASCADE, null=True, blank=True)
-    ip_address = models.GenericIPAddressField()
-    user_agent = models.CharField(max_length=255)
-    success = models.BooleanField()
-    timestamp = models.DateTimeField(auto_now_add=True)
-
-    def __str__(self):
-        status = "Successful" if self.success else "Failed"
-        user_str = self.user.username if self.user else "Unknown"
-        return f"{status} login attempt by {user_str} at {self.timestamp}"
-
-
-class Account(models.Model):
-    code = models.CharField(max_length=20, unique=True)
-    name = models.CharField(max_length=100)
-    description = models.TextField(blank=True)
-    account_type = models.ForeignKey(AccountType, on_delete=models.PROTECT)
-    parent_account = models.ForeignKey('self', on_delete=models.SET_NULL, null=True, blank=True,
-                                       related_name='child_accounts')
-    created_by = models.ForeignKey(User, on_delete=models.PROTECT)
-    is_active = models.BooleanField(default=True)
-    created_at = models.DateTimeField(auto_now_add=True)
-    updated_at = models.DateTimeField(auto_now=True)
-    accomplished = models.BooleanField(default=False)
-    accomplishment_date = models.DateField(null=True, blank=True)
-    def __str__(self):
-        return f"{self.code} - {self.name}"
-
-
 class FiscalYear(models.Model):
     name = models.CharField(max_length=50)
     start_date = models.DateField()
@@ -159,6 +74,34 @@ class FiscalYear(models.Model):
                 name='check_end_date_after_start_date'
             )
         ]
+
+
+class ProjectFiscalYear(models.Model):
+    project = models.ForeignKey('Project', on_delete=models.CASCADE)
+    fiscal_year = models.ForeignKey('FiscalYear', on_delete=models.PROTECT)
+
+    class Meta:
+        unique_together = ('project', 'fiscal_year')
+
+
+class DashboardMetric(models.Model):
+    metric_type = models.CharField(max_length=100)
+    value = models.DecimalField(max_digits=15, decimal_places=2)
+    percentage = models.DecimalField(
+        max_digits=5, decimal_places=2, null=True, blank=True)
+    status = models.CharField(max_length=50)
+    fiscal_year = models.ForeignKey(FiscalYear, on_delete=models.CASCADE)
+    department = models.ForeignKey(
+        Department, on_delete=models.CASCADE, null=True, blank=True)
+    last_updated = models.DateTimeField(auto_now=True)
+    warning_threshold = models.DecimalField(
+        max_digits=5, decimal_places=2, null=True, blank=True)
+    critical_threshold = models.DecimalField(
+        max_digits=5, decimal_places=2, null=True, blank=True)
+
+    def __str__(self):
+        dept_str = f" - {self.department.name}" if self.department else ""
+        return f"{self.metric_type}{dept_str} - {self.fiscal_year.name}"
 
 
 class BudgetProposal(models.Model):
@@ -180,7 +123,8 @@ class BudgetProposal(models.Model):
     title = models.CharField(max_length=200)
     project_summary = models.TextField()
     project_description = models.TextField()
-    performance_notes = models.TextField(blank=True, help_text="Narrative description of the period of performance.")
+    performance_notes = models.TextField(
+        blank=True, help_text="Narrative description of the period of performance.")
     department = models.ForeignKey(Department, on_delete=models.PROTECT)
     fiscal_year = models.ForeignKey(FiscalYear, on_delete=models.PROTECT)
     submitted_by_name = models.CharField(max_length=255, null=True, blank=True)
@@ -232,6 +176,153 @@ class BudgetProposal(models.Model):
         ]
 
 
+class Project(models.Model):
+    STATUS_CHOICES = [
+        ('PLANNING', 'Planning'),
+        ('IN_PROGRESS', 'In Progress'),
+        ('ON_HOLD', 'On Hold'),
+        ('COMPLETED', 'Completed'),
+        ('CANCELLED', 'Cancelled'),
+    ]
+    fiscal_years = models.ManyToManyField(
+        'FiscalYear',
+        through='ProjectFiscalYear',
+        related_name='projects'
+    )  # Allow to query project.fiscal_years.all()
+    name = models.CharField(max_length=200)
+    description = models.TextField()
+    start_date = models.DateField()
+    end_date = models.DateField()
+    department = models.ForeignKey(Department, on_delete=models.PROTECT)
+    budget_proposal = models.OneToOneField(
+        BudgetProposal, on_delete=models.PROTECT,
+        related_name='project',
+        help_text='The approved proposal that spawned this project'
+    )
+    status = models.CharField(
+        max_length=20, choices=STATUS_CHOICES, default='PLANNING')
+    completion_percentage = models.IntegerField(
+        default=0, validators=[MinValueValidator(0), MaxValueValidator(100)])
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    def __str__(self):
+        return self.name
+
+    class Meta:
+        constraints = [
+            models.CheckConstraint(
+                check=models.Q(end_date__gt=models.F('start_date')),
+                name='check_project_end_date_after_start_date'
+            )
+        ]
+
+    def save(self, *args, **kwargs):
+        today = timezone.now().date()
+        if self.status != 'CANCELLED':
+            if today > self.end_date:
+                self.status = 'COMPLETED'
+            elif today < self.start_date:
+                self.status = 'PLANNING'
+            else:
+                if self.status not in ['IN_PROGRESS', 'ON_HOLD']:
+                    self.status = 'IN_PROGRESS'
+        super().save(*args, **kwargs)
+
+    # @property
+    # def completion_percentage(self):
+    #     """Calculate overall project completion based on milestones"""
+    #     milestones = self.milestones.all()
+    #     if not milestones.exists():
+    #         return 0
+
+    #     total_milestones = milestones.count()
+    #     completed_weight = sum(m.completion_percentage for m in milestones)
+    #     return completed_weight / total_milestones
+
+
+class RiskMetric(models.Model):
+    RISK_TYPE_CHOICES = [
+        ('BUDGET', 'Budget'),
+        ('TIMELINE', 'Timeline'),
+        ('RESOURCES', 'Resources'),
+        ('QUALITY', 'Quality'),
+    ]
+
+    project = models.ForeignKey(
+        Project, on_delete=models.CASCADE, related_name='risk_metrics')
+    risk_type = models.CharField(max_length=20, choices=RISK_TYPE_CHOICES)
+    risk_level = models.IntegerField(
+        validators=[MinValueValidator(0), MaxValueValidator(100)])
+    description = models.TextField(blank=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    # updated_by = models.ForeignKey(User, on_delete=models.PROTECT)
+    updated_by_user_id = models.IntegerField(
+        help_text="ID of user from Auth Service")  # NEW
+    updated_by_username = models.CharField(
+        max_length=150, null=True, blank=True)  # NEW
+
+    class Meta:
+        unique_together = ('project', 'risk_type')
+
+
+class UserActivityLog(models.Model):
+    LOG_TYPE_CHOICES = [
+        ('LOGIN', 'Login'),
+        ('EXPORT', 'Export'),
+        ('CREATE', 'Create'),
+        ('UPDATE', 'Update'),
+        ('DELETE', 'Delete'),
+        ('PROCESS', 'Process'),
+        ('ERROR', 'Error'),
+    ]
+
+    STATUS_CHOICES = [
+        ('SUCCESS', 'Success'),
+        ('FAILED', 'Failed'),
+        ('IN_PROGRESS', 'In Progress'),
+    ]
+
+    # user = models.ForeignKey(User, on_delete=models.PROTECT)
+    user_id = models.IntegerField(
+        help_text="ID of user from Auth Service who performed action")  # NEW
+    user_username = models.CharField(
+        max_length=150, help_text="Username of user (denormalized)")  # NEW
+    timestamp = models.DateTimeField(auto_now_add=True)
+    log_type = models.CharField(max_length=30, choices=LOG_TYPE_CHOICES)
+    action = models.CharField(max_length=255)
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES)
+    details = models.JSONField(null=True, blank=True)
+    def __str__(
+        self): return f"{self.user_username} - {self.action} - {self.timestamp}"
+
+
+class Account(models.Model):
+    code = models.CharField(max_length=20, unique=True)
+    name = models.CharField(max_length=100)
+    description = models.TextField(blank=True)
+    account_type = models.ForeignKey(AccountType, on_delete=models.PROTECT)
+    parent_account = models.ForeignKey(
+        'self', on_delete=models.SET_NULL, null=True, blank=True, related_name='child_accounts')
+
+    # --- MODIFIED USER FIELD ---
+    # created_by = models.ForeignKey(User, on_delete=models.PROTECT) # OLD
+    created_by_user_id = models.IntegerField(
+        help_text="ID of the user from Auth Service who created this account")  # NEW
+    created_by_username = models.CharField(
+        # NEW
+        max_length=150, null=True, blank=True, help_text="Username of the creator (denormalized)")
+
+    is_active = models.BooleanField(default=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    accomplished = models.BooleanField(default=False)
+    accomplishment_date = models.DateField(null=True, blank=True)
+
+    def __str__(self):
+        return f"{self.code} - {self.name}"
+
+
 class BudgetProposalItem(models.Model):
     proposal = models.ForeignKey(
         BudgetProposal, on_delete=models.CASCADE, related_name='items')
@@ -244,6 +335,7 @@ class BudgetProposalItem(models.Model):
 
     def __str__(self):
         return f"{self.cost_element} - {self.estimated_cost}"
+
 
 class ExpenseCategory(models.Model):
     code = models.CharField(max_length=20, unique=True)
@@ -319,8 +411,9 @@ class ExpenseCategory(models.Model):
             'percentage': (top_category['total_amount'] / total_expenses) * 100
         }
 
+
 class BudgetAllocation(models.Model):
-    
+
     fiscal_year = models.ForeignKey(FiscalYear, on_delete=models.PROTECT)
     department = models.ForeignKey(
         'Department',
@@ -350,11 +443,11 @@ class BudgetAllocation(models.Model):
             '(if this allocation was approved from one).'
         )
     )
-    project = models.OneToOneField(
+    project = models.ForeignKey(
         'Project',
         on_delete=models.CASCADE,
-        related_name='budget',
-        help_text='The one budget allocation for this project.'
+        related_name='allocations',
+        help_text='The project this budget allocation belongs to.'
     )
 
     created_by_name = models.CharField(max_length=255, null=True, blank=True)
@@ -395,54 +488,42 @@ class BudgetAllocation(models.Model):
 
 
 class BudgetTransfer(models.Model):
-    STATUS_CHOICES = [
-        ('PENDING', 'Pending'),
-        ('APPROVED', 'Approved'),
-        ('REJECTED', 'Rejected'),
-    ]
-
     fiscal_year = models.ForeignKey(FiscalYear, on_delete=models.PROTECT)
     source_allocation = models.ForeignKey(
         BudgetAllocation, on_delete=models.PROTECT, related_name='transfers_from')
     destination_allocation = models.ForeignKey(
         BudgetAllocation, on_delete=models.PROTECT, related_name='transfers_to')
-    transferred_by = models.ForeignKey(User, on_delete=models.PROTECT)
-    amount = models.DecimalField(
-        max_digits=15, decimal_places=2, validators=[MinValueValidator(Decimal('0'))])
+
+    # --- MODIFIED USER FIELDS ---
+    # transferred_by = models.ForeignKey(User, on_delete=models.PROTECT) # OLD
+    transferred_by_user_id = models.IntegerField(
+        help_text="ID of user from Auth Service")  # NEW
+    transferred_by_username = models.CharField(
+        max_length=150, null=True, blank=True)  # NEW
+
+    amount = models.DecimalField(max_digits=15, decimal_places=2, validators=[
+                                 MinValueValidator(Decimal('0'))])
     reason = models.TextField()
     transferred_at = models.DateTimeField(auto_now_add=True)
-    status = models.CharField(
-        max_length=20, choices=STATUS_CHOICES, default='PENDING')
-    approved_by = models.ForeignKey(
-        User, on_delete=models.PROTECT, null=True, blank=True, related_name='approved_transfers')
+    status = models.CharField(max_length=20, choices=[('PENDING', 'Pending'), (
+        'APPROVED', 'Approved'), ('REJECTED', 'Rejected')], default='PENDING')
+
+    # approved_by = models.ForeignKey(User, on_delete=models.PROTECT, null=True, blank=True, related_name='approved_transfers') # OLD
+    approved_by_user_id = models.IntegerField(
+        null=True, blank=True, help_text="ID of user from Auth Service")  # NEW
+    approved_by_username = models.CharField(
+        max_length=150, null=True, blank=True)  # NEW
     approval_date = models.DateTimeField(null=True, blank=True)
-    rejected_by = models.ForeignKey(
-        User, on_delete=models.PROTECT, null=True, blank=True, related_name='rejected_transfers')
+
+    # rejected_by = models.ForeignKey(User, on_delete=models.PROTECT, null=True, blank=True, related_name='rejected_transfers') # OLD
+    rejected_by_user_id = models.IntegerField(
+        null=True, blank=True, help_text="ID of user from Auth Service")  # NEW
+    rejected_by_username = models.CharField(
+        max_length=150, null=True, blank=True)  # NEW
     rejection_date = models.DateTimeField(null=True, blank=True)
-
-    def __str__(self):
-        return f"Transfer of {self.amount} from {self.source_allocation.department.name} to {self.destination_allocation.department.name}"
-
-    def validate_sufficient_funds(self):
-        # Get total allocated
-        allocated = self.source_allocation.amount
-
-        # Get total spent
-        expenses = Expense.objects.filter(
-            budget_allocation=self.source_allocation,
-            status='APPROVED'
-        ).aggregate(total=models.Sum('amount'))['total'] or 0
-
-        # Get already transferred amount
-        transferred = BudgetTransfer.objects.filter(
-            source_allocation=self.source_allocation,
-            status='APPROVED'
-        ).aggregate(total=models.Sum('amount'))['total'] or 0
-
-        # Calculate available
-        available = allocated - expenses - transferred
-
-        return available >= self.amount
+    # ... (__str__, validate_sufficient_funds methods need Expense model to be updated) ...
+    def __str__(
+        self): return f"Transfer of {self.amount} from {self.source_allocation.department.name} to {self.destination_allocation.department.name}"
 
 
 class JournalEntry(models.Model):
@@ -464,7 +545,11 @@ class JournalEntry(models.Model):
         max_digits=15, decimal_places=2, validators=[MinValueValidator(Decimal('0'))])
     status = models.CharField(
         max_length=20, choices=STATUS_CHOICES, default='DRAFT')
-    created_by = models.ForeignKey(User, on_delete=models.PROTECT)
+    # created_by = models.ForeignKey(User, on_delete=models.PROTECT) # OLD
+    created_by_user_id = models.IntegerField(
+        help_text="ID of user from Auth Service")  # NEW
+    created_by_username = models.CharField(
+        max_length=150, null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
@@ -531,7 +616,7 @@ class Expense(models.Model):
         max_length=50, unique=True, editable=False)
     date = models.DateField()
     amount = models.DecimalField(
-        max_digits=15, decimal_places=2, validators=[MinValueValidator(0)])
+        max_digits=15, decimal_places=2, validators=[MinValueValidator(Decimal('0.00'))]) # MODIFIED: Changed 0 to Decimal('0.00')
     description = models.TextField()
     vendor = models.CharField(max_length=200)
     notes = models.TextField(blank=True)
@@ -540,12 +625,27 @@ class Expense(models.Model):
     department = models.ForeignKey(Department, on_delete=models.PROTECT)
     budget_allocation = models.ForeignKey(
         BudgetAllocation, on_delete=models.PROTECT)
-    submitted_by = models.ForeignKey(
-        User, on_delete=models.PROTECT, related_name='submitted_expenses')
-    approved_by = models.ForeignKey(
-        User, on_delete=models.PROTECT, null=True, blank=True, related_name='approved_expenses')
+    # submitted_by = models.ForeignKey(
+    #    User, on_delete=models.PROTECT, related_name='submitted_expenses')
+    # approved_by = models.ForeignKey(
+    #    User, on_delete=models.PROTECT, null=True, blank=True, related_name='approved_expenses')
+    submitted_by_user_id = models.IntegerField(
+        help_text="ID of user from Auth Service")  # NEW
+    submitted_by_username = models.CharField(
+        max_length=150, null=True, blank=True)
     submitted_at = models.DateTimeField(auto_now_add=True)
     posting_date = models.DateField(null=True, blank=True)
+    approved_by_user_id = models.IntegerField(
+        null=True,
+        blank=True,
+        help_text="ID of approving user from Auth Service"
+    )
+    approved_by_username = models.CharField(
+        max_length=150,
+        null=True,
+        blank=True,
+        help_text="Username of approving user"
+    )
     approved_at = models.DateTimeField(null=True, blank=True)
     status = models.CharField(
         max_length=20, choices=STATUS_CHOICES, default='DRAFT')
@@ -572,22 +672,20 @@ class Expense(models.Model):
             raise ValidationError({
                 'amount': f"This expense of {self.amount} would exceed the remaining budget of {allocated - spent}."
             })
-            
+
     def save(self, *args, **kwargs):
         if not self.transaction_id:
             date_part = timezone.now().strftime("%Y%m%d")
-            last_expense = Expense.objects.filter(transaction_id__startswith=f"TXN-{date_part}").order_by('transaction_id').last()
+            last_expense = Expense.objects.filter(
+                transaction_id__startswith=f"TXN-{date_part}").order_by('transaction_id').last()
             if last_expense and last_expense.transaction_id:
                 last_number = int(last_expense.transaction_id.split("-")[-1])
             else:
                 last_number = 0
             self.transaction_id = f"TXN-{date_part}-{last_number + 1:04d}"
-            if self.status == 'APPROVED' and not self.approved_at:
-                self.approved_at = timezone.now()
-                if not self.approved_by:
-                    self.approved_by = self.submitted_by  # or request.user if context-aware
+        if self.status == 'APPROVED' and not self.approved_at:
+            self.approved_at = timezone.now()
         super().save(*args, **kwargs)
-
 
     @classmethod
     def get_top_category_with_percentage(cls, fiscal_year=None, department=None):
@@ -665,7 +763,11 @@ class Document(models.Model):
     file = models.FileField(upload_to='documents/')
     document_type = models.CharField(max_length=20, choices=DOCUMENT_TYPES)
     name = models.CharField(max_length=255)
-    uploaded_by = models.ForeignKey(User, on_delete=models.PROTECT)
+    # uploaded_by = models.ForeignKey(User, on_delete=models.PROTECT)
+    uploaded_by_user_id = models.IntegerField(
+        help_text="ID of user from Auth Service")  # NEW
+    uploaded_by_username = models.CharField(
+        max_length=150, null=True, blank=True)  # NEW
     uploaded_at = models.DateTimeField(auto_now_add=True)
     department = models.ForeignKey(
         Department, on_delete=models.SET_NULL, null=True, blank=True)
@@ -692,6 +794,8 @@ class ProposalHistory(models.Model):
     proposal = models.ForeignKey(
         BudgetProposal, on_delete=models.CASCADE, related_name='history')
     action = models.CharField(max_length=20, choices=ACTION_CHOICES)
+    # If need to link to the auth_service user who performed the action:
+    # action_by_user_id = models.IntegerField(null=True, blank=True)
     action_by_name = models.CharField(max_length=100, null=True, blank=True)
     action_at = models.DateTimeField(auto_now_add=True)
     previous_status = models.CharField(max_length=20, blank=True, null=True)
@@ -701,7 +805,6 @@ class ProposalHistory(models.Model):
     def __str__(self):
         return f"{self.proposal.title} {self.action} by {self.action_by_name or 'Unknown'}"
 
-
     class Meta:
         ordering = ['-action_at']
         verbose_name_plural = "Proposal histories"
@@ -710,12 +813,16 @@ class ProposalHistory(models.Model):
 class ProposalComment(models.Model):
     proposal = models.ForeignKey(
         BudgetProposal, on_delete=models.CASCADE, related_name='comments')
-    user = models.ForeignKey(User, on_delete=models.PROTECT)
+    # user = models.ForeignKey(User, on_delete=models.PROTECT)
     comment = models.TextField()
     created_at = models.DateTimeField(auto_now_add=True)
-
-    def __str__(self):
-        return f"Comment on {self.proposal.title} by {self.user.username}"
+    user_id = models.IntegerField(
+        help_text="ID of user from Auth Service who commented")  # NEW
+    user_username = models.CharField(
+        # NEW
+        max_length=150, help_text="Username of commenter (denormalized)")
+    def __str__(
+        self): return f"Comment on {self.proposal.title} by {self.user_username}"
 
 
 class TransactionAudit(models.Model):
@@ -735,14 +842,19 @@ class TransactionAudit(models.Model):
 
     transaction_type = models.CharField(
         max_length=20, choices=TRANSACTION_TYPE_CHOICES)
-    transaction_id = models.IntegerField()
-    user = models.ForeignKey(User, on_delete=models.PROTECT)
+    transaction_id_ref = models.IntegerField()
+    # user = models.ForeignKey(User, on_delete=models.PROTECT)
+    user_id = models.IntegerField(
+        help_text="ID of user from Auth Service related to audit")  # NEW
+    user_username = models.CharField(
+        max_length=150, help_text="Username of user (denormalized)")  # NEW
+
     action = models.CharField(max_length=20, choices=ACTION_CHOICES)
     timestamp = models.DateTimeField(auto_now_add=True)
     details = models.JSONField()
 
-    def __str__(self):
-        return f"{self.transaction_type} {self.transaction_id} {self.action} by {self.user.username}"
+    def __str__(
+        self): return f"{self.transaction_type} {self.transaction_id_ref} {self.action} by {self.user_username}"
 
     @receiver(post_save, sender=Expense)
     def expense_audit_log(sender, instance, created, **kwargs):
@@ -763,7 +875,7 @@ class TransactionAudit(models.Model):
         # Create transaction audit record
         TransactionAudit.objects.create(
             transaction_type='EXPENSE',
-            transaction_id=instance.id,
+            transaction_id_ref=instance.id,
             user=user,
             action=action,
             details={
@@ -775,142 +887,72 @@ class TransactionAudit(models.Model):
             }
         )
 
-class Project(models.Model):
-    STATUS_CHOICES = [
-        ('PLANNING', 'Planning'),
-        ('IN_PROGRESS', 'In Progress'),
-        ('ON_HOLD', 'On Hold'),
-        ('COMPLETED', 'Completed'),
-        ('CANCELLED', 'Cancelled'),
+
+"""
+class CustomUserManager(BaseUserManager):
+    def create_user(self, email, username, password=None, **extra_fields):
+        if not email:
+            raise ValueError('Email is required')
+        if not username:
+            raise ValueError('Username is required')
+
+        email = self.normalize_email(email)
+        user = self.model(email=email, username=username, **extra_fields)
+        user.set_password(password)
+        user.save(using=self._db)
+        return user
+
+    def create_superuser(self, email, username, password=None, **extra_fields):
+        extra_fields.setdefault('is_staff', True)
+        extra_fields.setdefault('is_superuser', True)
+        return self.create_user(email, username, password, **extra_fields)
+
+
+class User(AbstractBaseUser, PermissionsMixin):
+    ROLE_CHOICES = [
+        ('ADMIN',        'Administrator'),
+        ('FINANCE_HEAD', 'Finance Head'),
     ]
-    fiscal_years = models.ManyToManyField(
-        'FiscalYear',
-        through='ProjectFiscalYear',
-        related_name='projects'
-    )  # Allow to query project.fiscal_years.all()
-    name = models.CharField(max_length=200)
-    description = models.TextField()
-    start_date = models.DateField()
-    end_date = models.DateField()
-    department = models.ForeignKey(Department, on_delete=models.PROTECT)
-    budget_proposal = models.OneToOneField(
-        BudgetProposal, on_delete=models.PROTECT,
-        related_name='project',
-        help_text='The approved proposal that spawned this project'
-    )
-    status = models.CharField(
-        max_length=20, choices=STATUS_CHOICES, default='PLANNING')
-    completion_percentage = models.IntegerField(
-        default=0, validators=[MinValueValidator(0), MaxValueValidator(100)])
+
+    email = models.EmailField(unique=True)
+    username = models.CharField(max_length=150, unique=True)
+    first_name = models.CharField(max_length=100)
+    last_name = models.CharField(max_length=100)
+    role = models.CharField(max_length=20, choices=ROLE_CHOICES)
+    department = models.ForeignKey(
+        Department, on_delete=models.SET_NULL, null=True, blank=True)
+    phone_number = models.CharField(
+        max_length=20, unique=True, null=True, blank=True)
+
+    is_active = models.BooleanField(default=True)
+    is_staff = models.BooleanField(default=False)
+
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
+    last_login = models.DateTimeField(null=True, blank=True)
+
+    objects = CustomUserManager()
+
+    USERNAME_FIELD = 'email'
+    REQUIRED_FIELDS = ['username']
 
     def __str__(self):
-        return self.name
+        return self.username
 
-    class Meta:
-        constraints = [
-            models.CheckConstraint(
-                check=models.Q(end_date__gt=models.F('start_date')),
-                name='check_project_end_date_after_start_date'
-            )
-        ]
-        
-    def save(self, *args, **kwargs):
-        today = timezone.now().date()
-        if self.status != 'CANCELLED':
-            if today > self.end_date:
-                self.status = 'COMPLETED'
-            elif today < self.start_date:
-                self.status = 'PLANNING'
-            else:
-                if self.status not in ['IN_PROGRESS', 'ON_HOLD']:
-                    self.status = 'IN_PROGRESS'
-        super().save(*args, **kwargs)
-
-    # @property
-    # def completion_percentage(self):
-    #     """Calculate overall project completion based on milestones"""
-    #     milestones = self.milestones.all()
-    #     if not milestones.exists():
-    #         return 0
-
-    #     total_milestones = milestones.count()
-    #     completed_weight = sum(m.completion_percentage for m in milestones)
-    #     return completed_weight / total_milestones
+    def get_full_name(self):
+        return f"{self.first_name} {self.last_name}"
 
 
-class ProjectFiscalYear(models.Model):
-    project = models.ForeignKey('Project', on_delete=models.CASCADE)
-    fiscal_year = models.ForeignKey('FiscalYear', on_delete=models.PROTECT)
-
-    class Meta:
-        unique_together = ('project', 'fiscal_year')
-
-class DashboardMetric(models.Model):
-    metric_type = models.CharField(max_length=100)
-    value = models.DecimalField(max_digits=15, decimal_places=2)
-    percentage = models.DecimalField(
-        max_digits=5, decimal_places=2, null=True, blank=True)
-    status = models.CharField(max_length=50)
-    fiscal_year = models.ForeignKey(FiscalYear, on_delete=models.CASCADE)
-    department = models.ForeignKey(
-        Department, on_delete=models.CASCADE, null=True, blank=True)
-    last_updated = models.DateTimeField(auto_now=True)
-    warning_threshold = models.DecimalField(
-        max_digits=5, decimal_places=2, null=True, blank=True)
-    critical_threshold = models.DecimalField(
-        max_digits=5, decimal_places=2, null=True, blank=True)
-
-    def __str__(self):
-        dept_str = f" - {self.department.name}" if self.department else ""
-        return f"{self.metric_type}{dept_str} - {self.fiscal_year.name}"
-
-
-class RiskMetric(models.Model):
-    RISK_TYPE_CHOICES = [
-        ('BUDGET', 'Budget'),
-        ('TIMELINE', 'Timeline'),
-        ('RESOURCES', 'Resources'),
-        ('QUALITY', 'Quality'),
-    ]
-
-    project = models.ForeignKey(
-        Project, on_delete=models.CASCADE, related_name='risk_metrics')
-    risk_type = models.CharField(max_length=20, choices=RISK_TYPE_CHOICES)
-    risk_level = models.IntegerField(
-        validators=[MinValueValidator(0), MaxValueValidator(100)])
-    description = models.TextField(blank=True)
-    updated_at = models.DateTimeField(auto_now=True)
-    updated_by = models.ForeignKey(User, on_delete=models.PROTECT)
-
-    class Meta:
-        unique_together = ('project', 'risk_type')
-
-
-class UserActivityLog(models.Model):
-    LOG_TYPE_CHOICES = [
-        ('LOGIN', 'Login'),
-        ('EXPORT', 'Export'),
-        ('CREATE', 'Create'),
-        ('UPDATE', 'Update'),
-        ('DELETE', 'Delete'),
-        ('PROCESS', 'Process'),
-        ('ERROR', 'Error'),
-    ]
-
-    STATUS_CHOICES = [
-        ('SUCCESS', 'Success'),
-        ('FAILED', 'Failed'),
-        ('IN_PROGRESS', 'In Progress'),
-    ]
-
-    user = models.ForeignKey(User, on_delete=models.PROTECT)
+class LoginAttempt(models.Model):
+    user = models.ForeignKey(
+        User, on_delete=models.CASCADE, null=True, blank=True)
+    ip_address = models.GenericIPAddressField()
+    user_agent = models.CharField(max_length=255)
+    success = models.BooleanField()
     timestamp = models.DateTimeField(auto_now_add=True)
-    log_type = models.CharField(max_length=20, choices=LOG_TYPE_CHOICES)
-    action = models.CharField(max_length=255)
-    status = models.CharField(max_length=20, choices=STATUS_CHOICES)
-    details = models.JSONField(null=True, blank=True)
 
     def __str__(self):
-        return f"{self.user.username} - {self.action} - {self.timestamp}"
+        status = "Successful" if self.success else "Failed"
+        user_str = self.user.username if self.user else "Unknown"
+        return f"{status} login attempt by {user_str} at {self.timestamp}"
+"""

@@ -1,4 +1,5 @@
 @import url('https://fonts.googleapis.com/css?family=Montserrat:300,400,500,600,700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap');
 
 * {
   box-sizing: border-box;
@@ -8,223 +9,119 @@ body, html {
   margin: 0;
   padding: 0;
   height: 100%;
-   font-family: 'Poppins', sans-serif;
+  font-family: 'Poppins', sans-serif;
 }
 
-.fullscreen-slider-container {
+.login-container {
   display: flex;
   justify-content: center;
   align-items: center;
   min-height: 100vh;
   width: 100vw;
-  background-color: white;
-}
-
-.container {
-  position: relative;
-  width: 100%;
-  max-width: 100%;
-  height: 100vh;
-  background-color: #fff;
-  overflow: hidden;
-}
-
-.form-container {
-  position: absolute;
-  top: 0;
-  height: 100%;
-  width: 50%;
-  transition: all 0.6s ease-in-out;
-}
-
-.sign-in-container {
-  left: 0;
-  z-index: 2;
-}
-
-.container.right-panel-active .sign-in-container {
-  transform: translateX(100%);
-}
-
-.sign-up-container {
-  left: 0;
-  opacity: 0;
-  z-index: 1;
-}
-
-.container.right-panel-active .sign-up-container {
-  transform: translateX(100%);
-  opacity: 1;
-  z-index: 5;
-  animation: show 0.6s;
-}
-
-@keyframes show {
-  0%, 49.99% {
-    opacity: 0;
-    z-index: 1;
-  }
-  50%, 100% {
-    opacity: 1;
-    z-index: 5;
-  }
-}
-
-.overlay-container {
-  position: absolute;
-  top: 0;
-  left: 50%;
-  width: 50%;
-  height: 100%;
-  overflow: hidden;
-  transition: transform 0.6s ease-in-out;
-  z-index: 100;
-}
-
-.container.right-panel-active .overlay-container {
-  transform: translateX(-100%);
-}
-
-.overlay {
-  background: url('../../assets/LOGO1.png') no-repeat center center;
+  padding: 20px;
+  background: url('../assets/BUDGET1.png') no-repeat center center;
   background-size: cover;
-  color: #23bfde;
   position: relative;
-  left: -100%;
-  height: 100%;
-  width: 200%;
-  transform: translateX(0);
-  transition: transform 0.6s ease-in-out;
 }
 
-/* Optional: Add a semi-transparent overlay if needed for better text visibility */
-.overlay::before {
+.login-container::before {
   content: '';
   position: absolute;
   top: 0;
   left: 0;
-  width: 100%;
-  height: 100%;
-  background-color: rgba(0, 0, 0, 0.3); /* Adjust opacity as needed */
-}
-
-.container.right-panel-active .overlay {
-  transform: translateX(50%);
-}
-
-.overlay-panel {
-  position: absolute;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  flex-direction: column;
-  padding: 0 40px;
-  text-align: center;
-  top: 0;
-  height: 100%;
-  width: 50%;
-  transform: translateX(0);
-  transition: transform 0.6s ease-in-out;
-}
-
-.overlay-left {
-  transform: translateX(-20%);
-}
-
-.container.right-panel-active .overlay-left {
-  transform: translateX(0);
-}
-
-.overlay-right {
   right: 0;
-  transform: translateX(0);
-}
-
-.container.right-panel-active .overlay-right {
-  transform: translateX(20%);
+  bottom: 0;
+  background: rgba(255, 255, 255, 0.2);
+  z-index: 0;
 }
 
 .form {
   background-color: #FFFFFF;
   display: flex;
-  align-items: center;
-  justify-content: center;
   flex-direction: column;
-  padding: 0 30px; /* Reduced from 50px to 30px */
-  height: 100%;
+  align-items: center;
+  padding: 40px 30px;
+  width: 100%;
+  max-width: 400px;
   text-align: center;
+  border-radius: 15px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  position: relative;
+  z-index: 1;
+  margin-left: 70%; /* Pushes form to the right */
+  transform: translateX(-30%); /* Centers it visually */
 }
 
 .form h1 {
-  color: #41b0f5; /* Your specified blue */
+  color: #41b0f5;
   font-weight: bold;
-  margin: 0 0 15px 0; /* Reduced bottom margin from 20px to 15px */
-  font-size: 32px; /* Reduced from 36px to 32px */
+  margin: 0 0 10px 0;
+  font-size: 24px;
   line-height: 1.2;
+  margin-bottom: 20px;
+}
+
+.form h2 {
+  color: #333;
+  font-weight: 600;
+  margin: 0 0 20px 0;
+  font-size: 18px;
 }
 
 .form p {
-  font-size: 14px;
-  margin-bottom: 20px; /* Reduced from 30px to 20px */
   color: #666;
+  margin-bottom: 20px;
+  font-size: 14px;
 }
 
 .form input {
   background-color: #f6f6f6;
-  border: 2px solid #41b0f5; /* Blue border */
-  padding: 12px; /* Reduced from 15px to 12px */
-  margin: 8px 0; /* Reduced from 10px to 8px */
-  width: 85%; /* Reduced from 100% to 85% */
-  max-width: 320px; /* Added max-width for better control */
-  border-radius: 5px;
+  border: 2px solid #41b0f5;
+  padding: 12px 15px;
+  margin: 8px 0;
+  width: 100%;
+  border-radius: 10px;
   outline: none;
   font-size: 14px;
   color: #333;
   transition: all 0.3s ease;
+  margin-bottom: 0;
 }
 
 .form input:focus {
   background-color: #fff;
-  border-color: #1a8fe3; /* Slightly darker blue on focus */
-  box-shadow: 0 0 0 3px rgba(65, 176, 245, 0.2); /* Blue glow effect */
+  border-color: #1a8fe3;
+  box-shadow: 0 0 0 3px rgba(65, 176, 245, 0.2);
 }
 
-/* Update the button to match */
 .form-button {
-  border-radius: 5px;
+  border-radius: 10px;
   border: none;
-  background-color: #41b0f5; /* Your blue */
+  background-color: #41b0f5;
   color: #FFFFFF;
   font-size: 14px;
   font-weight: bold;
-  padding: 12px 35px; /* Reduced from 15px 45px to 12px 35px */
+  padding: 12px;
   letter-spacing: 1px;
   text-transform: uppercase;
   transition: all 0.3s ease;
-  margin-top: 15px; /* Reduced from 20px to 15px */
+  margin-top: 20px;
   cursor: pointer;
-  width: 85%; /* Reduced from 100% to 85% */
-  max-width: 320px; /* Added max-width to match inputs */
+  width: 100%;
 }
 
 .form-button:hover {
-  background-color: #3598db; /* Slightly darker on hover */
+  background-color: #3598db;
 }
 
 .password-input-container {
   position: relative;
-  width: 85%; /* Reduced from 100% to 85% */
-  max-width: 320px; /* Added max-width for consistency */
-}
-
-.password-input-container input {
-  width: 100%; /* Full width of the container */
-  margin: 8px 0; /* Keep consistent with other inputs */
+  width: 100%;
 }
 
 .password-toggle {
   position: absolute;
-  right: 15px;
+  right: 12px;
   top: 50%;
   transform: translateY(-50%);
   background: none;
@@ -233,69 +130,68 @@ body, html {
   padding: 0;
 }
 
-.ghost-button {
-  background-color: transparent;
-  border-radius: 5px;
-  border: 1px solid #FFFFFF;
-  color: #FFFFFF;
-  font-size: 14px;
-  font-weight: bold;
-  padding: 12px 35px; /* Reduced from 15px 45px to 12px 35px */
-  letter-spacing: 1px;
-  text-transform: uppercase;
-  transition: all 0.3s ease;
-  margin-top: 15px; /* Reduced from 20px to 15px */
-  cursor: pointer;
+.input-group {
+  width: 100%;
+  margin-bottom: 15px;
 }
 
-.ghost-button:hover {
-  background-color: rgba(255, 255, 255, 0.1);
+.input-group label {
+  display: block;
+  text-align: left;
+  margin-bottom: 8px;
+  font-weight: 500;
+  color: #333;
+  font-size: 14px;
+}
+
+.forgot-password {
+  margin-top: 15px;
+  text-align: center;
+}
+
+.forgot-password a {
+  color: #666;
+  text-decoration: none;
+  font-size: 13px;
+  transition: color 0.3s ease;
+}
+
+.forgot-password a:hover {
+  color: #41b0f5;
+  text-decoration: underline;
+}
+
+/* Responsive Breakpoints */
+@media (max-width: 1200px) {
+  .form {
+    transform: translateX(-25%);
+  }
+}
+
+@media (max-width: 992px) {
+  .form {
+    transform: translateX(-20%);
+  }
 }
 
 @media (max-width: 768px) {
+  .login-container {
+    justify-content: center;
+  }
+  
   .form {
-    padding: 0 20px; /* Reduced from 30px to 20px */
-  }
-  
-  .form h1 {
-    font-size: 26px; /* Reduced from 28px to 26px */
-  }
-  
-  .form input,
-  .form-button {
-    width: 90%; /* Slightly wider on mobile */
-    max-width: none; /* Remove max-width on mobile */
-  }
-  
-  .password-input-container {
-    width: 90%; /* Match other inputs on mobile */
-    max-width: none; /* Remove max-width on mobile */
-  }
-  
-  .overlay-panel {
-    padding: 0 20px;
+    margin-left: 0;
+    transform: none;
+    max-width: 90%;
   }
 }
 
-/* Add to your CSS if text needs better contrast */
-.overlay-panel h1 {
-  color: white;
-  text-shadow: 0 2px 4px rgba(0,0,0,0.3);
-}
-
-.overlay-panel p {
-  color: white;
-  text-shadow: 0 1px 2px rgba(0,0,0,0.3);
-  margin-bottom: 20px;
-}
-
-.ghost-button {
-  border: 2px solid white; /* Make border thicker for better visibility */
-  background-color: transparent;
-  color: white;
-  transition: all 0.3s ease;
-}
-
-.ghost-button:hover {
-  background-color: rgba(255,255,255,0.2);
+@media (max-width: 480px) {
+  .form {
+    padding: 30px 20px;
+  }
+  
+  .login-container::before {
+    background: rgba(255, 255, 255, 0.3);
+  }
 }

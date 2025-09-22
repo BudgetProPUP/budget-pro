@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { Search, ChevronDown, ArrowLeft, ChevronLeft, ChevronRight, User, Mail, Briefcase, LogOut } from 'lucide-react';
-import LOGOMAP from '../../assets/LOGOMAP.png';
+import LOGOMAP from '../../assets/MAP.jpg';
 import './JournalEntry.css';
 
 function JournalEntry() {
@@ -213,12 +213,7 @@ function JournalEntry() {
                     Proposal History
                   </div>
                   <div
-                    className="dropdown-item"
-                    onClick={() => handleNavigate('/finance/account-setup')}
-                  >
-                    Account Setup
-                  </div>
-                  <div
+                 
                     className="dropdown-item"
                     onClick={() => handleNavigate('/finance/ledger-view')}
                   >
@@ -228,7 +223,7 @@ function JournalEntry() {
                     className="dropdown-item"
                     onClick={() => handleNavigate('/finance/journal-entry')}
                   >
-                    Journal Entries
+                    Budget Allocation
                   </div>
                   <div
                     className="dropdown-item"
@@ -333,60 +328,85 @@ function JournalEntry() {
         </div>
       </header>
 
-      <div className="content-container">
-        <h2 className="page-title">Journal Entries</h2>
-
-        <div className="controls-row">
-          <div className="search-box">
-            <input
-              type="text"
-              placeholder="Search by reference, description or category"
-              value={searchQuery}
-              onChange={handleSearch}
-              className="search-input"
-            />
-            <button className="search-icon-btn">
-              <Search size={18} />
-            </button>
-          </div>
-
-          <div className="filter-controls">
-            <div className="filter-dropdown">
-              <button className="filter-dropdown-btn" onClick={toggleCategoryDropdown}>
-                <span>{selectedCategory}</span>
-                <ChevronDown size={14} />
-              </button>
-              {showCategoryDropdown && (
-                <div className="category-dropdown-menu">
-                  {categories.map((category, index) => (
-                    <div
-                      key={index}
-                      className={`category-dropdown-item ${selectedCategory === category ? 'active' : ''}`}
-                      onClick={() => handleCategorySelect(category)}
-                    >
-                      {category}
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
+      {/* Main Content */}
+      <div className="page">
+        <div className="container">
+          {/* Header Section with Title and Controls - Copied from Account Setup */}
+          <div className="top">
+            <h2 
+              style={{ 
+                margin: 0, 
+                fontSize: '29px', 
+                fontWeight: 'bold', 
+                color: '#242424',
+              }}
+            >
+              Budget Adjustment 
+            </h2>
             
-            <button className="add-journal-button" onClick={openAddJournalModal}>
-              Add Journal
-            </button>
+            <div>
+              <div className="filter-controls" style={{ 
+                display: 'flex', 
+                justifyContent: 'flex-end', // This pushes everything to the right
+                alignItems: 'center',
+                gap: '1rem',
+                width: '100%'
+              }}></div>
+              <input
+                type="text"
+                placeholder="Search by reference, description or category"
+                value={searchQuery}
+                onChange={handleSearch}
+                className="search-account-input"
+              />
+              
+              {/* Category Filter */}
+              <div 
+                className="filter-dropdown" 
+                style={{ 
+                  display: 'inline-block', 
+                }}
+              >
+                <button 
+                  className="filter-dropdown-btn" 
+                  onClick={toggleCategoryDropdown}
+                >
+                  <span>{selectedCategory}</span>
+                  <ChevronDown size={19} />
+                </button>
+                {showCategoryDropdown && (
+                  <div className="category-dropdown-menu">
+                    {categories.map((category) => (
+                      <div
+                        key={category}
+                        className={`category-dropdown-item ${
+                          selectedCategory === category ? 'active' : ''
+                        }`}
+                        onClick={() => handleCategorySelect(category)}
+                      >
+                        {category}
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+              
+              <button className="add-journal-button" onClick={openAddJournalModal}>
+                Modify Budget
+              </button>
+            </div>
           </div>
-        </div>
 
-        <div className="transactions-table-wrapper">
-          <table className="transactions-table">
+          {/* Updated Table Structure */}
+          <table>
             <thead>
               <tr>
-                <th style={{ width: '12%' }}>Reference</th>
-                <th style={{ width: '12%' }}>Date</th>
-                <th style={{ width: '12%' }}>Category</th>
-                <th style={{ width: '12%' }}>Account</th>
-                <th style={{ width: '12%' }}>Description</th>
-                <th style={{ width: '12%', textAlign: 'right' }}>Amount</th>
+                <th style={{ width: '12%' }}>REFERENCE</th>
+                    <th style={{ width: '15%' }}>DATE</th>
+                    <th style={{ width: '19%' }}>CATEGORY</th>
+                    <th style={{ width: '17%' }}>ACCOUNT</th>
+                    <th style={{ width: '17%' }}>DESCRIPTION</th>
+                    <th style={{ width: '10%' }}>AMOUNT</th>
               </tr>
             </thead>
             <tbody>
@@ -397,14 +417,14 @@ function JournalEntry() {
                   <td>{entry.category}</td>
                   <td>{entry.account}</td>
                   <td>{entry.description}</td>
-                  <td style={{ textAlign: 'right' }}>{entry.amount}</td>
+                  <td>{entry.amount}</td>
                 </tr>
               ))}
             </tbody>
           </table>
           
-          {/* Pagination */}
-          <div className="pagination-controls">
+          {/* Updated Pagination */}
+          <div className="pagination">
             <button 
               className={`pagination-btn ${currentPage === 1 ? 'disabled' : ''}`} 
               onClick={prevPage}
@@ -413,17 +433,15 @@ function JournalEntry() {
               <ChevronLeft size={14} />
             </button>
             
-            <div className="pagination-numbers">
-              {Array.from({ length: totalPages }, (_, i) => (
-                <button
-                  key={i + 1}
-                  className={`pagination-number ${currentPage === i + 1 ? 'active' : ''}`}
-                  onClick={() => paginate(i + 1)}
-                >
-                  {i + 1}
-                </button>
-              ))}
-            </div>
+            {Array.from({ length: totalPages }, (_, i) => (
+              <button
+                key={i + 1}
+                className={`pagination-btn ${currentPage === i + 1 ? 'active' : ''}`}
+                onClick={() => paginate(i + 1)}
+              >
+                {i + 1}
+              </button>
+            ))}
             
             <button 
               className={`pagination-btn ${currentPage === totalPages ? 'disabled' : ''}`}
@@ -441,7 +459,7 @@ function JournalEntry() {
         <div className="modal-overlay">
           <div className="modal-container">
             <div className="modal-content">
-              <h3 className="modal-title">Add Journal Entry</h3>
+              <h3 className="modal-title">Modify Budget Entry</h3>
               
               <div className="form-group">
                 <label htmlFor="entryId">Entry ID (System generated)</label>

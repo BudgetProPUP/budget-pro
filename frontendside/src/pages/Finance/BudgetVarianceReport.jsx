@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { ChevronDown, ChevronLeft, ChevronRight, ArrowLeft, User, Mail, Briefcase, LogOut } from 'lucide-react';
 import { Link, useNavigate } from 'react-router-dom';
-import LOGOMAP from '../../assets/LOGOMAP.png';
+import LOGOMAP from '../../assets/MAP.jpg';
 import './BudgetVarianceReport.css';
 
 const BudgetVarianceReport = () => {
@@ -262,12 +262,7 @@ const BudgetVarianceReport = () => {
                     Proposal History
                   </div>
                   <div
-                    className="dropdown-item"
-                    onClick={() => handleNavigate('/finance/account-setup')}
-                  >
-                    Account Setup
-                  </div>
-                  <div
+                  
                     className="dropdown-item"
                     onClick={() => handleNavigate('/finance/ledger-view')}
                   >
@@ -277,7 +272,7 @@ const BudgetVarianceReport = () => {
                     className="dropdown-item"
                     onClick={() => handleNavigate('/finance/journal-entry')}
                   >
-                    Journal Entries
+                    Budget Allocation
                   </div>
                   <div
                     className="dropdown-item active"
@@ -384,12 +379,13 @@ const BudgetVarianceReport = () => {
 
       {/* Main Content */}
       <div className="content-container">
-        <div className="page-header">
-          <h2 className="page-title">Budget Variance Report</h2>
-        </div>
-
         {/* Report Background Container */}
         <div className="report-background-container">
+          {/* Page Header Inside Container */}
+          <div className="page-header">
+            <h2 className="page-title">Budget Variance Report</h2>
+          </div>
+
           {/* Report Table Container */}
           <div className="report-table-container">
             <table className="report-table">

@@ -35,7 +35,7 @@ staticfiles/
 .env.prod
 .env.test
 secrets.json
-
+staticfiles_auth
 ### IDE ###
 .vscode/
 .idea/

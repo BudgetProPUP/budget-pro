@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { ChevronDown, Search, ArrowLeft, ChevronLeft, ChevronRight, User, Mail, Briefcase, LogOut } from 'lucide-react';
-import LOGOMAP from '../../assets/LOGOMAP.png';
+import LOGOMAP from '../../assets/MAP.jpg';
 import './ProposalHistory.css';
 
 const ProposalHistory = () => {
@@ -9,11 +9,25 @@ const ProposalHistory = () => {
   const [showExpenseDropdown, setShowExpenseDropdown] = useState(false);
   const [showStatusDropdown, setShowStatusDropdown] = useState(false);
   const [showProfilePopup, setShowProfilePopup] = useState(false);
-  const [selectedStatus, setSelectedStatus] = useState('All');
+  const [showModifyBudgetPopup, setShowModifyBudgetPopup] = useState(false);
+  const [selectedStatus, setSelectedStatus] = useState('All Status');
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [searchTerm, setSearchTerm] = useState('');
   const navigate = useNavigate();
   const [currentPage, setCurrentPage] = useState(1);
   const [currentDate, setCurrentDate] = useState(new Date());
+  
+  // Form state for Modify Budget
+  const [modifyBudgetForm, setModifyBudgetForm] = useState({
+    referenceNo: '',
+    componentName: '',
+    date: '',
+    category: '',
+    account: '',
+    description: '',
+    transactionType: '',
+    amount: ''
+  });
   
   // User profile data - copied from Dashboard
   const userProfile = {
@@ -69,12 +83,15 @@ const ProposalHistory = () => {
     }
   ]);
 
-  // Filtered proposals based on selected status
-  const filteredProposals = selectedStatus === 'All' 
-    ? proposals 
-    : proposals.filter(proposal => 
-        proposal.status.toLowerCase() === selectedStatus.toLowerCase()
-      );
+  // Filtered proposals based on selected status and search term
+  const filteredProposals = proposals.filter(proposal => {
+    const matchesStatus = selectedStatus === 'All Status' || 
+      proposal.status.toLowerCase() === selectedStatus.toLowerCase();
+    const matchesSearch = searchTerm === '' || 
+      proposal.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      proposal.id.toLowerCase().includes(searchTerm.toLowerCase());
+    return matchesStatus && matchesSearch;
+  });
 
   useEffect(() => {
     // Update time at regular intervals
@@ -90,7 +107,10 @@ const ProposalHistory = () => {
   // Close dropdowns when clicking outside - copied from Dashboard
   useEffect(() => {
     const handleClickOutside = (event) => {
-      if (!event.target.closest('.nav-dropdown') && !event.target.closest('.profile-container') && !event.target.closest('.status-dropdown-container')) {
+      if (!event.target.closest('.nav-dropdown') && 
+          !event.target.closest('.profile-container') && 
+          !event.target.closest('.status-dropdown-container') &&
+          !event.target.closest('.modify-budget-popup')) {
         setShowBudgetDropdown(false);
         setShowExpenseDropdown(false);
         setShowProfilePopup(false);
@@ -135,6 +155,25 @@ const ProposalHistory = () => {
 
   const toggleStatusDropdown = () => {
     setShowStatusDropdown(!showStatusDropdown);
+  };
+
+  const toggleModifyBudgetPopup = () => {
+    setShowModifyBudgetPopup(!showModifyBudgetPopup);
+  };
+
+  const handleModifyBudgetChange = (e) => {
+    const { name, value } = e.target;
+    setModifyBudgetForm(prev => ({
+      ...prev,
+      [name]: value
+    }));
+  };
+
+  const handleModifyBudgetSubmit = (e) => {
+    e.preventDefault();
+    // Handle form submission here
+    console.log('Modify Budget Form Submitted:', modifyBudgetForm);
+    setShowModifyBudgetPopup(false);
   };
 
   // New function from Dashboard
@@ -231,12 +270,6 @@ const ProposalHistory = () => {
                   </div>
                   <div
                     className="dropdown-item"
-                    onClick={() => handleNavigate('/finance/account-setup')}
-                  >
-                    Account Setup
-                  </div>
-                  <div
-                    className="dropdown-item"
                     onClick={() => handleNavigate('/finance/ledger-view')}
                   >
                     Ledger View
@@ -245,7 +278,7 @@ const ProposalHistory = () => {
                     className="dropdown-item"
                     onClick={() => handleNavigate('/finance/journal-entry')}
                   >
-                    Journal Entries
+                    Budget Allocation
                   </div>
                   <div
                     className="dropdown-item"
@@ -352,75 +385,211 @@ const ProposalHistory = () => {
       </header>
 
       {/* Main Content */}
-      <div className="content-container">
-        <h2 className="page-title">Proposal History</h2>
-          
-        {/* Search and Filter Bar */}
-        <div className="controls-row">
-          <div className="search-box">
-            <input 
-              type="text" 
-              placeholder="Search by project or budget" 
-              className="search-input"
-            />
-            <button className="search-icon-btn">
-              <Search size={18} />
-            </button>
-          </div>
-          <div className="filter-controls">
-            <button className="filter-dropdown-btn">
-              <span>Filter by</span>
-              <ChevronDown size={14} />
-            </button>
+      <div className="page">
+        <div className="container">
+          {/* Header Section with Title and Controls - Updated to match Account Setup */}
+          <div className="top">
+            <h2 
+              style={{ 
+                margin: 0, 
+                fontSize: '29px', 
+                fontWeight: 'bold', 
+                color: '#242424',
+              }}
+            >
+              Proposal History 
+            </h2>
             
-            {/* Status dropdown with functionality */}
-            <div className="status-dropdown-container">
-              <button className="filter-dropdown-btn" onClick={toggleStatusDropdown}>
-                <span>Status: {selectedStatus}</span>
-                <ChevronDown size={14} />
-              </button>
+            <div>
+              <div className="filter-controls" style={{ 
+                display: 'flex', 
+                justifyContent: 'flex-end', // This pushes everything to the right
+                alignItems: 'center',
+                gap: '1rem',
+                width: '100%'
+              }}></div>
+              <input
+                type="text"
+                placeholder="Search by proposal ID"
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="search-account-input"
+              />
               
-              {showStatusDropdown && (
-                <div className="status-dropdown-menu">
+              {/* Updated Status Filter with Oblong Shape */}
+              <div 
+                className="status-dropdown-container" 
+                style={{ 
+                  display: 'inline-block', 
+                  position: 'relative' 
+                }}
+              >
+                <button 
+                  className="oblong-filter-btn" 
+                  onClick={toggleStatusDropdown}
+                  style={{
+                    backgroundColor: '#f8f9fa',
+                    border: '1px solid #e2e8f0',
+                    borderRadius: '20px',
+                    padding: '8px 16px',
+                    fontSize: '14px',
+                    color: '#64748b',
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '8px',
+                    minWidth: '140px',
+                    justifyContent: 'space-between',
+                    transition: 'all 0.2s ease',
+                    outline: 'none'
+                  }}
+                  onMouseOver={(e) => {
+                    e.target.style.backgroundColor = '#f1f5f9';
+                    e.target.style.borderColor = '#cbd5e1';
+                  }}
+                  onMouseOut={(e) => {
+                    e.target.style.backgroundColor = '#f8f9fa';
+                    e.target.style.borderColor = '#e2e8f0';
+                  }}
+                >
+                  <span>{selectedStatus}</span>
+                  <ChevronDown size={14} />
+                </button>
+                {showStatusDropdown && (
                   <div 
-                    className={`status-dropdown-item ${selectedStatus === 'All' ? 'active' : ''}`}
-                    onClick={() => handleStatusSelect('All')}
+                    className="oblong-dropdown-menu"
+                    style={{
+                      position: 'absolute',
+                      top: '100%',
+                      left: '0',
+                      right: '0',
+                      backgroundColor: 'white',
+                      border: '1px solid #e2e8f0',
+                      borderRadius: '12px',
+                      boxShadow: '0 4px 12px rgba(0, 0, 0, 0.1)',
+                      zIndex: 1000,
+                      marginTop: '4px',
+                      overflow: 'hidden'
+                    }}
                   >
-                    All
+                    <div
+                      className={`oblong-dropdown-item ${
+                        selectedStatus === 'All Status' ? 'active' : ''
+                      }`}
+                      onClick={() => handleStatusSelect('All Status')}
+                      style={{
+                        padding: '12px 16px',
+                        fontSize: '14px',
+                        cursor: 'pointer',
+                        transition: 'background-color 0.2s ease',
+                        color: selectedStatus === 'All Status' ? '#3b82f6' : '#64748b',
+                        backgroundColor: selectedStatus === 'All Status' ? '#f0f9ff' : 'white'
+                      }}
+                      onMouseOver={(e) => {
+                        if (selectedStatus !== 'All Status') {
+                          e.target.style.backgroundColor = '#f8f9fa';
+                        }
+                      }}
+                      onMouseOut={(e) => {
+                        if (selectedStatus !== 'All Status') {
+                          e.target.style.backgroundColor = 'white';
+                        }
+                      }}
+                    >
+                      All Status
+                    </div>
+                    <div
+                      className={`oblong-dropdown-item ${
+                        selectedStatus === 'Approved' ? 'active' : ''
+                      }`}
+                      onClick={() => handleStatusSelect('Approved')}
+                      style={{
+                        padding: '12px 16px',
+                        fontSize: '14px',
+                        cursor: 'pointer',
+                        transition: 'background-color 0.2s ease',
+                        color: selectedStatus === 'Approved' ? '#3b82f6' : '#64748b',
+                        backgroundColor: selectedStatus === 'Approved' ? '#f0f9ff' : 'white'
+                      }}
+                      onMouseOver={(e) => {
+                        if (selectedStatus !== 'Approved') {
+                          e.target.style.backgroundColor = '#f8f9fa';
+                        }
+                      }}
+                      onMouseOut={(e) => {
+                        if (selectedStatus !== 'Approved') {
+                          e.target.style.backgroundColor = 'white';
+                        }
+                      }}
+                    >
+                      Approved
+                    </div>
+                    <div
+                      className={`oblong-dropdown-item ${
+                        selectedStatus === 'Rejected' ? 'active' : ''
+                      }`}
+                      onClick={() => handleStatusSelect('Rejected')}
+                      style={{
+                        padding: '12px 16px',
+                        fontSize: '14px',
+                        cursor: 'pointer',
+                        transition: 'background-color 0.2s ease',
+                        color: selectedStatus === 'Rejected' ? '#3b82f6' : '#64748b',
+                        backgroundColor: selectedStatus === 'Rejected' ? '#f0f9ff' : 'white'
+                      }}
+                      onMouseOver={(e) => {
+                        if (selectedStatus !== 'Rejected') {
+                          e.target.style.backgroundColor = '#f8f9fa';
+                        }
+                      }}
+                      onMouseOut={(e) => {
+                        if (selectedStatus !== 'Rejected') {
+                          e.target.style.backgroundColor = 'white';
+                        }
+                      }}
+                    >
+                      Rejected
+                    </div>
+                    <div
+                      className={`oblong-dropdown-item ${
+                        selectedStatus === 'Pending' ? 'active' : ''
+                      }`}
+                      onClick={() => handleStatusSelect('Pending')}
+                      style={{
+                        padding: '12px 16px',
+                        fontSize: '14px',
+                        cursor: 'pointer',
+                        transition: 'background-color 0.2s ease',
+                        color: selectedStatus === 'Pending' ? '#3b82f6' : '#64748b',
+                        backgroundColor: selectedStatus === 'Pending' ? '#f0f9ff' : 'white'
+                      }}
+                      onMouseOver={(e) => {
+                        if (selectedStatus !== 'Pending') {
+                          e.target.style.backgroundColor = '#f8f9fa';
+                        }
+                      }}
+                      onMouseOut={(e) => {
+                        if (selectedStatus !== 'Pending') {
+                          e.target.style.backgroundColor = 'white';
+                        }
+                      }}
+                    >
+                      Pending
+                    </div>
                   </div>
-                  <div 
-                    className={`status-dropdown-item ${selectedStatus === 'Approved' ? 'active' : ''}`}
-                    onClick={() => handleStatusSelect('Approved')}
-                  >
-                    Approved
-                  </div>
-                  <div 
-                    className={`status-dropdown-item ${selectedStatus === 'Rejected' ? 'active' : ''}`}
-                    onClick={() => handleStatusSelect('Rejected')}
-                  >
-                    Rejected
-                  </div>
-                  <div 
-                    className={`status-dropdown-item ${selectedStatus === 'Pending' ? 'active' : ''}`}
-                    onClick={() => handleStatusSelect('Pending')}
-                  >
-                    Pending
-                  </div>
-                </div>
-              )}
+                )}
+              </div>             
             </div>
           </div>
-        </div>
 
-        {/* Proposal table */}
-        <div className="transactions-table-wrapper">
-          <table className="transactions-table">
+          {/* Proposal table with new styling */}
+          <table>
             <thead>
               <tr>
-                <th>PROPOSAL ID</th>
-                <th>PROPOSAL</th>
-                <th>LAST MODIFIED</th>
-                <th>STATUS</th>
+                <th style={{ width: '20%' }}>PROPOSAL ID</th>
+                <th style={{ width: '40%' }}>PROPOSAL</th>
+                <th style={{ width: '20%' }}>LAST MODIFIED</th>
+                <th style={{ width: '20%' }}>STATUS</th>
               </tr>
             </thead>
             <tbody>
@@ -428,9 +597,9 @@ const ProposalHistory = () => {
                 <tr key={index}>
                   <td>{proposal.id}</td>
                   <td>{proposal.title}</td>
-                  <td className="modified-info">
+                  <td>
                     <div>{proposal.lastModified}</div>
-                    <div className="modified-by">By {proposal.modifiedBy}</div>
+                    <div style={{ fontSize: '0.75rem', color: '#64748b' }}>By {proposal.modifiedBy}</div>
                   </td>
                   <td>
                     <span className={`status-badge ${proposal.status}`}>
@@ -442,35 +611,342 @@ const ProposalHistory = () => {
               ))}
               {filteredProposals.length === 0 && (
                 <tr>
-                  <td colSpan="4" className="no-results">No proposals match the selected filter</td>
+                  <td colSpan="4" style={{ textAlign: 'center', color: '#64748b', fontStyle: 'italic', padding: '2rem' }}>
+                    No proposals match the selected filter
+                  </td>
                 </tr>
               )}
             </tbody>
           </table>
-        </div>
           
-        {/* Pagination */}
-        <div className="pagination-controls">
-          <button 
-            className={`pagination-btn ${currentPage === 1 ? 'disabled' : ''}`} 
-            onClick={handlePrevPage}
-            disabled={currentPage === 1}
-          >
-            <ChevronLeft size={14} />
-          </button>
-          
-          <div className="pagination-numbers">
-            <button className="pagination-number active">1</button>
+          {/* Pagination */}
+          <div className="pagination">
+            <button 
+              className={`pagination-btn ${currentPage === 1 ? 'disabled' : ''}`} 
+              onClick={handlePrevPage}
+              disabled={currentPage === 1}
+            >
+              <ChevronLeft size={14} />
+            </button>
+            
+            <button className="pagination-btn active">1</button>
+            
+            <button 
+              className="pagination-btn"
+              onClick={handleNextPage}
+            >
+              <ChevronRight size={14} />
+            </button>
           </div>
-          
-          <button 
-            className="pagination-btn"
-            onClick={handleNextPage}
-          >
-            <ChevronRight size={14} />
-          </button>
         </div>
       </div>
+
+      {/* Modify Budget Popup */}
+      {showModifyBudgetPopup && (
+        <div className="modify-budget-popup" style={{
+          position: 'fixed',
+          top: '0',
+          left: '0',
+          right: '0',
+          bottom: '0',
+          backgroundColor: 'rgba(0, 0, 0, 0.5)',
+          display: 'flex',
+          justifyContent: 'center',
+          alignItems: 'center',
+          zIndex: 1000
+        }}>
+          <div style={{
+            backgroundColor: 'white',
+            borderRadius: '8px',
+            width: '500px',
+            maxWidth: '90%',
+            boxShadow: '0 4px 20px rgba(0, 0, 0, 0.15)'
+          }}>
+            <div style={{
+              padding: '20px',
+              borderBottom: '1px solid #e2e8f0',
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'center'
+            }}>
+              <h3 style={{ margin: '0', fontSize: '18px', fontWeight: '600', color: '#1e293b' }}>
+                Modify Budget
+              </h3>
+              <button 
+                onClick={toggleModifyBudgetPopup}
+                style={{
+                  background: 'none',
+                  border: 'none',
+                  cursor: 'pointer',
+                  fontSize: '16px',
+                  color: '#64748b'
+                }}
+              >
+                ×
+              </button>
+            </div>
+            
+            <form onSubmit={handleModifyBudgetSubmit} style={{ padding: '20px' }}>
+              <div style={{ marginBottom: '16px' }}>
+                <label style={{
+                  display: 'block',
+                  marginBottom: '8px',
+                  fontSize: '14px',
+                  fontWeight: '500',
+                  color: '#334155'
+                }}>
+                  Reference No.*
+                </label>
+                <input
+                  type="text"
+                  name="referenceNo"
+                  value={modifyBudgetForm.referenceNo}
+                  onChange={handleModifyBudgetChange}
+                  style={{
+                    width: '100%',
+                    padding: '10px',
+                    border: '1px solid #e2e8f0',
+                    borderRadius: '4px',
+                    fontSize: '14px'
+                  }}
+                  required
+                />
+              </div>
+              
+              <div style={{ marginBottom: '16px' }}>
+                <label style={{
+                  display: 'block',
+                  marginBottom: '8px',
+                  fontSize: '14px',
+                  fontWeight: '500',
+                  color: '#334155'
+                }}>
+                  Component Name
+                </label>
+                <input
+                  type="text"
+                  name="componentName"
+                  value={modifyBudgetForm.componentName}
+                  onChange={handleModifyBudgetChange}
+                  style={{
+                    width: '100%',
+                    padding: '10px',
+                    border: '1px solid #e2e8f0',
+                    borderRadius: '4px',
+                    fontSize: '14px'
+                  }}
+                />
+              </div>
+              
+              <div style={{ marginBottom: '16px' }}>
+                <label style={{
+                  display: 'block',
+                  marginBottom: '8px',
+                  fontSize: '14px',
+                  fontWeight: '500',
+                  color: '#334155'
+                }}>
+                  Date
+                </label>
+                <input
+                  type="date"
+                  name="date"
+                  value={modifyBudgetForm.date}
+                  onChange={handleModifyBudgetChange}
+                  style={{
+                    width: '100%',
+                    padding: '10px',
+                    border: '1px solid #e2e8f0',
+                    borderRadius: '4px',
+                    fontSize: '14px'
+                  }}
+                />
+              </div>
+              
+              <div style={{ marginBottom: '16px' }}>
+                <label style={{
+                  display: 'block',
+                  marginBottom: '8px',
+                  fontSize: '14px',
+                  fontWeight: '500',
+                  color: '#334155'
+                }}>
+                  Category *
+                </label>
+                <select
+                  name="category"
+                  value={modifyBudgetForm.category}
+                  onChange={handleModifyBudgetChange}
+                  style={{
+                    width: '100%',
+                    padding: '10px',
+                    border: '1px solid #e2e8f0',
+                    borderRadius: '4px',
+                    fontSize: '14px',
+                    backgroundColor: 'white'
+                  }}
+                  required
+                >
+                  <option value="">Search for Category</option>
+                  <option value="IT">IT</option>
+                  <option value="HR">HR</option>
+                  <option value="Operations">Operations</option>
+                  <option value="Marketing">Marketing</option>
+                </select>
+              </div>
+              
+              <div style={{ marginBottom: '16px' }}>
+                <label style={{
+                  display: 'block',
+                  marginBottom: '8px',
+                  fontSize: '14px',
+                  fontWeight: '500',
+                  color: '#334155'
+                }}>
+                  Account
+                </label>
+                <select
+                  name="account"
+                  value={modifyBudgetForm.account}
+                  onChange={handleModifyBudgetChange}
+                  style={{
+                    width: '100%',
+                    padding: '10px',
+                    border: '1px solid #e2e8f0',
+                    borderRadius: '4px',
+                    fontSize: '14px',
+                    backgroundColor: 'white'
+                  }}
+                >
+                  <option value="">Search for Manufacturer</option>
+                  <option value="Dell">Dell</option>
+                  <option value="HP">HP</option>
+                  <option value="Lenovo">Lenovo</option>
+                  <option value="Apple">Apple</option>
+                </select>
+              </div>
+              
+              <div style={{ marginBottom: '16px' }}>
+                <label style={{
+                  display: 'block',
+                  marginBottom: '8px',
+                  fontSize: '14px',
+                  fontWeight: '500',
+                  color: '#334155'
+                }}>
+                  Description
+                </label>
+                <textarea
+                  name="description"
+                  value={modifyBudgetForm.description}
+                  onChange={handleModifyBudgetChange}
+                  style={{
+                    width: '100%',
+                    padding: '10px',
+                    border: '1px solid #e2e8f0',
+                    borderRadius: '4px',
+                    fontSize: '14px',
+                    minHeight: '80px'
+                  }}
+                  placeholder="Type here..."
+                />
+              </div>
+              
+              <div style={{ marginBottom: '16px' }}>
+                <label style={{
+                  display: 'block',
+                  marginBottom: '8px',
+                  fontSize: '14px',
+                  fontWeight: '500',
+                  color: '#334155'
+                }}>
+                  Transaction Type
+                </label>
+                <select
+                  name="transactionType"
+                  value={modifyBudgetForm.transactionType}
+                  onChange={handleModifyBudgetChange}
+                  style={{
+                    width: '100%',
+                    padding: '10px',
+                    border: '1px solid #e2e8f0',
+                    borderRadius: '4px',
+                    fontSize: '14px',
+                    backgroundColor: 'white'
+                  }}
+                >
+                  <option value="">Select Transaction type</option>
+                  <option value="Debit">Debit</option>
+                  <option value="Credit">Credit</option>
+                </select>
+              </div>
+              
+              <div style={{ marginBottom: '24px' }}>
+                <label style={{
+                  display: 'block',
+                  marginBottom: '8px',
+                  fontSize: '14px',
+                  fontWeight: '500',
+                  color: '#334155'
+                }}>
+                  Amount
+                </label>
+                <input
+                  type="number"
+                  name="amount"
+                  value={modifyBudgetForm.amount}
+                  onChange={handleModifyBudgetChange}
+                  style={{
+                    width: '100%',
+                    padding: '10px',
+                    border: '1px solid #e2e8f0',
+                    borderRadius: '4px',
+                    fontSize: '14px'
+                  }}
+                />
+              </div>
+              
+              <div style={{
+                display: 'flex',
+                justifyContent: 'flex-end',
+                gap: '12px'
+              }}>
+                <button
+                  type="button"
+                  onClick={toggleModifyBudgetPopup}
+                  style={{
+                    padding: '10px 16px',
+                    backgroundColor: '#f1f5f9',
+                    color: '#334155',
+                    border: 'none',
+                    borderRadius: '4px',
+                    cursor: 'pointer',
+                    fontSize: '14px',
+                    fontWeight: '500'
+                  }}
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  style={{
+                    padding: '10px 16px',
+                    backgroundColor: '#3b82f6',
+                    color: 'white',
+                    border: 'none',
+                    borderRadius: '4px',
+                    cursor: 'pointer',
+                    fontSize: '14px',
+                    fontWeight: '500'
+                  }}
+                >
+                  Save Changes
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

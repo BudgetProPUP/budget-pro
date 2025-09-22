@@ -1,4 +1,3 @@
-
 """
 Django settings for capstone project.
 
@@ -15,6 +14,12 @@ from pathlib import Path
 import os
 from dotenv import load_dotenv
 import sys
+import dj_database_url
+
+
+# Auth Service Configuration
+AUTH_SERVICE_URL = os.getenv('AUTH_SERVICE_URL', 'http://localhost:8001')
+
 
 
 # Detect if running tests
@@ -41,7 +46,39 @@ SECRET_KEY = os.getenv('DJANGO_SECRET_KEY')
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = os.getenv('DEBUG', 'False').lower() == 'true'  # Disable in production
 
+# ALLOWED_HOSTS Configuration - Updated for Render with Railway fallback
 ALLOWED_HOSTS = []
+
+if DEBUG:
+    ALLOWED_HOSTS.extend(['localhost', '127.0.0.1'])
+else:
+    # Render configuration (primary)
+    RENDER_EXTERNAL_HOSTNAME = os.getenv('RENDER_EXTERNAL_HOSTNAME')
+    if RENDER_EXTERNAL_HOSTNAME:
+        ALLOWED_HOSTS.append(RENDER_EXTERNAL_HOSTNAME)
+    
+    # Add Render service domains
+    ALLOWED_HOSTS.extend([
+        'budget-pro.onrender.com',  # Your budget service domain
+        '.onrender.com',  # All Render subdomains
+    ])
+    
+    # Railway fallback configuration (keep for potential return)
+    RAILWAY_APP_HOSTNAME = os.getenv('RAILWAY_PUBLIC_DOMAIN')
+    if RAILWAY_APP_HOSTNAME:
+        ALLOWED_HOSTS.append(RAILWAY_APP_HOSTNAME)
+    
+    # Railway domains as fallback
+    ALLOWED_HOSTS.extend(['.railway.app', '.up.railway.app'])
+
+# Remove duplicates and None values
+ALLOWED_HOSTS = list(set(filter(None, ALLOWED_HOSTS)))
+
+if not ALLOWED_HOSTS and not DEBUG:
+    # Fallback if no hosts are configured for production to prevent Django from refusing all connections
+    print("WARNING: ALLOWED_HOSTS is empty in a non-DEBUG environment. This is insecure. Add your service's domain.")
+    # ALLOWED_HOSTS = ['*'] # Highly insecure, for temporary debugging only if absolutely stuck
+
 
 
 # Application definition
@@ -71,18 +108,52 @@ INSTALLED_APPS = [
     'core',
 ]
 
-AUTH_USER_MODEL = 'core.User'
+# AUTH_USER_MODEL = 'core.User'
 
 AUTHENTICATION_BACKENDS = [
-    'core.authentication.EmailOrPhoneNumberBackend',
+    #'core.authentication.EmailOrPhoneNumberBackend',
     'django.contrib.auth.backends.ModelBackend',
 ]
 
-# CORS settings
+# CORS - Updated for Render with Railway fallback
 CORS_ALLOWED_ORIGINS = [
-    "http://localhost:5173",  # Vite default dev server
-    # Add production URLs when deployed
+    "http://localhost:5173",  # Local frontend
+    "https://frontend-r2az.onrender.com",  # Render frontend
+    "https://auth-service-cdln.onrender.com",  # Render auth service
+    os.getenv('FRONTEND_URL'),  # Environment variable
+    os.getenv('AUTH_SERVICE_URL'),  # Environment variable
 ]
+
+# Added Railway URLs as fallback
+railway_frontend = os.getenv('RAILWAY_FRONTEND_URL')
+if railway_frontend:
+    CORS_ALLOWED_ORIGINS.append(railway_frontend)
+
+# Filter out None values
+CORS_ALLOWED_ORIGINS = [origin for origin in CORS_ALLOWED_ORIGINS if origin]
+
+
+# Settings for when THIS BMS service calls OTHER services
+BMS_AUTH_KEY_FOR_DTS = os.getenv('API_KEY_FOR_BMS_TO_CALL_DTS') # Key BMS uses
+DTS_STATUS_UPDATE_URL = os.getenv('DTS_STATUS_UPDATE_ENDPOINT_URL') # Target URL
+
+# Keys expected from client services calling THIS (BMS) service
+
+DTS_CLIENT_API_KEY_EXPECTED = os.getenv('DTS_CLIENT_API_KEY')
+TTS_CLIENT_API_KEY_EXPECTED = os.getenv('TTS_CLIENT_API_KEY')
+# HDS_CLIENT_API_KEY_EXPECTED = os.getenv('HDS_CLIENT_API_KEY')
+
+SERVICE_API_KEYS = {} # Maps the key value to the client service's name
+if DTS_CLIENT_API_KEY_EXPECTED:
+    SERVICE_API_KEYS[DTS_CLIENT_API_KEY_EXPECTED] = "DTS"
+if TTS_CLIENT_API_KEY_EXPECTED:
+    SERVICE_API_KEYS[TTS_CLIENT_API_KEY_EXPECTED] = "TTS"
+    
+# if HDS_CLIENT_API_KEY_EXPECTED:
+#     SERVICE_API_KEYS[HDS_CLIENT_API_KEY_EXPECTED] = "HDS"
+
+# Filter out None values if a key isn't set in .env
+SERVICE_API_KEYS = {k: v for k, v in SERVICE_API_KEYS.items() if k}
 
 CORS_ALLOW_ALL_ORIGINS = True  # For development - restrict in production
 CORS_ALLOW_CREDENTIALS = True
@@ -115,7 +186,8 @@ SIMPLE_JWT = {
     'UPDATE_LAST_LOGIN': False,
 
     'ALGORITHM': 'HS256',  # Changed from RS256 to HS256 (symmetric)
-    'SIGNING_KEY': SECRET_KEY,  # This now works with HS256
+    'VERIFYING_KEY': None, # For HS256
+    'SIGNING_KEY': SECRET_KEY, 
     'AUDIENCE': None,
     'ISSUER': None,
 
@@ -123,6 +195,7 @@ SIMPLE_JWT = {
     'AUTH_HEADER_NAME': 'HTTP_AUTHORIZATION',
     'USER_ID_FIELD': 'id',
     'USER_ID_CLAIM': 'user_id',
+    'TOKEN_USER_CLASS': 'rest_framework_simplejwt.models.TokenUser', # Default, creates SimpleLazyObject
 }
 
 
@@ -142,16 +215,26 @@ MIDDLEWARE = [
 
 # REST Framework settings
 REST_FRAMEWORK = {
-    'DEFAULT_AUTHENTICATION_CLASSES': (
-        'rest_framework_simplejwt.authentication.JWTAuthentication',
-    ),
+    'DEFAULT_AUTHENTICATION_CLASSES': [ 
+        'core.authentication.MicroserviceJWTAuthentication',  # For end-user JWTs
+        'core.service_authentication.APIKeyAuthentication', # For service-to-service API keys
+    ],
     'DEFAULT_PERMISSION_CLASSES': [
         'rest_framework.permissions.IsAuthenticated',
     ],
-    'DEFAULT_SCHEMA_CLASS': 'drf_spectacular.openapi.AutoSchema', 'DEFAULT_FILTER_BACKENDS': [
+    'DEFAULT_SCHEMA_CLASS': 'drf_spectacular.openapi.AutoSchema', 
+    'DEFAULT_FILTER_BACKENDS': [
         'django_filters.rest_framework.DjangoFilterBackend',
         'rest_framework.filters.SearchFilter',
     ],
+}
+
+# Cache configuration for user data
+CACHES = {
+    'default': {
+        'BACKEND': 'django.core.cache.backends.locmem.LocMemCache',
+        'LOCATION': 'unique-snowflake',
+    }
 }
 
 ROOT_URLCONF = 'capstone.urls'
@@ -159,17 +242,25 @@ ROOT_URLCONF = 'capstone.urls'
 
 # DRF Spectacular settings for API documentation
 SPECTACULAR_SETTINGS = {
-    "TITLE": "My API",
-    "DESCRIPTION": "Auto-generated documentation",
+    "TITLE": "Budget Service API",
+    "DESCRIPTION": "API for Budget Management",
     "VERSION": "1.0.0",
     "SERVE_INCLUDE_SCHEMA": False,
+    "SECURITY": [{"BearerAuth": []}],  # <-- Add this line
+    "COMPONENT_SPLIT_REQUEST": True,
+    "COMPONENT_SECURITY_SCHEMES": {
+        "BearerAuth": {
+            "type": "http",
+            "scheme": "bearer",
+            "bearerFormat": "JWT",
+        }
+    },
     'SWAGGER_UI_SETTINGS': {
         'defaultModelsExpandDepth': -1,  # Hide schemas section completely
     },
-    'COMPONENT_SPLIT_REQUEST': True,  # Separate schemas for request/response
-    'SCHEMA_PATH_PREFIX': r'/api/',  # Match your API base path
     'ENUM_NAME_OVERRIDES': {
-        # Add enum overrides if needed
+       'Status0feEnum': 'BudgetProposalStatusEnum',
+        'Status1a2Enum': 'ExpenseStatusEnum',
     },
     'TAGS': [  # Organize endpoints by category
         {'name': 'Authentication', 'description': 'User login/logout operations'},
@@ -201,17 +292,25 @@ WSGI_APPLICATION = 'capstone.wsgi.application'
 # Database
 # https://docs.djangoproject.com/en/5.2/ref/settings/#databases
 
-DATABASES = {
-    'default': {
-        'ENGINE': 'django.db.backends.postgresql',
-        'NAME': os.getenv('DB_NAME'),
-        'USER': os.getenv('DB_USER'),
-        'PASSWORD': os.getenv('DB_PASSWORD'),
-        'HOST': os.getenv('DB_HOST', 'localhost'),
-        'PORT': os.getenv('DB_PORT', '5432'),
+DATABASE_URL = os.getenv('DATABASE_URL')
 
+if DATABASE_URL:
+    # Use Railway's DATABASE_URL (recommended)
+    DATABASES = {
+        'default': dj_database_url.parse(DATABASE_URL)
     }
-}
+else:
+    # Fallback to individual environment variables
+    DATABASES = {
+        'default': {
+            'ENGINE': 'django.db.backends.postgresql',
+            'NAME': os.getenv('DB_NAME') or os.getenv('PGDATABASE'),
+            'USER': os.getenv('DB_USER') or os.getenv('PGUSER'),
+            'PASSWORD': os.getenv('DB_PASSWORD') or os.getenv('PGPASSWORD'),
+            'HOST': os.getenv('DB_HOST') or os.getenv('PGHOST', 'localhost'),
+            'PORT': os.getenv('DB_PORT') or os.getenv('PGPORT', '5432'),
+        }
+    }
 
 
 # Optional: Only needed if using Django's createsuperuser command
@@ -265,7 +364,8 @@ USE_TZ = True
 
 # Static files (CSS, JavaScript, Images)
 # https://docs.djangoproject.com/en/5.2/howto/static-files/
-
+STATIC_ROOT = os.path.join(BASE_DIR, 'staticfiles')
+STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
 STATIC_URL = 'static/'
 
 # Default primary key field type

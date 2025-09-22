@@ -1,66 +1,53 @@
-from django.contrib.auth.backends import ModelBackend
-from django.contrib.auth import get_user_model
-from django.db.models import Q
-import re
-from django.core.exceptions import ValidationError
-User = get_user_model()
+# backend/core/authentication.py
+from rest_framework_simplejwt.authentication import JWTAuthentication
+from rest_framework_simplejwt.exceptions import InvalidToken
+from django.contrib.auth.models import AnonymousUser
+from .auth_client import auth_client
+import jwt
+from django.conf import settings
 
-class EmailOrPhoneNumberBackend(ModelBackend):
-    """
-    Custom authentication backend that allows login with either email or phone number
-    """
-    def validate_phone_number(self, phone_number):
-        if not phone_number:
-            return False
-        pattern = r'^\+\d{10,15}$'
-        if not re.match(pattern, phone_number):
-            raise ValidationError("Invalid phone number format. Use +<country code><number> (e.g., +639123456789).")
+class CustomUser:
+    """Mock user object with auth service data"""
+    def __init__(self, user_data):
+        self.id = user_data.get('id')
+        self.email = user_data.get('email')
+        self.username = user_data.get('username') # ADDED: Good practice to have username
+        self.first_name = user_data.get('first_name', '')
+        self.last_name = user_data.get('last_name', '')
+        self.is_active = user_data.get('is_active', True)
+        self.is_staff = user_data.get('is_staff', False)
+        self.is_superuser = user_data.get('is_superuser', False)
+        self.role = user_data.get('role', 'Finance')
+        
+        # --- THIS IS THE CRITICAL FIX ---
+        # Correctly map the department info from the auth_service payload
+        self.department_id = user_data.get('department_id')
+        self.department_name = user_data.get('department_name')
+        # REMOVED: self.department = user_data.get('department', '')
+    
+    @property
+    def is_authenticated(self): # MODIFIED: Changed to a property for better compatibility
         return True
     
-    def authenticate(self, request, username=None, password=None, **kwargs):
-        # Get email and phone_number from kwargs, don't fallback to username
-        email = kwargs.get('email')
-        phone_number = kwargs.get('phone_number')
-        
-        # If neither email nor phone_number is provided, check if username looks like email or phone
-        if not email and not phone_number and username:
-            if '@' in username:
-                email = username
-            elif username.startswith('+'):
-                phone_number = username
-            else:
-                # Could be either, try email first then phone
-                email = username
-        
-        if not email and not phone_number:
-            return None
-        
+    def __str__(self):
+        return self.email
+
+class MicroserviceJWTAuthentication(JWTAuthentication):
+    """Custom JWT authentication that validates users via auth service"""
+    
+    def get_user(self, validated_token):
+        """Get user from auth service instead of local database"""
         try:
-            user = None
+            user_id = validated_token.get('user_id')
+            if not user_id:
+                raise InvalidToken('Token does not contain user_id')
             
-            # Vvlidate phone number format if phone_number is provided
-            if phone_number:
-                self.validate_phone_number(phone_number)
-                try:
-                    user = User.objects.get(phone_number=phone_number)
-                except User.DoesNotExist:
-                    pass
+            # Get user from auth service
+            user_data = auth_client.get_user_info(user_id)
+            if not user_data:
+                raise InvalidToken('User not found in auth service')
             
-            # Try email if no user found via phone or if email was provided
-            if not user and email:
-                try:
-                    user = User.objects.get(email=email)
-                except User.DoesNotExist:
-                    pass
+            return CustomUser(user_data)
             
-            if user and user.check_password(password):
-                return user
-            return None
-            
-        except User.DoesNotExist:
-            # Default password hasher
-            User().set_password(password)
-            return None
-        except ValidationError:
-            # Invalid phone number format
-            return None
+        except Exception as e:
+            raise InvalidToken(f'Invalid user: {str(e)}')

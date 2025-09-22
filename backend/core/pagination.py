@@ -1,3 +1,5 @@
+# backend\core\pagination.py
+
 from rest_framework.pagination import PageNumberPagination
 from rest_framework.response import Response
 
@@ -16,6 +18,7 @@ class StandardResultsSetPagination(PageNumberPagination):
             'count': self.page.paginator.count,  # Total number of items
             'next': self.get_next_link(),  # URL to the next page
             'previous': self.get_previous_link(),  # URL to the previous page
+            'page_size': self.get_page_size(self.request), # ADDED
             'results': data  # The actual data for this page
         })
         
@@ -33,5 +36,39 @@ class ProjectStatusPagination(PageNumberPagination):
             'count': self.page.paginator.count,
             'next': self.get_next_link(),
             'previous': self.get_previous_link(),
+            'page_size': self.get_page_size(self.request), # ADDED
+            'results': data
+        })
+        
+        
+class FiveResultsSetPagination(PageNumberPagination):
+    """ Pagination with a page size of 5. """
+    page_size = 5
+    page_size_query_param = 'page_size'
+    max_page_size = 20
+    
+    # ADDED: Restore the custom response method
+    def get_paginated_response(self, data):
+        return Response({
+            'count': self.page.paginator.count,
+            'next': self.get_next_link(),
+            'previous': self.get_previous_link(),
+            'page_size': self.get_page_size(self.request), # ADDED
+            'results': data
+        })
+
+class SixResultsSetPagination(PageNumberPagination):
+    """ Pagination with a page size of 6. """
+    page_size = 6
+    page_size_query_param = 'page_size'
+    max_page_size = 24
+
+    # ADDED: Restore the custom response method
+    def get_paginated_response(self, data):
+        return Response({
+            'count': self.page.paginator.count,
+            'next': self.get_next_link(),
+            'previous': self.get_previous_link(),
+            'page_size': self.get_page_size(self.request), # ADDED
             'results': data
         })

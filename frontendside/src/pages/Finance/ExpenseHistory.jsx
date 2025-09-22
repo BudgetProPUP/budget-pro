@@ -1,324 +1,230 @@
-import React, { useState, useEffect } from 'react';
-import { Search, ChevronDown, ArrowLeft, ChevronLeft, ChevronRight, User, Mail, Briefcase, LogOut } from 'lucide-react';
-import { Link, useNavigate } from 'react-router-dom';
-import LOGOMAP from '../../assets/LOGOMAP.png';
-import './ExpenseHistory.css'; 
+import React, { useState, useEffect, useCallback } from "react";
+import {
+  Search,
+  ChevronDown,
+  ArrowLeft,
+  ChevronLeft,
+  ChevronRight,
+  User,
+  Mail,
+  Briefcase,
+  LogOut,
+} from "lucide-react";
+import { Link, useNavigate } from "react-router-dom";
+import LOGOMAP from "../../assets/MAP.jpg";
+import api from "../../api"; // Import our configured api instance
+import "./ExpenseHistory.css";
 
 const ExpenseHistory = () => {
+  // --- STATE MANAGEMENT ---
+  const [transactions, setTransactions] = useState([]);
+  const [categories, setCategories] = useState([]);
+  const [selectedExpense, setSelectedExpense] = useState(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [isModalLoading, setIsModalLoading] = useState(false);
+  const [error, setError] = useState(null);
+  const [paginationInfo, setPaginationInfo] = useState({
+    count: 0,
+    next: null,
+    previous: null,
+    page_size: 5, // Default to match the new backend pagination
+  });
+
+  // UI State
   const [showBudgetDropdown, setShowBudgetDropdown] = useState(false);
   const [showExpenseDropdown, setShowExpenseDropdown] = useState(false);
   const [showCategoryDropdown, setShowCategoryDropdown] = useState(false);
   const [showProfilePopup, setShowProfilePopup] = useState(false);
-  const [selectedExpense, setSelectedExpense] = useState(null);
-  const [selectedCategory, setSelectedCategory] = useState('All Categories');
+
+  // Filter and Pagination State
+  const [selectedCategory, setSelectedCategory] = useState({
+    code: "",
+    name: "All Categories",
+  });
   const [currentPage, setCurrentPage] = useState(1);
-  const itemsPerPage = 5; // Number of transactions per page
+  const [searchQuery, setSearchQuery] = useState("");
+
   const navigate = useNavigate();
 
-  // User profile data
   const userProfile = {
     name: "John Doe",
     email: "Johndoe@gmail.com",
     role: "Finance Head",
-    avatar: "https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?ixlib=rb-1.2.1&ixid=eyJhcHBfaWQiOjEyMDd9&auto=format&fit=facearea&facepad=2&w=256&h=256&q=80"
+    avatar:
+      "https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?ixlib=rb-1.2.1&ixid=eyJhcHBfaWQiOjEyMDd9&auto=format&fit=facearea&facepad=2&w=256&h=256&q=80",
   };
 
-  // Close dropdowns when clicking outside
+  // --- API CALLS ---
+  const fetchExpenseHistory = useCallback(async () => {
+    setIsLoading(true);
+    setError(null);
+    try {
+      const params = new URLSearchParams({
+        page: currentPage,
+        search: searchQuery,
+        category__code: selectedCategory.code || "",
+      });
+      const response = await api.get(`/expenses/history/?${params.toString()}`);
+      setTransactions(response.data.results);
+      setPaginationInfo({
+        count: response.data.count,
+        next: response.data.next,
+        previous: response.data.previous,
+        page_size: response.data.page_size,
+      });
+    } catch (err) {
+      console.error("Error fetching expense history:", err);
+      setError("Failed to load expense history.");
+    } finally {
+      setIsLoading(false);
+    }
+  }, [currentPage, searchQuery, selectedCategory.code]);
+
   useEffect(() => {
-    const handleClickOutside = (event) => {
-      if (!event.target.closest('.nav-dropdown') && !event.target.closest('.profile-container')) {
-        setShowBudgetDropdown(false);
-        setShowExpenseDropdown(false);
-        setShowCategoryDropdown(false);
-        setShowProfilePopup(false);
+    fetchExpenseHistory();
+  }, [fetchExpenseHistory]);
+
+  useEffect(() => {
+    const fetchCategories = async () => {
+      try {
+        const response = await api.get("/dropdowns/expense-categories/");
+        setCategories(response.data);
+      } catch (err) {
+        console.error("Error fetching categories:", err);
       }
     };
-
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => {
-      document.removeEventListener('mousedown', handleClickOutside);
-    };
+    fetchCategories();
   }, []);
 
-  // Sample data
-  const [transactions] = useState([
-    {
-      id: 1,
-      date: '04-12-2025',
-      description: 'Website Redesign Project',
-      category: 'Training & Development',
-      amount: '₱50,000.00',
-      projectSummary: 'This Budget Proposal provides necessary costs associated with the website redesign project (the "Project") which we would like to pursue due to increased mobile traffic and improved conversion rates from modern interfaces.',
-      projectDescription: 'Complete redesign of company website with responsive design, improved UI/UX, integration with CRM, and enhanced e-commerce capabilities to boost customer engagement and sales conversion.',
-      costElements: [
-        { type: 'Hardware', description: 'Workstations, Servers, Testing Devices', cost: '₱25,000.00' },
-        { type: 'Software', description: 'Design Tools, Development Platforms, Licenses', cost: '₱25,000.00' }
-      ],
-      dueDate: 'April 30, 2025'
-    },
-    {
-      id: 2,
-      date: '03-20-2025',
-      description: 'Software Subscription',
-      category: 'Professional Services',
-      amount: '₱15,750.00',
-      projectSummary: 'Annual subscription for productivity software suite.',
-      projectDescription: 'Renewal of organization-wide productivity software licenses including project management tools, communication platforms, and development environments.',
-      costElements: [
-        { type: 'Software', description: 'Annual Software License', cost: '₱15,750.00' }
-      ],
-      dueDate: 'March 31, 2025'
-    },
-    {
-      id: 3,
-      date: '03-15-2025',
-      description: 'Cloud Hosting',
-      category: 'Professional Services',
-      amount: '₱25,500.00',
-      projectSummary: 'Monthly cloud infrastructure costs for all company applications.',
-      projectDescription: 'Cloud hosting services including compute instances, database services, storage, and networking components to support our application ecosystem.',
-      costElements: [
-        { type: 'Service', description: 'Cloud Platform Services', cost: '₱25,500.00' }
-      ],
-      dueDate: 'March 20, 2025'
-    },
-    {
-      id: 4,
-      date: '02-25-2025',
-      description: 'Company Laptops',
-      category: 'Equipment & Maintenance',
-      amount: '₱480,000.00',
-      projectSummary: 'Purchase of new laptops for the engineering team.',
-      projectDescription: 'Replacement of outdated hardware with high-performance laptops for the development and design teams to improve productivity.',
-      costElements: [
-        { type: 'Hardware', description: 'Development Laptops (15 units)', cost: '₱400,000.00' },
-        { type: 'Software', description: 'Required OS and Software Licenses', cost: '₱80,000.00' }
-      ],
-      dueDate: 'February 28, 2025'
-    },
-    {
-      id: 5,
-      date: '01-25-2025',
-      description: 'Office Printers',
-      category: 'Equipment & Maintenance',
-      amount: '₱180,000.00',
-      projectSummary: 'Acquisition of networked printers for all departments.',
-      projectDescription: 'Purchase of high-capacity networked printers to replace aging equipment and reduce maintenance costs.',
-      costElements: [
-        { type: 'Hardware', description: 'Networked Printers (6 units)', cost: '₱150,000.00' },
-        { type: 'Supplies', description: 'Initial Supply of Consumables', cost: '₱30,000.00' }
-      ],
-      dueDate: 'January 30, 2025'
-    },
-    {
-      id: 6,
-      date: '12-19-2024',
-      description: 'AI Workshop Series',
-      category: 'Training & Development',
-      amount: '₱25,000.00',
-      projectSummary: 'Training program for staff on AI technologies and applications.',
-      projectDescription: 'Series of workshops designed to upskill technical and non-technical staff on artificial intelligence concepts, tools, and practical applications.',
-      costElements: [
-        { type: 'Service', description: 'External Trainers', cost: '₱15,000.00' },
-        { type: 'Materials', description: 'Training Materials and Resources', cost: '₱10,000.00' }
-      ],
-      dueDate: 'December 31, 2024'
+  // --- HANDLERS ---
+  // MODIFIED: Pass the entire transaction object to carry over its amount
+  const handleViewExpense = async (transaction) => {
+    setIsModalLoading(true);
+    setSelectedExpense({ id: transaction.id }); // Show loading modal
+    try {
+      // Step 1: Get the expense to find its proposal ID
+      const expenseRes = await api.get(`/expenses/${transaction.id}/`);
+      const proposalId = expenseRes.data.proposal_id;
+
+      if (!proposalId) {
+        throw new Error("This expense is not linked to a budget proposal.");
+      }
+
+      // Step 2: Get the full proposal details for the modal
+      const proposalRes = await api.get(`/budget-proposals/${proposalId}/`);
+
+      // MODIFIED: Merge proposal data with the specific expense amount
+      setSelectedExpense({
+        ...proposalRes.data,
+        specific_expense_amount: transaction.amount,
+      });
+    } catch (err) {
+      console.error("Error fetching expense details:", err);
+      alert(
+        "Could not load expense details. It may not be linked to a proposal."
+      );
+      setSelectedExpense(null); // Close modal on error
+    } finally {
+      setIsModalLoading(false);
     }
-  ]);
-
-  const [searchQuery, setSearchQuery] = useState('');
-
-  // Define all categories including the requested new ones
-  const categories = [
-    'All Categories', 
-    'Travel',
-    'Office Supplies',
-    'Utilities',
-    'Marketing & Advertising',
-    'Professional Services',
-    'Training & Development',
-    'Equipment & Maintenance',
-    'Miscellaneous'
-  ];
+  };
 
   const handleSearch = (e) => {
     setSearchQuery(e.target.value);
-    setCurrentPage(1); // Reset to first page when search changes
-  };
-
-  // Filter transactions based on search query and selected category
-  const filteredTransactions = transactions.filter(transaction => {
-    const matchesSearch = transaction.description.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                         transaction.category.toLowerCase().includes(searchQuery.toLowerCase());
-    const matchesCategory = selectedCategory === 'All Categories' || transaction.category === selectedCategory;
-    return matchesSearch && matchesCategory;
-  });
-
-  // Pagination logic
-  const indexOfLastItem = currentPage * itemsPerPage;
-  const indexOfFirstItem = indexOfLastItem - itemsPerPage;
-  const currentTransactions = filteredTransactions.slice(indexOfFirstItem, indexOfLastItem);
-  const totalPages = Math.ceil(filteredTransactions.length / itemsPerPage);
-
-  const paginate = (pageNumber) => setCurrentPage(pageNumber);
-  const nextPage = () => setCurrentPage(prev => Math.min(prev + 1, totalPages));
-  const prevPage = () => setCurrentPage(prev => Math.max(prev - 1, 1));
-
-  // Navigation functions - Updated to match Dashboard
-  const toggleBudgetDropdown = () => {
-    setShowBudgetDropdown(!showBudgetDropdown);
-    if (showExpenseDropdown) setShowExpenseDropdown(false);
-    if (showProfilePopup) setShowProfilePopup(false);
-  };
-
-  const toggleExpenseDropdown = () => {
-    setShowExpenseDropdown(!showExpenseDropdown);
-    if (showBudgetDropdown) setShowBudgetDropdown(false);
-    if (showProfilePopup) setShowProfilePopup(false);
-  };
-
-  const toggleCategoryDropdown = () => {
-    setShowCategoryDropdown(!showCategoryDropdown);
-    if (showBudgetDropdown) setShowBudgetDropdown(false);
-    if (showExpenseDropdown) setShowExpenseDropdown(false);
-  };
-
-  const toggleProfilePopup = () => {
-    setShowProfilePopup(!showProfilePopup);
-    if (showBudgetDropdown) setShowBudgetDropdown(false);
-    if (showExpenseDropdown) setShowExpenseDropdown(false);
+    setCurrentPage(1);
   };
 
   const handleCategorySelect = (category) => {
     setSelectedCategory(category);
-    setCurrentPage(1); // Reset to first page when category changes
+    setCurrentPage(1);
     setShowCategoryDropdown(false);
   };
 
-  const handleNavigate = (path) => {
-    navigate(path);
-    setShowBudgetDropdown(false);
-    setShowExpenseDropdown(false);
-    setShowProfilePopup(false);
+  const handleBackToList = () => setSelectedExpense(null);
+  const nextPage = () => {
+    if (paginationInfo.next) setCurrentPage((prev) => prev + 1);
   };
-
-  // Updated logout function with navigation to login screen
+  const prevPage = () => {
+    if (paginationInfo.previous) setCurrentPage((prev) => prev - 1);
+  };
+  const toggleBudgetDropdown = () => setShowBudgetDropdown(!showBudgetDropdown);
+  const toggleExpenseDropdown = () =>
+    setShowExpenseDropdown(!showExpenseDropdown);
+  const toggleCategoryDropdown = () =>
+    setShowCategoryDropdown(!showCategoryDropdown);
+  const toggleProfilePopup = () => setShowProfilePopup(!showProfilePopup);
+  const handleNavigate = (path) => navigate(path);
   const handleLogout = () => {
-    try {
-      // Clear any stored authentication data
-      localStorage.removeItem('authToken');
-      localStorage.removeItem('userSession');
-      localStorage.removeItem('userProfile');
-      
-      // Clear session storage
-      sessionStorage.clear();
-      
-      // Close the profile popup
-      setShowProfilePopup(false);
-      
-      // Navigate to login screen
-      navigate('/login', { replace: true });
-      
-      console.log('User logged out successfully');
-    } catch (error) {
-      console.error('Error during logout:', error);
-      // Still navigate to login even if there's an error clearing storage
-      navigate('/login', { replace: true });
-    }
+    localStorage.clear();
+    navigate("/login");
   };
-
-  const handleRowClick = (expense) => {
-    setSelectedExpense(expense);
-  };
-
-  const handleBackToList = () => {
-    setSelectedExpense(null);
-  };
+  // MODIFIED: Use the page_size from state for accurate total page calculation
+  const totalPages = paginationInfo.count
+    ? Math.ceil(paginationInfo.count / (paginationInfo.page_size || 5))
+    : 1;
 
   return (
     <div className="app-container">
-      {/* Header - Updated to match Dashboard exactly */}
+      {/* Header remains unchanged */}
       <header className="app-header">
         <div className="header-left">
           <div className="app-logo">
-            <img 
-              src={LOGOMAP} 
-              alt="BudgetPro Logo" 
-              className="logo-image"
-            />
+            <img src={LOGOMAP} alt="Logo" className="logo-image" />
           </div>
           <nav className="nav-menu">
-            <Link to="/dashboard" className="nav-item">Dashboard</Link>
-
-            {/* Budget Dropdown */}
+            <Link to="/dashboard" className="nav-item">
+              Dashboard
+            </Link>
             <div className="nav-dropdown">
-              <div 
-                className={`nav-item ${showBudgetDropdown ? 'active' : ''}`} 
-                onClick={toggleBudgetDropdown}
-              >
+              <div className="nav-item" onClick={toggleBudgetDropdown}>
                 Budget <ChevronDown size={14} />
               </div>
               {showBudgetDropdown && (
                 <div className="dropdown-menu">
                   <div
                     className="dropdown-item"
-                    onClick={() => handleNavigate('/finance/budget-proposal')}
+                    onClick={() => handleNavigate("/finance/budget-proposal")}
                   >
                     Budget Proposal
                   </div>
                   <div
                     className="dropdown-item"
-                    onClick={() => handleNavigate('/finance/proposal-history')}
+                    onClick={() => handleNavigate("/finance/proposal-history")}
                   >
                     Proposal History
                   </div>
                   <div
                     className="dropdown-item"
-                    onClick={() => handleNavigate('/finance/account-setup')}
-                  >
-                    Account Setup
-                  </div>
-                  <div
-                    className="dropdown-item"
-                    onClick={() => handleNavigate('/finance/ledger-view')}
+                    onClick={() => handleNavigate("/finance/ledger-view")}
                   >
                     Ledger View
                   </div>
                   <div
                     className="dropdown-item"
-                    onClick={() => handleNavigate('/finance/journal-entry')}
-                  >
-                    Journal Entries
-                  </div>
-                  <div
-                    className="dropdown-item"
-                    onClick={() => handleNavigate('/finance/budget-variance-report')}
+                    onClick={() =>
+                      handleNavigate("/finance/budget-variance-report")
+                    }
                   >
                     Budget Variance Report
                   </div>
                 </div>
               )}
             </div>
-
-            {/* Expense Dropdown */}
             <div className="nav-dropdown">
-              <div 
-                className={`nav-item ${showExpenseDropdown ? 'active' : ''}`} 
-                onClick={toggleExpenseDropdown}
-              >
+              <div className="nav-item active" onClick={toggleExpenseDropdown}>
                 Expense <ChevronDown size={14} />
               </div>
               {showExpenseDropdown && (
                 <div className="dropdown-menu">
                   <div
                     className="dropdown-item"
-                    onClick={() => handleNavigate('/finance/expense-tracking')}
+                    onClick={() => handleNavigate("/finance/expense-tracking")}
                   >
                     Expense Tracking
                   </div>
                   <div
-                    className="dropdown-item"
-                    onClick={() => handleNavigate('/finance/expense-history')}
+                    className="dropdown-item active"
+                    onClick={() => handleNavigate("/finance/expense-history")}
                   >
                     Expense History
                   </div>
@@ -327,18 +233,19 @@ const ExpenseHistory = () => {
             </div>
           </nav>
         </div>
-        
         <div className="header-right">
           <div className="profile-container">
             <div className="user-avatar" onClick={toggleProfilePopup}>
-              <img src={userProfile.avatar} alt="User avatar" className="avatar-img" />
+              <img
+                src={userProfile.avatar}
+                alt="User avatar"
+                className="avatar-img"
+              />
             </div>
-            
-            {/* Profile Popup */}
             {showProfilePopup && (
               <div className="profile-popup">
                 <div className="profile-popup-header">
-                  <button 
+                  <button
                     className="profile-back-btn"
                     onClick={() => setShowProfilePopup(false)}
                   >
@@ -346,42 +253,37 @@ const ExpenseHistory = () => {
                   </button>
                   <h3 className="profile-popup-title">Profile</h3>
                 </div>
-                
                 <div className="profile-popup-content">
                   <div className="profile-avatar-large">
-                    <img src={userProfile.avatar} alt="Profile" className="profile-avatar-img" />
+                    <img
+                      src={userProfile.avatar}
+                      alt="Profile"
+                      className="profile-avatar-img"
+                    />
                   </div>
-                  
-                  <div className="profile-link">
-                    <span className="profile-link-text">My Profile</span>
-                  </div>
-                  
                   <div className="profile-info">
                     <div className="profile-field">
                       <div className="profile-field-header">
-                        <User size={16} className="profile-field-icon" />
-                        <span className="profile-field-label">Name:</span>
+                        <User size={16} />
+                        <span>Name:</span>
                       </div>
-                      <span className="profile-field-value">{userProfile.name}</span>
+                      <span>{userProfile.name}</span>
                     </div>
-                    
                     <div className="profile-field">
                       <div className="profile-field-header">
-                        <Mail size={16} className="profile-field-icon" />
-                        <span className="profile-field-label">E-mail:</span>
+                        <Mail size={16} />
+                        <span>E-mail:</span>
                       </div>
-                      <span className="profile-field-value profile-email">{userProfile.email}</span>
+                      <span>{userProfile.email}</span>
                     </div>
-                    
                     <div className="profile-field">
                       <div className="profile-field-header">
-                        <Briefcase size={16} className="profile-field-icon" />
-                        <span className="profile-field-label">Role:</span>
+                        <Briefcase size={16} />
+                        <span>Role:</span>
                       </div>
-                      <span className="profile-field-value profile-role">{userProfile.role}</span>
+                      <span>{userProfile.role}</span>
                     </div>
                   </div>
-                  
                   <button className="logout-btn" onClick={handleLogout}>
                     <LogOut size={16} />
                     Log Out
@@ -393,153 +295,229 @@ const ExpenseHistory = () => {
         </div>
       </header>
 
-      <div className="content-container">
+      <div className="page">
         {!selectedExpense ? (
-          <>
-            <h2 className="page-title">Expense History</h2>
-
-            <div className="controls-row">
-              <div className="search-box">
+          // Main table view
+          <div className="container">
+            <div className="top">
+              <h2 className="expense-title">Expense History</h2>
+              <div className="controls-container">
                 <input
                   type="text"
-                  placeholder="Search by project or budget"
+                  placeholder="Search expenses..."
                   value={searchQuery}
                   onChange={handleSearch}
-                  className="search-input"
+                  className="search-account-input"
                 />
-                <button className="search-icon-btn">
-                  <Search size={18} />
-                </button>
-              </div>
-
-              <div className="filter-controls">
-                <div className="filter-dropdown">
-                  <button className="filter-dropdown-btn" onClick={toggleCategoryDropdown}>
-                    <span>{selectedCategory}</span>
-                    <ChevronDown size={14} />
+                <div
+                  className="category-dropdown-wrapper"
+                  style={{ position: "relative" }}
+                >
+                  <button
+                    className="category-dropdown-button oblong-filter"
+                    onClick={toggleCategoryDropdown}
+                  >
+                    <span>{selectedCategory.name}</span>
+                    <ChevronDown size={16} />
                   </button>
                   {showCategoryDropdown && (
                     <div className="category-dropdown-menu">
-                      {categories.map((category, index) => (
-                        <div
-                          key={index}
-                          className={`category-dropdown-item ${selectedCategory === category ? 'active' : ''}`}
-                          onClick={() => handleCategorySelect(category)}
+                      <button
+                        className={`category-item ${
+                          selectedCategory.code === "" ? "selected" : ""
+                        }`}
+                        onClick={() =>
+                          handleCategorySelect({
+                            code: "",
+                            name: "All Categories",
+                          })
+                        }
+                      >
+                        All Categories
+                      </button>
+                      {categories.map((cat) => (
+                        <button
+                          key={cat.code}
+                          className={`category-item ${
+                            selectedCategory.code === cat.code ? "selected" : ""
+                          }`}
+                          onClick={() =>
+                            handleCategorySelect({
+                              code: cat.code,
+                              name: cat.name,
+                            })
+                          }
                         >
-                          {category}
-                        </div>
+                          {cat.name}
+                        </button>
                       ))}
                     </div>
                   )}
                 </div>
               </div>
             </div>
-
-            <div className="transactions-table-wrapper">
-              <table className="transactions-table">
-                <thead>
+            <table>
+              <thead>
+                <tr>
+                  <th style={{ width: "25%" }}>Date</th>
+                  <th style={{ width: "35%" }}>Description</th>
+                  <th style={{ width: "20%" }}>Category</th>
+                  <th style={{ width: "10%" }}>Amount</th>
+                  <th style={{ width: "10%" }}>Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                {isLoading ? (
                   <tr>
-                    <th style={{ width: '20%' }}>Date</th>
-                    <th style={{ width: '35%' }}>Description</th>
-                    <th style={{ width: '25%' }}>Category</th>
-                    <th style={{ width: '20%', textAlign: 'right' }}>Amount</th>
+                    <td colSpan="5">Loading...</td>
                   </tr>
-                </thead>
-                <tbody>
-                  {currentTransactions.map((transaction) => (
-                    <tr 
-                      key={transaction.id} 
-                      onClick={() => handleRowClick(transaction)}
-                      style={{ cursor: 'pointer' }}
-                    >
-                      <td>{transaction.date}</td>
+                ) : error ? (
+                  <tr>
+                    <td colSpan="5">{error}</td>
+                  </tr>
+                ) : transactions.length > 0 ? (
+                  transactions.map((transaction) => (
+                    <tr key={transaction.id}>
+                      <td>{new Date(transaction.date).toLocaleDateString()}</td>
                       <td>{transaction.description}</td>
-                      <td>{transaction.category}</td>
-                      <td style={{ textAlign: 'right' }}>{transaction.amount}</td>
+                      <td>{transaction.category_name}</td>
+                      <td style={{ textAlign: "right" }}>
+                        ₱
+                        {parseFloat(transaction.amount).toLocaleString(
+                          "en-US",
+                          { minimumFractionDigits: 2, maximumFractionDigits: 2 }
+                        )}
+                      </td>
+                      <td style={{ textAlign: "center" }}>
+                        {/* MODIFIED: Pass the whole transaction object */}
+                        <button
+                          className="view-btn"
+                          onClick={() => handleViewExpense(transaction)}
+                        >
+                          View
+                        </button>
+                      </td>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
-              
-              {/* Pagination Controls */}
-              <div className="pagination-controls">
-                <button 
-                  className={`pagination-btn ${currentPage === 1 ? 'disabled' : ''}`} 
+                  ))
+                ) : (
+                  <tr>
+                    <td colSpan="5">No approved expenses found.</td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+            {/* This will now render correctly because totalPages will be > 1 */}
+            {totalPages > 1 && (
+              <div className="pagination">
+                <button
+                  className="pagination-btn"
                   onClick={prevPage}
-                  disabled={currentPage === 1}
+                  disabled={!paginationInfo.previous}
                 >
                   <ChevronLeft size={14} />
                 </button>
-                
-                <div className="pagination-numbers">
-                  {Array.from({ length: totalPages }, (_, i) => (
-                    <button
-                      key={i + 1}
-                      className={`pagination-number ${currentPage === i + 1 ? 'active' : ''}`}
-                      onClick={() => paginate(i + 1)}
-                    >
-                      {i + 1}
-                    </button>
-                  ))}
-                </div>
-                
-                <button 
-                  className={`pagination-btn ${currentPage === totalPages ? 'disabled' : ''}`}
+                <span>
+                  Page {currentPage} of {totalPages}
+                </span>
+                <button
+                  className="pagination-btn"
                   onClick={nextPage}
-                  disabled={currentPage === totalPages}
+                  disabled={!paginationInfo.next}
                 >
                   <ChevronRight size={14} />
                 </button>
               </div>
-            </div>
-          </>
+            )}
+          </div>
         ) : (
-          <div className="budget-proposal-view">
-            <button className="back-button" onClick={handleBackToList}>
-              <ArrowLeft size={16} />
-              <span>Back to Expenses</span>
-            </button>
-
-            <div className="proposal-header">
-              <h3 className="proposal-title">{selectedExpense.description}</h3>
-              <div className="proposal-date">Due Date: {selectedExpense.dueDate}</div>
-            </div>
-
-            <div className="proposal-section">
-              <h4 className="section-label">PROJECT SUMMARY</h4>
-              <p className="section-content">{selectedExpense.projectSummary}</p>
-            </div>
-
-            <div className="proposal-section">
-              <h4 className="section-label">PROJECT DESCRIPTION</h4>
-              <p className="section-content">{selectedExpense.projectDescription}</p>
-            </div>
-
-            <div className="proposal-section">
-              <h4 className="section-label">COST ELEMENTS</h4>
-              <div className="cost-table">
-                <div className="cost-header">
-                  <div className="cost-type-header">TYPE</div>
-                  <div className="cost-desc-header">DESCRIPTION</div>
-                  <div className="cost-amount-header">ESTIMATED COST</div>
-                </div>
-                {selectedExpense.costElements.map((cost, idx) => (
-                  <div className="cost-row" key={idx}>
-                    <div className="cost-type">
-                      <span className="cost-bullet"></span>
-                      {cost.type}
-                    </div>
-                    <div className="cost-description">{cost.description}</div>
-                    <div className="cost-amount">{cost.cost}</div>
+          // MODAL VIEW
+          <div className="container">
+            {isModalLoading ? (
+              <p>Loading details...</p>
+            ) : (
+              <div className="budget-proposal-view">
+                <button className="back-button" onClick={handleBackToList}>
+                  <ArrowLeft size={16} />
+                  <span>Back to Expenses</span>
+                </button>
+                <div className="proposal-header">
+                  <h3 className="proposal-title">{selectedExpense.title}</h3>
+                  {/* ADDED: Display the specific expense amount */}
+                  {/* <div className="expense-amount-display">
+                    <span className="amount-label">Amount:</span>
+                    <span className="amount-value">
+                      ₱
+                      {parseFloat(
+                        selectedExpense.specific_expense_amount
+                      ).toLocaleString("en-US", {
+                        minimumFractionDigits: 2,
+                        maximumFractionDigits: 2,
+                      })}
+                    </span>
+                  </div> */}
+                  <div className="proposal-date">
+                    Due Date:{" "}
+                    {new Date(
+                      selectedExpense.performance_end_date
+                    ).toLocaleDateString()}
                   </div>
-                ))}
-                <div className="cost-row total">
-                  <div className="cost-type"></div>
-                  <div className="cost-description">TOTAL</div>
-                  <div className="cost-amount">{selectedExpense.amount}</div>
+                </div>
+                <div className="proposal-section">
+                  <h4 className="section-label">PROJECT SUMMARY</h4>
+                  <p className="section-content">
+                    {selectedExpense.project_summary}
+                  </p>
+                </div>
+                <div className="proposal-section">
+                  <h4 className="section-label">PROJECT DESCRIPTION</h4>
+                  <p className="section-content">
+                    {selectedExpense.project_description}
+                  </p>
+                </div>
+                <div className="proposal-section">
+                  <h4 className="section-label">COST ELEMENTS</h4>
+                  <div className="cost-table">
+                    <div className="cost-header">
+                      <div className="cost-type-header">TYPE</div>
+                      <div className="cost-desc-header">DESCRIPTION</div>
+                      <div className="cost-amount-header">ESTIMATED COST</div>
+                    </div>
+                    {selectedExpense.items.map((cost, idx) => (
+                      <div className="cost-row" key={idx}>
+                        <div className="cost-type">
+                          <span className="cost-bullet"></span>
+                          {cost.account_code}
+                        </div>
+                        <div className="cost-description">
+                          {cost.description}
+                        </div>
+                        <div className="cost-amount">
+                          ₱
+                          {parseFloat(cost.estimated_cost).toLocaleString(
+                            "en-US",
+                            {
+                              minimumFractionDigits: 2,
+                              maximumFractionDigits: 2,
+                            }
+                          )}
+                        </div>
+                      </div>
+                    ))}
+                    <div className="cost-row total">
+                      <div className="cost-type"></div>
+                      <div className="cost-description">TOTAL</div>
+                      <div className="cost-amount">
+                        ₱
+                        {parseFloat(selectedExpense.total_cost).toLocaleString(
+                          "en-US",
+                          { minimumFractionDigits: 2, maximumFractionDigits: 2 }
+                        )}
+                      </div>
+                    </div>
+                  </div>
                 </div>
               </div>
-            </div>
+            )}
           </div>
         )}
       </div>

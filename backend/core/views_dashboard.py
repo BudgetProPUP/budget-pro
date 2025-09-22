@@ -1,7 +1,7 @@
 from decimal import Decimal
 from django.db.models import Sum, F, DecimalField, Q
 from django.db.models.functions import Coalesce
-from rest_framework import viewsets, views, status
+from rest_framework import viewsets, views, status,generics
 from rest_framework.response import Response
 from rest_framework.views import APIView
 from drf_spectacular.utils import extend_schema, OpenApiParameter, OpenApiExample, OpenApiResponse
@@ -9,7 +9,7 @@ from django.db.models import Subquery, OuterRef, Q
 from core.pagination import ProjectStatusPagination, StandardResultsSetPagination
 from .models import Department, ExpenseCategory, FiscalYear, BudgetAllocation, Expense, Project
 from .serializers import DepartmentBudgetSerializer
-from .serializers_dashboard import CategoryAllocationSerializer, CategoryBudgetStatusSerializer, DashboardBudgetSummarySerializer, DepartmentBudgetStatusSerializer, ProjectStatusSerializer, SimpleProjectSerializer, TotalBudgetSerializer
+from .serializers_dashboard import CategoryAllocationSerializer, CategoryBudgetStatusSerializer, DashboardBudgetSummarySerializer, DepartmentBudgetStatusSerializer, ProjectStatusSerializer, SimpleProjectSerializer, ProjectDetailSerializer
 from rest_framework.permissions import IsAuthenticated
 from .serializers_dashboard import MonthlyBudgetActualSerializer
 from django.utils import timezone
@@ -17,6 +17,7 @@ from rest_framework.decorators import api_view, permission_classes, action
 import calendar
 from decimal import Decimal
 from django.utils import timezone
+
 
 
 
@@ -847,3 +848,14 @@ def get_category_budget_status(request):
 
     serializer = CategoryBudgetStatusSerializer(result, many=True)
     return Response(serializer.data)
+
+@extend_schema(
+    tags=["Dashboard"],
+    summary="Get Single Project Details",
+    description="Returns detailed information for a single project, used for the 'View' modal on the dashboard",
+    responses={200: ProjectDetailSerializer}
+)
+class ProjectDetailView(generics.RetrieveAPIView):
+    queryset = Project.objects.all()
+    serializer_class = ProjectDetailSerializer
+    permission_classes = [IsAuthenticated]

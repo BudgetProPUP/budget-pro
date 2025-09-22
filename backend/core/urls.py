@@ -1,13 +1,13 @@
 from django.urls import path, include
 from rest_framework_simplejwt.views import TokenRefreshView
 from rest_framework.routers import DefaultRouter
-
+from .views_utils import get_server_time
 from .views_budget import AccountDropdownView, AccountSetupListView, BudgetAdjustmentView, BudgetProposalDetailView, BudgetProposalListView, BudgetProposalSummaryView, BudgetVarianceReportView, FiscalYearDropdownView, JournalEntryCreateView, JournalEntryListView, LedgerExportView, ProposalHistoryView, LedgerViewList, ProposalReviewBudgetOverview, export_budget_proposal_excel, export_budget_variance_excel, journal_choices, DepartmentDropdownView, AccountTypeDropdownView
 from . import views_expense, views_dashboard  # ,TokenObtainPairView
 from .views_dashboard import (
-    DepartmentBudgetView, MonthlyBudgetActualViewSet, TopCategoryBudgetAllocationView, 
+    DepartmentBudgetView, MonthlyBudgetActualViewSet, TopCategoryBudgetAllocationView,
     get_all_projects, get_dashboard_budget_summary, get_department_budget_status,
-    overall_monthly_budget_actual, get_category_budget_status
+    overall_monthly_budget_actual, get_category_budget_status, ProjectDetailView
 )
 from .views import (
     DepartmentViewSet,
@@ -16,7 +16,7 @@ from .views import (
 
 from .views_expense import (
     ExpenseDetailView, ExpenseHistoryView, ExpenseTrackingView, ExpenseCreateView,
-    ExpenseCategoryDropdownView, ExpenseTrackingSummaryView, 
+    ExpenseCategoryDropdownView, ExpenseTrackingSummaryView,
     BudgetAllocationCreateView
 )
 from core import views_budget
@@ -40,6 +40,8 @@ urlpatterns = [
          name='dashboard-budget-summary'),
     path('dashboard/project-status/',
          views_dashboard.get_project_status_list, name='project-table'),
+    path('dashboard/projects/<int:pk>/', ProjectDetailView.as_view(),
+         name='project-detail'),  # Project Detail View modal
     path('dashboard/department-status/', views_dashboard.get_department_budget_status,
          name='dashboard-department-status'),
     path('dashboard/top-category-allocations/',
@@ -85,14 +87,18 @@ urlpatterns = [
 
     # --- Expense Endpoints ---
     path('expenses/history/', ExpenseHistoryView.as_view(), name='expense-history'),
-    path('expenses/tracking/', ExpenseTrackingView.as_view(), name='expense-tracking'),
+    path('expenses/tracking/', ExpenseTrackingView.as_view(),
+         name='expense-tracking'),
     # ADDED: URL for the summary cards on the expense tracking page
-    path('expenses/tracking/summary/', ExpenseTrackingSummaryView.as_view(), name='expense-tracking-summary'),
+    path('expenses/tracking/summary/', ExpenseTrackingSummaryView.as_view(),
+         name='expense-tracking-summary'),
     # ADDED: URL for the "Add Budget" modal
     path('expenses/<int:pk>/', ExpenseDetailView.as_view(), name='expense-detail'),
-    path('expenses/add-budget/', BudgetAllocationCreateView.as_view(), name='add-budget'),
+    path('expenses/add-budget/',
+         BudgetAllocationCreateView.as_view(), name='add-budget'),
     path('expenses/submit/', ExpenseCreateView.as_view(), name='submit-expense'),
-    path('expenses/valid-project-accounts/', ValidProjectAccountView.as_view(), name='valid-project-accounts'),
+    path('expenses/valid-project-accounts/',
+         ValidProjectAccountView.as_view(), name='valid-project-accounts'),
 
     # --- General & Dropdown Endpoints ---
     path('user-management/', include(user_management_router.urls)),
@@ -114,4 +120,6 @@ urlpatterns = [
          name='department-budget'),
     path('journal-entries/create/', JournalEntryCreateView.as_view(),
          name='journal-entry-create'),
+    # --- Utility Endpoints ---
+    path('utils/server-time/', get_server_time, name='server-time'),
 ]

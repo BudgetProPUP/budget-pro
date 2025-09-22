@@ -13,6 +13,7 @@ from django.db.models.functions import Coalesce
 from django.http import HttpResponse
 from django.utils import timezone
 from django.conf import settings
+from django.core.mail import send_mail
 
 from rest_framework import generics, status, viewsets
 from rest_framework.response import Response
@@ -28,7 +29,7 @@ from .models import (
     FiscalYear, BudgetAllocation, Expense, JournalEntry, JournalEntryLine,
     ProposalComment, ProposalHistory, UserActivityLog, Project
 )
-from .permissions import IsTrustedService
+from .permissions import IsTrustedService, IsBMSFinanceHead, IsBMSUser, IsBMSAdmin
 from .pagination import FiveResultsSetPagination, SixResultsSetPagination, StandardResultsSetPagination
 from .serializers import FiscalYearSerializer
 from .serializers_budget import (
@@ -117,11 +118,10 @@ class BudgetProposalSummaryView(generics.GenericAPIView):
         return Response(serializer.data)
 
 
-class BudgetProposalDetailView(generics.RetrieveAPIView):  # Logic seems fine
-    queryset = BudgetProposal.objects.filter(is_deleted=False).prefetch_related(
-        'items__account', 'comments')  # Added prefetch
+class BudgetProposalDetailView(generics.RetrieveAPIView):  
+    queryset = BudgetProposal.objects.filter(is_deleted=False).prefetch_related('items__account', 'comments')
     serializer_class = BudgetProposalDetailSerializer
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsBMSUser] # JWT permission
 
     @extend_schema(
         tags=['Budget Proposal Page'],
@@ -274,7 +274,7 @@ class LedgerViewList(generics.ListAPIView):
         transaction_type = self.request.query_params.get('transaction_type')
         if search:
             queryset = queryset.filter(Q(journal_entry__description__icontains=search) | Q(
-                description__icontains=search) | # Also search line item description
+                description__icontains=search) |  # Also search line item description
                 Q(journal_entry__category__icontains=search) | Q(account__name__icontains=search) | Q(account__code__icontains=search))
         if category:
             queryset = queryset.filter(
@@ -284,6 +284,7 @@ class LedgerViewList(generics.ListAPIView):
                 journal_transaction_type__iexact=transaction_type)
         # Added secondary sort
         return queryset.order_by('-journal_entry__date', 'journal_entry__entry_id')
+
 
 @extend_schema(
     tags=['Ledger View'],
@@ -310,16 +311,17 @@ class LedgerExportView(APIView):
     def get(self, request):
         # This logic reuses the get_queryset from LedgerViewList for consistency
         list_view = LedgerViewList()
-        list_view.request = request # Mock the request for the view
+        list_view.request = request  # Mock the request for the view
         queryset = list_view.get_queryset()
 
         response = HttpResponse(
             content_type='text/csv; charset=utf-8')
         response['Content-Disposition'] = 'attachment; filename="ledger_export.csv"'
-        
+
         writer = csv.writer(response)
         # UPDATED: Match the new table columns
-        writer.writerow(['Reference ID', 'Date', 'Category', 'Description', 'Account', 'Amount (PHP)'])
+        writer.writerow(['Reference ID', 'Date', 'Category',
+                        'Description', 'Account', 'Amount (PHP)'])
 
         for line in queryset:
             writer.writerow([
@@ -465,16 +467,16 @@ class BudgetProposalViewSet(viewsets.ModelViewSet):
         'items__account', 'comments'  # Optimize queries
     ).order_by('-created_at')
 
-    # permission_classes = [IsAuthenticated] # Old base permission
     def get_permissions(self):
-        """
-        Instantiates and returns the list of permissions that this view requires.
-        """
         if self.action in ['create', 'update', 'partial_update', 'destroy']:
-            # These actions should only be allowed by trusted services via API Key
             return [IsTrustedService()]
-        # For list, retrieve, review, add_comment, allow authenticated end-users (via JWT)
-        return [IsAuthenticated()]
+        
+        # Use your new permission classes for actions performed by human users
+        if self.action == 'review':
+             # Only a Finance Head can approve or reject
+            return [IsBMSFinanceHead()]
+            
+        return [IsBMSUser()]
 
     def get_serializer_class(self):
         # This ViewSet is primarily for external system interaction via messages
@@ -619,7 +621,6 @@ Create a new Budget Proposal.
         responses={200: BudgetProposalDetailSerializer},
         tags=['Budget Proposal Page Actions']
     )
-    
     @action(detail=True, methods=['post'], permission_classes=[IsAuthenticated])
     def review(self, request, pk=None):
         proposal = self.get_object()
@@ -627,7 +628,8 @@ Create a new Budget Proposal.
         review_input_serializer.is_valid(raise_exception=True)
 
         new_status = review_input_serializer.validated_data['status']
-        comment_text = review_input_serializer.validated_data.get('comment', '')
+        comment_text = review_input_serializer.validated_data.get(
+            'comment', '')
 
         reviewer_user_id = request.user.id
         reviewer_name = getattr(request.user, 'username', 'Unknown Reviewer')
@@ -635,15 +637,15 @@ Create a new Budget Proposal.
             full_name = f"{request.user.first_name} {request.user.last_name}".strip()
             if full_name:
                 reviewer_name = full_name
-        
+
         previous_status_for_history = proposal.status
-        
+
         # Prevent re-approving if already approved and project exists, or re-creating project
         if new_status == 'APPROVED' and proposal.status == 'APPROVED':
             # Potentially just add comment and history, but don't re-create project
             # Or return an error/message indicating it's already approved.
             # For now, let's assume UI prevents this or we allow re-stamping approval time/user.
-            pass # Or handle as "already approved"
+            pass  # Or handle as "already approved"
 
         try:
             with transaction.atomic():
@@ -651,7 +653,7 @@ Create a new Budget Proposal.
                 if new_status == 'APPROVED':
                     proposal.approved_by_name = reviewer_name
                     proposal.approval_date = timezone.now()
-                    
+
                     # --- PROJECT CREATION LOGIC ---
                     if not hasattr(proposal, 'project') or proposal.project is None:
                         Project.objects.create(
@@ -661,11 +663,13 @@ Create a new Budget Proposal.
                             end_date=proposal.performance_end_date,
                             department=proposal.department,
                             budget_proposal=proposal,
-                            status='PLANNING' # Default status for a new project
+                            status='PLANNING'  # Default status for a new project
                         )
-                        print(f"Project created for approved proposal ID {proposal.id}")
+                        print(
+                            f"Project created for approved proposal ID {proposal.id}")
                     else:
-                        print(f"Project already exists for proposal ID {proposal.id}. Approval details updated.")
+                        print(
+                            f"Project already exists for proposal ID {proposal.id}. Approval details updated.")
                     # --- END PROJECT CREATION LOGIC ---
 
                 elif new_status == 'REJECTED':
@@ -676,8 +680,9 @@ Create a new Budget Proposal.
                     if hasattr(proposal, 'project') and proposal.project is not None:
                         proposal.project.status = 'CANCELLED'
                         proposal.project.save(update_fields=['status'])
-                        print(f"Project for proposal ID {proposal.id} marked as CANCELLED due to rejection.")
-                
+                        print(
+                            f"Project for proposal ID {proposal.id} marked as CANCELLED due to rejection.")
+
                 proposal.last_modified = timezone.now()
                 proposal.save()
 
@@ -688,7 +693,7 @@ Create a new Budget Proposal.
                         user_username=reviewer_name,
                         comment=comment_text
                     )
-                
+
                 ProposalHistory.objects.create(
                     proposal=proposal, action=new_status,
                     action_by_name=reviewer_name,
@@ -696,8 +701,37 @@ Create a new Budget Proposal.
                     new_status=proposal.status,
                     comments=comment_text or f"Status changed to {new_status}."
                 )
+                # --- EMAIL NOTIFICATION LOGIC ---
+            submitter_email = proposal.submitted_by_name
+            if submitter_email and '@' in submitter_email:
+                subject = f"Update on your Budget Proposal: '{proposal.title}'"
+                status_text = "Approved" if new_status == 'APPROVED' else "Rejected"
+                message = (
+                    f"Dear Submitter,\n\n"
+                    f"Your budget proposal titled '{proposal.title}' has been reviewed and its status is now: {status_text}.\n\n"
+                    f"Reviewed by: {reviewer_name}\n"
+                )
+                if comment_text:
+                    message += f"Reviewer's Comment: {comment_text}\n\n"
+                message += "Thank you,\nThe Budget Management System"
+
+                try:
+                    send_mail(
+                        subject,
+                        message,
+                        settings.DEFAULT_FROM_EMAIL,
+                        [submitter_email],
+                        fail_silently=False,
+                    )
+                    print(
+                        f"Approval/rejection email sent successfully to {submitter_email}")
+                except Exception as e:
+                    print(
+                        f"CRITICAL: Failed to send review email for proposal {proposal.id}: {e}")
+            # --- END EMAIL NOTIFICATION LOGIC ---
         except Exception as e:
-            print(f"Error during proposal review for proposal {proposal.id}: {e}")
+            print(
+                f"Error during proposal review for proposal {proposal.id}: {e}")
             UserActivityLog.objects.create(
                 user_id=request.user.id, user_username=reviewer_name, log_type='ERROR',
                 action=f'Failed review for proposal {proposal.id}. Status attempted: {new_status}', status='FAILED',
@@ -728,30 +762,34 @@ Create a new Budget Proposal.
                 headers = {'Content-Type': 'application/json'}
                 if api_key_for_dts:
                     headers['X-API-Key'] = api_key_for_dts
-                
-                response_to_dts = requests.post(target_dts_url, json=notification_payload, headers=headers, timeout=10)
-                response_to_dts.raise_for_status() # Raise an exception for bad status codes (4xx or 5xx)
 
-                print(f"Successfully notified external system about proposal {proposal.external_system_id} status: {proposal.status}")
+                response_to_dts = requests.post(
+                    target_dts_url, json=notification_payload, headers=headers, timeout=10)
+                # Raise an exception for bad status codes (4xx or 5xx)
+                response_to_dts.raise_for_status()
+
+                print(
+                    f"Successfully notified external system about proposal {proposal.external_system_id} status: {proposal.status}")
                 UserActivityLog.objects.create(
                     user_id=request.user.id, user_username=reviewer_name, log_type='PROCESS',
                     action=f'Sent status update for proposal {proposal.id} ({proposal.external_system_id}) to external system. Status: {proposal.status}', status='SUCCESS',
                     details={
-                        'target_system': 'DTS/TTS', 
+                        'target_system': 'DTS/TTS',
                         'target_url': target_dts_url,
-                        'payload_sent': notification_payload, 
+                        'payload_sent': notification_payload,
                         'response_status': response_to_dts.status_code
                     }
                 )
             except requests.RequestException as e:
-                print(f"Error notifying external system about proposal {proposal.external_system_id}: {e}")
+                print(
+                    f"Error notifying external system about proposal {proposal.external_system_id}: {e}")
                 UserActivityLog.objects.create(
                     user_id=request.user.id, user_username=reviewer_name, log_type='ERROR',
                     action=f'Failed to send status update for proposal {proposal.id} ({proposal.external_system_id}) to external system.', status='FAILED',
                     details={
-                        'target_system': 'DTS/TTS', 
+                        'target_system': 'DTS/TTS',
                         'target_url': target_dts_url,
-                        'error': str(e), 
+                        'error': str(e),
                         'payload_attempted': notification_payload
                     }
                 )
@@ -759,10 +797,11 @@ Create a new Budget Proposal.
                 # The proposal review in BMS was successful.
         else:
             # Log a warning if the URL is not set, so we know why notifications aren't being sent.
-            print(f"Warning: DTS_STATUS_UPDATE_URL not configured in settings. Cannot notify external system for proposal {proposal.id}.")
+            print(
+                f"Warning: DTS_STATUS_UPDATE_URL not configured in settings. Cannot notify external system for proposal {proposal.id}.")
 
-
-        output_serializer = BudgetProposalDetailSerializer(proposal, context={'request': request})
+        output_serializer = BudgetProposalDetailSerializer(
+            proposal, context={'request': request})
         return Response(output_serializer.data, status=status.HTTP_200_OK)
 
     # You might want a separate action for users to add comments without changing status
@@ -1029,7 +1068,8 @@ class BudgetVarianceReportView(APIView):
         result = [aggregate_node(cat) for cat in top_categories]
 
         return Response(result)
-    
+
+
 @extend_schema(
     tags=["Budget Proposal Page Actions"],
     summary="Get budget overview for a proposal review",
@@ -1041,13 +1081,15 @@ class ProposalReviewBudgetOverview(APIView):
 
     def get(self, request, proposal_id):
         try:
-            proposal = BudgetProposal.objects.select_related('department', 'fiscal_year').get(id=proposal_id)
+            proposal = BudgetProposal.objects.select_related(
+                'department', 'fiscal_year').get(id=proposal_id)
         except BudgetProposal.DoesNotExist:
             return Response({"error": "Proposal not found"}, status=status.HTTP_404_NOT_FOUND)
 
         department = proposal.department
         fiscal_year = proposal.fiscal_year
-        proposal_cost = proposal.items.aggregate(total=Coalesce(Sum('estimated_cost'), Decimal('0')))['total']
+        proposal_cost = proposal.items.aggregate(
+            total=Coalesce(Sum('estimated_cost'), Decimal('0')))['total']
 
         # 1. Total budget allocated to the department for the fiscal year
         total_dept_budget = BudgetAllocation.objects.filter(
@@ -1058,7 +1100,7 @@ class ProposalReviewBudgetOverview(APIView):
         total_spent = Expense.objects.filter(
             department=department, budget_allocation__fiscal_year=fiscal_year, status='APPROVED'
         ).aggregate(total=Coalesce(Sum('amount'), Decimal('0')))['total']
-        
+
         # UI's "Currently Allocated" seems to mean "already spent"
         currently_allocated = total_spent
 
@@ -1106,7 +1148,7 @@ def export_budget_variance_excel(request):
 
     # Re-use the logic from BudgetVarianceReportView to get the data
     top_categories = ExpenseCategory.objects.filter(level=1, is_active=True)
-    
+
     def aggregate_node(category):
         budget = BudgetAllocation.objects.filter(
             category=category, fiscal_year=fiscal_year, is_active=True
@@ -1118,7 +1160,8 @@ def export_budget_variance_excel(request):
             status='APPROVED'
         ).aggregate(total=Coalesce(Sum('amount'), 0, output_field=DecimalField()))['total']
 
-        children_data = [aggregate_node(child) for child in category.subcategories.all()]
+        children_data = [aggregate_node(child)
+                         for child in category.subcategories.all()]
 
         if children_data:
             child_budget = sum(c['budget'] for c in children_data)
@@ -1132,7 +1175,7 @@ def export_budget_variance_excel(request):
                 "name": category.name, "budget": budget, "actual": actual,
                 "available": budget - actual, "children": []
             }
-            
+
     report_data = [aggregate_node(cat) for cat in top_categories]
 
     # --- Excel Generation ---
@@ -1160,22 +1203,25 @@ def export_budget_variance_excel(request):
 
     for col in ws.columns:
         max_length = max(len(str(cell.value)) for cell in col)
-        ws.column_dimensions[get_column_letter(col[0].column)].width = max(max_length + 2, 12)
+        ws.column_dimensions[get_column_letter(
+            col[0].column)].width = max(max_length + 2, 12)
 
-    response = HttpResponse(content_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+    response = HttpResponse(
+        content_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
     filename = f"budget_variance_report_{fiscal_year.name}.xlsx"
     response["Content-Disposition"] = f'attachment; filename="{filename}"'
     wb.save(response)
     return response
+
 
 @extend_schema(
     tags=["Budget Adjustment Page"],
     summary="Create a Budget Adjustment",
     description="Modifies a budget by transferring funds between allocations or adjusting against a reserve account, while creating a corresponding journal entry for audit purposes.",
     request=BudgetAdjustmentSerializer,
-    responses={201: JournalEntryListSerializer} # Returns the created journal entry
+    # Returns the created journal entry
+    responses={201: JournalEntryListSerializer}
 )
-
 class BudgetAdjustmentView(generics.CreateAPIView):
     """
     Handles the creation of a budget adjustment.
@@ -1189,13 +1235,16 @@ class BudgetAdjustmentView(generics.CreateAPIView):
     def perform_create(self, serializer):
         validated_data = serializer.validated_data
         user = self.request.user
-        
-        source_alloc = BudgetAllocation.objects.get(id=validated_data['source_allocation_id'])
+
+        source_alloc = BudgetAllocation.objects.get(
+            id=validated_data['source_allocation_id'])
         dest_alloc = None
         if validated_data.get('destination_allocation_id'):
-            dest_alloc = BudgetAllocation.objects.get(id=validated_data['destination_allocation_id'])
+            dest_alloc = BudgetAllocation.objects.get(
+                id=validated_data['destination_allocation_id'])
 
-        offsetting_account = Account.objects.get(id=validated_data['offsetting_account_id'])
+        offsetting_account = Account.objects.get(
+            id=validated_data['offsetting_account_id'])
         amount = validated_data['amount']
         description = validated_data['description']
         date = validated_data['date']
@@ -1204,7 +1253,7 @@ class BudgetAdjustmentView(generics.CreateAPIView):
             # Create the parent Journal Entry
             journal_entry = JournalEntry.objects.create(
                 date=date,
-                category='PROJECTS', # Or a new 'ADJUSTMENTS' category
+                category='PROJECTS',  # Or a new 'ADJUSTMENTS' category
                 description=description,
                 total_amount=amount,
                 status='POSTED',
@@ -1212,11 +1261,11 @@ class BudgetAdjustmentView(generics.CreateAPIView):
                 created_by_username=getattr(user, 'username', 'N/A')
             )
 
-            if dest_alloc: # This is a transfer between two allocations
+            if dest_alloc:  # This is a transfer between two allocations
                 # 1. Decrease source allocation
                 source_alloc.amount -= amount
                 source_alloc.save(update_fields=['amount'])
-                
+
                 # 2. Increase destination allocation
                 dest_alloc.amount += amount
                 dest_alloc.save(update_fields=['amount'])
@@ -1234,21 +1283,21 @@ class BudgetAdjustmentView(generics.CreateAPIView):
                     transaction_type='DEBIT', journal_transaction_type='TRANSFER',
                     amount=amount, description=f"Transfer to {dest_alloc.project.name}"
                 )
-            
-            else: # This is an adjustment against a single allocation
+
+            else:  # This is an adjustment against a single allocation
                 # For this to be a balanced transaction, we need to decide if it's an increase or decrease
                 # The UI modal's Debit/Credit can determine this. Let's assume the serializer will provide it.
                 # For now, let's assume it's a decrease from the source allocation.
-                
+
                 # 1. Decrease source allocation
                 source_alloc.amount -= amount
                 source_alloc.save(update_fields=['amount'])
-                
+
                 # 2. Create Journal Entry Lines for the adjustment
                 # Credit the source allocation's account (reducing its budget)
                 JournalEntryLine.objects.create(
                     journal_entry=journal_entry, account=source_alloc.account,
-                    transaction_type='CREDIT', journal_transaction_type='OPERATIONAL_EXPENDITURE', # Or similar
+                    transaction_type='CREDIT', journal_transaction_type='OPERATIONAL_EXPENDITURE',  # Or similar
                     amount=amount, description=f"Budget reduction for {source_alloc.project.name}"
                 )
                 # Debit the offsetting account (e.g., funds return to a general reserve)
@@ -1257,21 +1306,19 @@ class BudgetAdjustmentView(generics.CreateAPIView):
                     transaction_type='DEBIT', journal_transaction_type='TRANSFER',
                     amount=amount, description="Return of funds to reserve"
                 )
-        
+
         # We return the created journal entry as proof of the transaction
         return_serializer = JournalEntryListSerializer(journal_entry)
         # The DRF CreateAPIView will wrap this in a 201 Response automatically.
         # To set the data for the response, we can set it on the instance.
         self.created_instance = journal_entry
 
-
     def create(self, request, *args, **kwargs):
         serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         self.perform_create(serializer)
-        
+
         # Use the serializer for the list view to format the response
         response_serializer = JournalEntryListSerializer(self.created_instance)
         headers = self.get_success_headers(response_serializer.data)
         return Response(response_serializer.data, status=status.HTTP_201_CREATED, headers=headers)
-    

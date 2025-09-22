@@ -1,26 +1,23 @@
 import { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
-import { Eye, EyeOff } from 'lucide-react';
 import { useForm } from "react-hook-form";
 import './LoginPage.css';
-import backgroundImage from '../../assets/BUDGETPROLOGO.jpg';
+import backgroundImage from '../../assets/LOGO.jpg';
+import { FaEye, FaEyeSlash } from 'react-icons/fa'; // Import eye icons
 
 function LoginPage({ setIsAuthenticated }) {
   const navigate = useNavigate();
   const [isInvalidCredentials, setInvalidCredentials] = useState(null);
   const [isSubmitting, setSubmitting] = useState(false);
-  const [isShowPassword, setShowPassword] = useState(false);
+  const [showPassword, setShowPassword] = useState(false); // State for password visibility
 
   const {
     register,
     handleSubmit,
     formState: { errors, isValid },
-    watch,
   } = useForm({
     mode: "all",
   });
-
-  const password = watch("password", "");
 
   const submission = async (data) => {
     const { email, password } = data;
@@ -37,7 +34,7 @@ function LoginPage({ setIsAuthenticated }) {
       } else {
         setInvalidCredentials(true);
       }
-    } catch (error) {
+    } catch {
       console.log("login failed!");
       setInvalidCredentials(true);
     } finally {
@@ -66,12 +63,10 @@ function LoginPage({ setIsAuthenticated }) {
     }
   }, [isInvalidCredentials]);
 
-  // Reset the value of isShowPassword state when the password input is empty.
-  useEffect(() => {
-    if (password.length == 0) {
-      setShowPassword(false);
-    }
-  }, [password]);
+  // Toggle password visibility
+  const togglePasswordVisibility = () => {
+    setShowPassword(!showPassword);
+  };
 
   return (
     <>
@@ -123,7 +118,7 @@ function LoginPage({ setIsAuthenticated }) {
 
               <div className="password-container">
                 <input
-                  type={isShowPassword ? "text" : "password"}
+                  type={showPassword ? "text" : "password"} // Toggle input type
                   name="password"
                   placeholder="Enter your password"
                   {...register("password", { 
@@ -134,21 +129,12 @@ function LoginPage({ setIsAuthenticated }) {
                     }
                   })}
                 />
-
-                {password.length > 0 && (
-                  <button
-                    type="button"
-                    className="show-password"
-                    onClick={() => setShowPassword(!isShowPassword)}
-                    aria-label={isShowPassword ? "Hide password" : "Show password"}
-                  >
-                    {isShowPassword ? (
-                      <EyeOff size={18} color="#808080" /> 
-                    ) : (
-                      <Eye size={18} color="#808080" />
-                    )}
-                  </button>
-                )}
+                <span 
+                  className="password-toggle"
+                  onClick={togglePasswordVisibility}
+                >
+                  {showPassword ? <FaEyeSlash /> : <FaEye />}
+                </span>
               </div>
             </fieldset>
 

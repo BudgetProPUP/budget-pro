@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { ChevronDown, ChevronLeft, ChevronRight, ArrowLeft, User, Mail, Briefcase, LogOut, Download } from 'lucide-react';
+import { ChevronDown, ChevronLeft, ChevronRight, ArrowLeft, User, Mail, Briefcase, LogOut, Download, Bell, Settings } from 'lucide-react';
 import { Link, useNavigate } from 'react-router-dom';
 import LOGOMAP from '../../assets/MAP.jpg';
 import './BudgetVarianceReport.css';
@@ -10,6 +10,8 @@ const BudgetVarianceReport = () => {
   const [showProfilePopup, setShowProfilePopup] = useState(false);
   const [selectedMonth, setSelectedMonth] = useState(new Date().getMonth() + 1);
   const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
+  const [showNotifications, setShowNotifications] = useState(false);
+  const [showProfileDropdown, setShowProfileDropdown] = useState(false);
   const navigate = useNavigate();
 
   // User profile data
@@ -181,6 +183,12 @@ const BudgetVarianceReport = () => {
     }
   ];
 
+  // Date and time for Navbar
+  const now = new Date();
+  const formattedDay = now.toLocaleDateString('en-US', { weekday: 'long' });
+  const formattedDate = now.toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
+  const formattedTime = now.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true });
+
   // Close dropdowns when clicking outside
   useEffect(() => {
     const handleClickOutside = (event) => {
@@ -209,10 +217,20 @@ const BudgetVarianceReport = () => {
     if (showProfilePopup) setShowProfilePopup(false);
   };
 
-  const toggleProfilePopup = () => {
-    setShowProfilePopup(!showProfilePopup);
-    if (showBudgetDropdown) setShowBudgetDropdown(false);
-    if (showExpenseDropdown) setShowExpenseDropdown(false);
+  const toggleNotifications = () => {
+    setShowNotifications(!showNotifications);
+    setShowBudgetDropdown(false);
+    setShowExpenseDropdown(false);
+    setShowProfileDropdown(false);
+    setShowProfilePopup(false);
+  };
+
+  const toggleProfileDropdown = () => {
+    setShowProfileDropdown(!showProfileDropdown);
+    setShowBudgetDropdown(false);
+    setShowExpenseDropdown(false);
+    setShowNotifications(false);
+    setShowProfilePopup(false);
   };
 
   const handleNavigate = (path) => {
@@ -259,102 +277,206 @@ const BudgetVarianceReport = () => {
 
   return (
     <div className="app-container">
-      {/* Header Section */}
-      <header className="app-header">
-        <div className="header-left">
-          <div className="app-logo">
-            <img src={LOGOMAP} alt="BudgetPro Logo" className="logo-image" />
+      {/* Navigation Bar */}
+      <nav className="navbar">
+        <div className="navbar-content">
+          {/* Logo and System Name */}
+          <div className="navbar-brand" style={{
+            display: 'flex',
+            alignItems: 'center',
+            height: '60px',
+            overflow: 'hidden',
+            gap: '12px'
+          }}>
+            <div style={{
+              height: '45px',
+              width: '45px',
+              borderRadius: '8px',
+              overflow: 'hidden',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              background: '#fff'
+            }}>
+              <img
+                src={LOGOMAP}
+                alt="System Logo"
+                className="navbar-logo"
+                style={{
+                  height: '100%',
+                  width: '100%',
+                  objectFit: 'contain',
+                  display: 'block'
+                }}
+              />
+            </div>
+            <span className="system-name" style={{
+              fontWeight: 700,
+              fontSize: '1.3rem',
+              color: 'var(--primary-color, #007bff)'
+            }}>BudgetPro</span>
           </div>
-          <nav className="nav-menu">
-            <Link to="/dashboard" className="nav-item">Dashboard</Link>
+
+          {/* Main Navigation Links */}
+          <div className="navbar-links">
+            <Link to="/dashboard" className="nav-link">Dashboard</Link>
             
             {/* Budget Dropdown */}
             <div className="nav-dropdown">
-              <div className={`nav-item ${showBudgetDropdown ? 'active' : ''}`} onClick={toggleBudgetDropdown}>
-                Budget <ChevronDown size={14} />
+              <div 
+                className={`nav-link ${showBudgetDropdown ? 'active' : ''}`}
+                onClick={toggleBudgetDropdown}
+              >
+                Budget <ChevronDown size={14} className={`dropdown-arrow ${showBudgetDropdown ? 'rotated' : ''}`} />
               </div>
               {showBudgetDropdown && (
                 <div className="dropdown-menu">
-                  <div className="dropdown-item" onClick={() => handleNavigate('/finance/budget-proposal')}>Budget Proposal</div>
-                  <div className="dropdown-item" onClick={() => handleNavigate('/finance/proposal-history')}>Proposal History</div>
-                  <div className="dropdown-item" onClick={() => handleNavigate('/finance/ledger-view')}>Ledger View</div>
-                  <div className="dropdown-item" onClick={() => handleNavigate('/finance/budget-allocation')}>Budget Allocation</div>
-                  <div className="dropdown-item" onClick={() => handleNavigate('/finance/budget-variance-report')}>Budget Variance Report</div>
+                  <div className="dropdown-item" onClick={() => handleNavigate('/finance/budget-proposal')}>
+                    Budget Proposal
+                  </div>
+                  <div className="dropdown-item" onClick={() => handleNavigate('/finance/proposal-history')}>
+                    Proposal History
+                  </div>
+                  <div className="dropdown-item" onClick={() => handleNavigate('/finance/ledger-view')}>
+                    Ledger View
+                  </div>
+                  <div className="dropdown-item" onClick={() => handleNavigate('/finance/journal-entry')}>
+                    Budget Allocation
+                  </div>
+                  <div className="dropdown-item" onClick={() => handleNavigate('/finance/budget-variance-report')}>
+                    Budget Variance Report
+                  </div>
                 </div>
               )}
             </div>
-            
+
             {/* Expense Dropdown */}
             <div className="nav-dropdown">
-              <div className={`nav-item ${showExpenseDropdown ? 'active' : ''}`} onClick={toggleExpenseDropdown}>
-                Expense <ChevronDown size={14} />
+              <div 
+                className={`nav-link ${showExpenseDropdown ? 'active' : ''}`}
+                onClick={toggleExpenseDropdown}
+              >
+                Expense <ChevronDown size={14} className={`dropdown-arrow ${showExpenseDropdown ? 'rotated' : ''}`} />
               </div>
               {showExpenseDropdown && (
                 <div className="dropdown-menu">
-                  <div className="dropdown-item" onClick={() => handleNavigate('/finance/expense-tracking')}>Expense Tracking</div>
-                  <div className="dropdown-item" onClick={() => handleNavigate('/finance/expense-history')}>Expense History</div>
+                  <div className="dropdown-item" onClick={() => handleNavigate('/finance/expense-tracking')}>
+                    Expense Tracking
+                  </div>
+                  <div className="dropdown-item" onClick={() => handleNavigate('/finance/expense-history')}>
+                    Expense History
+                  </div>
                 </div>
               )}
             </div>
-          </nav>
-        </div>
-        
-        <div className="header-right">
-          <div className="profile-container">
-            <div className="user-avatar" onClick={toggleProfilePopup}>
-              <img src={userProfile.avatar} alt="User avatar" className="avatar-img" />
+          </div>
+
+          {/* User Controls */}
+          <div className="navbar-controls">
+            {/* Timestamp/Date */}
+            <div className="date-time-badge" style={{
+              marginRight: '16px',
+              background: '#f3f4f6',
+              borderRadius: '16px',
+              padding: '4px 14px',
+              fontSize: '0.95rem',
+              color: '#007bff',
+              fontWeight: 500,
+              display: 'flex',
+              alignItems: 'center'
+            }}>
+              {formattedDay}, {formattedDate} | {formattedTime}
             </div>
-            {showProfilePopup && (
-              <div className="profile-popup">
-                <div className="profile-popup-header">
-                  <button className="profile-back-btn" onClick={() => setShowProfilePopup(false)}>
-                    <ArrowLeft size={20} />
-                  </button>
-                  <h3 className="profile-popup-title">Profile</h3>
-                </div>
-                <div className="profile-popup-content">
-                  <div className="profile-avatar-large">
-                    <img src={userProfile.avatar} alt="Profile" className="profile-avatar-img" />
-                  </div>
-                  <div className="profile-link">
-                    <span className="profile-link-text">My Profile</span>
-                  </div>
-                  <div className="profile-info">
-                    <div className="profile-field">
-                      <div className="profile-field-header">
-                        <User size={16} className="profile-field-icon" />
-                        <span className="profile-field-label">Name:</span>
-                      </div>
-                      <span className="profile-field-value">{userProfile.name}</span>
-                    </div>
-                    <div className="profile-field">
-                      <div className="profile-field-header">
-                        <Mail size={16} className="profile-field-icon" />
-                        <span className="profile-field-label">E-mail:</span>
-                      </div>
-                      <span className="profile-field-value profile-email">{userProfile.email}</span>
-                    </div>
-                    <div className="profile-field">
-                      <div className="profile-field-header">
-                        <Briefcase size={16} className="profile-field-icon" />
-                        <span className="profile-field-label">Role:</span>
-                      </div>
-                      <span className="profile-field-value profile-role">{userProfile.role}</span>
-                    </div>
-                  </div>
-                  <button className="logout-btn" onClick={handleLogout}>
-                    <LogOut size={16} />
-                    Log Out
-                  </button>
-                </div>
+
+            {/* Notification Icon */}
+            <div className="notification-container">
+              <div 
+                className="notification-icon"
+                onClick={toggleNotifications}
+              >
+                <Bell size={20} />
+                <span className="notification-badge">3</span>
               </div>
-            )}
+              
+              {showNotifications && (
+                <div className="notification-panel">
+                  <div className="notification-header">
+                    <h3>Notifications</h3>
+                    <button className="clear-all-btn">Clear All</button>
+                  </div>
+                  <div className="notification-list">
+                    <div className="notification-item">
+                      <div className="notification-icon-wrapper">
+                        <Bell size={16} />
+                      </div>
+                      <div className="notification-content">
+                        <div className="notification-title">Budget Approved</div>
+                        <div className="notification-message">Your Q3 budget has been approved</div>
+                        <div className="notification-time">2 hours ago</div>
+                      </div>
+                      <button className="notification-delete">&times;</button>
+                    </div>
+                    <div className="notification-item">
+                      <div className="notification-icon-wrapper">
+                        <Bell size={16} />
+                      </div>
+                      <div className="notification-content">
+                        <div className="notification-title">Expense Report</div>
+                        <div className="notification-message">New expense report needs review</div>
+                        <div className="notification-time">5 hours ago</div>
+                      </div>
+                      <button className="notification-delete">&times;</button>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Profile Dropdown */}
+            <div className="profile-container">
+              <div 
+                className="profile-trigger"
+                onClick={toggleProfileDropdown}
+              >
+                <img src={userProfile.avatar} alt="User avatar" className="profile-image" />
+                <ChevronDown size={14} className={`dropdown-arrow ${showProfileDropdown ? 'rotated' : ''}`} />
+              </div>
+              
+              {showProfileDropdown && (
+                <div className="profile-dropdown">
+                  <div className="profile-info-section">
+                    <img src={userProfile.avatar} alt="Profile" className="profile-dropdown-image" />
+                    <div className="profile-details">
+                      <div className="profile-name">{userProfile.name}</div>
+                      <div className="profile-role-badge">{userProfile.role}</div>
+                    </div>
+                  </div>
+                  <div className="dropdown-divider"></div>
+                  <div className="dropdown-item">
+                    <User size={16} />
+                    <span>Manage Profile</span>
+                  </div>
+                  {userProfile.role === "Admin" && (
+                    <div className="dropdown-item">
+                      <Settings size={16} />
+                      <span>User Management</span>
+                    </div>
+                  )}
+                  <div className="dropdown-divider"></div>
+                  <div className="dropdown-item" onClick={handleLogout}>
+                    <LogOut size={16} />
+                    <span>Log Out</span>
+                  </div>
+                </div>
+              )}
+            </div>
           </div>
         </div>
-      </header>
+      </nav>
 
       {/* Main Content Section */}
       <div className="content-container">
+        {/* Report Background Container */}
         <div className="report-background-container">
           {/* Report Header with Title, Date, and Controls */}
           <div className="report-header">

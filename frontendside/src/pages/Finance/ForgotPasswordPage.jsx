@@ -1,7 +1,8 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
-import './ForgotPassword.css'; 
+import './LoginPage.css'; // Using the same CSS as LoginPage
+import backgroundImage from '../../assets/LOGO.jpg'; // Import the image
 
 function ForgotPasswordPage() {
   const [email, setEmail] = useState('');
@@ -23,40 +24,55 @@ function ForgotPasswordPage() {
   };
 
   return (
-    <div className="login-container">
-      <div className="login-content">
-        <div className="form-container">
-          <h2>Forgot Password</h2>
-          {message && <div className="error-message">{message}</div>}
-          <form onSubmit={handleSubmit}>
-            <div>
-              <label className="form-label">Email</label>
-              <input
-                type="email"
-                className="form-input"
-                placeholder="Enter registered email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                required
-              />
-            </div>
-            <button 
-              type="submit" 
-              className="login-button"
-              disabled={isLoading}
-            >
-              {isLoading ? 'Sending...' : 'Send Reset Link'}
-            </button>
-          </form>
-          <button 
-            className="back-to-login"
-            onClick={() => navigate('/login')}
-            style={{ marginTop: '15px' }}
+    <div className="login-page">
+      <section className="left-panel">
+        <img
+          src={backgroundImage} // Use the imported image
+          alt="BudgetPro Logo"
+          className="asset-image"
+        />
+      </section>
+      
+      <section className="right-panel">
+        <header className="form-header">
+          <section className="logo">
+            <h1 className="logo-text">BUDGET PRO</h1>
+          </section>
+          <p>Enter your email to reset your password</p>
+        </header>
+
+        {message && (
+          <div className={`error-message ${message.includes('registered') ? 'success-message' : ''}`}>
+            {message}
+          </div>
+        )}
+
+        <form onSubmit={handleSubmit} className="forgot-password-form">
+          <fieldset>
+            <label>Email:</label>
+            <input
+              type="email"
+              className="form-input"
+              placeholder="Enter your registered email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              required
+            />
+          </fieldset>
+
+          <button
+            type="submit"
+            className="log-in-button"
+            disabled={isLoading}
           >
-            Back to Login
+            {isLoading ? 'SENDING...' : 'SEND RESET LINK'}
           </button>
-        </div>
-      </div>
+        </form>
+
+        <p className="back-to-login-text" onClick={() => navigate('/login')}>
+          Back to Login
+        </p>
+      </section>
     </div>
   );
 }

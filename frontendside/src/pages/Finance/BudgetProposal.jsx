@@ -1,6 +1,5 @@
-
-import React, { useState, useEffect } from 'react';
-import { ChevronDown, Search, ArrowLeft, ChevronLeft, ChevronRight, User, Mail, Briefcase, LogOut } from 'lucide-react';
+import React, { useState, useEffect, useMemo } from 'react';
+import { ChevronDown, Bell, User, Settings, LogOut, ChevronLeft, ChevronRight, ArrowLeft, Search, X } from 'lucide-react';
 import { Link, useNavigate } from 'react-router-dom';
 import LOGOMAP from '../../assets/MAP.jpg';
 import './BudgetProposal.css';
@@ -9,14 +8,15 @@ const BudgetProposal = () => {
   // State management
   const [showBudgetDropdown, setShowBudgetDropdown] = useState(false);
   const [showExpenseDropdown, setShowExpenseDropdown] = useState(false);
-  const [showProfilePopup, setShowProfilePopup] = useState(false);
+  const [showProfileDropdown, setShowProfileDropdown] = useState(false);
+  const [showNotifications, setShowNotifications] = useState(false);
   const [selectedProposal, setSelectedProposal] = useState(null);
   const [showReviewPopup, setShowReviewPopup] = useState(false);
   const [showCommentPopup, setShowCommentPopup] = useState(false);
   const [showConfirmationPopup, setShowConfirmationPopup] = useState(false);
-  const [showPendingStatusPopup, setShowPendingStatusPopup] = useState(false);
   const [reviewComment, setReviewComment] = useState('');
   const [reviewStatus, setReviewStatus] = useState('');
+  const [rejectionReason, setRejectionReason] = useState('');
   const [searchTerm, setSearchTerm] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
   const [showCategoryDropdown, setShowCategoryDropdown] = useState(false);
@@ -44,10 +44,16 @@ const BudgetProposal = () => {
   // Close dropdowns when clicking outside - updated to include profile
   useEffect(() => {
     const handleClickOutside = (event) => {
-      if (!event.target.closest('.nav-dropdown') && !event.target.closest('.profile-container')) {
+      if (!event.target.closest('.nav-dropdown') && 
+          !event.target.closest('.profile-container') &&
+          !event.target.closest('.notification-container') &&
+          !event.target.closest('.filter-dropdown')) {
         setShowBudgetDropdown(false);
         setShowExpenseDropdown(false);
-        setShowProfilePopup(false);
+        setShowProfileDropdown(false);
+        setShowNotifications(false);
+        setShowStatusDropdown(false);
+        setShowCategoryDropdown(false);
       }
     };
 
@@ -57,94 +63,130 @@ const BudgetProposal = () => {
     };
   }, []);
 
-  // Date and time formatting
-  const now = new Date();
-  const formattedDate = now.toLocaleDateString('en-US', { 
-    weekday: 'long', 
-    month: 'long', 
-    day: 'numeric', 
-    year: 'numeric' 
-  });
-  const formattedTime = now.toLocaleTimeString('en-US', { 
-    hour: '2-digit', 
-    minute: '2-digit' 
-  });
-
   // Sample data with updated categories and reference numbers
-  const proposals = [
+  const proposals = useMemo(() => [
     { 
       id: 1, 
-      reference: 'EX-001',
-      subject: 'Website Redesign Project',
+      ticketId: 'BP-2023-001',
       category: 'Training & Development', 
+      subCategory: 'Employee Training',
       amount: '₱50,000.00', 
       submittedBy: 'J.Tompson', 
       status: 'pending', 
       action: 'Review',
       budgetAmount: '100,000.00',
-      requestedBy: 'IT Department'
+      requestedBy: 'IT Department',
+      vendor: 'TechTrain Inc.',
+      description: 'Website Redesign Project',
+      approvalMetadata: {
+        approvedBy: '',
+        rejectedBy: '',
+        timestamp: '',
+        comments: ''
+      }
     },
     { 
       id: 2, 
-      reference: 'AS-001',
-      subject: 'Cybersecurity Upgrade',
+      ticketId: 'BP-2023-002',
       category: 'Professional Services', 
+      subCategory: 'Consulting',
       amount: '₱23,040.00', 
       submittedBy: 'A.Williams', 
       status: 'approved', 
       action: 'View',
       budgetAmount: '23,040.00',
-      requestedBy: 'Security Department'
+      requestedBy: 'Security Department',
+      vendor: 'SecureTech Solutions',
+      description: 'Cybersecurity Upgrade',
+      approvalMetadata: {
+        approvedBy: 'Jane Smith',
+        rejectedBy: '',
+        timestamp: '2023-05-15 14:30:25',
+        comments: 'Approved as budgeted'
+      }
     },
     { 
       id: 3, 
-      reference: 'LI-001',
-      subject: 'Cloud Storage Expansion',
+      ticketId: 'BP-2023-003',
       category: 'Professional Service', 
+      subCategory: 'Software Licensing',
       amount: '₱30,000.00', 
       submittedBy: 'L.Chen', 
       status: 'approved', 
       action: 'View',
       budgetAmount: '30,000.00',
-      requestedBy: 'Infrastructure Team'
+      requestedBy: 'Infrastructure Team',
+      vendor: 'CloudServe Ltd.',
+      description: 'Cloud Storage Expansion',
+      approvalMetadata: {
+        approvedBy: 'Robert Johnson',
+        rejectedBy: '',
+        timestamp: '2023-06-20 10:15:42',
+        comments: 'Necessary infrastructure upgrade'
+      }
     },
     { 
       id: 4, 
-      reference: 'EX-002',
-      subject: 'AR Retail Solution',
+      ticketId: 'BP-2023-004',
       category: 'Professional Service', 
+      subCategory: 'Software Development',
       amount: '₱47,079.00', 
       submittedBy: 'K.Thomas', 
       status: 'rejected', 
       action: 'Review',
       budgetAmount: '47,079.00',
-      requestedBy: 'Retail Department'
+      requestedBy: 'Retail Department',
+      vendor: 'RetailTech Solutions',
+      description: 'AR Retail Solution',
+      approvalMetadata: {
+        approvedBy: '',
+        rejectedBy: 'Sarah Wilson',
+        timestamp: '2023-07-05 16:45:18',
+        comments: 'Exceeds department budget allocation',
+        rejectionReason: 'Budget Constraints'
+      }
     },
     { 
       id: 5, 
-      reference: 'AS-002',
-      subject: 'Training Program Development',
+      ticketId: 'BP-2023-005',
       category: 'Training & Development', 
+      subCategory: 'Leadership Program',
       amount: '₱35,600.00', 
       submittedBy: 'M.Johnson', 
       status: 'pending', 
       action: 'Review',
       budgetAmount: '35,600.00',
-      requestedBy: 'HR Department'
+      requestedBy: 'HR Department',
+      vendor: 'LeadWell Institute',
+      description: 'Training Program Development',
+      approvalMetadata: {
+        approvedBy: '',
+        rejectedBy: '',
+        timestamp: '',
+        comments: ''
+      }
     },
     { 
       id: 6, 
-      reference: 'EX-003',
-      subject: 'Office Renovation',
+      ticketId: 'BP-2023-006',
       category: 'Professional Service', 
+      subCategory: 'Facility Management',
       amount: '₱125,400.00', 
       submittedBy: 'R.Garcia', 
       status: 'pending', 
       action: 'Review',
       budgetAmount: '125,400.00',
-      requestedBy: 'Facilities Department'
+      requestedBy: 'Facilities Department',
+      vendor: 'BuildRight Contractors',
+      description: 'Office Renovation',
+      approvalMetadata: {
+        approvedBy: '',
+        rejectedBy: '',
+        timestamp: '',
+        comments: ''
+      }
     }
-  ];
+  ], []);
 
   // Define all available categories
   const categories = [
@@ -152,31 +194,41 @@ const BudgetProposal = () => {
     'Travel',
     'Office Supplies',
     'Utilities',
-    'Marketing & Advertising',
+    'Marketing',
     'Professional Services',
     'Training & Development',
-    'Equipment & Maintenance',
+    'Maintenance',
     'Miscellaneous'
   ];
-  
+
   // Status options
   const statusOptions = ['All Status', 'pending', 'approved', 'rejected'];
 
-  const pendingCount = proposals.filter(p => p.status === 'pending').length;
+  // Rejection reasons
+  const rejectionReasons = [
+    'Budget Constraints',
+    'Insufficient Justification',
+    'Does Not Align with Strategy',
+    'Incomplete Information',
+    'Other (Please specify in comments)'
+  ];
 
   // Filter proposals based on search term, category and status
-  const filteredProposals = proposals.filter(proposal => {
-    const matchesSearch = proposal.subject.toLowerCase().includes(searchTerm.toLowerCase()) ||
-           proposal.category.toLowerCase().includes(searchTerm.toLowerCase()) ||
-           proposal.submittedBy.toLowerCase().includes(searchTerm.toLowerCase()) ||
-           proposal.reference.toLowerCase().includes(searchTerm.toLowerCase());
-    
-    const matchesCategory = selectedCategory === 'All Categories' || proposal.category === selectedCategory;
-    
-    const matchesStatus = selectedStatus === 'All Status' || proposal.status === selectedStatus.toLowerCase();
-    
-    return matchesSearch && matchesCategory && matchesStatus;
-  });
+  const filteredProposals = useMemo(() => {
+    return proposals.filter(proposal => {
+      const matchesSearch = proposal.description.toLowerCase().includes(searchTerm.toLowerCase()) ||
+             proposal.category.toLowerCase().includes(searchTerm.toLowerCase()) ||
+             proposal.subCategory.toLowerCase().includes(searchTerm.toLowerCase()) ||
+             proposal.submittedBy.toLowerCase().includes(searchTerm.toLowerCase()) ||
+             proposal.ticketId.toLowerCase().includes(searchTerm.toLowerCase());
+      
+      const matchesCategory = selectedCategory === 'All Categories' || proposal.category === selectedCategory;
+      
+      const matchesStatus = selectedStatus === 'All Status' || proposal.status === selectedStatus.toLowerCase();
+      
+      return matchesSearch && matchesCategory && matchesStatus;
+    });
+  }, [searchTerm, selectedCategory, selectedStatus, proposals]);
 
   // Pagination logic
   const indexOfLastItem = currentPage * itemsPerPage;
@@ -188,23 +240,33 @@ const BudgetProposal = () => {
   const nextPage = () => setCurrentPage(prev => Math.min(prev + 1, totalPages));
   const prevPage = () => setCurrentPage(prev => Math.max(prev - 1, 1));
 
-  // Navigation functions - updated to include profile popup
+  // Navigation functions
   const toggleBudgetDropdown = () => {
     setShowBudgetDropdown(!showBudgetDropdown);
     if (showExpenseDropdown) setShowExpenseDropdown(false);
-    if (showProfilePopup) setShowProfilePopup(false);
+    if (showProfileDropdown) setShowProfileDropdown(false);
+    if (showNotifications) setShowNotifications(false);
   };
 
   const toggleExpenseDropdown = () => {
     setShowExpenseDropdown(!showExpenseDropdown);
     if (showBudgetDropdown) setShowBudgetDropdown(false);
-    if (showProfilePopup) setShowProfilePopup(false);
+    if (showProfileDropdown) setShowProfileDropdown(false);
+    if (showNotifications) setShowNotifications(false);
   };
 
-  const toggleProfilePopup = () => {
-    setShowProfilePopup(!showProfilePopup);
+  const toggleProfileDropdown = () => {
+    setShowProfileDropdown(!showProfileDropdown);
     if (showBudgetDropdown) setShowBudgetDropdown(false);
     if (showExpenseDropdown) setShowExpenseDropdown(false);
+    if (showNotifications) setShowNotifications(false);
+  };
+
+  const toggleNotifications = () => {
+    setShowNotifications(!showNotifications);
+    if (showBudgetDropdown) setShowBudgetDropdown(false);
+    if (showExpenseDropdown) setShowExpenseDropdown(false);
+    if (showProfileDropdown) setShowProfileDropdown(false);
   };
 
   const toggleCategoryDropdown = () => {
@@ -233,7 +295,8 @@ const BudgetProposal = () => {
     navigate(path);
     setShowBudgetDropdown(false);
     setShowExpenseDropdown(false);
-    setShowProfilePopup(false);
+    setShowProfileDropdown(false);
+    setShowNotifications(false);
   };
 
   // Updated logout function with navigation to login screen - copied from Dashboard
@@ -248,7 +311,7 @@ const BudgetProposal = () => {
       sessionStorage.clear();
       
       // Close the profile popup
-      setShowProfilePopup(false);
+      setShowProfileDropdown(false);
       
       // Navigate to login screen
       navigate('/login', { replace: true });
@@ -265,13 +328,15 @@ const BudgetProposal = () => {
   const handleReviewClick = (proposal) => {
     setSelectedProposal(proposal);
     setReviewStatus(proposal.status);
-    setReviewComment('');
+    setReviewComment(proposal.approvalMetadata?.comments || '');
+    setRejectionReason(proposal.approvalMetadata?.rejectionReason || '');
     setShowReviewPopup(true);
   };
 
   const closeReviewPopup = () => {
     setShowReviewPopup(false);
     setSelectedProposal(null);
+    setRejectionReason('');
   };
 
   const handleStatusChange = (status) => {
@@ -279,19 +344,6 @@ const BudgetProposal = () => {
     if (status === 'approved' || status === 'rejected') {
       setShowConfirmationPopup(true);
     }
-  };
-
-  // Updated pending button handler
-  const handlePendingClick = () => {
-    setShowPendingStatusPopup(true);
-  };
-
-  const closePendingStatusPopup = () => {
-    setShowPendingStatusPopup(false);
-  };
-
-  const handleCommentClick = () => {
-    setShowCommentPopup(true);
   };
 
   const closeCommentPopup = () => {
@@ -308,74 +360,118 @@ const BudgetProposal = () => {
   };
 
   const handleSubmitReview = () => {
+    const timestamp = new Date().toLocaleString('en-PH', {
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+      hour: '2-digit',
+      minute: '2-digit',
+      second: '2-digit'
+    });
+    
     console.log('Review submitted:', {
       proposalId: selectedProposal?.id,
       newStatus: reviewStatus,
-      comment: reviewComment
+      comment: reviewComment,
+      rejectionReason: reviewStatus === 'rejected' ? rejectionReason : '',
+      approvedBy: reviewStatus === 'approved' ? userProfile.name : '',
+      rejectedBy: reviewStatus === 'rejected' ? userProfile.name : '',
+      timestamp: timestamp
     });
+    
     closeConfirmationPopup();
     closeReviewPopup();
   };
 
-  const handleSubmitPendingStatus = () => {
-    console.log('Pending status comment submitted:', reviewComment);
-    closePendingStatusPopup();
-  };
+  // Get current date and time for header
+  const now = new Date();
+  const formattedDate = now.toLocaleDateString('en-PH', { 
+    year: 'numeric', 
+    month: 'long', 
+    day: 'numeric' 
+  });
+  const formattedTime = now.toLocaleTimeString('en-PH', { 
+    hour: '2-digit', 
+    minute: '2-digit',
+    second: '2-digit',
+    hour12: true 
+  });
 
   return (
-    <div className="app-container">
-      {/* Header - Updated to match Dashboard exactly */}
-      <header className="app-header">
-        <div className="header-left">
-          <div className="app-logo">
-            <img 
-              src={LOGOMAP} 
-              alt="BudgetPro Logo" 
-              className="logo-image"
-            />
+    <div className="app-container" style={{ minWidth: '1200px', overflowY: 'auto', height: '100vh' }}>
+      {/* Navigation Bar */}
+      <nav className="navbar" style={{ position: 'static', marginBottom: '20px' }}>
+        <div className="navbar-content" style={{ 
+          display: 'flex', 
+          justifyContent: 'space-between', 
+          alignItems: 'center',
+          padding: '0 20px',
+          height: '60px'
+        }}>
+          {/* Logo and System Name */}
+          <div className="navbar-brand" style={{
+            display: 'flex',
+            alignItems: 'center',
+            height: '60px',
+            overflow: 'hidden',
+            gap: '12px'
+          }}>
+            <div style={{
+              height: '45px',
+              width: '45px',
+              borderRadius: '8px',
+              overflow: 'hidden',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              background: '#fff'
+            }}>
+              <img
+                src={LOGOMAP}
+                alt="System Logo"
+                className="navbar-logo"
+                style={{
+                  height: '100%',
+                  width: '100%',
+                  objectFit: 'contain',
+                  display: 'block'
+                }}
+              />
+            </div>
+            <span className="system-name" style={{
+              fontWeight: 700,
+              fontSize: '1.3rem',
+              color: 'var(--primary-color, #007bff)'
+            }}>BudgetPro</span>
           </div>
-          <nav className="nav-menu">
-            <Link to="/dashboard" className="nav-item">Dashboard</Link>
 
+          {/* Main Navigation Links */}
+          <div className="navbar-links" style={{ display: 'flex', gap: '20px' }}>
+            <Link to="/dashboard" className="nav-link">Dashboard</Link>
+            
             {/* Budget Dropdown */}
             <div className="nav-dropdown">
               <div 
-                className={`nav-item ${showBudgetDropdown ? 'active' : ''}`} 
+                className={`nav-link ${showBudgetDropdown ? 'active' : ''}`}
                 onClick={toggleBudgetDropdown}
               >
-                Budget <ChevronDown size={14} />
+                Budget <ChevronDown size={14} className={`dropdown-arrow ${showBudgetDropdown ? 'rotated' : ''}`} />
               </div>
               {showBudgetDropdown && (
-                <div className="dropdown-menu">
-                  <div
-                    className="dropdown-item active"
-                    onClick={() => handleNavigate('/finance/budget-proposal')}
-                  >
+                <div className="dropdown-menu" style={{ position: 'absolute', top: '100%', left: 0, zIndex: 1000 }}>
+                  <div className="dropdown-item" onClick={() => handleNavigate('/finance/budget-proposal')}>
                     Budget Proposal
                   </div>
-                  <div
-                    className="dropdown-item"
-                    onClick={() => handleNavigate('/finance/proposal-history')}
-                  >
+                  <div className="dropdown-item" onClick={() => handleNavigate('/finance/proposal-history')}>
                     Proposal History
                   </div>
-                  <div
-                   
-                    className="dropdown-item"
-                    onClick={() => handleNavigate('/finance/ledger-view')}
-                  >
+                  <div className="dropdown-item" onClick={() => handleNavigate('/finance/ledger-view')}>
                     Ledger View
                   </div>
-                  <div
-                    className="dropdown-item"
-                    onClick={() => handleNavigate('/finance/journal-entry')}
-                  >
+                  <div className="dropdown-item" onClick={() => handleNavigate('/finance/journal-entry')}>
                     Budget Allocation
                   </div>
-                  <div
-                    className="dropdown-item"
-                    onClick={() => handleNavigate('/finance/budget-variance-report')}
-                  >
+                  <div className="dropdown-item" onClick={() => handleNavigate('/finance/budget-variance-report')}>
                     Budget Variance Report
                   </div>
                 </div>
@@ -385,300 +481,571 @@ const BudgetProposal = () => {
             {/* Expense Dropdown */}
             <div className="nav-dropdown">
               <div 
-                className={`nav-item ${showExpenseDropdown ? 'active' : ''}`} 
+                className={`nav-link ${showExpenseDropdown ? 'active' : ''}`}
                 onClick={toggleExpenseDropdown}
               >
-                Expense <ChevronDown size={14} />
+                Expense <ChevronDown size={14} className={`dropdown-arrow ${showExpenseDropdown ? 'rotated' : ''}`} />
               </div>
               {showExpenseDropdown && (
-                <div className="dropdown-menu">
-                  <div
-                    className="dropdown-item"
-                    onClick={() => handleNavigate('/finance/expense-tracking')}
-                  >
+                <div className="dropdown-menu" style={{ position: 'absolute', top: '100%', left: 0, zIndex: 1000 }}>
+                  <div className="dropdown-item" onClick={() => handleNavigate('/finance/expense-tracking')}>
                     Expense Tracking
                   </div>
-                  <div
-                    className="dropdown-item"
-                    onClick={() => handleNavigate('/finance/expense-history')}
-                  >
+                  <div className="dropdown-item" onClick={() => handleNavigate('/finance/expense-history')}>
                     Expense History
                   </div>
                 </div>
               )}
             </div>
-          </nav>
-        </div>
-        
-        <div className="header-right">
-          <div className="profile-container">
-            <div className="user-avatar" onClick={toggleProfilePopup}>
-              <img src={userProfile.avatar} alt="User avatar" className="avatar-img" />
-            </div>
-            
-            {/* Profile Popup - copied from Dashboard */}
-            {showProfilePopup && (
-              <div className="profile-popup">
-                <div className="profile-popup-header">
-                  <button 
-                    className="profile-back-btn"
-                    onClick={() => setShowProfilePopup(false)}
-                  >
-                    <ArrowLeft size={20} />
-                  </button>
-                  <h3 className="profile-popup-title">Profile</h3>
-                </div>
-                
-                <div className="profile-popup-content">
-                  <div className="profile-avatar-large">
-                    <img src={userProfile.avatar} alt="Profile" className="profile-avatar-img" />
-                  </div>
-                  
-                  <div className="profile-info">
-                    <div className="profile-field">
-                      <div className="profile-field-header">
-                        <User size={16} className="profile-field-icon" />
-                        <span className="profile-field-label">Name:</span>
-                      </div>
-                      <span className="profile-field-value">{userProfile.name}</span>
-                    </div>
-                    
-                    <div className="profile-field">
-                      <div className="profile-field-header">
-                        <Mail size={16} className="profile-field-icon" />
-                        <span className="profile-field-label">E-mail:</span>
-                      </div>
-                      <span className="profile-field-value profile-email">{userProfile.email}</span>
-                    </div>
-                    
-                    <div className="profile-field">
-                      <div className="profile-field-header">
-                        <Briefcase size={16} className="profile-field-icon" />
-                        <span className="profile-field-label">Role:</span>
-                      </div>
-                      <span className="profile-field-value profile-role">{userProfile.role}</span>
-                    </div>
-                  </div>
-                  
-                  <button className="logout-btn" onClick={handleLogout}>
-                    <LogOut size={16} />
-                    Log Out
-                  </button>
-                </div>
-              </div>
-            )}
-          </div>
-        </div>
-      </header>
-
-      <div className="content-container">
-        {/* Budget Summary Cards - Updated to match the image */}
-        <div className="budget-summary" style={{ display: 'flex', gap: '1rem', justifyContent: 'space-between' }}>
-          <div className="budget-card" style={{ flex: '1', minWidth: '200px' }}>
-            <div className="budget-card-label">
-              <p>Total Proposals</p>
-            </div>
-            <div className="budget-card-amount">{budgetData.totalProposals}</div>
           </div>
 
-          <div className="budget-card" style={{ flex: '1', minWidth: '200px' }}>
-            <div className="budget-card-label">
-              <p>Pending Approval</p>
+          {/* User Controls */}
+          <div className="navbar-controls" style={{ display: 'flex', alignItems: 'center', gap: '15px' }}>
+            {/* Timestamp/Date */}
+            <div className="date-time-badge" style={{
+              background: '#f3f4f6',
+              borderRadius: '16px',
+              padding: '4px 14px',
+              fontSize: '0.95rem',
+              color: '#007bff',
+              fontWeight: 500,
+              display: 'flex',
+              alignItems: 'center'
+            }}>
+              {formattedDate} | {formattedTime}
             </div>
-            <div className="budget-card-amount">{budgetData.pendingApproval}</div>
-          </div>
 
-          <div className="budget-card" style={{ flex: '1', minWidth: '200px' }}>
-            <div className="budget-card-label">
-              <p>Budget Total</p>
-            </div>
-            <div className="budget-card-amount">{budgetData.budgetTotal}</div>
-          </div>
-        </div>
-
-        {/* Main Content */}
-        <div className="page">
-          <div className="container">
-            {/* Header Section with Title and Controls */}
-            <div className="top">
-              <h2 
-                style={{ 
-                  margin: 0, 
-                  fontSize: '29px', 
-                  fontWeight: 'bold', 
-                   color:'#242424',
-                }}
+            {/* Notification Icon */}
+            <div className="notification-container">
+              <div 
+                className="notification-icon"
+                onClick={toggleNotifications}
+                style={{ position: 'relative', cursor: 'pointer' }}
               >
-                Budget Proposal 
-              </h2>
-              
-              <div className="header-controls">
-                <div className="filter-controls" style={{ 
-                  display: 'flex', 
-                  justifyContent: 'flex-end',
+                <Bell size={20} />
+                <span className="notification-badge" style={{
+                  position: 'absolute',
+                  top: '-5px',
+                  right: '-5px',
+                  backgroundColor: 'red',
+                  color: 'white',
+                  borderRadius: '50%',
+                  width: '16px',
+                  height: '16px',
+                  fontSize: '10px',
+                  display: 'flex',
                   alignItems: 'center',
-                  gap: '1rem',
-                  width: '100%'
+                  justifyContent: 'center'
+                }}>3</span>
+              </div>
+              
+              {showNotifications && (
+                <div className="notification-panel" style={{
+                  position: 'absolute',
+                  top: '100%',
+                  right: 0,
+                  backgroundColor: 'white',
+                  border: '1px solid #ccc',
+                  borderRadius: '8px',
+                  padding: '10px',
+                  width: '300px',
+                  zIndex: 1000
                 }}>
-                  <input
-                    type="text"
-                    placeholder="Search proposals"
-                    value={searchTerm}
-                    onChange={(e) => setSearchTerm(e.target.value)}
-                    className="search-account-input"
-                  />
-                  
-                  {/* Category Filter */}
-                  <div className="filter-dropdown">
-                    <button 
-                      className="filter-dropdown-btn" 
-                      onClick={toggleCategoryDropdown}
-                    >
-                      <span>{selectedCategory}</span>
-                      <ChevronDown size={19} />
-                    </button>
-                    {showCategoryDropdown && (
-                      <div className="category-dropdown-menu">
-                        {categories.map((category) => (
-                          <div
-                            key={category}
-                            className={`category-dropdown-item ${
-                              selectedCategory === category ? 'active' : ''
-                            }`}
-                            onClick={() => handleCategorySelect(category)}
-                          >
-                            {category}
-                          </div>
-                        ))}
-                      </div>
-                    )}
+                  <div className="notification-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
+                    <h3>Notifications</h3>
+                    <button className="clear-all-btn">Clear All</button>
                   </div>
-                  
-                  {/* Status Filter */}
-                  <div className="filter-dropdown">
-                    <button 
-                      className="filter-dropdown-btn" 
-                      onClick={toggleStatusDropdown}
-                    >
-                      <span>Status: {selectedStatus}</span>
-                      <ChevronDown size={15} />
-                    </button>
-                    {showStatusDropdown && (
-                      <div className="category-dropdown-menu">
-                        {statusOptions.map((status) => (
-                          <div
-                            key={status}
-                            className={`category-dropdown-item ${
-                              selectedStatus === status ? 'active' : ''
-                            }`}
-                            onClick={() => handleStatusSelect(status)}
-                          >
-                            {status === 'pending' ? 'Pending' :
-                             status === 'approved' ? 'Approved' :
-                             status === 'rejected' ? 'Rejected' : status}
-                          </div>
-                        ))}
+                  <div className="notification-list">
+                    <div className="notification-item" style={{ display: 'flex', padding: '8px 0', borderBottom: '1px solid #eee' }}>
+                      <div className="notification-icon-wrapper" style={{ marginRight: '10px' }}>
+                        <Bell size={16} />
                       </div>
-                    )}
+                      <div className="notification-content" style={{ flex: 1 }}>
+                        <div className="notification-title" style={{ fontWeight: 'bold' }}>Budget Approved</div>
+                        <div className="notification-message">Your Q3 budget has been approved</div>
+                        <div className="notification-time" style={{ fontSize: '12px', color: '#666' }}>2 hours ago</div>
+                      </div>
+                      <button className="notification-delete" style={{ background: 'none', border: 'none', cursor: 'pointer' }}>&times;</button>
+                    </div>
+                    <div className="notification-item" style={{ display: 'flex', padding: '8px 0', borderBottom: '1px solid #eee' }}>
+                      <div className="notification-icon-wrapper" style={{ marginRight: '10px' }}>
+                        <Bell size={16} />
+                      </div>
+                      <div className="notification-content" style={{ flex: 1 }}>
+                        <div className="notification-title" style={{ fontWeight: 'bold' }}>Expense Report</div>
+                        <div className="notification-message">New expense report needs review</div>
+                        <div className="notification-time" style={{ fontSize: '12px', color: '666' }}>5 hours ago</div>
+                      </div>
+                      <button className="notification-delete" style={{ background: 'none', border: 'none', cursor: 'pointer' }}>&times;</button>
+                    </div>
                   </div>
                 </div>
-              </div>
+              )}
             </div>
 
-            {/* Proposals Table */}
-            <table>
+            {/* Profile Dropdown */}
+            <div className="profile-container" style={{ position: 'relative' }}>
+              <div 
+                className="profile-trigger"
+                onClick={toggleProfileDropdown}
+                style={{ display: 'flex', alignItems: 'center', cursor: 'pointer' }}
+              >
+                <img src={userProfile.avatar} alt="User avatar" className="profile-image" style={{ width: '32px', height: '32px', borderRadius: '50%' }} />
+              </div>
+              
+              {showProfileDropdown && (
+                <div className="profile-dropdown" style={{
+                  position: 'absolute',
+                  top: '100%',
+                  right: 0,
+                  backgroundColor: 'white',
+                  border: '1px solid #ccc',
+                  borderRadius: '8px',
+                  padding: '10px',
+                  width: '250px',
+                  zIndex: 1000
+                }}>
+                  <div className="profile-info-section" style={{ display: 'flex', alignItems: 'center', marginBottom: '10px' }}>
+                    <img src={userProfile.avatar} alt="Profile" className="profile-dropdown-image" style={{ width: '40px', height: '40px', borderRadius: '50%', marginRight: '10px' }} />
+                    <div className="profile-details">
+                      <div className="profile-name" style={{ fontWeight: 'bold' }}>{userProfile.name}</div>
+                      <div className="profile-role-badge" style={{ backgroundColor: '#e9ecef', padding: '2px 8px', borderRadius: '12px', fontSize: '12px', display: 'inline-block' }}>{userProfile.role}</div>
+                    </div>
+                  </div>
+                  <div className="dropdown-divider" style={{ height: '1px', backgroundColor: '#eee', margin: '10px 0' }}></div>
+                  <div className="dropdown-item" style={{ display: 'flex', alignItems: 'center', padding: '8px 0', cursor: 'pointer' }}>
+                    <User size={16} style={{ marginRight: '8px' }} />
+                    <span>Manage Profile</span>
+                  </div>
+                  {userProfile.role === "Admin" && (
+                    <div className="dropdown-item" style={{ display: 'flex', alignItems: 'center', padding: '8px 0', cursor: 'pointer' }}>
+                      <Settings size={16} style={{ marginRight: '8px' }} />
+                      <span>User Management</span>
+                    </div>
+                  )}
+                  <div className="dropdown-divider" style={{ height: '1px', backgroundColor: '#eee', margin: '10px 0' }}></div>
+                  <div className="dropdown-item" onClick={handleLogout} style={{ display: 'flex', alignItems: 'center', padding: '8px 0', cursor: 'pointer' }}>
+                    <LogOut size={16} style={{ marginRight: '8px' }} />
+                    <span>Log Out</span>
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      </nav>
+
+      <div className="content-container" style={{ padding: '20px', maxWidth: '1200px', margin: '0 auto' }}>
+        {/* Budget Summary Cards - Updated to match the image */}
+        <div className="budget-summary" style={{ display: 'flex', gap: '1rem', justifyContent: 'space-between', marginBottom: '20px' }}>
+          <div className="budget-card" style={{ 
+            flex: '1', 
+            minWidth: '200px', 
+            maxWidth: '300px',
+            height: '100px',
+            display: 'flex',
+            flexDirection: 'column',
+            justifyContent: 'center',
+            alignItems: 'center',
+            padding: '15px',
+            boxSizing: 'border-box'
+          }}>
+            <div className="budget-card-label" style={{ marginBottom: '10px' }}>
+              <p style={{ margin: 0, fontSize: '14px', color: '#666' }}>Total Proposals</p>
+            </div>
+            <div className="budget-card-amount" style={{ fontSize: '24px', fontWeight: 'bold' }}>{budgetData.totalProposals}</div>
+          </div>
+
+          <div className="budget-card" style={{ 
+            flex: '1', 
+            minWidth: '200px', 
+            maxWidth: '300px',
+            height: '100px',
+            display: 'flex',
+            flexDirection: 'column',
+            justifyContent: 'center',
+            alignItems: 'center',
+            padding: '15px',
+            boxSizing: 'border-box'
+          }}>
+            <div className="budget-card-label" style={{ marginBottom: '10px' }}>
+              <p style={{ margin: 0, fontSize: '14px', color: '#666' }}>Pending Approval</p>
+            </div>
+            <div className="budget-card-amount" style={{ fontSize: '24px', fontWeight: 'bold' }}>{budgetData.pendingApproval}</div>
+          </div>
+
+          <div className="budget-card" style={{ 
+            flex: '1', 
+            minWidth: '200px', 
+            maxWidth: '300px',
+            height: '100px',
+            display: 'flex',
+            flexDirection: 'column',
+            justifyContent: 'center',
+            alignItems: 'center',
+            padding: '15px',
+            boxSizing: 'border-box'
+          }}>
+            <div className="budget-card-label" style={{ marginBottom: '10px' }}>
+              <p style={{ margin: 0, fontSize: '14px', color: '666' }}>Budget Total</p>
+            </div>
+            <div className="budget-card-amount" style={{ fontSize: '24px', fontWeight: 'bold' }}>{budgetData.budgetTotal}</div>
+          </div>
+        </div>
+
+        {/* Main Content - LedgerView Style Layout */}
+        <div className="ledger-container" style={{ 
+          backgroundColor: 'white', 
+          borderRadius: '8px', 
+          boxShadow: '0 2px 4px rgba(0,0,0,0.1)',
+          padding: '20px',
+          overflow: 'hidden',
+          display: 'flex',
+          flexDirection: 'column',
+          height: 'calc(100vh - 240px)'
+        }}>
+          {/* Header Section with Title and Controls */}
+          <div className="top" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
+            <h2 className="page-title">
+              Budget Proposal 
+            </h2>
+            
+            <div className="controls-container" style={{ display: 'flex', gap: '10px' }}>
+              <input
+                type="text"
+                placeholder="Search"
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="search-account-input"
+                style={{ padding: '8px 12px', border: '1px solid #ccc', borderRadius: '4px' }}
+              />
+              
+              {/* Category Filter */}
+              <div className="filter-dropdown" style={{ position: 'relative' }}>
+                <button 
+                  className={`filter-dropdown-btn ${showCategoryDropdown ? 'active' : ''}`} 
+                  onClick={toggleCategoryDropdown}
+                  style={{ padding: '8px 12px', border: '1px solid #ccc', borderRadius: '4px', backgroundColor: 'white', display: 'flex', alignItems: 'center', gap: '5px' }}
+                >
+                  <span>{selectedCategory}</span>
+                  <ChevronDown size={14} />
+                </button>
+                {showCategoryDropdown && (
+                  <div className="category-dropdown-menu" style={{
+                    position: 'absolute',
+                    top: '100%',
+                    left: 0,
+                    backgroundColor: 'white',
+                    border: '1px solid #ccc',
+                    borderRadius: '4px',
+                    width: '100%',
+                    zIndex: 1000
+                  }}>
+                    {categories.map((category) => (
+                      <div
+                        key={category}
+                        className={`category-dropdown-item ${selectedCategory === category ? 'active' : ''}`}
+                        onClick={() => handleCategorySelect(category)}
+                        style={{ padding: '8px 12px', cursor: 'pointer', backgroundColor: selectedCategory === category ? '#f0f0f0' : 'white' }}
+                      >
+                        {category}
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+              
+              {/* Status Filter */}
+              <div className="filter-dropdown" style={{ position: 'relative' }}>
+                <button 
+                  className={`filter-dropdown-btn ${showStatusDropdown ? 'active' : ''}`} 
+                  onClick={toggleStatusDropdown}
+                  style={{ padding: '8px 12px', border: '1px solid #ccc', borderRadius: '4px', backgroundColor: 'white', display: 'flex', alignItems: 'center', gap: '5px' }}
+                >
+                  <span>Status: {selectedStatus}</span>
+                  <ChevronDown size={14} />
+                </button>
+                {showStatusDropdown && (
+                  <div className="category-dropdown-menu" style={{
+                    position: 'absolute',
+                    top: '100%',
+                    left: 0,
+                    backgroundColor: 'white',
+                    border: '1px solid #ccc',
+                    borderRadius: '4px',
+                    width: '100%',
+                    zIndex: 1000
+                  }}>
+                    {statusOptions.map((status) => (
+                      <div
+                        key={status}
+                        className={`category-dropdown-item ${selectedStatus === status ? 'active' : ''}`}
+                        onClick={() => handleStatusSelect(status)}
+                        style={{ padding: '8px 12px', cursor: 'pointer', backgroundColor: selectedStatus === status ? '#f0f0f0' : 'white' }}
+                      >
+                        {status === 'pending' ? 'Pending' :
+                         status === 'approved' ? 'Approved' :
+                         status === 'rejected' ? 'Rejected' : status}
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+
+          {/* Separator line between title and table */}
+          <div style={{
+            height: '1px',
+            backgroundColor: '#e0e0e0',
+            marginBottom: '20px'
+          }}></div>
+
+          {/* Proposals Table - Made scrollable */}
+          <div style={{ 
+            flex: 1,
+            overflow: 'auto',
+            border: '1px solid #e0e0e0',
+            borderRadius: '4px'
+          }}>
+            <table className="ledger-table" style={{ 
+              width: '100%', 
+              borderCollapse: 'collapse',
+              tableLayout: 'fixed'
+            }}>
               <thead>
-                <tr>
-                  <th style={{ width: '15%' }}>REFERENCE</th>
-                  <th style={{ width: '24%' }}>SUBJECT</th>
-                  <th style={{ width: '18%' }}>CATEGORY</th>
-                  <th style={{ width: '16%' }}>SUBMITTED BY</th>
-                  <th style={{ width: '15%' }}>AMOUNT</th>
-                  <th style={{ width: '12%' }}>STATUS</th>
-                  <th style={{ width: '10%' }}>ACTIONS</th>
+                <tr style={{ backgroundColor: '#f8f9fa', position: 'sticky', top: 0, zIndex: 10 }}>
+                  <th style={{ 
+                    width: '15%', 
+                    padding: '0.75rem', 
+                    textAlign: 'left', 
+                    borderBottom: '2px solid #dee2e6',
+                    height: '50px',
+                    verticalAlign: 'middle',
+                    backgroundColor: '#f8f9fa'
+                  }}>TICKET ID</th>
+                  <th style={{ 
+                    width: '24%', 
+                    padding: '0.75rem', 
+                    textAlign: 'left', 
+                    borderBottom: '2px solid #dee2e6',
+                    height: '50px',
+                    verticalAlign: 'middle',
+                    backgroundColor: '#f8f9fa'
+                  }}>DESCRIPTION</th>
+                  <th style={{ 
+                    width: '18%', 
+                    padding: '0.75rem', 
+                    textAlign: 'left', 
+                    borderBottom: '2px solid #dee2e6',
+                    height: '50px',
+                    verticalAlign: 'middle',
+                    backgroundColor: '#f8f9fa'
+                  }}>CATEGORY</th>
+                  <th style={{ 
+                    width: '16%', 
+                    padding: '0.75rem', 
+                    textAlign: 'left', 
+                    borderBottom: '2px solid #dee2e6',
+                    height: '50px',
+                    verticalAlign: 'middle',
+                    backgroundColor: '#f8f9fa'
+                  }}>SUBMITTED BY</th>
+                  <th style={{ 
+                    width: '15%', 
+                    padding: '0.75rem', 
+                    textAlign: 'left', 
+                    borderBottom: '2px solid #dee2e6',
+                    height: '50px',
+                    verticalAlign: 'middle',
+                    backgroundColor: '#f8f9fa'
+                  }}>AMOUNT</th>
+                  <th style={{ 
+                    width: '12%', 
+                    padding: '0.75rem', 
+                    textAlign: 'left', 
+                    borderBottom: '2px solid #dee2e6',
+                    height: '50px',
+                    verticalAlign: 'middle',
+                    backgroundColor: '#f8f9fa'
+                  }}>STATUS</th>
+                  <th style={{ 
+                    width: '10%', 
+                    padding: '0.75rem', 
+                    textAlign: 'left', 
+                    borderBottom: '2px solid #dee2e6',
+                    height: '50px',
+                    verticalAlign: 'middle',
+                    backgroundColor: '#f8f9fa'
+                  }}>ACTIONS</th>
                 </tr>
               </thead>
               <tbody>
-                {currentProposals.map((proposal) => (
-                  <tr 
-                    key={proposal.id} 
-                    onClick={() => handleReviewClick(proposal)}
-                    style={{ cursor: 'pointer' }}
-                  >
-                    <td>{proposal.reference}</td>
-                    <td style={{ color: '#3b82f6', fontWeight: '500' }}>
-                      {proposal.subject}
-                    </td>
-                    <td>{proposal.category}</td>
-                    <td>{proposal.submittedBy}</td>
-                    <td>{proposal.amount}</td>
-                    <td>
-                      <span 
-                        className={`status-badge ${
-                          proposal.status === 'approved' ? 'active' : 
-                          proposal.status === 'pending' ? 'pending' : 'inactive'
-                        }`}
-                      >
-                        {proposal.status === 'pending' ? 'Pending' : 
-                         proposal.status === 'approved' ? 'Approved' : 'Rejected'}
-                      </span>
-                    </td>
-                    <td>
-                      <button 
-                        className="blue-button action-btn"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          handleReviewClick(proposal);
-                        }}
-                      >
-                        {proposal.action}
-                      </button>
+                {currentProposals.length > 0 ? (
+                  currentProposals.map((proposal, index) => (
+                    <tr 
+                      key={proposal.id} 
+                      className={index % 2 === 1 ? 'alternate-row' : ''} 
+                      style={{ 
+                        backgroundColor: index % 2 === 1 ? '#F8F8F8' : '#FFFFFF', 
+                        color: '#0C0C0C',
+                        height: '50px',
+                        transition: 'background-color 0.2s ease',
+                        cursor: 'pointer'
+                      }}
+                      onMouseEnter={(e) => {
+                        e.currentTarget.style.backgroundColor = '#D1D5DB'; // Gray 300
+                      }}
+                      onMouseLeave={(e) => {
+                        e.currentTarget.style.backgroundColor = index % 2 === 1 ? '#F8F8F8' : '#FFFFFF';
+                      }}
+                      onClick={() => handleReviewClick(proposal)}
+                    >
+                      <td style={{ 
+                        padding: '0.75rem', 
+                        borderBottom: '1px solid #dee2e6',
+                        verticalAlign: 'middle'
+                      }}>{proposal.ticketId}</td>
+                      <td style={{ 
+                        padding: '0.75rem', 
+                        borderBottom: '1px solid #dee2e6',
+                        verticalAlign: 'middle'
+                      }}>{proposal.description}</td>
+                      <td style={{ 
+                        padding: '0.75rem', 
+                        borderBottom: '1px solid #dee2e6',
+                        verticalAlign: 'middle'
+                      }}>{proposal.category} {proposal.subCategory && `- ${proposal.subCategory}`}</td>
+                      <td style={{ 
+                        padding: '0.75rem', 
+                        borderBottom: '1px solid #dee2e6',
+                        verticalAlign: 'middle'
+                      }}>{proposal.submittedBy}</td>
+                      <td style={{ 
+                        padding: '0.75rem', 
+                        borderBottom: '1px solid #dee2e6',
+                        verticalAlign: 'middle'
+                      }}>{proposal.amount}</td>
+                      <td style={{ 
+                        padding: '0.75rem', 
+                        borderBottom: '1px solid #dee2e6',
+                        verticalAlign: 'middle'
+                      }}>
+                        <span 
+                          className={`status-badge ${
+                            proposal.status === 'approved' ? 'active' : 
+                            proposal.status === 'pending' ? 'pending' : 'inactive'
+                          }`}
+                          style={{
+                            padding: '4px 8px',
+                            borderRadius: '12px',
+                            fontSize: '12px',
+                            fontWeight: '500',
+                            display: 'inline-block',
+                            textAlign: 'center',
+                            minWidth: '70px'
+                          }}
+                        >
+                          {proposal.status === 'pending' ? 'Pending' : 
+                           proposal.status === 'approved' ? 'Approved' : 'Rejected'}
+                        </span>
+                      </td>
+                      <td style={{ 
+                        padding: '0.75rem', 
+                        borderBottom: '1px solid #dee2e6',
+                        verticalAlign: 'middle'
+                      }}>
+                        <button 
+                          className="blue-button action-btn"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleReviewClick(proposal);
+                          }}
+                          style={{ 
+                            padding: '6px 12px', 
+                            backgroundColor: '#007bff', 
+                            color: 'white', 
+                            border: 'none', 
+                            borderRadius: '4px', 
+                            cursor: 'pointer' 
+                          }}
+                        >
+                          {proposal.action}
+                        </button>
+                      </td>
+                    </tr>
+                  ))
+                ) : (
+                  <tr>
+                    <td colSpan="7" className="no-results" style={{ 
+                      padding: '20px', 
+                      textAlign: 'center',
+                      height: '50px',
+                      verticalAlign: 'middle'
+                    }}>
+                      No proposals match your search criteria.
                     </td>
                   </tr>
-                ))}
+                )}
               </tbody>
             </table>
-
-            {/* Pagination */}
-            {totalPages > 1 && (
-              <div className="pagination">
-                <button 
-                  onClick={prevPage} 
-                  disabled={currentPage === 1}
-                  className="pagination-btn"
-                >
-                  <ChevronLeft size={16} />
-                </button>
-                
-                {[...Array(totalPages)].map((_, index) => (
-                  <button
-                    key={index + 1}
-                    onClick={() => paginate(index + 1)}
-                    className={`pagination-btn ${
-                      currentPage === index + 1 ? 'active' : ''
-                    }`}
-                  >
-                    {index + 1}
-                  </button>
-                ))}
-                
-                <button 
-                  onClick={nextPage} 
-                  disabled={currentPage === totalPages}
-                  className="pagination-btn"
-                >
-                  <ChevronRight size={16} />
-                </button>
-              </div>
-            )}
           </div>
+          
+          {/* Pagination Controls */}
+          {totalPages > 1 && (
+            <div className="pagination" style={{ 
+              display: 'flex', 
+              justifyContent: 'center', 
+              alignItems: 'center', 
+              gap: '5px',
+              marginTop: '20px',
+              padding: '10px 0'
+            }}>
+              <button 
+                onClick={prevPage} 
+                disabled={currentPage === 1}
+                className="pagination-btn"
+                style={{ padding: '8px 12px', border: '1px solid #ccc', backgroundColor: currentPage === 1 ? '#f0f0f0' : 'white', cursor: currentPage === 1 ? 'not-allowed' : 'pointer' }}
+              >
+                <ChevronLeft size={16} />
+              </button>
+              
+              {[...Array(totalPages)].map((_, index) => (
+                <button
+                  key={index + 1}
+                  onClick={() => paginate(index + 1)}
+                  className={`pagination-btn ${
+                    currentPage === index + 1 ? 'active' : ''
+                  }`}
+                  style={{ 
+                    padding: '8px 12px', 
+                    border: '1px solid #ccc', 
+                    backgroundColor: currentPage === index + 1 ? '#007bff' : 'white',
+                    color: currentPage === index + 1 ? 'white' : 'black',
+                    cursor: 'pointer'
+                  }}
+                >
+                  {index + 1}
+                </button>
+              ))}
+              
+              <button 
+                onClick={nextPage} 
+                disabled={currentPage === totalPages}
+                className="pagination-btn"
+                  style={{ padding: '8px 12px', border: '1px solid #ccc', backgroundColor: currentPage === totalPages ? '#f0f0f0' : 'white', cursor: currentPage === totalPages ? 'not-allowed' : 'pointer' }}
+              >
+                <ChevronRight size={16} />
+              </button>
+            </div>
+          )}
         </div>
       </div>
 
       {/* Review Popup */}
       {showReviewPopup && selectedProposal && (
         <div className="popup-overlay">
-          <div className="review-popup">
+          <div className="review-popup" style={{ maxHeight: '90vh', overflowY: 'auto' }}>
             {/* Header */}
             <div className="popup-header">
               <button className="back-button" onClick={closeReviewPopup}>
@@ -694,8 +1061,30 @@ const BudgetProposal = () => {
             <div className="popup-content">
               {/* Title and Date */}
               <div className="proposal-header">
-                <h3 className="proposal-project-title">{selectedProposal.subject}</h3>
+                <h3 className="proposal-project-title">{selectedProposal.description}</h3>
                 <span className="proposal-date">April 30, 2025</span>
+              </div>
+              
+              {/* Project Details */}
+              <div className="proposal-details-grid">
+                <div className="detail-item">
+                  <strong>Category:</strong> {selectedProposal.category}
+                </div>
+                <div className="detail-item">
+                  <strong>Sub-Category:</strong> {selectedProposal.subCategory}
+                </div>
+                <div className="detail-item">
+                  <strong>Vendor:</strong> {selectedProposal.vendor}
+                </div>
+                <div className="detail-item">
+                  <strong>Requested by:</strong> {selectedProposal.requestedBy}
+                </div>
+                <div className="detail-item">
+                  <strong>Budget Amount:</strong> {selectedProposal.budgetAmount}
+                </div>
+                <div className="detail-item">
+                  <strong>Submitted by:</strong> {selectedProposal.submittedBy}
+                </div>
               </div>
               
               {/* Project Summary */}
@@ -714,7 +1103,6 @@ const BudgetProposal = () => {
                   ●	CRM Integration: Connect website with Salesforce/HubSpot CRM to centralize lead capture and customer data.
                   ●	E-commerce Functionality Upgrade: Improve checkout speed, payment gateways, and shopping cart UX to reduce abandonment rate.
                   ●	UX Optimization: Conduct A/B testing, heatmap analysis, and apply best practices in user journey flow to boost engagement.
-
                 </p>
               </div>
               
@@ -773,81 +1161,16 @@ const BudgetProposal = () => {
                 <button className="action-btn reject-btn" onClick={() => handleStatusChange('rejected')}>
                   Reject
                 </button>
-              </div>
             </div>
           </div>
         </div>
-      )}
-
-      {/* Pending Status Popup */}
-      {showPendingStatusPopup && selectedProposal && (
-        <div className="popup-overlay">
-          <div className="pending-status-popup">
-            {/* Header */}
-            <div className="pending-status-header">
-              <button className="back-button" onClick={closePendingStatusPopup}>
-                <ArrowLeft size={20} />
-              </button>
-              <h2 className="pending-status-title">Pending Status</h2>
-            </div>
-            
-            <div className="pending-status-content">
-              {/* Status Indicator */}
-              <div className="status-section">
-                <div className="status-indicator">
-                  <div className="status-dot pending"></div>
-                  <span className="status-text">Review by Finance Department</span>
-                </div>
-                <div className="status-timestamp">
-                  Apr 01, 2025 at 16:00 - Alex Smith
-                </div>
-              </div>
-              
-              {/* Project Title */}
-              <h3 className="project-title-section">
-                {selectedProposal.subject}
-              </h3>
-              
-              {/* Project Details */}
-              <div className="project-info-section">
-                <div className="project-detail-inline">
-                  <strong>Budget Amount:</strong> {selectedProposal.budgetAmount}
-                </div>
-                <div className="project-detail-inline">
-                  <strong>Category:</strong> {selectedProposal.category}
-                </div>
-                <div className="project-detail-inline">
-                  <strong>Requested by:</strong> {selectedProposal.requestedBy}
-                </div>
-              </div>
-              
-              {/* Comment Section */}
-              <div className="comment-input-section">
-                <label className="comment-input-label">Comment:</label>
-                <textarea 
-                  className="comment-textarea-input" 
-                  value={reviewComment}
-                  onChange={(e) => setReviewComment(e.target.value)}
-                  placeholder=""
-                  rows="4"
-                ></textarea>
-              </div>
-            </div>
-            
-            {/* Footer */}
-            <div className="pending-status-footer">
-              <button className="submit-pending-button" onClick={handleSubmitPendingStatus}>
-                Submit
-              </button>
-            </div>
-          </div>
-        </div>
+      </div>
       )}
 
       {/* Approval/Rejection Status Popup */}
       {showConfirmationPopup && selectedProposal && (
         <div className="popup-overlay">
-          <div className="approval-status-popup">
+          <div className="approval-status-popup" style={{ maxHeight: '90vh', overflowY: 'auto' }}>
             {/* Header */}
             <div className="approval-status-header">
               <button className="back-button" onClick={closeConfirmationPopup}>
@@ -870,13 +1193,20 @@ const BudgetProposal = () => {
                   </span>
                 </div>
                 <div className="status-timestamp">
-                  Apr 01, 2025 at 16:00 - Alex Smith
+                  {new Date().toLocaleString('en-PH', {
+                    year: 'numeric',
+                    month: 'short',
+                    day: '2-digit',
+                    hour: '2-digit',
+                    minute: '2-digit',
+                    second: '2-digit'
+                  })}
                 </div>
               </div>
               
               {/* Project Title */}
               <h3 className="project-title-section">
-                {selectedProposal.subject}
+                {selectedProposal.description}
               </h3>
               
               {/* Project Details */}
@@ -888,9 +1218,32 @@ const BudgetProposal = () => {
                   <strong>Category:</strong> {selectedProposal.category}
                 </div>
                 <div className="project-detail-inline">
+                  <strong>Sub-Category:</strong> {selectedProposal.subCategory}
+                </div>
+                <div className="project-detail-inline">
+                  <strong>Vendor:</strong> {selectedProposal.vendor}
+                </div>
+                <div className="project-detail-inline">
                   <strong>Requested by:</strong> {selectedProposal.requestedBy}
                 </div>
               </div>
+              
+              {/* Rejection Reason (if rejected) */}
+              {reviewStatus === 'rejected' && (
+                <div className="rejection-reason-section">
+                  <label className="comment-input-label">Rejection Reason:</label>
+                  <select 
+                    className="rejection-reason-select"
+                    value={rejectionReason}
+                    onChange={(e) => setRejectionReason(e.target.value)}
+                  >
+                    <option value="">Select a reason</option>
+                    {rejectionReasons.map((reason) => (
+                      <option key={reason} value={reason}>{reason}</option>
+                    ))}
+                  </select>
+                </div>
+              )}
               
               {/* Comment Section */}
               <div className="comment-input-section">
@@ -899,9 +1252,26 @@ const BudgetProposal = () => {
                   className="comment-textarea-input" 
                   value={reviewComment}
                   onChange={(e) => setReviewComment(e.target.value)}
-                  placeholder=""
+                  placeholder="Add your comments here"
                   rows="4"
                 ></textarea>
+              </div>
+
+              {/* Approval Metadata */}
+              <div className="approval-metadata">
+                <div className="metadata-item">
+                  <strong>{reviewStatus === 'approved' ? 'Approved By:' : 'Rejected By:'}</strong> {userProfile.name} ({userProfile.role})
+                </div>
+                <div className="metadata-item">
+                  <strong>Timestamp:</strong> {new Date().toLocaleString('en-PH', {
+                    year: 'numeric',
+                    month: '2-digit',
+                    day: '2-digit',
+                    hour: '2-digit',
+                    minute: '2-digit',
+                    second: '2-digit'
+                  })}
+                </div>
               </div>
             </div>
             
@@ -941,7 +1311,7 @@ const BudgetProposal = () => {
               
               {/* Project Title */}
               <h3 className="project-title-section">
-                {selectedProposal.subject}
+                {selectedProposal.description}
               </h3>
               
               {/* Project Details */}
@@ -951,6 +1321,12 @@ const BudgetProposal = () => {
                 </div>
                 <div className="project-detail-inline">
                   <strong>Category:</strong> {selectedProposal.category}
+                </div>
+                <div className="project-detail-inline">
+                  <strong>Sub-Category:</strong> {selectedProposal.subCategory}
+                </div>
+                <div className="project-detail-inline">
+                  <strong>Vendor:</strong> {selectedProposal.vendor}
                 </div>
                 <div className="project-detail-inline">
                   <strong>Requested by:</strong> {selectedProposal.requestedBy}

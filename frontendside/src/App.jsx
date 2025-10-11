@@ -4,12 +4,13 @@ import LoginPage from './pages/Finance/LoginPage';
 import ForgotPasswordPage from './pages/Finance/ForgotPasswordPage'; // Import the ForgotPassword component
 import Dashboard from './pages/Finance/Dashboard';
 import LedgerView from './pages/Finance/LedgerView';
-import JournalEntry from './pages/Finance/JournalEntry';
+import BudgetAllocation from './pages/Finance/BudgetAllocation';
 import BudgetProposal from './pages/Finance/BudgetProposal';
 import ProposalHistory from './pages/Finance/ProposalHistory';
 import ExpenseTracking from './pages/Finance/ExpenseTracking';
 import ExpenseHistory from './pages/Finance/ExpenseHistory';
 import BudgetVarianceReport from './pages/Finance/BudgetVarianceReport';
+
 
 function App() {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
@@ -56,10 +57,10 @@ function App() {
         />
 
         <Route 
-          path="/finance/journal-entry" 
+          path="/finance/budget-allocation" 
           element={
             isAuthenticated ? (
-              <JournalEntry />
+              <BudgetAllocation />
             ) : (
               <Navigate to="/login" replace />
             )

@@ -11,7 +11,7 @@ import {
   Legend,
   Filler
 } from 'chart.js';
-import { ChevronLeft, ChevronRight, ChevronDown, Search, ArrowLeft, Expand, Minimize, User, Mail, Briefcase, LogOut, Bell, Settings, Eye, TrendingUp } from 'lucide-react';
+import { ChevronLeft, ChevronRight, ChevronDown, Search, ArrowLeft, Expand, Minimize, User, Mail, Briefcase, LogOut, Bell, Settings, Eye, TrendingUp, Maximize2 } from 'lucide-react';
 import { Link, useNavigate } from 'react-router-dom';
 import LOGOMAP from '../../assets/MAP.jpg';
 import './Dashboard.css';
@@ -33,6 +33,7 @@ function BudgetDashboard() {
   const [loading, setLoading] = useState(true);
   const [showBudgetDropdown, setShowBudgetDropdown] = useState(false);
   const [showExpenseDropdown, setShowExpenseDropdown] = useState(false);
+  const [showCategoryDropdown, setShowCategoryDropdown] = useState(false);
   const [showNotifications, setShowNotifications] = useState(false);
   const [showProfileDropdown, setShowProfileDropdown] = useState(false);
   const [timeFilter, setTimeFilter] = useState('monthly');
@@ -69,9 +70,11 @@ function BudgetDashboard() {
     const handleClickOutside = (event) => {
       if (!event.target.closest('.nav-dropdown') && 
           !event.target.closest('.notification-container') && 
-          !event.target.closest('.profile-container')) {
+          !event.target.closest('.profile-container') &&
+          !event.target.closest('.filter-dropdown')) {
         setShowBudgetDropdown(false);
         setShowExpenseDropdown(false);
+        setShowCategoryDropdown(false);
         setShowNotifications(false);
         setShowProfileDropdown(false);
       }
@@ -91,12 +94,16 @@ function BudgetDashboard() {
   });
 
   // Format date for display
+  const formattedDay = currentDate.toLocaleDateString('en-US', { weekday: 'long' });
   const formattedDate = currentDate.toLocaleDateString('en-US', {
-    weekday: 'long',
     year: 'numeric',
     month: 'long',
     day: 'numeric'
   });
+
+  // Get current month and year for the budget card
+  const currentMonth = currentDate.toLocaleDateString('en-US', { month: 'long' });
+  const currentYear = currentDate.getFullYear();
 
   // Budget data
   const totalBudget = 800025.75;
@@ -259,9 +266,11 @@ function BudgetDashboard() {
     { name: 'Equipment & Maintenance', budget: 1700000, spent: 1224000, percentage: 72, color: '#007bff' },
   ];
 
+  // Navigation dropdown handlers
   const toggleBudgetDropdown = () => {
     setShowBudgetDropdown(!showBudgetDropdown);
     if (showExpenseDropdown) setShowExpenseDropdown(false);
+    if (showCategoryDropdown) setShowCategoryDropdown(false);
     if (showNotifications) setShowNotifications(false);
     if (showProfileDropdown) setShowProfileDropdown(false);
   };
@@ -269,6 +278,7 @@ function BudgetDashboard() {
   const toggleExpenseDropdown = () => {
     setShowExpenseDropdown(!showExpenseDropdown);
     if (showBudgetDropdown) setShowBudgetDropdown(false);
+    if (showCategoryDropdown) setShowCategoryDropdown(false);
     if (showNotifications) setShowNotifications(false);
     if (showProfileDropdown) setShowProfileDropdown(false);
   };
@@ -277,6 +287,7 @@ function BudgetDashboard() {
     setShowNotifications(!showNotifications);
     if (showBudgetDropdown) setShowBudgetDropdown(false);
     if (showExpenseDropdown) setShowExpenseDropdown(false);
+    if (showCategoryDropdown) setShowCategoryDropdown(false);
     if (showProfileDropdown) setShowProfileDropdown(false);
   };
 
@@ -284,6 +295,7 @@ function BudgetDashboard() {
     setShowProfileDropdown(!showProfileDropdown);
     if (showBudgetDropdown) setShowBudgetDropdown(false);
     if (showExpenseDropdown) setShowExpenseDropdown(false);
+    if (showCategoryDropdown) setShowCategoryDropdown(false);
     if (showNotifications) setShowNotifications(false);
   };
 
@@ -291,6 +303,7 @@ function BudgetDashboard() {
     navigate(path);
     setShowBudgetDropdown(false);
     setShowExpenseDropdown(false);
+    setShowCategoryDropdown(false);
     setShowNotifications(false);
     setShowProfileDropdown(false);
   };
@@ -328,10 +341,16 @@ function BudgetDashboard() {
   }
 
   return (
-    <div className="app-container" style={{ height: '100vh', overflow: 'hidden' }}>
-      {/* Navigation Bar */}
-      <nav className="navbar">
-        <div className="navbar-content">
+    <div className="app-container" style={{ minWidth: '1200px', overflowY: 'auto', height: '100vh' }}>
+      {/* Navigation Bar - Updated with LedgerView navbar */}
+      <nav className="navbar" style={{ position: 'static', marginBottom: '20px' }}>
+        <div className="navbar-content" style={{ 
+          display: 'flex', 
+          justifyContent: 'space-between', 
+          alignItems: 'center',
+          padding: '0 20px',
+          height: '60px'
+        }}>
           {/* Logo and System Name */}
           <div className="navbar-brand" style={{
             display: 'flex',
@@ -370,7 +389,7 @@ function BudgetDashboard() {
           </div>
 
           {/* Main Navigation Links */}
-          <div className="navbar-links">
+          <div className="navbar-links" style={{ display: 'flex', gap: '20px' }}>
             <Link to="/dashboard" className="nav-link">Dashboard</Link>
             
             {/* Budget Dropdown */}
@@ -378,11 +397,13 @@ function BudgetDashboard() {
               <div 
                 className={`nav-link ${showBudgetDropdown ? 'active' : ''}`}
                 onClick={toggleBudgetDropdown}
+                onMouseDown={(e) => e.preventDefault()}
+                style={{ outline: 'none' }}
               >
                 Budget <ChevronDown size={14} className={`dropdown-arrow ${showBudgetDropdown ? 'rotated' : ''}`} />
               </div>
               {showBudgetDropdown && (
-                <div className="dropdown-menu">
+                <div className="dropdown-menu" style={{ position: 'absolute', top: '100%', left: 0, zIndex: 1000 }}>
                   <div className="dropdown-item" onClick={() => handleNavigate('/finance/budget-proposal')}>
                     Budget Proposal
                   </div>
@@ -392,7 +413,7 @@ function BudgetDashboard() {
                   <div className="dropdown-item" onClick={() => handleNavigate('/finance/ledger-view')}>
                     Ledger View
                   </div>
-                  <div className="dropdown-item" onClick={() => handleNavigate('/finance/journal-entry')}>
+                  <div className="dropdown-item" onClick={() => handleNavigate('/finance/budget-allocation')}>
                     Budget Allocation
                   </div>
                   <div className="dropdown-item" onClick={() => handleNavigate('/finance/budget-variance-report')}>
@@ -407,11 +428,13 @@ function BudgetDashboard() {
               <div 
                 className={`nav-link ${showExpenseDropdown ? 'active' : ''}`}
                 onClick={toggleExpenseDropdown}
+                onMouseDown={(e) => e.preventDefault()}
+                style={{ outline: 'none' }}
               >
                 Expense <ChevronDown size={14} className={`dropdown-arrow ${showExpenseDropdown ? 'rotated' : ''}`} />
               </div>
               {showExpenseDropdown && (
-                <div className="dropdown-menu">
+                <div className="dropdown-menu" style={{ position: 'absolute', top: '100%', left: 0, zIndex: 1000 }}>
                   <div className="dropdown-item" onClick={() => handleNavigate('/finance/expense-tracking')}>
                     Expense Tracking
                   </div>
@@ -424,10 +447,9 @@ function BudgetDashboard() {
           </div>
 
           {/* User Controls */}
-          <div className="navbar-controls">
-            {/* Timestamp/Date */}
+          <div className="navbar-controls" style={{ display: 'flex', alignItems: 'center', gap: '15px' }}>
+            {/* Timestamp/Date - Updated with LedgerView format */}
             <div className="date-time-badge" style={{
-              marginRight: '16px',
               background: '#f3f4f6',
               borderRadius: '16px',
               padding: '4px 14px',
@@ -437,7 +459,7 @@ function BudgetDashboard() {
               display: 'flex',
               alignItems: 'center'
             }}>
-              {formattedDate} | {formattedTime}
+              {formattedDay}, {formattedDate} | {formattedTime}
             </div>
 
             {/* Notification Icon */}
@@ -445,39 +467,82 @@ function BudgetDashboard() {
               <div 
                 className="notification-icon"
                 onClick={toggleNotifications}
+                onMouseDown={(e) => e.preventDefault()}
+                style={{ position: 'relative', cursor: 'pointer', outline: 'none' }}
               >
                 <Bell size={20} />
-                <span className="notification-badge">3</span>
+                <span className="notification-badge" style={{
+                  position: 'absolute',
+                  top: '-5px',
+                  right: '-5px',
+                  backgroundColor: 'red',
+                  color: 'white',
+                  borderRadius: '50%',
+                  width: '16px',
+                  height: '16px',
+                  fontSize: '10px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center'
+                }}>3</span>
               </div>
               
               {showNotifications && (
-                <div className="notification-panel">
-                  <div className="notification-header">
+                <div className="notification-panel" style={{
+                  position: 'absolute',
+                  top: '100%',
+                  right: 0,
+                  backgroundColor: 'white',
+                  border: '1px solid #ccc',
+                  borderRadius: '8px',
+                  padding: '10px',
+                  width: '300px',
+                  zIndex: 1000
+                }}>
+                  <div className="notification-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
                     <h3>Notifications</h3>
-                    <button className="clear-all-btn">Clear All</button>
+                    <button 
+                      className="clear-all-btn"
+                      onMouseDown={(e) => e.preventDefault()}
+                      style={{ outline: 'none' }}
+                    >
+                      Clear All
+                    </button>
                   </div>
                   <div className="notification-list">
-                    <div className="notification-item">
-                      <div className="notification-icon-wrapper">
+                    <div className="notification-item" style={{ display: 'flex', padding: '8px 0', borderBottom: '1px solid #eee' }}>
+                      <div className="notification-icon-wrapper" style={{ marginRight: '10px' }}>
                         <Bell size={16} />
                       </div>
-                      <div className="notification-content">
-                        <div className="notification-title">Budget Approved</div>
+                      <div className="notification-content" style={{ flex: 1 }}>
+                        <div className="notification-title" style={{ fontWeight: 'bold' }}>Budget Approved</div>
                         <div className="notification-message">Your Q3 budget has been approved</div>
-                        <div className="notification-time">2 hours ago</div>
+                        <div className="notification-time" style={{ fontSize: '12px', color: '#666' }}>2 hours ago</div>
                       </div>
-                      <button className="notification-delete">&times;</button>
+                      <button 
+                        className="notification-delete" 
+                        style={{ background: 'none', border: 'none', cursor: 'pointer', outline: 'none' }}
+                        onMouseDown={(e) => e.preventDefault()}
+                      >
+                        &times;
+                      </button>
                     </div>
-                    <div className="notification-item">
-                      <div className="notification-icon-wrapper">
+                    <div className="notification-item" style={{ display: 'flex', padding: '8px 0', borderBottom: '1px solid #eee' }}>
+                      <div className="notification-icon-wrapper" style={{ marginRight: '10px' }}>
                         <Bell size={16} />
                       </div>
-                      <div className="notification-content">
-                        <div className="notification-title">Expense Report</div>
+                      <div className="notification-content" style={{ flex: 1 }}>
+                        <div className="notification-title" style={{ fontWeight: 'bold' }}>Expense Report</div>
                         <div className="notification-message">New expense report needs review</div>
-                        <div className="notification-time">5 hours ago</div>
+                        <div className="notification-time" style={{ fontSize: '12px', color: '#666' }}>5 hours ago</div>
                       </div>
-                      <button className="notification-delete">&times;</button>
+                      <button 
+                        className="notification-delete" 
+                        style={{ background: 'none', border: 'none', cursor: 'pointer', outline: 'none' }}
+                        onMouseDown={(e) => e.preventDefault()}
+                      >
+                        &times;
+                      </button>
                     </div>
                   </div>
                 </div>
@@ -485,38 +550,62 @@ function BudgetDashboard() {
             </div>
 
             {/* Profile Dropdown */}
-            <div className="profile-container">
+            <div className="profile-container" style={{ position: 'relative' }}>
               <div 
                 className="profile-trigger"
                 onClick={toggleProfileDropdown}
+                onMouseDown={(e) => e.preventDefault()}
+                style={{ display: 'flex', alignItems: 'center', cursor: 'pointer', outline: 'none' }}
               >
-                <img src={userProfile.avatar} alt="User avatar" className="profile-image" />
-                {/* Removed dropdown arrow */}
+                <img src={userProfile.avatar} alt="User avatar" className="profile-image" style={{ width: '32px', height: '32px', borderRadius: '50%' }} />
               </div>
               
               {showProfileDropdown && (
-                <div className="profile-dropdown">
-                  <div className="profile-info-section">
-                    <img src={userProfile.avatar} alt="Profile" className="profile-dropdown-image" />
+                <div className="profile-dropdown" style={{
+                  position: 'absolute',
+                  top: '100%',
+                  right: 0,
+                  backgroundColor: 'white',
+                  border: '1px solid #ccc',
+                  borderRadius: '8px',
+                  padding: '10px',
+                  width: '250px',
+                  zIndex: 1000
+                }}>
+                  <div className="profile-info-section" style={{ display: 'flex', alignItems: 'center', marginBottom: '10px' }}>
+                    <img src={userProfile.avatar} alt="Profile" className="profile-dropdown-image" style={{ width: '40px', height: '40px', borderRadius: '50%', marginRight: '10px' }} />
                     <div className="profile-details">
-                      <div className="profile-name">{userProfile.name}</div>
-                      <div className="profile-role-badge">{userProfile.role}</div>
+                      <div className="profile-name" style={{ fontWeight: 'bold' }}>{userProfile.name}</div>
+                      <div className="profile-role-badge" style={{ backgroundColor: '#e9ecef', padding: '2px 8px', borderRadius: '12px', fontSize: '12px', display: 'inline-block' }}>{userProfile.role}</div>
                     </div>
                   </div>
-                  <div className="dropdown-divider"></div>
-                  <div className="dropdown-item">
-                    <User size={16} />
+                  <div className="dropdown-divider" style={{ height: '1px', backgroundColor: '#eee', margin: '10px 0' }}></div>
+                  <div 
+                    className="dropdown-item" 
+                    style={{ display: 'flex', alignItems: 'center', padding: '8px 0', cursor: 'pointer', outline: 'none' }}
+                    onMouseDown={(e) => e.preventDefault()}
+                  >
+                    <User size={16} style={{ marginRight: '8px' }} />
                     <span>Manage Profile</span>
                   </div>
                   {userProfile.role === "Admin" && (
-                    <div className="dropdown-item">
-                      <Settings size={16} />
+                    <div 
+                      className="dropdown-item" 
+                      style={{ display: 'flex', alignItems: 'center', padding: '8px 0', cursor: 'pointer', outline: 'none' }}
+                      onMouseDown={(e) => e.preventDefault()}
+                    >
+                      <Settings size={16} style={{ marginRight: '8px' }} />
                       <span>User Management</span>
                     </div>
                   )}
-                  <div className="dropdown-divider"></div>
-                  <div className="dropdown-item" onClick={handleLogout}>
-                    <LogOut size={16} />
+                  <div className="dropdown-divider" style={{ height: '1px', backgroundColor: '#eee', margin: '10px 0' }}></div>
+                  <div 
+                    className="dropdown-item" 
+                    onClick={handleLogout} 
+                    style={{ display: 'flex', alignItems: 'center', padding: '8px 0', cursor: 'pointer', outline: 'none' }}
+                    onMouseDown={(e) => e.preventDefault()}
+                  >
+                    <LogOut size={16} style={{ marginRight: '8px' }} />
                     <span>Log Out</span>
                   </div>
                 </div>
@@ -526,36 +615,73 @@ function BudgetDashboard() {
         </div>
       </nav>
 
-      {/* Main Content */}
-      <div className="content-container" style={{ height: 'calc(100vh - 60px)', overflow: 'auto', marginTop: '60px' }}>
-        {/* Time period filter */}
-        <div className="time-filter">
+      {/* Main Content - Updated with requested revisions */}
+      <div className="content-container" style={{ padding: '20px', maxWidth: '1200px', margin: '0 auto' }}>
+        {/* Time period filter - Updated with blue focus border */}
+        <div className="time-filter" style={{ marginBottom: '25px' }}>
           <button 
             className={`filter-button ${timeFilter === 'monthly' ? 'active' : ''}`}
             onClick={() => setTimeFilter('monthly')}
-            style={{ backgroundColor: timeFilter === 'monthly' ? '#007bff' : '#007bff', color: 'white' }}
+            style={{ 
+              backgroundColor: timeFilter === 'monthly' ? '#007bff' : 'white', 
+              color: timeFilter === 'monthly' ? 'white' : '#007bff',
+              border: '1px solid #007bff',
+              outline: 'none'
+            }}
+            onFocus={(e) => e.target.style.boxShadow = '0 0 0 2px rgba(0, 123, 255, 0.25)'}
+            onBlur={(e) => e.target.style.boxShadow = 'none'}
           >
             Monthly
           </button>
           <button 
             className={`filter-button ${timeFilter === 'quarterly' ? 'active' : ''}`}
             onClick={() => setTimeFilter('quarterly')}
-            style={{ backgroundColor: timeFilter === 'quarterly' ? '#007bff' : '#007bff', color: 'white' }}
+            style={{ 
+              backgroundColor: timeFilter === 'quarterly' ? '#007bff' : 'white', 
+              color: timeFilter === 'quarterly' ? 'white' : '#007bff',
+              border: '1px solid #007bff',
+              outline: 'none'
+            }}
+            onFocus={(e) => e.target.style.boxShadow = '0 0 0 2px rgba(0, 123, 255, 0.25)'}
+            onBlur={(e) => e.target.style.boxShadow = 'none'}
           >
             Quarterly
           </button>
           <button 
             className={`filter-button ${timeFilter === 'yearly' ? 'active' : ''}`}
             onClick={() => setTimeFilter('yearly')}
-            style={{ backgroundColor: timeFilter === 'yearly' ? '#007bff' : '#007bff', color: 'white' }}
+            style={{ 
+              backgroundColor: timeFilter === 'yearly' ? '#007bff' : 'white', 
+              color: timeFilter === 'yearly' ? 'white' : '#007bff',
+              border: '1px solid #007bff',
+              outline: 'none'
+            }}
+            onFocus={(e) => e.target.style.boxShadow = '0 0 0 2px rgba(0, 123, 255, 0.25)'}
+            onBlur={(e) => e.target.style.boxShadow = 'none'}
           >
             Yearly
           </button>
         </div>
 
-        <div className="stats-grid">
+        {/* Stats Grid - Updated with blue hover effect */}
+        <div className="stats-grid" style={{ marginBottom: '30px' }}>
           {/* Budget Completion */}
-          <div className="card compact-budget-card" style={{ flex: '1 1 33%' }}>
+          <div 
+            className="card compact-budget-card" 
+            style={{ 
+              flex: '1 1 33%',
+              transition: 'all 0.2s ease',
+              cursor: 'pointer'
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.boxShadow = '0 4px 8px rgba(0, 123, 255, 0.3)';
+              e.currentTarget.style.border = '1px solid #007bff';
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.boxShadow = '';
+              e.currentTarget.style.border = '1px solid #e0e0e0';
+            }}
+          >
             <h3 className="compact-card-title">Budget Completion</h3>
             <p className="compact-stat-value">{planCompletion}%</p>
             <p className="compact-card-subtext">Overall Status of Budget Plan</p>
@@ -567,9 +693,33 @@ function BudgetDashboard() {
             </div>
           </div>
 
-          {/* Total Budget */}
-          <div className="card compact-budget-card" style={{ flex: '1 1 33%' }}>
+          {/* Total Budget - Updated with month/year text */}
+          <div 
+            className="card compact-budget-card" 
+            style={{ 
+              flex: '1 1 33%',
+              transition: 'all 0.2s ease',
+              cursor: 'pointer'
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.boxShadow = '0 4px 8px rgba(0, 123, 255, 0.3)';
+              e.currentTarget.style.border = '1px solid #007bff';
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.boxShadow = '';
+              e.currentTarget.style.border = '1px solid #e0e0e0';
+            }}
+          >
             <h3 className="compact-card-title">Total Budget</h3>
+            {/* Added month/year text here */}
+            <div style={{ 
+              fontSize: '12px', 
+              color: '#007bff', 
+              marginBottom: '8px',
+              fontStyle: 'poppins'
+            }}>
+              As of now {currentMonth} {currentYear}
+            </div>
             <p className="compact-stat-value">₱{totalBudget.toLocaleString()}</p>
             <p className="compact-card-subtext">{allocatedPercentage}% allocated</p>
             <div className="compact-progress-container">
@@ -581,7 +731,22 @@ function BudgetDashboard() {
           </div>
 
           {/* Remaining Budget */}
-          <div className="card compact-budget-card" style={{ flex: '1 1 33%' }}>
+          <div 
+            className="card compact-budget-card" 
+            style={{ 
+              flex: '1 1 33%',
+              transition: 'all 0.2s ease',
+              cursor: 'pointer'
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.boxShadow = '0 4px 8px rgba(0, 123, 255, 0.3)';
+              e.currentTarget.style.border = '1px solid #007bff';
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.boxShadow = '';
+              e.currentTarget.style.border = '1px solid #e0e0e0';
+            }}
+          >
             <h3 className="compact-card-title">Remaining Budget</h3>
             <p className="compact-stat-value">₱{remainingBudget.toLocaleString()}</p>
             <p className="compact-card-subtext">56% of Total Budget </p>
@@ -589,9 +754,18 @@ function BudgetDashboard() {
           </div>
         </div>
 
-        {/* Money Flow Chart - Expanded */}
-        <div className="card chart-card" style={{ width: '100%', marginBottom: '20px', height: '450px' }}>
-          <div className="chart-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        {/* Money Flow Chart - Expanded with improved month spacing */}
+        <div 
+          className="card chart-card" 
+          style={{ 
+            width: '100%', 
+            marginBottom: '35px', 
+            height: '500px', // Increased height for better month spacing
+            display: 'flex',
+            flexDirection: 'column'
+          }}
+        >
+          <div className="chart-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
             <h3 className="card-title">Money Flow</h3>
             <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
               <div style={{ display: 'flex', gap: '4px' }}>
@@ -600,35 +774,40 @@ function BudgetDashboard() {
                 {showForecasting && (
                   <button style={{ padding: '4px 8px', backgroundColor: '#ff6b35', color: 'white', border: 'none', borderRadius: '4px', fontSize: '12px' }}>Forecast</button>
                 )}
-                {/* Removed the "All accounts" button as requested */}
               </div>
               <button 
                 onClick={toggleForecasting}
                 style={{ 
                   display: 'flex', 
                   alignItems: 'center', 
-                  justifyContent: 'center',
-                  width: '32px',
-                  height: '32px',
+                  gap: '6px',
+                  padding: '3px 8px',
                   backgroundColor: showForecasting ? '#ff6b35' : '#e9ecef', 
-                  color: showForecasting ? 'white' : '#6c757d', 
+                  color: showForecasting ? 'white' : '#1b1d1fff', 
                   border: 'none', 
                   borderRadius: '4px',
                   cursor: 'pointer',
-                  transition: 'all 0.2s ease'
+                  transition: 'all 0.2s ease',
+                  outline: 'none',
+                  fontSize: '12px',
+                  fontWeight: '500'
                 }}
                 title={showForecasting ? "Hide Forecast" : "Show Forecast"}
               >
                 <TrendingUp size={16} />
+                Forecasting
               </button>
             </div>
           </div>
-          <div className="chart-container-large" style={{ height: '380px' }}>
+          <div className="chart-container-large" style={{ 
+            height: '420px', // Increased height for better month spacing
+            paddingBottom: '20px' // Added padding to separate months from container
+          }}>
             <Line data={monthlyData} options={lineChartOptions} />
           </div>
         </div>
 
-        {/* Budget per category with Pie Chart */}
+        {/* Budget per category with Pie Chart - Updated with single "View Details" button */}
         <div className="card">
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
             <h3 className="card-title">Budget per category</h3>
@@ -638,17 +817,20 @@ function BudgetDashboard() {
               style={{ 
                 display: 'flex', 
                 alignItems: 'center', 
-                justifyContent: 'center',
-                width: '32px',
-                height: '32px',
+                gap: '6px',
+                padding: '6px 12px',
                 backgroundColor: '#007bff', 
                 color: 'white', 
                 border: 'none', 
                 borderRadius: '4px',
-                cursor: 'pointer'
+                cursor: 'pointer',
+                outline: 'none',
+                fontSize: '14px',
+                fontWeight: '500'
               }}
             >
-              <Eye size={16} />
+            <Eye size={16} style={{ color: 'white' }} />
+              View Details
             </button>
           </div>
           

@@ -3,7 +3,6 @@
 /* ====================== */
 /* CATEGORY DROPDOWN FIXES */
 /* ====================== */
-
 .filter-dropdown {
   position: relative;
   width: 100%;
@@ -87,7 +86,7 @@
 }
 
 .app-container {
-  font-family: Poppins, 'Poppins', sans-serif;
+  font-family: Poppins, 'Poppins', sans-serif !important;
   min-height: 100vh;
   background-color: #f8fafc;
 }
@@ -152,6 +151,10 @@
   position: relative;
 }
 
+/* ====================== */
+/* NAVBAR DROPDOWN FIXES - UPDATED */
+/* ====================== */
+
 .dropdown-menu {
   position: absolute;
   top: 100%;
@@ -163,6 +166,9 @@
   min-width: 200px;
   z-index: 50;
   margin-top: 0.25rem;
+  /* Consistent spacing fix */
+  padding: 8px 0 !important;  /* Consistent top/bottom padding */
+  margin: 0 !important;        /* Remove any inconsistent margins */
 }
 
 .dropdown-item {
@@ -171,11 +177,18 @@
   cursor: pointer;
   transition: all 0.2s;
   font-weight: 500;
+  /* Consistent spacing fix */
+  margin: 0 !important;           /* Remove margins for consistency */
+  display: block !important;      /* Ensure block display */
+  width: 100% !important;         /* Full width for consistent spacing */
 }
 
 .dropdown-item:hover {
   background-color: #f8fafc;
   color: #2563eb;
+  /* Maintain consistent spacing on hover */
+  padding-left: 1rem !important;  /* Keep left padding consistent */
+  padding-right: 1rem !important; /* Keep right padding consistent */
 }
 
 .dropdown-item.active {
@@ -568,6 +581,91 @@
   color: #cbd5e1;
 }
 
+/* Pagination Container */
+.paginationContainer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 1rem 0;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+/* Page Size Selector */
+.pageSizeSelector {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.pageSizeSelector label,
+.pageSizeSelector span {
+  color: #545f71;
+  font-size: 13px;
+}
+
+.pageSizeSelector select {
+  border: 1px solid #e0e0e0;
+  background: #F8F8F8;
+  color: #0C0C0C;
+  padding: 7px 14px;
+  border-radius: 6px;
+  font-size: 14px;
+  cursor: pointer;
+  transition: border-color 0.2s, background 0.2s;
+}
+
+.pageSizeSelector select:focus {
+  outline: none;
+  border-color: #007bff;
+  box-shadow: 0 0 0 2px rgba(0,123,255,0.12);
+}
+
+/* Page Navigation */
+.pageNavigation {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+/* Navigation Buttons */
+.pageNavigation button,
+.pageButton {
+  border: 1px solid #e0e0e0;
+  padding: 7px 14px;
+  border-radius: 6px;
+  cursor: pointer;
+  background-color: #ffffff;
+  color: #545f71;
+  font-size: 14px;
+  transition: background 0.2s, color 0.2s, border-color 0.2s;
+  min-width: 32px;
+  min-height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.pageNavigation button:hover,
+.pageButton:hover {
+  background-color: #F8F8F8;
+  border-color: #d0d0d0;
+  color: #007bff;
+}
+
+.pageButton.active {
+  font-weight: bold;
+  background-color: #007BFF;
+  color: #fff;
+  border-color: #007bff;
+}
+
+.pageButton.active:hover {
+  background-color: #0056B3;
+  color: #fff;
+  border-color: #0056B3;
+}
+
 /* Navigation Bar Styles */
 .navbar {
   height: 60px;
@@ -654,7 +752,7 @@
   font-weight: 500;
 }
 
-/* Dropdown Styles */
+/* Dropdown Styles - UPDATED FOR CONSISTENT SPACING */
 .nav-dropdown {
   position: relative;
 }
@@ -667,6 +765,7 @@
   transform: rotate(180deg);
 }
 
+/* Updated dropdown menu with consistent spacing */
 .dropdown-menu {
   position: absolute;
   top: calc(100% + 8px);
@@ -676,23 +775,33 @@
   border-radius: 8px;
   min-width: 200px;
   z-index: 101;
-  padding: 8px 0;
+  /* Consistent spacing fix */
+  padding: 8px 0 !important;  /* Consistent top/bottom padding */
+  margin: 0 !important;        /* Remove any inconsistent margins */
 }
 
+/* Updated dropdown items with consistent spacing */
 .dropdown-item {
   display: flex;
   align-items: center;
   gap: 8px;
-  padding: 8px 16px;
+  padding: 8px 16px !important;  /* Consistent padding */
   color: #374151;
   cursor: pointer;
   transition: all 0.2s;
   font-size: 0.9rem;
+  /* Consistent spacing fix */
+  margin: 0 !important;           /* Remove margins for consistency */
+  width: 100% !important;         /* Full width for consistent spacing */
+  box-sizing: border-box !important;
 }
 
 .dropdown-item:hover {
   background-color: #f3f4f6;
   color: var(--primary-color, #007bff);
+  /* Maintain consistent spacing on hover */
+  padding-left: 16px !important;  /* Keep left padding consistent */
+  padding-right: 16px !important; /* Keep right padding consistent */
 }
 
 /* User Controls */

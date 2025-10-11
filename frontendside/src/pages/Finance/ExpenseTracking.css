@@ -1385,3 +1385,161 @@ body {
   background-color: #e5e7eb;
   margin: 8px 0;
 }
+
+.paginationContainer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 1rem 0;
+}
+
+.pageSizeSelector {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.pageSizeSelector label,
+.pageSizeSelector span {
+  color: #545f71;
+  font-size: 0.8125rem;
+  /* 13px */
+}
+
+.pageSizeSelector select {
+  border: none;
+  padding: 5px 10px;
+  cursor: pointer;
+}
+
+.pageNavigation {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.pageNavigation button {
+  border: none;
+  padding: 5px;
+  border-radius: 4px;
+  cursor: pointer;
+  background-color: #ffffff;
+  color: #545f71;
+}
+
+.pageButton {
+  padding: 5px 10px;
+  width: 30px;
+  height: 30px;
+  background-color: #ffffff;
+  border: none;
+  cursor: pointer;
+}
+
+.pageButton:hover {
+  background-color: #ddd;
+}
+
+.pageButton.active {
+  font-weight: bold;
+  background-color: #007BFF;
+  color: white;
+  border-color: #007bff;
+}
+
+.pageButton.active:hover {
+  background-color: #0056B3;
+  color: white;
+}
+
+.status-active,
+.status-inactive {
+  display: inline-flex;
+  height: auto;
+  min-height: 4vh;
+  width: fit-content;
+  flex-direction: row;
+  align-items: center;
+  padding: 4px 12px;
+  border-radius: 40px;
+  gap: 5px;
+  font-size: 0.75rem;
+  overflow: visible;
+  white-space: normal;
+  max-width: 100%;
+}
+
+.status-active .circle,
+.status-inactive .circle {
+  height: 6px;
+  width: 6px;
+  border-radius: 50%;
+  margin-right: 3px;
+  animation: statusPulse 2s infinite;
+}
+
+@keyframes statusPulse {
+  0% {
+    box-shadow: 0 0 0 0 rgba(var(--pulse-color), 0.4);
+  }
+  70% {
+    box-shadow: 0 0 0 6px rgba(var(--pulse-color), 0);
+  }
+  100% {
+    box-shadow: 0 0 0 0 rgba(var(--pulse-color), 0);
+  }
+}
+
+.status-active {
+  background-color: #e8f5e8;
+  color: #2e7d32;
+}
+
+.status-active .circle {
+  background-color: #2e7d32;
+  --pulse-color: 46, 125, 50;
+}
+
+.status-inactive {
+  background-color: #ffebee;
+  color: #c62828;
+}
+
+.status-inactive .circle {
+  background-color: #c62828;
+  --pulse-color: 198, 40, 40;
+}
+
+.status-details {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  flex-wrap: nowrap;
+  max-width: 100%;
+}
+
+.status-to {
+  margin: 0 2px;
+  white-space: nowrap;
+}
+
+.status-target {
+  white-space: normal;
+  word-break: break-word;
+  max-width: 100%;
+}
+
+.icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.icon-placeholder {
+  height: 12px;
+  width: 12px;
+  flex-shrink: 0;
+  background-color: currentColor;
+  border-radius: 2px;
+}

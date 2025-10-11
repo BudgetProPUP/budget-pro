@@ -1,8 +1,129 @@
-import React, { useState, useEffect } from 'react';
-import { Search, ChevronDown, ArrowLeft, ChevronLeft, ChevronRight, User, LogOut, Bell, Settings } from 'lucide-react';
+import React, { useState, useEffect, useMemo } from 'react';
+import { Search, ChevronDown, ArrowLeft, ChevronLeft, ChevronRight, User, Mail, Briefcase, LogOut, Bell, Settings } from 'lucide-react';
 import { Link, useNavigate } from 'react-router-dom';
 import LOGOMAP from '../../assets/MAP.jpg';
 import './ExpenseHistory.css'; 
+
+// Pagination Component - Copied from LedgerView
+const Pagination = ({
+  currentPage,
+  pageSize,
+  totalItems,
+  onPageChange,
+  onPageSizeChange,
+  pageSizeOptions = [5, 10, 20, 50, 100],
+}) => {
+  const totalPages = Math.ceil(totalItems / pageSize);
+
+  const handlePageClick = (page) => {
+    if (page >= 1 && page <= totalPages) {
+      onPageChange(page);
+    }
+  };
+
+  const renderPageNumbers = () => {
+    const pages = [];
+
+    for (let i = 1; i <= totalPages; i++) {
+      pages.push(
+        <button
+          key={i}
+          className={`pageButton ${i === currentPage ? "active" : ""}`}
+          onClick={() => handlePageClick(i)}
+          onMouseDown={(e) => e.preventDefault()}
+          style={{ 
+            padding: '8px 12px', 
+            border: '1px solid #ccc', 
+            backgroundColor: i === currentPage ? '#007bff' : 'white',
+            color: i === currentPage ? 'white' : 'black',
+            cursor: 'pointer',
+            borderRadius: '4px',
+            minWidth: '40px',
+            outline: 'none'
+          }}
+        >
+          {i}
+        </button>
+      );
+    }
+
+    return pages;
+  };
+
+  return (
+    <div className="paginationContainer" style={{ 
+      display: 'flex', 
+      justifyContent: 'space-between', 
+      alignItems: 'center',
+      marginTop: '20px',
+      padding: '10px 0'
+    }}>
+      {/* Left Side: Page Size Selector */}
+      <div className="pageSizeSelector" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+        <label htmlFor="pageSize" style={{ fontSize: '14px' }}>Show</label>
+        <select
+          id="pageSize"
+          value={pageSize}
+          onChange={(e) => onPageSizeChange(Number(e.target.value))}
+          style={{ 
+            padding: '6px 8px',
+            border: '1px solid #ccc',
+            borderRadius: '4px',
+            outline: 'none'
+          }}
+        >
+          {pageSizeOptions.map((size) => (
+            <option key={size} value={size}>
+              {size}
+            </option>
+          ))}
+        </select>
+        <span style={{ fontSize: '14px' }}>items per page</span>
+      </div>
+
+      {/* Right Side: Page Navigation */}
+      <div className="pageNavigation" style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
+        <button
+          onClick={() => handlePageClick(currentPage - 1)}
+          disabled={currentPage === 1}
+          onMouseDown={(e) => e.preventDefault()}
+          style={{ 
+            padding: '8px 12px', 
+            border: '1px solid #ccc', 
+            backgroundColor: currentPage === 1 ? '#f0f0f0' : 'white', 
+            cursor: currentPage === 1 ? 'not-allowed' : 'pointer',
+            borderRadius: '4px',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            outline: 'none'
+          }}
+        >
+          Prev
+        </button>
+        {renderPageNumbers()}
+        <button
+          onClick={() => handlePageClick(currentPage + 1)}
+          disabled={currentPage === totalPages}
+          onMouseDown={(e) => e.preventDefault()}
+          style={{ 
+            padding: '8px 12px', 
+            border: '1px solid #ccc', 
+            backgroundColor: currentPage === totalPages ? '#f0f0f0' : 'white', 
+            cursor: currentPage === totalPages ? 'not-allowed' : 'pointer',
+            borderRadius: '4px',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            outline: 'none'
+          }}
+        >
+          Next
+        </button>
+      </div>
+    </div>
+  );
+};
 
 const ExpenseHistory = () => {
   const [showBudgetDropdown, setShowBudgetDropdown] = useState(false);
@@ -11,10 +132,10 @@ const ExpenseHistory = () => {
   const [selectedExpense, setSelectedExpense] = useState(null);
   const [selectedCategory, setSelectedCategory] = useState('All Categories');
   const [currentPage, setCurrentPage] = useState(1);
-  const [searchQuery, setSearchQuery] = useState('');
+  const [pageSize, setPageSize] = useState(5);
+  const [searchTerm, setSearchTerm] = useState('');
   const [showNotifications, setShowNotifications] = useState(false);
   const [showProfileDropdown, setShowProfileDropdown] = useState(false);
-  const itemsPerPage = 5;
   const navigate = useNavigate();
 
   // User profile data
@@ -25,26 +146,8 @@ const ExpenseHistory = () => {
     avatar: "https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?ixlib=rb-1.2.1&ixid=eyJhcHBfaWQiOjEyMDd9&auto=format&fit=facearea&facepad=2&w=256&h=256&q=80"
   };
 
-  // Close dropdowns when clicking outside
-  useEffect(() => {
-    const handleClickOutside = (event) => {
-      if (!event.target.closest('.nav-dropdown') && !event.target.closest('.profile-container') && !event.target.closest('.filter-dropdown')) {
-        setShowBudgetDropdown(false);
-        setShowExpenseDropdown(false);
-        setShowCategoryDropdown(false);
-        setShowProfileDropdown(false);
-        setShowNotifications(false);
-      }
-    };
-
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => {
-      document.removeEventListener('mousedown', handleClickOutside);
-    };
-  }, []);
-
   // Sample data
-  const [transactions] = useState([
+  const transactions = useMemo(() => [
     {
       id: 1,
       date: '04-12-2025',
@@ -127,10 +230,10 @@ const ExpenseHistory = () => {
       ],
       dueDate: 'December 31, 2024'
     }
-  ]);
+  ], []);
 
   // Categories for dropdown
-  const categories = [
+  const categoryOptions = [
     'All Categories',
     'Travel',
     'Office Supplies',
@@ -142,23 +245,42 @@ const ExpenseHistory = () => {
     'Miscellaneous'
   ];
 
-  // Filter transactions based on search query and selected category
-  const filteredTransactions = transactions.filter(transaction => {
-    const matchesSearch = transaction.description.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                         transaction.category.toLowerCase().includes(searchQuery.toLowerCase());
-    const matchesCategory = selectedCategory === 'All Categories' || transaction.category === selectedCategory;
-    return matchesSearch && matchesCategory;
-  });
+  // Close dropdowns when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (!event.target.closest('.nav-dropdown') && !event.target.closest('.profile-container') && !event.target.closest('.filter-dropdown')) {
+        setShowBudgetDropdown(false);
+        setShowExpenseDropdown(false);
+        setShowCategoryDropdown(false);
+        setShowProfileDropdown(false);
+        setShowNotifications(false);
+      }
+    };
 
-  // Pagination logic
-  const indexOfLastItem = currentPage * itemsPerPage;
-  const indexOfFirstItem = indexOfLastItem - itemsPerPage;
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, []);
+
+  // Filter transactions based on search and category
+  const filteredTransactions = useMemo(() => {
+    return transactions.filter(transaction => {
+      const matchesSearch = transaction.description.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                         transaction.category.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                         transaction.amount.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                         transaction.date.toLowerCase().includes(searchTerm.toLowerCase());
+      
+      const matchesCategory = selectedCategory === 'All Categories' || transaction.category === selectedCategory;
+      
+      return matchesSearch && matchesCategory;
+    });
+  }, [searchTerm, selectedCategory, transactions]);
+
+  // Pagination logic - Updated to use pageSize state
+  const indexOfLastItem = currentPage * pageSize;
+  const indexOfFirstItem = indexOfLastItem - pageSize;
   const currentTransactions = filteredTransactions.slice(indexOfFirstItem, indexOfLastItem);
-  const totalPages = Math.ceil(filteredTransactions.length / itemsPerPage);
-
-  const paginate = (pageNumber) => setCurrentPage(pageNumber);
-  const nextPage = () => setCurrentPage(prev => Math.min(prev + 1, totalPages));
-  const prevPage = () => setCurrentPage(prev => Math.max(prev - 1, 1));
 
   // Navigation functions
   const toggleBudgetDropdown = () => {
@@ -218,10 +340,7 @@ const ExpenseHistory = () => {
 
   const handleLogout = () => {
     try {
-      localStorage.removeItem('authToken');
-      localStorage.removeItem('userSession');
-      localStorage.removeItem('userProfile');
-      sessionStorage.clear();
+      setShowProfileDropdown(false);
       navigate('/login', { replace: true });
       console.log('User logged out successfully');
     } catch (error) {
@@ -236,11 +355,6 @@ const ExpenseHistory = () => {
 
   const handleBackToList = () => {
     setSelectedExpense(null);
-  };
-
-  const handleSearch = (e) => {
-    setSearchQuery(e.target.value);
-    setCurrentPage(1);
   };
 
   // Date and time for Navbar
@@ -270,7 +384,7 @@ const ExpenseHistory = () => {
 
   return (
     <div className="app-container" style={{ minWidth: '1200px', overflowY: 'auto', height: '100vh' }}>
-      {/* Navigation Bar - Preserved as is */}
+      {/* Navigation Bar */}
       <nav className="navbar" style={{ position: 'static', marginBottom: '20px' }}>
         <div className="navbar-content" style={{ 
           display: 'flex', 
@@ -325,6 +439,8 @@ const ExpenseHistory = () => {
               <div 
                 className={`nav-link ${showBudgetDropdown ? 'active' : ''}`}
                 onClick={toggleBudgetDropdown}
+                onMouseDown={(e) => e.preventDefault()}
+                style={{ outline: 'none' }}
               >
                 Budget <ChevronDown size={14} className={`dropdown-arrow ${showBudgetDropdown ? 'rotated' : ''}`} />
               </div>
@@ -339,7 +455,7 @@ const ExpenseHistory = () => {
                   <div className="dropdown-item" onClick={() => handleNavigate('/finance/ledger-view')}>
                     Ledger View
                   </div>
-                  <div className="dropdown-item" onClick={() => handleNavigate('/finance/journal-entry')}>
+                  <div className="dropdown-item" onClick={() => handleNavigate('/finance/budget-allocation')}>
                     Budget Allocation
                   </div>
                   <div className="dropdown-item" onClick={() => handleNavigate('/finance/budget-variance-report')}>
@@ -354,6 +470,8 @@ const ExpenseHistory = () => {
               <div 
                 className={`nav-link ${showExpenseDropdown ? 'active' : ''}`}
                 onClick={toggleExpenseDropdown}
+                onMouseDown={(e) => e.preventDefault()}
+                style={{ outline: 'none' }}
               >
                 Expense <ChevronDown size={14} className={`dropdown-arrow ${showExpenseDropdown ? 'rotated' : ''}`} />
               </div>
@@ -391,7 +509,8 @@ const ExpenseHistory = () => {
               <div 
                 className="notification-icon"
                 onClick={toggleNotifications}
-                style={{ position: 'relative', cursor: 'pointer' }}
+                onMouseDown={(e) => e.preventDefault()}
+                style={{ position: 'relative', cursor: 'pointer', outline: 'none' }}
               >
                 <Bell size={20} />
                 <span className="notification-badge" style={{
@@ -424,7 +543,13 @@ const ExpenseHistory = () => {
                 }}>
                   <div className="notification-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
                     <h3>Notifications</h3>
-                    <button className="clear-all-btn">Clear All</button>
+                    <button 
+                      className="clear-all-btn"
+                      onMouseDown={(e) => e.preventDefault()}
+                      style={{ outline: 'none' }}
+                    >
+                      Clear All
+                    </button>
                   </div>
                   <div className="notification-list">
                     <div className="notification-item" style={{ display: 'flex', padding: '8px 0', borderBottom: '1px solid #eee' }}>
@@ -436,7 +561,13 @@ const ExpenseHistory = () => {
                         <div className="notification-message">Your Q3 budget has been approved</div>
                         <div className="notification-time" style={{ fontSize: '12px', color: '#666' }}>2 hours ago</div>
                       </div>
-                      <button className="notification-delete" style={{ background: 'none', border: 'none', cursor: 'pointer' }}>&times;</button>
+                      <button 
+                        className="notification-delete" 
+                        style={{ background: 'none', border: 'none', cursor: 'pointer', outline: 'none' }}
+                        onMouseDown={(e) => e.preventDefault()}
+                      >
+                        &times;
+                      </button>
                     </div>
                     <div className="notification-item" style={{ display: 'flex', padding: '8px 0', borderBottom: '1px solid #eee' }}>
                       <div className="notification-icon-wrapper" style={{ marginRight: '10px' }}>
@@ -447,7 +578,13 @@ const ExpenseHistory = () => {
                         <div className="notification-message">New expense report needs review</div>
                         <div className="notification-time" style={{ fontSize: '12px', color: '#666' }}>5 hours ago</div>
                       </div>
-                      <button className="notification-delete" style={{ background: 'none', border: 'none', cursor: 'pointer' }}>&times;</button>
+                      <button 
+                        className="notification-delete" 
+                        style={{ background: 'none', border: 'none', cursor: 'pointer', outline: 'none' }}
+                        onMouseDown={(e) => e.preventDefault()}
+                      >
+                        &times;
+                      </button>
                     </div>
                   </div>
                 </div>
@@ -459,7 +596,8 @@ const ExpenseHistory = () => {
               <div 
                 className="profile-trigger"
                 onClick={toggleProfileDropdown}
-                style={{ display: 'flex', alignItems: 'center', cursor: 'pointer' }}
+                onMouseDown={(e) => e.preventDefault()}
+                style={{ display: 'flex', alignItems: 'center', cursor: 'pointer', outline: 'none' }}
               >
                 <img src={userProfile.avatar} alt="User avatar" className="profile-image" style={{ width: '32px', height: '32px', borderRadius: '50%' }} />
               </div>
@@ -484,18 +622,31 @@ const ExpenseHistory = () => {
                     </div>
                   </div>
                   <div className="dropdown-divider" style={{ height: '1px', backgroundColor: '#eee', margin: '10px 0' }}></div>
-                  <div className="dropdown-item" style={{ display: 'flex', alignItems: 'center', padding: '8px 0', cursor: 'pointer' }}>
+                  <div 
+                    className="dropdown-item" 
+                    style={{ display: 'flex', alignItems: 'center', padding: '8px 0', cursor: 'pointer', outline: 'none' }}
+                    onMouseDown={(e) => e.preventDefault()}
+                  >
                     <User size={16} style={{ marginRight: '8px' }} />
                     <span>Manage Profile</span>
                   </div>
                   {userProfile.role === "Admin" && (
-                    <div className="dropdown-item" style={{ display: 'flex', alignItems: 'center', padding: '8px 0', cursor: 'pointer' }}>
+                    <div 
+                      className="dropdown-item" 
+                      style={{ display: 'flex', alignItems: 'center', padding: '8px 0', cursor: 'pointer', outline: 'none' }}
+                      onMouseDown={(e) => e.preventDefault()}
+                    >
                       <Settings size={16} style={{ marginRight: '8px' }} />
                       <span>User Management</span>
                     </div>
                   )}
                   <div className="dropdown-divider" style={{ height: '1px', backgroundColor: '#eee', margin: '10px 0' }}></div>
-                  <div className="dropdown-item" onClick={handleLogout} style={{ display: 'flex', alignItems: 'center', padding: '8px 0', cursor: 'pointer' }}>
+                  <div 
+                    className="dropdown-item" 
+                    onClick={handleLogout} 
+                    style={{ display: 'flex', alignItems: 'center', padding: '8px 0', cursor: 'pointer', outline: 'none' }}
+                    onMouseDown={(e) => e.preventDefault()}
+                  >
                     <LogOut size={16} style={{ marginRight: '8px' }} />
                     <span>Log Out</span>
                   </div>
@@ -506,9 +657,9 @@ const ExpenseHistory = () => {
         </div>
       </nav>
 
-      {/* Main Content - Updated to place everything inside the ledger container */}
+      {/* Main Content */}
       <div className="content-container" style={{ padding: '20px', maxWidth: '1200px', margin: '0 auto' }}>
-        {/* Page Container for everything - All elements now inside the ledger container */}
+        {/* Page Container for everything */}
         <div className="ledger-container" style={{ 
           backgroundColor: 'white', 
           borderRadius: '8px', 
@@ -517,32 +668,50 @@ const ExpenseHistory = () => {
           overflow: 'hidden',
           display: 'flex',
           flexDirection: 'column',
-          height: 'calc(100vh - 100px)'
+          minHeight: 'calc(80vh - 100px)'
         }}>
           {!selectedExpense ? (
             <>
-              {/* Header Section with Title and Controls - Now inside ledger container */}
+              {/* Header Section with Title and Controls */}
               <div className="top" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
                 <h2 className="page-title">
                   Expense History 
                 </h2>
                 
                 <div className="controls-container" style={{ display: 'flex', gap: '10px' }}>
-                  <input
-                    type="text"
-                    placeholder="Search expenses..."
-                    value={searchQuery}
-                    onChange={handleSearch}
-                    className="search-account-input"
-                    style={{ padding: '8px 12px', border: '1px solid #ccc', borderRadius: '4px' }}
-                  />
+                  {/* Search Bar */}
+                  <div style={{ position: 'relative' }}>
+                    <input
+                      type="text"
+                      placeholder="Search"
+                      value={searchTerm}
+                      onChange={(e) => setSearchTerm(e.target.value)}
+                      className="search-account-input"
+                      style={{ 
+                        padding: '8px 12px', 
+                        border: '1px solid #ccc', 
+                        borderRadius: '4px',
+                        outline: 'none'
+                      }}
+                    />
+                  </div>
                   
                   {/* Category Filter */}
                   <div className="filter-dropdown" style={{ position: 'relative' }}>
                     <button 
                       className={`filter-dropdown-btn ${showCategoryDropdown ? 'active' : ''}`} 
                       onClick={toggleCategoryDropdown}
-                      style={{ padding: '8px 12px', border: '1px solid #ccc', borderRadius: '4px', backgroundColor: 'white', display: 'flex', alignItems: 'center', gap: '5px' }}
+                      onMouseDown={(e) => e.preventDefault()}
+                      style={{ 
+                        padding: '8px 12px', 
+                        border: '1px solid #ccc', 
+                        borderRadius: '4px', 
+                        backgroundColor: 'white', 
+                        display: 'flex', 
+                        alignItems: 'center', 
+                        gap: '5px',
+                        outline: 'none'
+                      }}
                     >
                       <span>{selectedCategory}</span>
                       <ChevronDown size={14} />
@@ -558,12 +727,18 @@ const ExpenseHistory = () => {
                         width: '100%',
                         zIndex: 1000
                       }}>
-                        {categories.map((category, index) => (
+                        {categoryOptions.map((category) => (
                           <div
-                            key={index}
+                            key={category}
                             className={`category-dropdown-item ${selectedCategory === category ? 'active' : ''}`}
                             onClick={() => handleCategorySelect(category)}
-                            style={{ padding: '8px 12px', cursor: 'pointer', backgroundColor: selectedCategory === category ? '#f0f0f0' : 'white' }}
+                            onMouseDown={(e) => e.preventDefault()}
+                            style={{ 
+                              padding: '8px 12px', 
+                              cursor: 'pointer', 
+                              backgroundColor: selectedCategory === category ? '#f0f0f0' : 'white',
+                              outline: 'none'
+                            }}
                           >
                             {category}
                           </div>
@@ -581,192 +756,231 @@ const ExpenseHistory = () => {
                 marginBottom: '20px'
               }}></div>
 
-              {/* Expenses Table - Made scrollable */}
+              {/* Expenses Table - KEEPING ORIGINAL SIZING */}
               <div style={{ 
                 flex: 1,
                 overflow: 'auto',
                 border: '1px solid #e0e0e0',
-                borderRadius: '4px'
+                borderRadius: '4px',
+                position: 'relative',
+                marginLeft: '20px',
+                marginRight: '20px'
               }}>
-                <table className="ledger-table" style={{ 
-                  width: '100%', 
-                  borderCollapse: 'collapse',
-                  tableLayout: 'fixed'
+                {/* Custom scrollbar styling */}
+                <style>
+                  {`
+                    .table-scroll-container::-webkit-scrollbar {
+                      width: 8px;
+                      height: 8px;
+                    }
+                    .table-scroll-container::-webkit-scrollbar-track {
+                      background: #f1f1f1;
+                      border-radius: 4px;
+                    }
+                    .table-scroll-container::-webkit-scrollbar-thumb {
+                      background: #c1c1c1;
+                      border-radius: 4px;
+                    }
+                    .table-scroll-container::-webkit-scrollbar-thumb:hover {
+                      background: #a8a8a8;
+                    }
+                  `}
+                </style>
+                
+                <div className="table-scroll-container" style={{
+                  height: '100%',
+                  overflow: 'auto'
                 }}>
-                  <thead>
-                    <tr style={{ backgroundColor: '#f8f9fa', position: 'sticky', top: 0, zIndex: 10 }}>
-                      <th style={{ 
-                        width: '15%', 
-                        padding: '0.75rem', 
-                        textAlign: 'left', 
-                        borderBottom: '2px solid #dee2e6',
-                        height: '50px',
-                        verticalAlign: 'middle',
-                        backgroundColor: '#f8f9fa'
-                      }}>DATE</th>
-                      <th style={{ 
-                        width: '35%', 
-                        padding: '0.75rem', 
-                        textAlign: 'left', 
-                        borderBottom: '2px solid #dee2e6',
-                        height: '50px',
-                        verticalAlign: 'middle',
-                        backgroundColor: '#f8f9fa'
-                      }}>DESCRIPTION</th>
-                      <th style={{ 
-                        width: '20%', 
-                        padding: '0.75rem', 
-                        textAlign: 'left', 
-                        borderBottom: '2px solid #dee2e6',
-                        height: '50px',
-                        verticalAlign: 'middle',
-                        backgroundColor: '#f8f9fa'
-                      }}>CATEGORY</th>
-                      <th style={{ 
-                        width: '15%', 
-                        padding: '0.75rem', 
-                        textAlign: 'left', 
-                        borderBottom: '2px solid #dee2e6',
-                        height: '50px',
-                        verticalAlign: 'middle',
-                        backgroundColor: '#f8f9fa'
-                      }}>AMOUNT</th>
-                      <th style={{ 
-                        width: '15%', 
-                        padding: '0.75rem', 
-                        textAlign: 'center', 
-                        borderBottom: '2px solid #dee2e6',
-                        height: '50px',
-                        verticalAlign: 'middle',
-                        backgroundColor: '#f8f9fa'
-                      }}>ACTIONS</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {currentTransactions.length > 0 ? (
-                      currentTransactions.map((transaction, index) => (
-                        <tr 
-                          key={transaction.id} 
-                          className={index % 2 === 1 ? 'alternate-row' : ''} 
-                          style={{ 
-                            backgroundColor: index % 2 === 1 ? '#F8F8F8' : '#FFFFFF', 
-                            color: '#0C0C0C',
+                  <table className="ledger-table" style={{ 
+                    width: '100%', 
+                    borderCollapse: 'collapse',
+                    tableLayout: 'fixed',
+                    minWidth: '800px'
+                  }}>
+                    <thead>
+                      <tr style={{ backgroundColor: '#f8f9fa', position: 'sticky', top: 0, zIndex: 10 }}>
+                        <th style={{ 
+                          width: '40%',
+                          padding: '0.75rem', 
+                          textAlign: 'center', 
+                          borderBottom: '2px solid #dee2e6',
+                          height: '50px',
+                          verticalAlign: 'middle',
+                          wordWrap: 'break-word',
+                          overflowWrap: 'break-word',
+                          backgroundColor: '#f8f9fa',
+                          fontWeight: '600',
+                          fontSize: '0.9rem'
+                        }}>DATE</th>
+                        <th style={{ 
+                          width: '55%',
+                          padding: '0.75rem', 
+                          textAlign: 'center', 
+                          borderBottom: '2px solid #dee2e6',
+                          height: '50px',
+                          verticalAlign: 'middle',
+                          wordWrap: 'break-word',
+                          overflowWrap: 'break-word',
+                          backgroundColor: '#f8f9fa',
+                          fontWeight: '600',
+                          fontSize: '0.9rem'
+                        }}>DESCRIPTION</th>
+                        <th style={{ 
+                          width: '45%',
+                          padding: '0.75rem', 
+                          textAlign: 'center', 
+                          borderBottom: '2px solid #dee2e6',
+                          height: '50px',
+                          verticalAlign: 'middle',
+                          wordWrap: 'break-word',
+                          overflowWrap: 'break-word',
+                          backgroundColor: '#f8f9fa',
+                          fontWeight: '600',
+                          fontSize: '0.9rem'
+                        }}>CATEGORY</th>
+                        <th style={{ 
+                          width: '45%',
+                          padding: '0.75rem', 
+                          textAlign: 'center', 
+                          borderBottom: '2px solid #dee2e6',
+                          height: '50px',
+                          verticalAlign: 'middle',
+                          wordWrap: 'break-word',
+                          overflowWrap: 'break-word',
+                          backgroundColor: '#f8f9fa',
+                          fontWeight: '600',
+                          fontSize: '0.9rem'
+                        }}>AMOUNT</th>
+                        <th style={{ 
+                          width: '30%',
+                          padding: '0.75rem', 
+                          textAlign: 'left', 
+                          borderBottom: '2px solid #dee2e6',
+                          height: '50px',
+                          verticalAlign: 'middle',
+                          wordWrap: 'break-word',
+                          overflowWrap: 'break-word',
+                          backgroundColor: '#f8f9fa',
+                          fontWeight: '600',
+                          fontSize: '0.9rem'
+                        }}>ACTIONS</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {currentTransactions.length > 0 ? (
+                        currentTransactions.map((transaction, index) => (
+                          <tr 
+                            key={transaction.id} 
+                            className={index % 2 === 1 ? 'alternate-row' : ''} 
+                            style={{ 
+                              backgroundColor: index % 2 === 1 ? '#F8F8F8' : '#FFFFFF', 
+                              color: '#0C0C0C',
+                              height: '50px',
+                              transition: 'background-color 0.2s ease'
+                            }}
+                            onMouseEnter={(e) => {
+                              e.currentTarget.style.backgroundColor = '#fcfcfc';
+                            }}
+                            onMouseLeave={(e) => {
+                              e.currentTarget.style.backgroundColor = index % 2 === 1 ? '#F8F8F8' : '#FFFFFF';
+                            }}
+                          >
+                            <td style={{ 
+                              padding: '0.75rem', 
+                              borderBottom: '1px solid #dee2e6',
+                              textAlign: 'center',
+                              verticalAlign: 'middle',
+                              wordWrap: 'break-word',
+                              overflowWrap: 'break-word',
+                              whiteSpace: 'normal'
+                            }}>{transaction.date}</td>
+                            <td style={{ 
+                              padding: '0.75rem', 
+                              borderBottom: '1px solid #dee2e6',
+                              textAlign: 'center',
+                              verticalAlign: 'middle',
+                              wordWrap: 'break-word',
+                              overflowWrap: 'break-word',
+                              whiteSpace: 'normal'
+                            }}>{transaction.description}</td>
+                            <td style={{ 
+                              padding: '0.75rem', 
+                              borderBottom: '1px solid #dee2e6',
+                              textAlign: 'center',
+                              verticalAlign: 'middle',
+                              wordWrap: 'break-word',
+                              overflowWrap: 'break-word',
+                              whiteSpace: 'normal'
+                            }}>{transaction.category}</td>
+                            <td style={{ 
+                              padding: '0.75rem', 
+                              borderBottom: '1px solid #dee2e6',
+                              textAlign: 'center',
+                              verticalAlign: 'middle',
+                              wordWrap: 'break-word',
+                              overflowWrap: 'break-word',
+                              whiteSpace: 'normal'
+                            }}>{transaction.amount}</td>
+                            <td style={{ 
+                              padding: '0.75rem', 
+                              borderBottom: '1px solid #dee2e6',
+                              textAlign: 'center',
+                              verticalAlign: 'middle',
+                              wordWrap: 'break-word',
+                              overflowWrap: 'break-word',
+                              whiteSpace: 'normal'
+                            }}>
+                              <button 
+                                className="view-btn"
+                                onClick={() => handleViewExpense(transaction)}
+                                onMouseDown={(e) => e.preventDefault()}
+                                style={{ 
+                                  padding: '5px 15px', 
+                                  backgroundColor: '#007bff', 
+                                  color: 'white', 
+                                  border: 'none', 
+                                  borderRadius: '4px',
+                                  cursor: 'pointer',
+                                  outline: 'none'
+                                }}
+                              >
+                                View
+                              </button>
+                            </td>
+                          </tr>
+                        ))
+                      ) : (
+                        <tr>
+                          <td colSpan="5" className="no-results" style={{ 
+                            padding: '20px', 
+                            textAlign: 'center',
                             height: '50px',
-                            transition: 'background-color 0.2s ease'
-                          }}
-                          onMouseEnter={(e) => {
-                            e.currentTarget.style.backgroundColor = '#D1D5DB'; // Gray 300
-                          }}
-                          onMouseLeave={(e) => {
-                            e.currentTarget.style.backgroundColor = index % 2 === 1 ? '#F8F8F8' : '#FFFFFF';
-                          }}
-                        >
-                          <td style={{ 
-                            padding: '0.75rem', 
-                            borderBottom: '1px solid #dee2e6',
                             verticalAlign: 'middle'
-                          }}>{transaction.date}</td>
-                          <td style={{ 
-                            padding: '0.75rem', 
-                            borderBottom: '1px solid #dee2e6',
-                            verticalAlign: 'middle'
-                          }}>{transaction.description}</td>
-                          <td style={{ 
-                            padding: '0.75rem', 
-                            borderBottom: '1px solid #dee2e6',
-                            verticalAlign: 'middle'
-                          }}>{transaction.category}</td>
-                          <td style={{ 
-                            padding: '0.75rem', 
-                            borderBottom: '1px solid #dee2e6',
-                            verticalAlign: 'middle'
-                          }}>{transaction.amount}</td>
-                          <td style={{ 
-                            padding: '0.75rem', 
-                            borderBottom: '1px solid #dee2e6',
-                            verticalAlign: 'middle',
-                            textAlign: 'center'
                           }}>
-                            <button 
-                              className="view-btn"
-                              onClick={() => handleViewExpense(transaction)}
-                              style={{ 
-                                padding: '5px 10px', 
-                                backgroundColor: '#007bff', 
-                                color: 'white', 
-                                border: 'none', 
-                                borderRadius: '4px',
-                                cursor: 'pointer'
-                              }}
-                            >
-                              View
-                            </button>
+                            {searchTerm || selectedCategory !== 'All Categories' 
+                              ? 'No expenses match your search criteria.' 
+                              : 'No expenses found.'}
                           </td>
                         </tr>
-                      ))
-                    ) : (
-                      <tr>
-                        <td colSpan="5" className="no-results" style={{ 
-                          padding: '20px', 
-                          textAlign: 'center',
-                          height: '50px',
-                          verticalAlign: 'middle'
-                        }}>
-                          No expenses match your search criteria.
-                        </td>
-                      </tr>
-                    )}
-                  </tbody>
-                </table>
+                      )}
+                    </tbody>
+                  </table>
+                </div>
               </div>
               
-              {/* Pagination Controls - Preserved as is */}
-              {totalPages > 1 && (
-                <div className="pagination" style={{ 
-                  display: 'flex', 
-                  justifyContent: 'center', 
-                  alignItems: 'center', 
-                  gap: '5px',
-                  marginTop: '20px',
-                  padding: '10px 0'
-                }}>
-                  <button 
-                    onClick={prevPage} 
-                    disabled={currentPage === 1}
-                    className="pagination-btn"
-                    style={{ padding: '8px 12px', border: '1px solid #ccc', backgroundColor: currentPage === 1 ? '#f0f0f0' : 'white', cursor: currentPage === 1 ? 'not-allowed' : 'pointer' }}
-                  >
-                    <ChevronLeft size={16} />
-                  </button>
-                  
-                  {[...Array(totalPages)].map((_, index) => (
-                    <button
-                      key={index + 1}
-                      onClick={() => paginate(index + 1)}
-                      className={`pagination-btn ${
-                        currentPage === index + 1 ? 'active' : ''
-                      }`}
-                      style={{ 
-                        padding: '8px 12px', 
-                        border: '1px solid #ccc', 
-                        backgroundColor: currentPage === index + 1 ? '#007bff' : 'white',
-                        color: currentPage === index + 1 ? 'white' : 'black',
-                        cursor: 'pointer'
-                      }}
-                    >
-                      {index + 1}
-                    </button>
-                  ))}
-                  
-                  <button 
-                    onClick={nextPage} 
-                    disabled={currentPage === totalPages}
-                    className="pagination-btn"
-                    style={{ padding: '8px 12px', border: '1px solid #ccc', backgroundColor: currentPage === totalPages ? '#f0f0f0' : 'white', cursor: currentPage === totalPages ? 'not-allowed' : 'pointer' }}
-                  >
-                    <ChevronRight size={16} />
-                  </button>
-                </div>
+              {/* New Pagination Component - Copied from LedgerView */}
+              {filteredTransactions.length > 0 && (
+                <Pagination
+                  currentPage={currentPage}
+                  pageSize={pageSize}
+                  totalItems={filteredTransactions.length}
+                  onPageChange={setCurrentPage}
+                  onPageSizeChange={(newSize) => {
+                    setPageSize(newSize);
+                    setCurrentPage(1);
+                  }}
+                  pageSizeOptions={[5, 10, 20, 50]}
+                />
               )}
             </>
           ) : (
@@ -786,7 +1000,8 @@ const ExpenseHistory = () => {
                 borderRadius: '4px',
                 cursor: 'pointer',
                 marginBottom: '20px',
-                alignSelf: 'flex-start'
+                alignSelf: 'flex-start',
+                outline: 'none'
               }}>
                 <ArrowLeft size={16} />
                 <span>Back to Expenses</span>

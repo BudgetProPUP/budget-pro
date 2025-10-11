@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { ChevronDown, ChevronLeft, ChevronRight, ArrowLeft, User, Mail, Briefcase, LogOut, Download, Bell, Settings } from 'lucide-react';
+import { ChevronDown, ChevronLeft, ChevronRight, ArrowLeft, User, Mail, Briefcase, LogOut, Download, Bell, Settings, Search } from 'lucide-react';
 import { Link, useNavigate } from 'react-router-dom';
 import LOGOMAP from '../../assets/MAP.jpg';
 import './BudgetVarianceReport.css';
@@ -184,18 +184,39 @@ const BudgetVarianceReport = () => {
   ];
 
   // Date and time for Navbar
-  const now = new Date();
-  const formattedDay = now.toLocaleDateString('en-US', { weekday: 'long' });
-  const formattedDate = now.toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
-  const formattedTime = now.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true });
+  const [currentDate, setCurrentDate] = useState(new Date());
+
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setCurrentDate(new Date());
+    }, 1000);
+
+    return () => {
+      clearInterval(interval);
+    };
+  }, []);
+
+  const formattedDay = currentDate.toLocaleDateString('en-US', { weekday: 'long' });
+  const formattedDate = currentDate.toLocaleDateString('en-US', { 
+    month: 'long', 
+    day: 'numeric', 
+    year: 'numeric' 
+  });
+  const formattedTime = currentDate.toLocaleTimeString('en-US', { 
+    hour: '2-digit', 
+    minute: '2-digit', 
+    hour12: true 
+  }).toUpperCase();
 
   // Close dropdowns when clicking outside
   useEffect(() => {
     const handleClickOutside = (event) => {
-      if (!event.target.closest('.nav-dropdown') && !event.target.closest('.profile-container')) {
+      if (!event.target.closest('.nav-dropdown') && !event.target.closest('.profile-container') && !event.target.closest('.filter-dropdown')) {
         setShowBudgetDropdown(false);
         setShowExpenseDropdown(false);
         setShowProfilePopup(false);
+        setShowProfileDropdown(false);
+        setShowNotifications(false);
       }
     };
 
@@ -205,32 +226,37 @@ const BudgetVarianceReport = () => {
     };
   }, []);
 
+  // Navigation dropdown handlers - Updated with LedgerView functionality
   const toggleBudgetDropdown = () => {
     setShowBudgetDropdown(!showBudgetDropdown);
     if (showExpenseDropdown) setShowExpenseDropdown(false);
     if (showProfilePopup) setShowProfilePopup(false);
+    if (showProfileDropdown) setShowProfileDropdown(false);
+    if (showNotifications) setShowNotifications(false);
   };
 
   const toggleExpenseDropdown = () => {
     setShowExpenseDropdown(!showExpenseDropdown);
     if (showBudgetDropdown) setShowBudgetDropdown(false);
     if (showProfilePopup) setShowProfilePopup(false);
+    if (showProfileDropdown) setShowProfileDropdown(false);
+    if (showNotifications) setShowNotifications(false);
   };
 
   const toggleNotifications = () => {
     setShowNotifications(!showNotifications);
-    setShowBudgetDropdown(false);
-    setShowExpenseDropdown(false);
-    setShowProfileDropdown(false);
-    setShowProfilePopup(false);
+    if (showBudgetDropdown) setShowBudgetDropdown(false);
+    if (showExpenseDropdown) setShowExpenseDropdown(false);
+    if (showProfilePopup) setShowProfilePopup(false);
+    if (showProfileDropdown) setShowProfileDropdown(false);
   };
 
   const toggleProfileDropdown = () => {
     setShowProfileDropdown(!showProfileDropdown);
-    setShowBudgetDropdown(false);
-    setShowExpenseDropdown(false);
-    setShowNotifications(false);
-    setShowProfilePopup(false);
+    if (showBudgetDropdown) setShowBudgetDropdown(false);
+    if (showExpenseDropdown) setShowExpenseDropdown(false);
+    if (showProfilePopup) setShowProfilePopup(false);
+    if (showNotifications) setShowNotifications(false);
   };
 
   const handleNavigate = (path) => {
@@ -238,16 +264,16 @@ const BudgetVarianceReport = () => {
     setShowBudgetDropdown(false);
     setShowExpenseDropdown(false);
     setShowProfilePopup(false);
+    setShowProfileDropdown(false);
+    setShowNotifications(false);
   };
 
   const handleLogout = () => {
     try {
-      localStorage.removeItem('authToken');
-      localStorage.removeItem('userSession');
-      localStorage.removeItem('userProfile');
-      sessionStorage.clear();
       setShowProfilePopup(false);
+      setShowProfileDropdown(false);
       navigate('/login', { replace: true });
+      console.log('User logged out successfully');
     } catch (error) {
       console.error('Error during logout:', error);
       navigate('/login', { replace: true });
@@ -276,11 +302,17 @@ const BudgetVarianceReport = () => {
   };
 
   return (
-    <div className="app-container">
-      {/* Navigation Bar */}
-      <nav className="navbar">
-        <div className="navbar-content">
-          {/* Logo and System Name */}
+    <div className="app-container" style={{ minWidth: '1200px', overflowY: 'auto', height: '100vh' }}>
+      {/* Navigation Bar - Updated with LedgerView's exact structure and functionality */}
+      <nav className="navbar" style={{ position: 'static', marginBottom: '20px' }}>
+        <div className="navbar-content" style={{ 
+          display: 'flex', 
+          justifyContent: 'space-between', 
+          alignItems: 'center',
+          padding: '0 20px',
+          height: '60px'
+        }}>
+          {/* Logo and System Name - Exact copy from LedgerView */}
           <div className="navbar-brand" style={{
             display: 'flex',
             alignItems: 'center',
@@ -317,20 +349,22 @@ const BudgetVarianceReport = () => {
             }}>BudgetPro</span>
           </div>
 
-          {/* Main Navigation Links */}
-          <div className="navbar-links">
+          {/* Main Navigation Links - Exact copy from LedgerView */}
+          <div className="navbar-links" style={{ display: 'flex', gap: '20px' }}>
             <Link to="/dashboard" className="nav-link">Dashboard</Link>
             
-            {/* Budget Dropdown */}
+            {/* Budget Dropdown - Exact copy from LedgerView */}
             <div className="nav-dropdown">
               <div 
                 className={`nav-link ${showBudgetDropdown ? 'active' : ''}`}
                 onClick={toggleBudgetDropdown}
+                onMouseDown={(e) => e.preventDefault()}
+                style={{ outline: 'none' }}
               >
                 Budget <ChevronDown size={14} className={`dropdown-arrow ${showBudgetDropdown ? 'rotated' : ''}`} />
               </div>
               {showBudgetDropdown && (
-                <div className="dropdown-menu">
+                <div className="dropdown-menu" style={{ position: 'absolute', top: '100%', left: 0, zIndex: 1000 }}>
                   <div className="dropdown-item" onClick={() => handleNavigate('/finance/budget-proposal')}>
                     Budget Proposal
                   </div>
@@ -340,7 +374,7 @@ const BudgetVarianceReport = () => {
                   <div className="dropdown-item" onClick={() => handleNavigate('/finance/ledger-view')}>
                     Ledger View
                   </div>
-                  <div className="dropdown-item" onClick={() => handleNavigate('/finance/journal-entry')}>
+                  <div className="dropdown-item" onClick={() => handleNavigate('/finance/budget-allocation')}>
                     Budget Allocation
                   </div>
                   <div className="dropdown-item" onClick={() => handleNavigate('/finance/budget-variance-report')}>
@@ -350,16 +384,18 @@ const BudgetVarianceReport = () => {
               )}
             </div>
 
-            {/* Expense Dropdown */}
+            {/* Expense Dropdown - Exact copy from LedgerView */}
             <div className="nav-dropdown">
               <div 
                 className={`nav-link ${showExpenseDropdown ? 'active' : ''}`}
                 onClick={toggleExpenseDropdown}
+                onMouseDown={(e) => e.preventDefault()}
+                style={{ outline: 'none' }}
               >
                 Expense <ChevronDown size={14} className={`dropdown-arrow ${showExpenseDropdown ? 'rotated' : ''}`} />
               </div>
               {showExpenseDropdown && (
-                <div className="dropdown-menu">
+                <div className="dropdown-menu" style={{ position: 'absolute', top: '100%', left: 0, zIndex: 1000 }}>
                   <div className="dropdown-item" onClick={() => handleNavigate('/finance/expense-tracking')}>
                     Expense Tracking
                   </div>
@@ -371,11 +407,10 @@ const BudgetVarianceReport = () => {
             </div>
           </div>
 
-          {/* User Controls */}
-          <div className="navbar-controls">
-            {/* Timestamp/Date */}
+          {/* User Controls - Exact copy from LedgerView */}
+          <div className="navbar-controls" style={{ display: 'flex', alignItems: 'center', gap: '15px' }}>
+            {/* Timestamp/Date - Exact copy from LedgerView */}
             <div className="date-time-badge" style={{
-              marginRight: '16px',
               background: '#f3f4f6',
               borderRadius: '16px',
               padding: '4px 14px',
@@ -388,83 +423,150 @@ const BudgetVarianceReport = () => {
               {formattedDay}, {formattedDate} | {formattedTime}
             </div>
 
-            {/* Notification Icon */}
+            {/* Notification Icon - Exact copy from LedgerView */}
             <div className="notification-container">
               <div 
                 className="notification-icon"
                 onClick={toggleNotifications}
+                onMouseDown={(e) => e.preventDefault()}
+                style={{ position: 'relative', cursor: 'pointer', outline: 'none' }}
               >
                 <Bell size={20} />
-                <span className="notification-badge">3</span>
+                <span className="notification-badge" style={{
+                  position: 'absolute',
+                  top: '-5px',
+                  right: '-5px',
+                  backgroundColor: 'red',
+                  color: 'white',
+                  borderRadius: '50%',
+                  width: '16px',
+                  height: '16px',
+                  fontSize: '10px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center'
+                }}>3</span>
               </div>
               
               {showNotifications && (
-                <div className="notification-panel">
-                  <div className="notification-header">
+                <div className="notification-panel" style={{
+                  position: 'absolute',
+                  top: '100%',
+                  right: 0,
+                  backgroundColor: 'white',
+                  border: '1px solid #ccc',
+                  borderRadius: '8px',
+                  padding: '10px',
+                  width: '300px',
+                  zIndex: 1000
+                }}>
+                  <div className="notification-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
                     <h3>Notifications</h3>
-                    <button className="clear-all-btn">Clear All</button>
+                    <button 
+                      className="clear-all-btn"
+                      onMouseDown={(e) => e.preventDefault()}
+                      style={{ outline: 'none' }}
+                    >
+                      Clear All
+                    </button>
                   </div>
                   <div className="notification-list">
-                    <div className="notification-item">
-                      <div className="notification-icon-wrapper">
+                    <div className="notification-item" style={{ display: 'flex', padding: '8px 0', borderBottom: '1px solid #eee' }}>
+                      <div className="notification-icon-wrapper" style={{ marginRight: '10px' }}>
                         <Bell size={16} />
                       </div>
-                      <div className="notification-content">
-                        <div className="notification-title">Budget Approved</div>
+                      <div className="notification-content" style={{ flex: 1 }}>
+                        <div className="notification-title" style={{ fontWeight: 'bold' }}>Budget Approved</div>
                         <div className="notification-message">Your Q3 budget has been approved</div>
-                        <div className="notification-time">2 hours ago</div>
+                        <div className="notification-time" style={{ fontSize: '12px', color: '#666' }}>2 hours ago</div>
                       </div>
-                      <button className="notification-delete">&times;</button>
+                      <button 
+                        className="notification-delete" 
+                        style={{ background: 'none', border: 'none', cursor: 'pointer', outline: 'none' }}
+                        onMouseDown={(e) => e.preventDefault()}
+                      >
+                        &times;
+                      </button>
                     </div>
-                    <div className="notification-item">
-                      <div className="notification-icon-wrapper">
+                    <div className="notification-item" style={{ display: 'flex', padding: '8px 0', borderBottom: '1px solid #eee' }}>
+                      <div className="notification-icon-wrapper" style={{ marginRight: '10px' }}>
                         <Bell size={16} />
                       </div>
-                      <div className="notification-content">
-                        <div className="notification-title">Expense Report</div>
+                      <div className="notification-content" style={{ flex: 1 }}>
+                        <div className="notification-title" style={{ fontWeight: 'bold' }}>Expense Report</div>
                         <div className="notification-message">New expense report needs review</div>
-                        <div className="notification-time">5 hours ago</div>
+                        <div className="notification-time" style={{ fontSize: '12px', color: '#666' }}>5 hours ago</div>
                       </div>
-                      <button className="notification-delete">&times;</button>
+                      <button 
+                        className="notification-delete" 
+                        style={{ background: 'none', border: 'none', cursor: 'pointer', outline: 'none' }}
+                        onMouseDown={(e) => e.preventDefault()}
+                      >
+                        &times;
+                      </button>
                     </div>
                   </div>
                 </div>
               )}
             </div>
 
-            {/* Profile Dropdown */}
-            <div className="profile-container">
+            {/* Profile Dropdown - Exact copy from LedgerView */}
+            <div className="profile-container" style={{ position: 'relative' }}>
               <div 
                 className="profile-trigger"
                 onClick={toggleProfileDropdown}
+                onMouseDown={(e) => e.preventDefault()}
+                style={{ display: 'flex', alignItems: 'center', cursor: 'pointer', outline: 'none' }}
               >
-                <img src={userProfile.avatar} alt="User avatar" className="profile-image" />
-                <ChevronDown size={14} className={`dropdown-arrow ${showProfileDropdown ? 'rotated' : ''}`} />
+                <img src={userProfile.avatar} alt="User avatar" className="profile-image" style={{ width: '32px', height: '32px', borderRadius: '50%' }} />
               </div>
               
               {showProfileDropdown && (
-                <div className="profile-dropdown">
-                  <div className="profile-info-section">
-                    <img src={userProfile.avatar} alt="Profile" className="profile-dropdown-image" />
+                <div className="profile-dropdown" style={{
+                  position: 'absolute',
+                  top: '100%',
+                  right: 0,
+                  backgroundColor: 'white',
+                  border: '1px solid #ccc',
+                  borderRadius: '8px',
+                  padding: '10px',
+                  width: '250px',
+                  zIndex: 1000
+                }}>
+                  <div className="profile-info-section" style={{ display: 'flex', alignItems: 'center', marginBottom: '10px' }}>
+                    <img src={userProfile.avatar} alt="Profile" className="profile-dropdown-image" style={{ width: '40px', height: '40px', borderRadius: '50%', marginRight: '10px' }} />
                     <div className="profile-details">
-                      <div className="profile-name">{userProfile.name}</div>
-                      <div className="profile-role-badge">{userProfile.role}</div>
+                      <div className="profile-name" style={{ fontWeight: 'bold' }}>{userProfile.name}</div>
+                      <div className="profile-role-badge" style={{ backgroundColor: '#e9ecef', padding: '2px 8px', borderRadius: '12px', fontSize: '12px', display: 'inline-block' }}>{userProfile.role}</div>
                     </div>
                   </div>
-                  <div className="dropdown-divider"></div>
-                  <div className="dropdown-item">
-                    <User size={16} />
+                  <div className="dropdown-divider" style={{ height: '1px', backgroundColor: '#eee', margin: '10px 0' }}></div>
+                  <div 
+                    className="dropdown-item" 
+                    style={{ display: 'flex', alignItems: 'center', padding: '8px 0', cursor: 'pointer', outline: 'none' }}
+                    onMouseDown={(e) => e.preventDefault()}
+                  >
+                    <User size={16} style={{ marginRight: '8px' }} />
                     <span>Manage Profile</span>
                   </div>
                   {userProfile.role === "Admin" && (
-                    <div className="dropdown-item">
-                      <Settings size={16} />
+                    <div 
+                      className="dropdown-item" 
+                      style={{ display: 'flex', alignItems: 'center', padding: '8px 0', cursor: 'pointer', outline: 'none' }}
+                      onMouseDown={(e) => e.preventDefault()}
+                    >
+                      <Settings size={16} style={{ marginRight: '8px' }} />
                       <span>User Management</span>
                     </div>
                   )}
-                  <div className="dropdown-divider"></div>
-                  <div className="dropdown-item" onClick={handleLogout}>
-                    <LogOut size={16} />
+                  <div className="dropdown-divider" style={{ height: '1px', backgroundColor: '#eee', margin: '10px 0' }}></div>
+                  <div 
+                    className="dropdown-item" 
+                    onClick={handleLogout} 
+                    style={{ display: 'flex', alignItems: 'center', padding: '8px 0', cursor: 'pointer', outline: 'none' }}
+                    onMouseDown={(e) => e.preventDefault()}
+                  >
+                    <LogOut size={16} style={{ marginRight: '8px' }} />
                     <span>Log Out</span>
                   </div>
                 </div>
@@ -474,81 +576,268 @@ const BudgetVarianceReport = () => {
         </div>
       </nav>
 
-      {/* Main Content Section */}
-      <div className="content-container">
-        {/* Report Background Container */}
-        <div className="report-background-container">
-          {/* Report Header with Title, Date, and Controls */}
-          <div className="report-header">
-            <div className="report-title-container">
-              <h2 className="report-title">Budget Variance Report</h2>
-              <div className="report-date-display">
-                {months[selectedMonth - 1].label} {selectedYear}
+      {/* Main Content - Preserved original BudgetVarianceReport layout with LedgerView container styling */}
+      <div className="content-container" style={{ padding: '20px', maxWidth: '1200px', margin: '0 auto' }}>
+        {/* Page Container using LedgerView's styling */}
+        <div className="ledger-container" style={{ 
+          backgroundColor: 'white', 
+          borderRadius: '8px', 
+          boxShadow: '0 2px 4px rgba(0,0,0,0.1)',
+          padding: '20px',
+          overflow: 'hidden',
+          display: 'flex',
+          flexDirection: 'column',
+          height: 'calc(100vh - 100px)'
+        }}>
+          {/* Header Section with Title and Controls - Using LedgerView's layout structure */}
+          <div className="top" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
+            <h2 className="page-title">
+              Budget Variance Report
+            </h2>
+            
+            <div className="controls-container" style={{ display: 'flex', gap: '15px', alignItems: 'center' }}>
+              <div className="date-selection" style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
+                {/* Month Select with ChevronDown icon on the right */}
+                <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
+                  <select 
+                    className="month-select"
+                    value={selectedMonth}
+                    onChange={(e) => setSelectedMonth(parseInt(e.target.value))}
+                    style={{ 
+                      padding: '8px 32px 8px 12px', 
+                      border: '1px solid #ccc', 
+                      borderRadius: '4px',
+                      minWidth: '120px',
+                      appearance: 'none',
+                      backgroundColor: 'white'
+                    }}
+                  >
+                    {months.map(month => (
+                      <option key={month.value} value={month.value}>{month.label}</option>
+                    ))}
+                  </select>
+                  <ChevronDown 
+                    size={16} 
+                    style={{ 
+                      position: 'absolute', 
+                      right: '10px', 
+                      zIndex: 1,
+                      color: '#666',
+                      pointerEvents: 'none'
+                    }} 
+                  />
+                </div>
+                
+                {/* Year Select with ChevronDown icon on the right */}
+                <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
+                  <select 
+                    className="year-select"
+                    value={selectedYear}
+                    onChange={(e) => setSelectedYear(parseInt(e.target.value))}
+                    style={{ 
+                      padding: '8px 32px 8px 12px', 
+                      border: '1px solid #ccc', 
+                      borderRadius: '4px',
+                      minWidth: '100px',
+                      appearance: 'none',
+                      backgroundColor: 'white'
+                    }}
+                  >
+                    {years.map(year => (
+                      <option key={year} value={year}>{year}</option>
+                    ))}
+                  </select>
+                  <ChevronDown 
+                    size={16} 
+                    style={{ 
+                      position: 'absolute', 
+                      right: '10px', 
+                      zIndex: 1,
+                      color: '#666',
+                      pointerEvents: 'none'
+                    }} 
+                  />
+                </div>
               </div>
-            </div>
-            <div className="report-controls">
-              <div className="date-selection">
-                <select 
-                  className="month-select"
-                  value={selectedMonth}
-                  onChange={(e) => setSelectedMonth(parseInt(e.target.value))}
-                >
-                  {months.map(month => (
-                    <option key={month.value} value={month.value}>{month.label}</option>
-                  ))}
-                </select>
-                <select 
-                  className="year-select"
-                  value={selectedYear}
-                  onChange={(e) => setSelectedYear(parseInt(e.target.value))}
-                >
-                  {years.map(year => (
-                    <option key={year} value={year}>{year}</option>
-                  ))}
-                </select>
-              </div>
-              <button className="export-button" onClick={handleExport}>
-                <Download size={16} />
-                Export Report
+              
+              {/* Export Button - Styled like LedgerView buttons */}
+              <button 
+                className="export-button" 
+                onClick={handleExport}
+                onMouseDown={(e) => e.preventDefault()}
+                style={{ 
+                  padding: '8px 16px', 
+                  border: '1px solid #007bff', 
+                  borderRadius: '4px', 
+                  backgroundColor: '#007bff',
+                  color: '#ffffff',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '8px',
+                  cursor: 'pointer',
+                  marginLeft: '10px',
+                  fontWeight: '500',
+                  fontSize: '14px',
+                  outline: 'none'
+                }}
+              >
+                <span style={{ color: 'white' }}>Export Report</span>
+                <Download size={16} style={{ color: 'white' }} />
               </button>
             </div>
           </div>
 
-          {/* Report Table */}
-          <div className="report-table-container">
-            <table className="report-table">
-              <thead>
-                <tr>
-                  <th className="category-header">CATEGORY</th>
-                  <th className="budget-header">BUDGET</th>
-                  <th className="actual-header">ACTUAL</th>
-                  <th className="available-header">AVAILABLE</th>
-                </tr>
-              </thead>
-              <tbody>
-                {budgetData.map((item) => (
-                  <tr key={item.id} className={`
-                    ${item.isHeader ? 'header-row' : ''} 
-                    ${item.isSubcategory ? 'subcategory-row' : ''} 
-                    ${item.indent ? 'indent-row' : ''}
-                  `}>
-                    <td className="category-cell">
-                      <div className="category-content">
-                        <span className="category-name">{item.category}</span>
-                        {item.percentage && (
-                          <span className="percentage-badge">{item.percentage}</span>
-                        )}
-                      </div>
-                    </td>
-                    <td className="budget-cell">{item.budget}</td>
-                    <td className="actual-cell">{item.actual}</td>
-                    <td className={`available-cell ${item.isPositive ? 'positive' : 'negative'}`}>
-                      {item.available}
-                    </td>
+          {/* Separator line between title and table - Matching LedgerView */}
+          <div style={{
+            height: '1px',
+            backgroundColor: '#e0e0e0',
+            marginBottom: '20px'
+          }}></div>
+
+          {/* Report Table Container - Made scrollable like LedgerView */}
+          <div style={{ 
+            flex: 1,
+            overflow: 'auto',
+            border: '1px solid #e0e0e0',
+            borderRadius: '4px',
+            position: 'relative'
+          }}>
+            {/* Custom scrollbar styling from LedgerView */}
+            <style>
+              {`
+                .table-scroll-container::-webkit-scrollbar {
+                  width: 8px;
+                  height: 8px;
+                }
+                .table-scroll-container::-webkit-scrollbar-track {
+                  background: #f1f1f1;
+                  border-radius: 4px;
+                }
+                .table-scroll-container::-webkit-scrollbar-thumb {
+                  background: #c1c1c1;
+                  border-radius: 4px;
+                }
+                .table-scroll-container::-webkit-scrollbar-thumb:hover {
+                  background: #a8a8a8;
+                }
+              `}
+            </style>
+            
+            <div className="table-scroll-container" style={{
+              height: '100%',
+              overflow: 'auto'
+            }}>
+              <table className="report-table" style={{ 
+                width: '100%', 
+                borderCollapse: 'collapse',
+                tableLayout: 'fixed'
+              }}>
+                <thead>
+                  <tr style={{ backgroundColor: '#f8f9fa', position: 'sticky', top: 0, zIndex: 10 }}>
+                    <th style={{ 
+                      width: '40%', 
+                      padding: '0.75rem', 
+                      textAlign: 'left', 
+                      borderBottom: '2px solid #dee2e6',
+                      height: '50px',
+                      verticalAlign: 'middle',
+                      backgroundColor: '#f8f9fa'
+                    }}>CATEGORY</th>
+                    <th style={{ 
+                      width: '20%', 
+                      padding: '0.75rem', 
+                      textAlign: 'left', 
+                      borderBottom: '2px solid #dee2e6',
+                      height: '50px',
+                      verticalAlign: 'middle',
+                      backgroundColor: '#f8f9fa'
+                    }}>BUDGET</th>
+                    <th style={{ 
+                      width: '20%', 
+                      padding: '0.75rem', 
+                      textAlign: 'left', 
+                      borderBottom: '2px solid #dee2e6',
+                      height: '50px',
+                      verticalAlign: 'middle',
+                      backgroundColor: '#f8f9fa'
+                    }}>ACTUAL</th>
+                    <th style={{ 
+                      width: '20%', 
+                      padding: '0.75rem', 
+                      textAlign: 'left', 
+                      borderBottom: '2px solid #dee2e6',
+                      height: '50px',
+                      verticalAlign: 'middle',
+                      backgroundColor: '#f8f9fa'
+                    }}>AVAILABLE</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
+                </thead>
+                <tbody>
+                  {budgetData.map((item, index) => (
+                    <tr 
+                      key={item.id} 
+                      className={index % 2 === 1 ? 'alternate-row' : ''} 
+                      style={{ 
+                        backgroundColor: index % 2 === 1 ? '#F8F8F8' : '#FFFFFF', 
+                        color: '#0C0C0C',
+                        height: '50px',
+                        transition: 'background-color 0.2s ease'
+                      }}
+                      onMouseEnter={(e) => {
+                        e.currentTarget.style.backgroundColor = '#fcfcfc';
+                      }}
+                      onMouseLeave={(e) => {
+                        e.currentTarget.style.backgroundColor = index % 2 === 1 ? '#F8F8F8' : '#FFFFFF';
+                      }}
+                    >
+                      <td style={{ 
+                        padding: '0.75rem', 
+                        borderBottom: '1px solid #dee2e6',
+                        verticalAlign: 'middle',
+                        paddingLeft: item.indent ? '2rem' : '0.75rem'
+                      }}>
+                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                          <span style={{ 
+                            fontWeight: item.isHeader ? 'bold' : 'normal',
+                            fontSize: item.isHeader ? '1.1em' : '1em'
+                          }}>
+                            {item.category}
+                          </span>
+                          {item.percentage && (
+                            <span style={{ 
+                              fontSize: '0.8em', 
+                              color: '#666',
+                              backgroundColor: '#f0f0f0',
+                              padding: '2px 8px',
+                              borderRadius: '4px'
+                            }}>
+                              {item.percentage}
+                            </span>
+                          )}
+                        </div>
+                      </td>
+                      <td style={{ 
+                        padding: '0.75rem', 
+                        borderBottom: '1px solid #dee2e6',
+                        verticalAlign: 'middle'
+                      }}>{item.budget}</td>
+                      <td style={{ 
+                        padding: '0.75rem', 
+                        borderBottom: '1px solid #dee2e6',
+                        verticalAlign: 'middle'
+                      }}>{item.actual}</td>
+                      <td style={{ 
+                        padding: '0.75rem', 
+                        borderBottom: '1px solid #dee2e6',
+                        verticalAlign: 'middle',
+                        color: item.isPositive ? '#10b981' : '#ef4444',
+                        fontWeight: 'bold'
+                      }}>{item.available}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
           </div>
         </div>
       </div>

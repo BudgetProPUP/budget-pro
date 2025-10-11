@@ -575,40 +575,89 @@
   gap: 0.5rem;
 }
 
-.pagination-btn {
-  padding: 8px 12px;
-  border: 1px solid #d1d5db;
-  background-color: white;
+/* Pagination Container */
+.paginationContainer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 1rem 0;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+/* Page Size Selector */
+.pageSizeSelector {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.pageSizeSelector label,
+.pageSizeSelector span {
+  color: #545f71;
+  font-size: 13px;
+}
+
+.pageSizeSelector select {
+  border: 1px solid #e0e0e0;
+  background: #F8F8F8;
+  color: #0C0C0C;
+  padding: 7px 14px;
+  border-radius: 6px;
+  font-size: 14px;
+  cursor: pointer;
+  transition: border-color 0.2s, background 0.2s;
+}
+
+.pageSizeSelector select:focus {
+  outline: none;
+  border-color: #007bff;
+  box-shadow: 0 0 0 2px rgba(0,123,255,0.12);
+}
+
+/* Page Navigation */
+.pageNavigation {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+/* Navigation Buttons */
+.pageNavigation button,
+.pageButton {
+  border: 1px solid #e0e0e0;
+  padding: 7px 14px;
   border-radius: 6px;
   cursor: pointer;
+  background-color: #ffffff;
+  color: #545f71;
   font-size: 14px;
+  transition: background 0.2s, color 0.2s, border-color 0.2s;
+  min-width: 32px;
+  min-height: 32px;
   display: flex;
   align-items: center;
   justify-content: center;
-  min-width: 40px;
-  height: 40px;
-  transition: all 0.2s ease;
 }
 
-.pagination-btn:hover {
-  background-color: #f9fafb;
-  border-color: #9ca3af;
+.pageNavigation button:hover,
+.pageButton:hover {
+  background-color: #F8F8F8;
+  border-color: #d0d0d0;
+  color: #007bff;
 }
 
-.pagination-btn.active {
-  background-color: #3b82f6;
-  color: white;
-  border-color: #3b82f6;
+.pageButton.active {
+  font-weight: bold;
+  background-color: #007BFF;
+  color: #fff;
+  border-color: #007bff;
 }
 
-.pagination-btn:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
-}
-
-.pagination-btn:disabled:hover {
-  background-color: white;
-  border-color: #d1d5db;
+.pageButton.active:hover {
+  background-color: #0056B3;
+  color: #fff;
+  border-color: #0056B3;
 }
 
 /* Budget Proposal View Styles */

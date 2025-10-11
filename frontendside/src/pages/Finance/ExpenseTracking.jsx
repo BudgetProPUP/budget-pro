@@ -1,8 +1,155 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { Search, ChevronDown, ArrowLeft, ChevronLeft, ChevronRight, Plus, Calendar, FileText, User, Mail, Briefcase, LogOut, Bell, Settings, X } from 'lucide-react';
 import { Link, useNavigate } from 'react-router-dom';
 import LOGOMAP from '../../assets/MAP.jpg';
 import './ExpenseTracking.css';
+
+// Status Component - Added based on your requirements
+const Status = ({
+  type,
+  name,
+  personName = null,
+  location = null,
+}) => {
+  return (
+    <div className={`status-${type.split(" ").join("-")}`}>
+      <div className="circle"></div>
+      {name}
+      {(personName != null || location != null) && (
+        <span className="status-details">
+          <span className="status-to">to</span>
+          <div className="icon">
+            <div className="icon-placeholder"></div>
+          </div>
+          <span className="status-target">
+            {personName != null ? personName : location}
+          </span>
+        </span>
+      )}
+    </div>
+  );
+};
+
+// Pagination Component (Copied from LedgerView)
+const Pagination = ({
+  currentPage,
+  pageSize,
+  totalItems,
+  onPageChange,
+  onPageSizeChange,
+  pageSizeOptions = [5, 10, 20, 50, 100],
+}) => {
+  const totalPages = Math.ceil(totalItems / pageSize);
+
+  const handlePageClick = (page) => {
+    if (page >= 1 && page <= totalPages) {
+      onPageChange(page);
+    }
+  };
+
+  const renderPageNumbers = () => {
+    const pages = [];
+
+    for (let i = 1; i <= totalPages; i++) {
+      pages.push(
+        <button
+          key={i}
+          className={`pageButton ${i === currentPage ? "active" : ""}`}
+          onClick={() => handlePageClick(i)}
+          onMouseDown={(e) => e.preventDefault()}
+          style={{ 
+            padding: '8px 12px', 
+            border: '1px solid #ccc', 
+            backgroundColor: i === currentPage ? '#007bff' : 'white',
+            color: i === currentPage ? 'white' : 'black',
+            cursor: 'pointer',
+            borderRadius: '4px',
+            minWidth: '40px',
+            outline: 'none'
+          }}
+        >
+          {i}
+        </button>
+      );
+    }
+
+    return pages;
+  };
+
+  return (
+    <div className="paginationContainer" style={{ 
+      display: 'flex', 
+      justifyContent: 'space-between', 
+      alignItems: 'center',
+      marginTop: '20px',
+      padding: '10px 0'
+    }}>
+      {/* Left Side: Page Size Selector */}
+      <div className="pageSizeSelector" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+        <label htmlFor="pageSize" style={{ fontSize: '14px' }}>Show</label>
+        <select
+          id="pageSize"
+          value={pageSize}
+          onChange={(e) => onPageSizeChange(Number(e.target.value))}
+          style={{ 
+            padding: '6px 8px',
+            border: '1px solid #ccc',
+            borderRadius: '4px',
+            outline: 'none'
+          }}
+        >
+          {pageSizeOptions.map((size) => (
+            <option key={size} value={size}>
+              {size}
+            </option>
+          ))}
+        </select>
+        <span style={{ fontSize: '14px' }}>items per page</span>
+      </div>
+
+      {/* Right Side: Page Navigation */}
+      <div className="pageNavigation" style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
+        <button
+          onClick={() => handlePageClick(currentPage - 1)}
+          disabled={currentPage === 1}
+          onMouseDown={(e) => e.preventDefault()}
+          style={{ 
+            padding: '8px 12px', 
+            border: '1px solid #ccc', 
+            backgroundColor: currentPage === 1 ? '#f0f0f0' : 'white', 
+            cursor: currentPage === 1 ? 'not-allowed' : 'pointer',
+            borderRadius: '4px',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            outline: 'none'
+          }}
+        >
+          Prev
+        </button>
+        {renderPageNumbers()}
+        <button
+          onClick={() => handlePageClick(currentPage + 1)}
+          disabled={currentPage === totalPages}
+          onMouseDown={(e) => e.preventDefault()}
+          style={{ 
+            padding: '8px 12px', 
+            border: '1px solid #ccc', 
+            backgroundColor: currentPage === totalPages ? '#f0f0f0' : 'white', 
+            cursor: currentPage === totalPages ? 'not-allowed' : 'pointer',
+            borderRadius: '4px',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            outline: 'none'
+          }}
+        >
+          Next
+        </button>
+      </div>
+    </div>
+  );
+};
 
 const ExpenseTracking = () => {
   const [showBudgetDropdown, setShowBudgetDropdown] = useState(false);
@@ -15,18 +162,18 @@ const ExpenseTracking = () => {
   const [_selectedDate, setSelectedDate] = useState('All Time');
   const [showAddExpenseModal, setShowAddExpenseModal] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
-  const [searchQuery, setSearchQuery] = useState('');
-  const [selectedExpenses, setSelectedExpenses] = useState([]);
+  const [pageSize, setPageSize] = useState(5);
+  const [searchTerm, setSearchTerm] = useState('');
+
   const [newExpense, setNewExpense] = useState({
-    referenceNo: '',
-    description: '',
+    ticketId: '',
     category: '',
+    subcategory: '',
+    vendor: '',
+    employee: '',
     amount: '',
     date: new Date().toISOString().split('T')[0],
-    projectSummary: '',
-    dueDate: ''
   });
-  const itemsPerPage = 5;
   const navigate = useNavigate();
 
   // User profile data
@@ -90,76 +237,49 @@ const ExpenseTracking = () => {
   const [expenses, setExpenses] = useState([
     {
       id: 1,
-      referenceNo: 'REF-001',
+      ticketId: 'TKT-001',
       date: '04-12-2025',
-      description: 'Website Redesign Project',
       category: 'Training & Development',
+      subcategory: 'Workshop',
+      vendor: 'Tech Training Inc.',
+      employee: 'John Smith',
       amount: '₱50,000.00',
-      status: 'pending',
-      accomplished: false,
-      projectSummary: 'This Budget Proposal provides necessary costs associated with the website redesign project.',
-      dueDate: 'April 30, 2025'
+      status: 'inactive',
     },
     {
       id: 2,
-      referenceNo: 'REF-002',
+      ticketId: 'TKT-002',
       date: '03-20-2025',
-      description: 'Software Subscription',
       category: 'Professional Services',
+      subcategory: 'Software',
+      vendor: 'Software Solutions Ltd.',
+      employee: 'Maria Garcia',
       amount: '₱15,750.00',
-      status: 'approved',
-      accomplished: true,
-      projectSummary: 'Annual subscription for productivity software suite.',
-      dueDate: 'March 31, 2025'
+      status: 'active',
     },
     {
       id: 3,
-      referenceNo: 'REF-003',
+      ticketId: 'TKT-003',
       date: '03-15-2025',
-      description: 'Cloud Hosting',
       category: 'Professional Services',
+      subcategory: 'Hosting',
+      vendor: 'Cloud Hosting Co.',
+      employee: 'Robert Johnson',
       amount: '₱12,500.00',
-      status: 'paid',
-      accomplished: true,
-      projectSummary: 'Monthly cloud infrastructure costs for all company applications.',
-      dueDate: 'March 20, 2025'
+      status: 'active',
     },
     {
       id: 4,
-      referenceNo: 'REF-004',
+      ticketId: 'TKT-004',
       date: '02-25-2025',
-      description: 'Company Laptops',
       category: 'Equipment & Maintenance',
+      subcategory: 'Hardware',
+      vendor: 'Computer World',
+      employee: 'Sarah Wilson',
       amount: '₱450,000.00',
-      status: 'approved',
-      accomplished: true,
-      projectSummary: 'Purchase of new laptops for the engineering team.',
-      dueDate: 'February 28, 2025'
+      status: 'active',
     },
-    {
-      id: 5,
-      referenceNo: 'REF-005',
-      date: '01-25-2025',
-      description: 'Office Printers',
-      category: 'Equipment & Maintenance',
-      amount: '₱180,000.00',
-      status: 'paid',
-      accomplished: true,
-      projectSummary: 'Acquisition of networked printers for all departments.',
-      dueDate: 'January 30, 2025'
-    },
-    {
-      id: 6,
-      referenceNo: 'REF-006',
-      date: '12-19-2024',
-      description: 'AI Workshop Series',
-      category: 'Training & Development',
-      amount: '₱25,000.00',
-      status: 'rejected',
-      accomplished: false,
-      projectSummary: 'Training program for staff on AI technologies and applications.',
-      dueDate: 'December 31, 2024'
-    }
+    
   ]);
 
   // Budget summary data - Updated to match the BudgetProposal format
@@ -181,41 +301,52 @@ const ExpenseTracking = () => {
     'Maintenance',
     'Miscellaneous'
   ];
+
+  // Subcategories for each category - Added back
+  const subcategories = {
+    'Travel': ['Airfare', 'Hotel', 'Meals', 'Transportation'],
+    'Office Supplies': ['Stationery', 'Furniture', 'Electronics'],
+    'Utilities': ['Electricity', 'Internet', 'Water'],
+    'Marketing': ['Advertising', 'Events', 'Promotional Materials'],
+    'Professional Services': ['Consulting', 'Software', 'Hosting'],
+    'Training & Development': ['Workshop', 'Seminar', 'Course'],
+    'Equipment & Maintenance': ['Hardware', 'Software', 'Office Equipment'],
+    'Miscellaneous': ['Other']
+  };
+
+  // Sample vendors and employees
+  const vendors = ['Tech Training Inc.', 'Software Solutions Ltd.', 'Cloud Hosting Co.', 'Computer World', 'Office Supplies Pro', 'AI Learning Center'];
+  const employees = ['John Smith', 'Maria Garcia', 'Robert Johnson', 'Sarah Wilson', 'Michael Brown', 'Jennifer Lee'];
   
   // Date filter options
   const _dateOptions = ['All Time', 'This Month', 'Last Month', 'Last 3 Months', 'This Year'];
 
-  const handleSearch = (e) => {
-    setSearchQuery(e.target.value);
-    setCurrentPage(1);
-  };
+  // Filter expenses based on search term, category and date - Updated to use useMemo like LedgerView
+  const filteredExpenses = useMemo(() => {
+    return expenses.filter(expense => {
+      const matchesSearch = expense.ticketId.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                         expense.category.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                         expense.subcategory.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                         expense.vendor.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                         expense.employee.toLowerCase().includes(searchTerm.toLowerCase());
+      const matchesCategory = selectedCategory === 'All Categories' || expense.category === selectedCategory;
+      const matchesDate = true;
+      return matchesSearch && matchesCategory && matchesDate;
+    });
+  }, [searchTerm, selectedCategory, expenses]);
 
-  // Filter expenses based on search query, selected category, and date
-  const filteredExpenses = expenses.filter(expense => {
-    const matchesSearch = expense.description.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                         expense.category.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                         expense.referenceNo.toLowerCase().includes(searchQuery.toLowerCase());
-    const matchesCategory = selectedCategory === 'All Categories' || expense.category === selectedCategory;
-    const matchesDate = true;
-    return matchesSearch && matchesCategory && matchesDate;
-  });
-
-  // Pagination logic
-  const indexOfLastItem = currentPage * itemsPerPage;
-  const indexOfFirstItem = indexOfLastItem - itemsPerPage;
+  // Pagination logic - Updated to use pageSize state like LedgerView
+  const indexOfLastItem = currentPage * pageSize;
+  const indexOfFirstItem = indexOfLastItem - pageSize;
   const currentExpenses = filteredExpenses.slice(indexOfFirstItem, indexOfLastItem);
-  const totalPages = Math.ceil(filteredExpenses.length / itemsPerPage);
 
-  const paginate = (pageNumber) => setCurrentPage(pageNumber);
-  const nextPage = () => setCurrentPage(prev => Math.min(prev + 1, totalPages));
-  const prevPage = () => setCurrentPage(prev => Math.max(prev - 1, 1));
-
-  // Navigation functions
+  // Navigation functions - Updated with BudgetProposal functionality
   const toggleBudgetDropdown = () => {
     setShowBudgetDropdown(!showBudgetDropdown);
     if (showExpenseDropdown) setShowExpenseDropdown(false);
     if (showProfileDropdown) setShowProfileDropdown(false);
     if (showNotifications) setShowNotifications(false);
+    if (showCategoryDropdown) setShowCategoryDropdown(false);
   };
 
   const toggleExpenseDropdown = () => {
@@ -223,6 +354,7 @@ const ExpenseTracking = () => {
     if (showBudgetDropdown) setShowBudgetDropdown(false);
     if (showProfileDropdown) setShowProfileDropdown(false);
     if (showNotifications) setShowNotifications(false);
+    if (showCategoryDropdown) setShowCategoryDropdown(false);
   };
 
   const toggleProfileDropdown = () => {
@@ -230,6 +362,7 @@ const ExpenseTracking = () => {
     if (showBudgetDropdown) setShowBudgetDropdown(false);
     if (showExpenseDropdown) setShowExpenseDropdown(false);
     if (showNotifications) setShowNotifications(false);
+    if (showCategoryDropdown) setShowCategoryDropdown(false);
   };
 
   const toggleNotifications = () => {
@@ -237,6 +370,7 @@ const ExpenseTracking = () => {
     if (showBudgetDropdown) setShowBudgetDropdown(false);
     if (showExpenseDropdown) setShowExpenseDropdown(false);
     if (showProfileDropdown) setShowProfileDropdown(false);
+    if (showCategoryDropdown) setShowCategoryDropdown(false);
   };
 
   const toggleCategoryDropdown = () => {
@@ -267,6 +401,7 @@ const ExpenseTracking = () => {
     setShowExpenseDropdown(false);
     setShowProfileDropdown(false);
     setShowNotifications(false);
+    setShowCategoryDropdown(false);
   };
 
   const handleLogout = () => {
@@ -283,12 +418,6 @@ const ExpenseTracking = () => {
     }
   };
 
-  const handleExpenseSelect = (id) => {
-    setSelectedExpenses(prev => 
-      prev.includes(id) ? prev.filter(expenseId => expenseId !== id) : [...prev, id]
-    );
-  };
-
   const handleAddExpense = () => {
     setShowAddExpenseModal(true);
   };
@@ -296,50 +425,116 @@ const ExpenseTracking = () => {
   const handleCloseModal = () => {
     setShowAddExpenseModal(false);
     setNewExpense({
-      referenceNo: '',
-      description: '',
+      ticketId: '',
       category: '',
+      subcategory: '',
+      vendor: '',
+      employee: '',
       amount: '',
       date: new Date().toISOString().split('T')[0],
-      projectSummary: '',
-      dueDate: ''
     });
   };
 
+  // UPDATED: handleInputChange with BudgetAllocation's amount formatting
   const handleInputChange = (e) => {
     const { name, value } = e.target;
+    
+    if (name === 'amount') {
+      // Allow typing any amount and format as peso (from BudgetAllocation)
+      if (value === '') {
+        setNewExpense(prev => ({
+          ...prev,
+          [name]: ''
+        }));
+      } else {
+        // Remove any existing peso symbol and format properly
+        const cleanValue = value.replace('₱', '').replace(/,/g, '');
+        
+        // Only allow numbers and decimal point
+        const numericValue = cleanValue.replace(/[^\d.]/g, '');
+        
+        // Format as peso currency with comma separators
+        const formattedValue = `₱${numericValue.replace(/\B(?=(\d{3})+(?!\d))/g, ',')}`;
+        
+        setNewExpense(prev => ({
+          ...prev,
+          [name]: formattedValue
+        }));
+      }
+    } else {
+      setNewExpense(prev => ({
+        ...prev,
+        [name]: value
+      }));
+    }
+
+    // Reset subcategory when category changes
+    if (name === 'category') {
+      setNewExpense(prev => ({
+        ...prev,
+        subcategory: ''
+      }));
+    }
+  };
+
+  // UPDATED: clearAmount function from BudgetAllocation
+  const clearAmount = () => {
     setNewExpense(prev => ({
       ...prev,
-      [name]: value
+      amount: ''
     }));
   };
 
   const handleSubmitExpense = (e) => {
     e.preventDefault();
     
+    // Validate mandatory fields
+    if (!newExpense.vendor || !newExpense.employee || !newExpense.category) {
+      alert('Please fill in all mandatory fields: Vendor, Employee, and Category');
+      return;
+    }
+    
     const dateParts = newExpense.date.split('-');
     const formattedDate = `${dateParts[1]}-${dateParts[2]}-${dateParts[0]}`;
     
+    // Use the already formatted amount from newExpense.amount
+    const formattedAmount = newExpense.amount || '₱0.00';
+    
     const newExpenseEntry = {
       id: expenses.length + 1,
-      referenceNo: newExpense.referenceNo,
+      ticketId: newExpense.ticketId || `TKT-${String(expenses.length + 1).padStart(3, '0')}`,
       date: formattedDate,
-      description: newExpense.description,
       category: newExpense.category,
-      amount: `₱${parseFloat(newExpense.amount).toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})}`,
-      status: 'pending',
-      accomplished: false,
-      projectSummary: newExpense.projectSummary,
-      dueDate: newExpense.dueDate
+      subcategory: newExpense.subcategory,
+      vendor: newExpense.vendor,
+      employee: newExpense.employee,
+      amount: formattedAmount,
+      status: 'inactive',
     };
     
     setExpenses([newExpenseEntry, ...expenses]);
     handleCloseModal();
   };
 
+  // Function to format date as YYYY-MM-DD for input type="date"
+  const formatDateForInput = (date) => {
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+  };
+
+  // Use the formatDateForInput function to set initial date
+  useEffect(() => {
+    setNewExpense(prev => ({
+      ...prev,
+      date: formatDateForInput(new Date())
+    }));
+  }, []);
+
   return (
     <div className="app-container" style={{ minWidth: '1200px', overflowY: 'auto', height: '100vh' }}>
-      {/* Navigation Bar - Preserved as requested */}
+      {/* Navigation Bar */}
       <nav className="navbar" style={{ position: 'static', marginBottom: '20px' }}>
         <div className="navbar-content" style={{ 
           display: 'flex', 
@@ -394,6 +589,8 @@ const ExpenseTracking = () => {
               <div 
                 className={`nav-link ${showBudgetDropdown ? 'active' : ''}`}
                 onClick={toggleBudgetDropdown}
+                onMouseDown={(e) => e.preventDefault()}
+                style={{ outline: 'none' }}
               >
                 Budget <ChevronDown size={14} className={`dropdown-arrow ${showBudgetDropdown ? 'rotated' : ''}`} />
               </div>
@@ -408,7 +605,7 @@ const ExpenseTracking = () => {
                   <div className="dropdown-item" onClick={() => handleNavigate('/finance/ledger-view')}>
                     Ledger View
                   </div>
-                  <div className="dropdown-item" onClick={() => handleNavigate('/finance/journal-entry')}>
+                  <div className="dropdown-item" onClick={() => handleNavigate('/finance/budget-allocation')}>
                     Budget Allocation
                   </div>
                   <div className="dropdown-item" onClick={() => handleNavigate('/finance/budget-variance-report')}>
@@ -423,6 +620,8 @@ const ExpenseTracking = () => {
               <div 
                 className={`nav-link ${showExpenseDropdown ? 'active' : ''}`}
                 onClick={toggleExpenseDropdown}
+                onMouseDown={(e) => e.preventDefault()}
+                style={{ outline: 'none' }}
               >
                 Expense <ChevronDown size={14} className={`dropdown-arrow ${showExpenseDropdown ? 'rotated' : ''}`} />
               </div>
@@ -441,7 +640,7 @@ const ExpenseTracking = () => {
 
           {/* User Controls */}
           <div className="navbar-controls" style={{ display: 'flex', alignItems: 'center', gap: '15px' }}>
-            {/* Timestamp/Date - Updated format */}
+            {/* Timestamp/Date */}
             <div className="date-time-badge" style={{
               background: '#f3f4f6',
               borderRadius: '16px',
@@ -456,11 +655,12 @@ const ExpenseTracking = () => {
             </div>
 
             {/* Notification Icon */}
-            <div className="notification-container">
+            <div className="notification-container" style={{ position: 'relative' }}>
               <div 
                 className="notification-icon"
                 onClick={toggleNotifications}
-                style={{ position: 'relative', cursor: 'pointer' }}
+                onMouseDown={(e) => e.preventDefault()}
+                style={{ position: 'relative', cursor: 'pointer', outline: 'none' }}
               >
                 <Bell size={20} />
                 <span className="notification-badge" style={{
@@ -478,7 +678,7 @@ const ExpenseTracking = () => {
                   justifyContent: 'center'
                 }}>3</span>
               </div>
-              
+
               {showNotifications && (
                 <div className="notification-panel" style={{
                   position: 'absolute',
@@ -492,46 +692,42 @@ const ExpenseTracking = () => {
                   zIndex: 1000
                 }}>
                   <div className="notification-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
-                    <h3>Notifications</h3>
-                    <button className="clear-all-btn">Clear All</button>
+                    <h3 style={{ margin: 0, fontSize: '16px' }}>Notifications</h3>
+                    <button className="clear-all-btn" onMouseDown={(e) => e.preventDefault()} style={{ background: 'none', border: 'none', color: '#007bff', cursor: 'pointer', outline: 'none' }}>Clear All</button>
                   </div>
                   <div className="notification-list">
                     <div className="notification-item" style={{ display: 'flex', padding: '8px 0', borderBottom: '1px solid #eee' }}>
-                      <div className="notification-icon-wrapper" style={{ marginRight: '10px' }}>
-                        <Bell size={16} />
-                      </div>
+                      <div className="notification-icon-wrapper" style={{ marginRight: '10px' }}><Bell size={16} /></div>
                       <div className="notification-content" style={{ flex: 1 }}>
                         <div className="notification-title" style={{ fontWeight: 'bold' }}>Budget Approved</div>
                         <div className="notification-message">Your Q3 budget has been approved</div>
                         <div className="notification-time" style={{ fontSize: '12px', color: '#666' }}>2 hours ago</div>
                       </div>
-                      <button className="notification-delete" style={{ background: 'none', border: 'none', cursor: 'pointer' }}>&times;</button>
+                      <button className="notification-delete" style={{ background: 'none', border: 'none', cursor: 'pointer', outline: 'none', color: '#666' }} onMouseDown={(e) => e.preventDefault()}>&times;</button>
                     </div>
-                    <div className="notification-item" style={{ display: 'flex', padding: '8px 0', borderBottom: '1px solid #eee' }}>
-                      <div className="notification-icon-wrapper" style={{ marginRight: '10px' }}>
-                        <Bell size={16} />
-                      </div>
+                    <div className="notification-item" style={{ display: 'flex', padding: '8px 0' }}>
+                      <div className="notification-icon-wrapper" style={{ marginRight: '10px' }}><Bell size={16} /></div>
                       <div className="notification-content" style={{ flex: 1 }}>
                         <div className="notification-title" style={{ fontWeight: 'bold' }}>Expense Report</div>
                         <div className="notification-message">New expense report needs review</div>
                         <div className="notification-time" style={{ fontSize: '12px', color: '#666' }}>5 hours ago</div>
                       </div>
-                      <button className="notification-delete" style={{ background: 'none', border: 'none', cursor: 'pointer' }}>&times;</button>
+                      <button className="notification-delete" style={{ background: 'none', border: 'none', cursor: 'pointer', outline: 'none', color: '#666' }} onMouseDown={(e) => e.preventDefault()}>&times;</button>
                     </div>
                   </div>
                 </div>
               )}
             </div>
 
-            {/* Profile Dropdown - Removed arrow icon */}
+            {/* Profile Dropdown (no arrow) */}
             <div className="profile-container" style={{ position: 'relative' }}>
               <div 
                 className="profile-trigger"
                 onClick={toggleProfileDropdown}
-                style={{ display: 'flex', alignItems: 'center', cursor: 'pointer' }}
+                onMouseDown={(e) => e.preventDefault()}
+                style={{ display: 'flex', alignItems: 'center', cursor: 'pointer', outline: 'none' }}
               >
                 <img src={userProfile.avatar} alt="User avatar" className="profile-image" style={{ width: '32px', height: '32px', borderRadius: '50%' }} />
-                {/* Removed the ChevronDown icon */}
               </div>
               
               {showProfileDropdown && (
@@ -554,20 +750,17 @@ const ExpenseTracking = () => {
                     </div>
                   </div>
                   <div className="dropdown-divider" style={{ height: '1px', backgroundColor: '#eee', margin: '10px 0' }}></div>
-                  <div className="dropdown-item" style={{ display: 'flex', alignItems: 'center', padding: '8px 0', cursor: 'pointer' }}>
-                    <User size={16} style={{ marginRight: '8px' }} />
-                    <span>Manage Profile</span>
+                  <div className="dropdown-item" style={{ display: 'flex', alignItems: 'center', padding: '8px 0', cursor: 'pointer' }} onMouseDown={(e) => e.preventDefault()}>
+                    <User size={16} style={{ marginRight: '8px' }} /> <span>Manage Profile</span>
                   </div>
                   {userProfile.role === "Admin" && (
-                    <div className="dropdown-item" style={{ display: 'flex', alignItems: 'center', padding: '8px 0', cursor: 'pointer' }}>
-                      <Settings size={16} style={{ marginRight: '8px' }} />
-                      <span>User Management</span>
-                  </div>
+                    <div className="dropdown-item" style={{ display: 'flex', alignItems: 'center', padding: '8px 0', cursor: 'pointer' }} onMouseDown={(e) => e.preventDefault()}>
+                      <Settings size={16} style={{ marginRight: '8px' }} /> <span>User Management</span>
+                    </div>
                   )}
                   <div className="dropdown-divider" style={{ height: '1px', backgroundColor: '#eee', margin: '10px 0' }}></div>
-                  <div className="dropdown-item" onClick={handleLogout} style={{ display: 'flex', alignItems: 'center', padding: '8px 0', cursor: 'pointer' }}>
-                    <LogOut size={16} style={{ marginRight: '8px' }} />
-                    <span>Log Out</span>
+                  <div className="dropdown-item" onClick={handleLogout} style={{ display: 'flex', alignItems: 'center', padding: '8px 0', cursor: 'pointer' }} onMouseDown={(e) => e.preventDefault()}>
+                    <LogOut size={16} style={{ marginRight: '8px' }} /> <span>Log Out</span>
                   </div>
                 </div>
               )}
@@ -576,9 +769,8 @@ const ExpenseTracking = () => {
         </div>
       </nav>
 
-      {/* Main Content Container - Updated with BudgetProposal layout */}
       <div className="content-container" style={{ padding: '20px', maxWidth: '1200px', margin: '0 auto' }}>
-        {/* Budget Summary Cards - Updated to match BudgetProposal format */}
+        {/* Budget Summary Cards */}
         <div className="budget-summary" style={{ display: 'flex', gap: '1rem', justifyContent: 'space-between', marginBottom: '20px' }}>
           <div className="budget-card" style={{ 
             flex: '1', 
@@ -644,8 +836,8 @@ const ExpenseTracking = () => {
           </div>
         </div>
 
-        {/* Main Content - Updated with BudgetProposal layout */}
-        <div className="ledger-container" style={{ 
+        {/* Main Content - Updated with LedgerView Layout */}
+        <div className="expense-tracking" style={{ 
           backgroundColor: 'white', 
           borderRadius: '8px', 
           boxShadow: '0 2px 4px rgba(0,0,0,0.1)',
@@ -653,54 +845,38 @@ const ExpenseTracking = () => {
           overflow: 'hidden',
           display: 'flex',
           flexDirection: 'column',
-          height: 'calc(100vh - 240px)'
+          minHeight: 'calc(80vh - 100px)'
         }}>
-          {/* Header Section with Title and Controls */}
+          {/* Header Section with Title and Controls - Updated with LedgerView styling */}
           <div className="top" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
             <h2 className="page-title" style={{ margin: 0, fontSize: '29px', fontWeight: 'bold', color: '#0C0C0C' }}>
-              Expense Tracking {/* Removed the count number */}
+              Expense Tracking
             </h2>
             
-            <div className="controls-container" style={{ display: 'flex', gap: '15px', alignItems: 'center' }}>
-              <div className="search-container" style={{ position: 'relative' }}>
-                {/* Removed the Search icon */}
+            <div className="controls-container" style={{ display: 'flex', gap: '10px' }}>
+              {/* Search Bar - Updated with LedgerView styling */}
+              <div style={{ position: 'relative' }}>
                 <input
                   type="text"
-                  placeholder="Search expenses..."
-                  value={searchQuery}
-                  onChange={handleSearch}
+                  placeholder="Search"
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
                   className="search-account-input"
                   style={{ 
-                    padding: '8px 12px', /* Removed left padding for the icon */
+                    padding: '8px 12px', 
                     border: '1px solid #ccc', 
                     borderRadius: '4px',
-                    width: '250px'
+                    outline: 'none'
                   }}
                 />
-                {searchQuery && (
-                  <X 
-                    size={16} 
-                    style={{ 
-                      position: 'absolute', 
-                      right: '12px', 
-                      top: '50%', 
-                      transform: 'translateY(-50%)', 
-                      cursor: 'pointer',
-                      color: '#6b7280'
-                    }} 
-                    onClick={() => setSearchQuery('')}
-                  />
-                )}
               </div>
               
-              {/* Added spacing between search bar and filter button */}
-              <div style={{ width: '20px' }}></div>
-              
-              {/* Category Filter */}
+              {/* Category Filter - Updated with LedgerView styling */}
               <div className="filter-dropdown" style={{ position: 'relative' }}>
                 <button 
                   className={`filter-dropdown-btn ${showCategoryDropdown ? 'active' : ''}`} 
                   onClick={toggleCategoryDropdown}
+                  onMouseDown={(e) => e.preventDefault()}
                   style={{ 
                     padding: '8px 12px', 
                     border: '1px solid #ccc', 
@@ -709,8 +885,7 @@ const ExpenseTracking = () => {
                     display: 'flex', 
                     alignItems: 'center', 
                     gap: '5px',
-                    minWidth: '150px',
-                    justifyContent: 'space-between'
+                    outline: 'none'
                   }}
                 >
                   <span>{selectedCategory}</span>
@@ -725,21 +900,19 @@ const ExpenseTracking = () => {
                     border: '1px solid #ccc',
                     borderRadius: '4px',
                     width: '100%',
-                    zIndex: 1000,
-                    maxHeight: '200px',
-                    overflowY: 'auto'
+                    zIndex: 1000
                   }}>
                     {categories.map((category) => (
                       <div
                         key={category}
-                        className={`category-dropdown-item ${
-                          selectedCategory === category ? 'active' : ''
-                        }`}
+                        className={`category-dropdown-item ${selectedCategory === category ? 'active' : ''}`}
                         onClick={() => handleCategorySelect(category)}
+                        onMouseDown={(e) => e.preventDefault()}
                         style={{ 
                           padding: '8px 12px', 
                           cursor: 'pointer', 
-                          backgroundColor: selectedCategory === category ? '#f0f0f0' : 'white' 
+                          backgroundColor: selectedCategory === category ? '#f0f0f0' : 'white',
+                          outline: 'none'
                         }}
                       >
                         {category}
@@ -749,45 +922,33 @@ const ExpenseTracking = () => {
                 )}
               </div>
               
-              {/* Removed the Date Filter button */}
-
-              {/* Add Budget Button with white plus icon */}
-              <button 
-                className="add-budget-btn" 
-                onClick={handleAddExpense}
-                style={{
-                  padding: '8px 16px',
-                  backgroundColor: 'var(--primary-color, #007bff)',
-                  color: '#FFFFFF',
-                  border: 'none',
-                  borderRadius: '4px',
-                  fontSize: '14px',
-                  cursor: 'pointer',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '8px',
-                  height: '36px'
-                }}
-              >
-                <Plus size={16} color="#FFFFFF" />
+              <button className="add-journal-button" onClick={handleAddExpense} style={{ 
+                padding: '8px 12px', 
+                border: '1px solid #ccc', 
+                borderRadius: '4px', 
+                backgroundColor: '#007bff', 
+                color: 'white', 
+                cursor: 'pointer',
+                outline: 'none'
+              }}>
                 Add Budget
               </button>
             </div>
           </div>
 
-          {/* Separator line between title and table */}
+          {/* Separator line between title and table - From LedgerView */}
           <div style={{
             height: '1px',
             backgroundColor: '#e0e0e0',
             marginBottom: '20px'
           }}></div>
 
-          {/* Expenses Table - Made scrollable */}
+          {/* Expenses Table - Updated to match LedgerView layout (no scroll, fixed height) */}
           <div style={{ 
-            flex: 1,
-            overflow: 'auto',
+            flex: '0 0 auto',
             border: '1px solid #e0e0e0',
-            borderRadius: '4px'
+            borderRadius: '4px',
+            overflow: 'hidden'
           }}>
             <table className="ledger-table" style={{ 
               width: '100%', 
@@ -795,79 +956,104 @@ const ExpenseTracking = () => {
               tableLayout: 'fixed'
             }}>
               <thead>
-                <tr style={{ backgroundColor: '#f8f9fa', position: 'sticky', top: 0, zIndex: 10 }}>
+                <tr style={{ backgroundColor: '#f8f9fa' }}>
                   <th style={{ 
-                    width: '15%', 
+                    width: '12%', 
                     padding: '0.75rem', 
                     textAlign: 'left', 
                     borderBottom: '2px solid #dee2e6',
                     height: '50px',
                     verticalAlign: 'middle',
-                    backgroundColor: '#f8f9fa'
-                  }}>REF NO.</th>
+                    wordWrap: 'break-word',
+                    overflowWrap: 'break-word'
+                  }}>TICKET ID</th>
                   <th style={{ 
-                    width: '20%', 
+                    width: '12%', 
                     padding: '0.75rem', 
                     textAlign: 'left', 
                     borderBottom: '2px solid #dee2e6',
                     height: '50px',
                     verticalAlign: 'middle',
-                    backgroundColor: '#f8f9fa'
-                  }}>TYPE</th>
-                  <th style={{ 
-                    width: '25%', 
-                    padding: '0.75rem', 
-                    textAlign: 'left', 
-                    borderBottom: '2px solid #dee2e6',
-                    height: '50px',
-                    verticalAlign: 'middle',
-                    backgroundColor: '#f8f9fa'
-                  }}>DESCRIPTION</th>
-                  <th style={{ 
-                    width: '15%', 
-                    padding: '0.75rem', 
-                    textAlign: 'left', 
-                    borderBottom: '2px solid #dee2e6',
-                    height: '50px',
-                    verticalAlign: 'middle',
-                    backgroundColor: '#f8f9fa'
-                  }}>STATUS</th>
-                  <th style={{ 
-                    width: '15%', 
-                    padding: '0.75rem', 
-                    textAlign: 'left', 
-                    borderBottom: '2px solid #dee2e6',
-                    height: '50px',
-                    verticalAlign: 'middle',
-                    backgroundColor: '#f8f9fa'
-                  }}>ACCOMPLISHED</th>
-                  <th style={{ 
-                    width: '10%', 
-                    padding: '0.75rem', 
-                    textAlign: 'left', 
-                    borderBottom: '2px solid #dee2e6',
-                    height: '50px',
-                    verticalAlign: 'middle',
-                    backgroundColor: '#f8f9fa'
+                    wordWrap: 'break-word',
+                    overflowWrap: 'break-word'
                   }}>DATE</th>
+                  <th style={{ 
+                    width: '18%', 
+                    padding: '0.75rem', 
+                    textAlign: 'left', 
+                    borderBottom: '2px solid #dee2e6',
+                    height: '50px',
+                    verticalAlign: 'middle',
+                    wordWrap: 'break-word',
+                    overflowWrap: 'break-word',
+                    whiteSpace: 'normal'
+                  }}>CATEGORY</th>
+                  <th style={{ 
+                    width: '14%', 
+                    padding: '0.75rem', 
+                    textAlign: 'left', 
+                    borderBottom: '2px solid #dee2e6',
+                    height: '50px',
+                    verticalAlign: 'middle',
+                    wordWrap: 'break-word',
+                    overflowWrap: 'break-word'
+                  }}>SUBCATEGORY</th>
+                  <th style={{ 
+                    width: '16%', 
+                    padding: '0.75rem', 
+                    textAlign: 'left', 
+                    borderBottom: '2px solid #dee2e6',
+                    height: '50px',
+                    verticalAlign: 'middle',
+                    wordWrap: 'break-word',
+                    overflowWrap: 'break-word'
+                  }}>VENDOR</th>
+                  <th style={{ 
+                    width: '13%', 
+                    padding: '0.75rem', 
+                    textAlign: 'left', 
+                    borderBottom: '2px solid #dee2e6',
+                    height: '50px',
+                    verticalAlign: 'middle',
+                    wordWrap: 'break-word',
+                    overflowWrap: 'break-word'
+                  }}>EMPLOYEE</th>
+                  <th style={{ 
+                    width: '11%', 
+                    padding: '0.75rem', 
+                    textAlign: 'left', 
+                    borderBottom: '2px solid #dee2e6',
+                    height: '50px',
+                    verticalAlign: 'middle',
+                    wordWrap: 'break-word',
+                    overflowWrap: 'break-word'
+                  }}>AMOUNT</th>
+                  <th style={{ 
+                    width: '12%', 
+                    padding: '0.75rem', 
+                    textAlign: 'left', 
+                    borderBottom: '2px solid #dee2e6',
+                    height: '50px',
+                    verticalAlign: 'middle',
+                    wordWrap: 'break-word',
+                    overflowWrap: 'break-word'
+                  }}>STATUS</th>
                 </tr>
               </thead>
               <tbody>
                 {currentExpenses.length > 0 ? (
                   currentExpenses.map((expense, index) => (
-                    <tr
-                      key={expense.id}
-                      onClick={() => handleExpenseSelect(expense.id)}
-                      className={`${index % 2 === 1 ? 'alternate-row' : ''} ${selectedExpenses.includes(expense.id) ? 'selected' : ''}`}
+                    <tr 
+                      key={expense.id} 
+                      className={index % 2 === 1 ? 'alternate-row' : ''} 
                       style={{ 
                         backgroundColor: index % 2 === 1 ? '#F8F8F8' : '#FFFFFF', 
                         color: '#0C0C0C',
                         height: '50px',
-                        transition: 'background-color 0.2s ease',
-                        cursor: 'pointer'
+                        transition: 'background-color 0.2s ease'
                       }}
                       onMouseEnter={(e) => {
-                        e.currentTarget.style.backgroundColor = '#D1D5DB'; // Gray 300
+                        e.currentTarget.style.backgroundColor = '#fcfcfc';
                       }}
                       onMouseLeave={(e) => {
                         e.currentTarget.style.backgroundColor = index % 2 === 1 ? '#F8F8F8' : '#FFFFFF';
@@ -876,79 +1062,87 @@ const ExpenseTracking = () => {
                       <td style={{ 
                         padding: '0.75rem', 
                         borderBottom: '1px solid #dee2e6',
-                        verticalAlign: 'middle'
-                      }}>{expense.referenceNo}</td>
+                        verticalAlign: 'middle',
+                        wordWrap: 'break-word',
+                        overflowWrap: 'break-word',
+                        whiteSpace: 'normal'
+                      }}>{expense.ticketId}</td>
                       <td style={{ 
                         padding: '0.75rem', 
-                        borderBottom: '1px solid ',
-                        verticalAlign: 'middle'
+                        borderBottom: '1px solid #dee2e6',
+                        verticalAlign: 'middle',
+                        wordWrap: 'break-word',
+                        overflowWrap: 'break-word',
+                        whiteSpace: 'normal'
+                      }}>{expense.date}</td>
+                      <td style={{ 
+                        padding: '0.75rem', 
+                        borderBottom: '1px solid #dee2e6',
+                        verticalAlign: 'middle',
+                        wordWrap: 'break-word',
+                        overflowWrap: 'break-word',
+                        whiteSpace: 'normal'
+                      }}>{expense.category}</td>
+                      <td style={{ 
+                        padding: '0.75rem', 
+                        borderBottom: '1px solid #dee2e6',
+                        verticalAlign: 'middle',
+                        wordWrap: 'break-word',
+                        overflowWrap: 'break-word',
+                        whiteSpace: 'normal'
+                      }}>{expense.subcategory}</td>
+                      <td style={{ 
+                        padding: '0.75rem', 
+                        borderBottom: '1px solid #dee2e6',
+                        verticalAlign: 'middle',
+                        wordWrap: 'break-word',
+                        overflowWrap: 'break-word',
+                        whiteSpace: 'normal'
+                      }}>{expense.vendor}</td>
+                      <td style={{ 
+                        padding: '0.75rem', 
+                        borderBottom: '1px solid #dee2e6',
+                        verticalAlign: 'middle',
+                        wordWrap: 'break-word',
+                        overflowWrap: 'break-word',
+                        whiteSpace: 'normal'
+                      }}>{expense.employee}</td>
+                      <td style={{ 
+                        padding: '0.75rem', 
+                        borderBottom: '1px solid #dee2e6',
+                        verticalAlign: 'middle',
+                        wordWrap: 'break-word',
+                        overflowWrap: 'break-word',
+                        whiteSpace: 'normal'
+                      }}>{expense.amount}</td>
+                      <td style={{ 
+                        padding: '0.75rem', 
+                        borderBottom: '1px solid #dee2e6',
+                        verticalAlign: 'middle',
+                        wordWrap: 'break-word',
+                        overflowWrap: 'break-word',
+                        whiteSpace: 'normal'
                       }}>
-                        {expense.category.includes('Equipment') ? 'Assets' : 
-                         expense.category.includes('Training') ? 'Expenses' : 'Liabilities'}
+                        <Status 
+                          type={expense.status} 
+                          name={
+                            expense.status === 'active' ? 'ACTIVE' : 'INACTIVE'
+                          }
+                        />
                       </td>
-                      <td style={{ 
-                        padding: '0.75rem', 
-                        borderBottom: '1px solid #dee2e6',
-                        verticalAlign: 'middle'
-                      }}>{expense.description}</td>
-                      <td style={{ 
-                        padding: '0.75rem', 
-                        borderBottom: '1px solid #dee2e6',
-                        verticalAlign: 'middle'
-                      }}>
-                        <span 
-                          className={`status-badge ${
-                            (expense.status === 'approved' || expense.status === 'paid') ? 'active' : 'inactive'
-                          }`}
-                          style={{
-                            padding: '4px 8px',
-                            borderRadius: '12px',
-                            fontSize: '12px',
-                            fontWeight: '500',
-                            backgroundColor: (expense.status === 'approved' || expense.status === 'paid') ? '#D1FAE5' : '#FEE2E2',
-                            color: (expense.status === 'approved' || expense.status === 'paid') ? '#065F46' : '#991B1B'
-                          }}
-                        >
-                          {(expense.status === 'approved' || expense.status === 'paid') ? 'Active' : 'Inactive'}
-                        </span>
-                      </td>
-                      <td style={{ 
-                        padding: '0.75rem', 
-                        borderBottom: '1px solid #dee2e6',
-                        verticalAlign: 'middle'
-                      }}>
-                        <span 
-                          className={`accomplished-badge ${
-                            expense.accomplished ? 'accomplished' : 'pending'
-                          }`}
-                          style={{
-                            padding: '4px 8px',
-                            borderRadius: '12px',
-                            fontSize: '12px',
-                            fontWeight: '500',
-                            backgroundColor: expense.accomplished ? '#D1FAE5' : '#FEF3C7',
-                            color: expense.accomplished ? '#065F46' : '#92400E'
-                          }}
-                        >
-                          {expense.accomplished ? 'Yes' : 'No'}
-                        </span>
-                      </td>
-                      <td style={{ 
-                        padding: '0.75rem', 
-                        borderBottom: '1px solid #dee2e6',
-                        verticalAlign: 'middle'
-                      }}>{expense.accomplished ? expense.date : '-'}</td>
                     </tr>
                   ))
                 ) : (
                   <tr>
-                    <td colSpan="6" className="no-results" style={{ 
+                    <td colSpan="8" className="no-results" style={{ 
                       padding: '20px', 
                       textAlign: 'center',
                       height: '50px',
                       verticalAlign: 'middle'
                     }}>
-                      No expenses match your search criteria.
+                      {searchTerm || selectedCategory !== 'All Categories' 
+                        ? 'No expenses match your search criteria.' 
+                        : 'No expenses found.'}
                     </td>
                   </tr>
                 )}
@@ -956,161 +1150,129 @@ const ExpenseTracking = () => {
             </table>
           </div>
           
-          {/* Pagination Controls - Preserved as requested */}
-          {totalPages > 1 && (
-            <div className="pagination" style={{ 
-              display: 'flex', 
-              justifyContent: 'center', 
-              alignItems: 'center', 
-              gap: '5px',
-              marginTop: '20px',
-              padding: '10px 0'
-            }}>
-              <button 
-                onClick={prevPage} 
-                disabled={currentPage === 1}
-                className="pagination-btn"
-                style={{ padding: '8px 12px', border: '1px solid #ccc', backgroundColor: currentPage === 1 ? '#f0f0f0' : 'white', cursor: currentPage === 1 ? 'not-allowed' : 'pointer' }}
-              >
-                <ChevronLeft size={16} />
-              </button>
-              
-              {[...Array(totalPages)].map((_, index) => (
-                <button
-                  key={index + 1}
-                  onClick={() => paginate(index + 1)}
-                  className={`pagination-btn ${
-                    currentPage === index + 1 ? 'active' : ''
-                  }`}
-                  style={{ 
-                    padding: '8px 12px', 
-                    border: '1px solid #ccc', 
-                    backgroundColor: currentPage === index + 1 ? '#007bff' : 'white',
-                    color: currentPage === index + 1 ? 'white' : 'black',
-                    cursor: 'pointer'
-                  }}
-                >
-                  {index + 1}
-                </button>
-              ))}
-              
-              <button 
-                onClick={nextPage} 
-                disabled={currentPage === totalPages}
-                className="pagination-btn"
-                style={{ padding: '8px 12px', border: '1px solid #ccc', backgroundColor: currentPage === totalPages ? '#f0f0f0' : 'white', cursor: currentPage === totalPages ? 'not-allowed' : 'pointer' }}
-              >
-                <ChevronRight size={16} />
-              </button>
-            </div>
+          {/* New Pagination Component from LedgerView */}
+          {filteredExpenses.length > 0 && (
+            <Pagination
+              currentPage={currentPage}
+              pageSize={pageSize}
+              totalItems={filteredExpenses.length}
+              onPageChange={setCurrentPage}
+              onPageSizeChange={(newSize) => {
+                setPageSize(newSize);
+                setCurrentPage(1); // Reset to first page when page size changes
+              }}
+              pageSizeOptions={[5, 10, 20, 50]}
+            />
           )}
         </div>
       </div>
 
-      {/* Add Expense Modal */}
+      {/* UPDATED: Add Expense Modal with BudgetAllocation's amount input format */}
       {showAddExpenseModal && (
-        <div className="modal-overlay" onClick={handleCloseModal} style={{
+        <div className="modal-overlay" style={{
           position: 'fixed',
           top: 0,
           left: 0,
           right: 0,
           bottom: 0,
-          backgroundColor: 'rgba(0, 0, 0, 0.5)', 
+          backgroundColor: 'rgba(0, 0, 0, 0.5)',
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
           zIndex: 2000
         }}>
-          <div className="modal-container" onClick={e => e.stopPropagation()} style={{
+          <div className="modal-container" style={{
             backgroundColor: 'white',
             borderRadius: '8px',
-            width: '500px',
+            width: '550px',
             maxWidth: '90%',
             maxHeight: '90vh',
-            overflow: 'auto'
+            overflow: 'auto',
+            boxShadow: '0 4px 6px rgba(0, 0, 0, 0.1)'
           }}>
-            <div className="modal-header" style={{
-              display: 'flex',
-              justifyContent: 'space-between',
-              alignItems: 'center',
-              padding: '16px 24px',
-              borderBottom: '1px solid #E5E7EB'
-            }}>
-              <h3 style={{ margin: 0 }}>Add Budget</h3>
-              <button className="modal-close-btn" onClick={handleCloseModal} style={{
-                background: 'none',
-                border: 'none',
-                fontSize: '24px',
-                cursor: 'pointer'
-              }}>×</button>
-            </div>
             <div className="modal-content" style={{ padding: '24px' }}>
+              <h3 className="modal-title" style={{ 
+                margin: '0 0 20px 0', 
+                fontSize: '20px', 
+                fontWeight: 'bold',
+                color: '#0C0C0C'
+              }}>Add Budget</h3>
+              
               <form onSubmit={handleSubmitExpense} className="budget-form">
-                <div className="form-section">
-                  <div className="form-group" style={{ marginBottom: '16px' }}>
-                    <label htmlFor="referenceNo" style={{ 
-                      display: 'block', 
-                      marginBottom: '8px',
-                      fontWeight: '500'
-                    }}>Reference No.</label>
-                    <input 
-                      type="text" 
-                      id="referenceNo" 
-                      name="referenceNo"
-                      value={newExpense.referenceNo}
-                      onChange={handleInputChange}
-                      placeholder="Enter reference number"
-                      required
-                      style={{
-                        width: '100%',
-                        padding: '8px 12px',
-                        border: '1px solid #ccc',
-                        borderRadius: '4px'
-                      }}
-                    />
-                  </div>
+                <div className="form-group" style={{ marginBottom: '16px' }}>
+                  <label htmlFor="ticketId" style={{ 
+                    display: 'block', 
+                    marginBottom: '8px',
+                    fontWeight: '500'
+                  }}>Ticket ID</label>
+                  <input 
+                    type="text" 
+                    id="ticketId" 
+                    name="ticketId"
+                    value={newExpense.ticketId}
+                    onChange={handleInputChange}
+                    placeholder="Enter ticket ID"
+                    className="form-control"
+                    style={{
+                      width: '100%',
+                      padding: '8px 12px',
+                      border: '1px solid #ccc',
+                      borderRadius: '4px',
+                      outline: 'none'
+                    }}
+                  />
+                  <span className="helper-text" style={{ fontSize: '12px', color: '#666', marginTop: '4px', display: 'block' }}>Optional - system will generate if left blank</span>
+                </div>
 
-                  <div className="form-group" style={{ marginBottom: '16px' }}>
-                    <label htmlFor="description" style={{ 
-                      display: 'block', 
-                      marginBottom: '8px',
-                      fontWeight: '500'
-                    }}>Description</label>
-                    <input 
-                      type="text" 
-                      id="description" 
-                      name="description"
-                      value={newExpense.description}
-                      onChange={handleInputChange}
-                      placeholder="Enter budget description"
-                      required
-                      style={{
-                        width: '100%',
-                        padding: '8px 12px',
-                        border: '1px solid #ccc',
-                        borderRadius: '4px'
-                      }}
-                    />
-                  </div>
+                <div className="form-group" style={{ marginBottom: '16px' }}>
+                  <label htmlFor="date" style={{ 
+                    display: 'block', 
+                    marginBottom: '8px',
+                    fontWeight: '500'
+                  }}>Date</label>
+                  <input 
+                    type="date" 
+                    id="date" 
+                    name="date"
+                    value={newExpense.date}
+                    onChange={handleInputChange}
+                    readOnly
+                    className="form-control"
+                    style={{
+                      width: '100%',
+                      padding: '8px 12px',
+                      border: '1px solid #ccc',
+                      borderRadius: '4px',
+                      backgroundColor: '#f5f5f5',
+                      cursor: 'not-allowed',
+                      outline: 'none'
+                    }}
+                  />
+                  <span className="helper-text" style={{ fontSize: '12px', color: '#666', marginTop: '4px', display: 'block' }}>Automatically generated</span>
+                </div>
 
-                  <div className="form-group" style={{ marginBottom: '16px' }}>
-                    <label htmlFor="category" style={{ 
-                      display: 'block', 
-                      marginBottom: '8px',
-                      fontWeight: '500'
-                    }}>Category</label>
+                <div className="form-group" style={{ marginBottom: '16px' }}>
+                  <label htmlFor="category" style={{ 
+                    display: 'block', 
+                    marginBottom: '8px',
+                    fontWeight: '500'
+                  }}>Category <span style={{color: 'red'}}>*</span></label>
+                  <div className="select-wrapper" style={{ position: 'relative' }}>
                     <select 
                       id="category" 
                       name="category"
                       value={newExpense.category}
                       onChange={handleInputChange}
                       required
+                      className="form-control"
                       style={{
                         width: '100%',
                         padding: '8px 12px',
                         border: '1px solid #ccc',
                         borderRadius: '4px',
-                        backgroundColor: 'white'
+                        backgroundColor: 'white',
+                        appearance: 'none',
+                        outline: 'none'
                       }}
                     >
                       <option value="">Select a category</option>
@@ -1118,82 +1280,223 @@ const ExpenseTracking = () => {
                         <option key={idx} value={cat}>{cat}</option>
                       ))}
                     </select>
+                    <ChevronDown size={16} style={{ 
+                      position: 'absolute', 
+                      right: '12px', 
+                      top: '50%', 
+                      transform: 'translateY(-50%)',
+                      pointerEvents: 'none'
+                    }} />
                   </div>
+                </div>
 
-                  <div className="form-row" style={{ 
-                    display: 'flex', 
-                    gap: '16px',
-                    marginBottom: '16px'
-                  }}>
-                    <div className="form-group" style={{ flex: 1 }}>
-                      <label htmlFor="amount" style={{ 
-                        display: 'block', 
-                        marginBottom: '8px',
-                        fontWeight: '500'
-                      }}>Amount (₱)</label>
-                      <input 
-                        type="number" 
-                        id="amount" 
-                        name="amount"
-                        value={newExpense.amount}
-                        onChange={handleInputChange}
-                        placeholder="0.00"
-                        step="0.01"
-                        min="0"
-                        required
-                        style={{
-                          width: '100%',
-                          padding: '8px 12px',
-                          border: '1px solid #ccc',
-                          borderRadius: '4px'
-                        }}
-                      />
-                    </div>
-
-                    <div className="form-group" style={{ flex: 1 }}>
-                      <label htmlFor="date" style={{ 
-                        display: 'block', 
-                        marginBottom: '8px',
-                        fontWeight: '500'
-                      }}>Date</label>
-                      <input 
-                        type="date" 
-                        id="date" 
-                        name="date"
-                        value={newExpense.date}
-                        onChange={handleInputChange}
-                        required
-                        style={{
-                          width: '100%',
-                          padding: '8px 12px',
-                          border: '1px solid #ccc',
-                          borderRadius: '4px'
-                        }}
-                      />
-                    </div>
+                <div className="form-group" style={{ marginBottom: '16px' }}>
+                  <label htmlFor="subcategory" style={{ 
+                    display: 'block', 
+                    marginBottom: '8px',
+                    fontWeight: '500'
+                  }}>Subcategory</label>
+                  <div className="select-wrapper" style={{ position: 'relative' }}>
+                    <select 
+                      id="subcategory" 
+                      name="subcategory"
+                      value={newExpense.subcategory}
+                      onChange={handleInputChange}
+                      className="form-control"
+                      style={{
+                        width: '100%',
+                        padding: '8px 12px',
+                        border: '1px solid #ccc',
+                        borderRadius: '4px',
+                        backgroundColor: 'white',
+                        appearance: 'none',
+                        outline: 'none'
+                      }}
+                    >
+                      <option value="">Select a subcategory</option>
+                      {newExpense.category && subcategories[newExpense.category]?.map((subcat, idx) => (
+                        <option key={idx} value={subcat}>{subcat}</option>
+                      ))}
+                    </select>
+                    <ChevronDown size={16} style={{ 
+                      position: 'absolute', 
+                      right: '12px', 
+                      top: '50%', 
+                      transform: 'translateY(-50%)',
+                      pointerEvents: 'none'
+                    }} />
                   </div>
+                </div>
 
-                  <div className="form-actions" style={{ 
-                    display: 'flex', 
-                    justifyContent: 'flex-end',
-                    gap: '12px',
-                    marginTop: '24px'
-                  }}>
-                    <button type="button" className="cancel-btn" onClick={handleCloseModal} style={{
-                      padding: '8px 16px',
-                      border: '1px solid #ccc',
-                      borderRadius: '4px',
-                      backgroundColor: 'white',
-                      cursor: 'pointer'
-                    }}>Cancel</button>
-                    <button type="submit" className="submit-btn" style={{
-                      padding: '8px 16px',
-                      border: 'none',
-                      borderRadius: '4px',
-                      backgroundColor: '#007bff',
-                      color: 'white',
-                      cursor: 'pointer'
-                    }}>Add Budget</button>
+                <div className="form-group" style={{ marginBottom: '16px' }}>
+                  <label htmlFor="vendor" style={{ 
+                    display: 'block', 
+                    marginBottom: '8px',
+                    fontWeight: '500'
+                  }}>Vendor <span style={{color: 'red'}}>*</span></label>
+                  <div className="select-wrapper" style={{ position: 'relative' }}>
+                    <select 
+                      id="vendor" 
+                      name="vendor"
+                      value={newExpense.vendor}
+                      onChange={handleInputChange}
+                      required
+                      className="form-control"
+                      style={{
+                        width: '100%',
+                        padding: '8px 12px',
+                        border: '1px solid #ccc',
+                        borderRadius: '4px',
+                        backgroundColor: 'white',
+                        appearance: 'none',
+                        outline: 'none'
+                      }}
+                    >
+                      <option value="">Select a vendor</option>
+                      {vendors.map((vendor, idx) => (
+                        <option key={idx} value={vendor}>{vendor}</option>
+                      ))}
+                    </select>
+                    <ChevronDown size={16} style={{ 
+                      position: 'absolute', 
+                      right: '12px', 
+                      top: '50%', 
+                      transform: 'translateY(-50%)',
+                      pointerEvents: 'none'
+                    }} />
+                  </div>
+                </div>
+
+                <div className="form-group" style={{ marginBottom: '16px' }}>
+                  <label htmlFor="employee" style={{ 
+                    display: 'block', 
+                    marginBottom: '8px',
+                    fontWeight: '500'
+                  }}>Employee <span style={{color: 'red'}}>*</span></label>
+                  <div className="select-wrapper" style={{ position: 'relative' }}>
+                    <select 
+                      id="employee" 
+                      name="employee"
+                      value={newExpense.employee}
+                      onChange={handleInputChange}
+                      required
+                      className="form-control"
+                      style={{
+                        width: '100%',
+                        padding: '8px 12px',
+                        border: '1px solid #ccc',
+                        borderRadius: '4px',
+                        backgroundColor: 'white',
+                        appearance: 'none',
+                        outline: 'none'
+                      }}
+                    >
+                      <option value="">Select an employee</option>
+                      {employees.map((employee, idx) => (
+                        <option key={idx} value={employee}>{employee}</option>
+                      ))}
+                    </select>
+                    <ChevronDown size={16} style={{ 
+                      position: 'absolute', 
+                      right: '12px', 
+                      top: '50%', 
+                      transform: 'translateY(-50%)',
+                      pointerEvents: 'none'
+                    }} />
+                  </div>
+                </div>
+
+                {/* UPDATED: Amount Input with BudgetAllocation's format and Clear Button */}
+                <div className="form-group" style={{ marginBottom: '16px' }}>
+                  <label htmlFor="amount" style={{ 
+                    display: 'block', 
+                    marginBottom: '8px',
+                    fontWeight: '500'
+                  }}>Amount</label>
+                  <div style={{ position: 'relative' }}>
+                    <input 
+                      type="text" 
+                      id="amount" 
+                      name="amount" 
+                      placeholder="₱0.00" 
+                      value={newExpense.amount} 
+                      onChange={handleInputChange} 
+                      className="form-control"
+                      style={{
+                        width: '100%',
+                        padding: '8px 40px 8px 12px',
+                        border: '1px solid #e0e0e0',
+                        borderRadius: '4px',
+                        outline: 'none',
+                        fontSize: '14px'
+                      }}
+                    />
+                    {newExpense.amount && (
+                      <button
+                        type="button"
+                        onClick={clearAmount}
+                        style={{
+                          position: 'absolute',
+                          right: '8px',
+                          top: '50%',
+                          transform: 'translateY(-50%)',
+                          background: 'none',
+                          border: 'none',
+                          cursor: 'pointer',
+                          padding: '4px',
+                          borderRadius: '50%',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          outline: 'none'
+                        }}
+                        onMouseDown={(e) => e.preventDefault()}
+                      >
+                        <X size={16} color="#666" />
+                      </button>
+                    )}
+                  </div>
+                  {/* REMOVED: The helper text that was here to match BudgetAllocation */}
+                </div>
+                
+                {/* Modal Actions */}
+                <div className="modal-actions" style={{ marginTop: '24px' }}>
+                  <div className="button-row" style={{ display: 'flex', gap: '10px', justifyContent: 'flex-end' }}>
+                    <button 
+                      type="button"
+                      className="btn-cancel" 
+                      onClick={handleCloseModal}
+                      onMouseDown={(e) => e.preventDefault()}
+                      style={{ 
+                        padding: '8px 16px', 
+                        border: '1px solid #ccc', 
+                        borderRadius: '4px', 
+                        backgroundColor: '#f8f9fa', 
+                        color: '#333', 
+                        cursor: 'pointer',
+                        minWidth: '80px',
+                        outline: 'none'
+                      }}
+                    >
+                      Cancel
+                    </button>
+                    <button 
+                      type="submit"
+                      className="btn-save"
+                      onMouseDown={(e) => e.preventDefault()}
+                      style={{ 
+                        padding: '8px 16px', 
+                        border: '1px solid #ccc', 
+                        borderRadius: '4px', 
+                        backgroundColor: '#007bff', 
+                        color: 'white', 
+                        cursor: 'pointer',
+                        minWidth: '80px',
+                        outline: 'none'
+                      }}
+                    >
+                      Save
+                    </button>
                   </div>
                 </div>
               </form>
@@ -1201,6 +1504,101 @@ const ExpenseTracking = () => {
           </div>
         </div>
       )}
+
+      {/* Add Status component CSS directly */}
+      <style jsx>{`
+        .status-active,
+        .status-inactive {
+          display: inline-flex;
+          height: auto;
+          min-height: 4vh;
+          width: fit-content;
+          flex-direction: row;
+          align-items: center;
+          padding: 4px 12px;
+          border-radius: 40px;
+          gap: 5px;
+          font-size: 0.75rem;
+          overflow: visible;
+          white-space: normal;
+          max-width: 100%;
+        }
+
+        .status-active .circle,
+        .status-inactive .circle {
+          height: 6px;
+          width: 6px;
+          border-radius: 50%;
+          margin-right: 3px;
+          animation: statusPulse 2s infinite;
+        }
+
+        @keyframes statusPulse {
+          0% {
+            box-shadow: 0 0 0 0 rgba(var(--pulse-color), 0.4);
+          }
+          70% {
+            box-shadow: 0 0 0 6px rgba(var(--pulse-color), 0);
+          }
+          100% {
+            box-shadow: 0 0 0 0 rgba(var(--pulse-color), 0);
+          }
+        }
+
+        .status-active {
+          background-color: #e8f5e8;
+          color: #2e7d32;
+        }
+
+        .status-active .circle {
+          background-color: #2e7d32;
+          --pulse-color: 46, 125, 50;
+        }
+
+        .status-inactive {
+          background-color: #ffebee;
+          color: #c62828;
+        }
+
+        .status-inactive .circle {
+          background-color: #c62828;
+          --pulse-color: 198, 40, 40;
+        }
+
+        .status-details {
+          display: flex;
+          align-items: center;
+          gap: 5px;
+          flex-wrap: nowrap;
+          max-width: 100%;
+        }
+
+        .status-to {
+          margin: 0 2px;
+          white-space: nowrap;
+        }
+
+        .status-target {
+          white-space: normal;
+          word-break: break-word;
+          max-width: 100%;
+        }
+
+        .icon {
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          flex-shrink: 0;
+        }
+
+        .icon-placeholder {
+          height: 12px;
+          width: 12px;
+          flex-shrink: 0;
+          background-color: currentColor;
+          border-radius: 2px;
+        }
+      `}</style>
     </div>
   );
 };

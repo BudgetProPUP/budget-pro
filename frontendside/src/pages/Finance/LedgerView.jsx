@@ -1,8 +1,129 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { Search, ChevronDown, ArrowLeft, ChevronLeft, ChevronRight, User, Mail, Briefcase, LogOut, Bell, Settings } from 'lucide-react';
 import { Link, useNavigate } from 'react-router-dom';
 import LOGOMAP from '../../assets/MAP.jpg';
 import './LedgerView.css';
+
+// Pagination Component
+const Pagination = ({
+  currentPage,
+  pageSize,
+  totalItems,
+  onPageChange,
+  onPageSizeChange,
+  pageSizeOptions = [5, 10, 20, 50, 100],
+}) => {
+  const totalPages = Math.ceil(totalItems / pageSize);
+
+  const handlePageClick = (page) => {
+    if (page >= 1 && page <= totalPages) {
+      onPageChange(page);
+    }
+  };
+
+  const renderPageNumbers = () => {
+    const pages = [];
+
+    for (let i = 1; i <= totalPages; i++) {
+      pages.push(
+        <button
+          key={i}
+          className={`pageButton ${i === currentPage ? "active" : ""}`}
+          onClick={() => handlePageClick(i)}
+          onMouseDown={(e) => e.preventDefault()}
+          style={{ 
+            padding: '8px 12px', 
+            border: '1px solid #ccc', 
+            backgroundColor: i === currentPage ? '#007bff' : 'white',
+            color: i === currentPage ? 'white' : 'black',
+            cursor: 'pointer',
+            borderRadius: '4px',
+            minWidth: '40px',
+            outline: 'none'
+          }}
+        >
+          {i}
+        </button>
+      );
+    }
+
+    return pages;
+  };
+
+  return (
+    <div className="paginationContainer" style={{ 
+      display: 'flex', 
+      justifyContent: 'space-between', 
+      alignItems: 'center',
+      marginTop: '20px',
+      padding: '10px 0'
+    }}>
+      {/* Left Side: Page Size Selector */}
+      <div className="pageSizeSelector" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+        <label htmlFor="pageSize" style={{ fontSize: '14px' }}>Show</label>
+        <select
+          id="pageSize"
+          value={pageSize}
+          onChange={(e) => onPageSizeChange(Number(e.target.value))}
+          style={{ 
+            padding: '6px 8px',
+            border: '1px solid #ccc',
+            borderRadius: '4px',
+            outline: 'none'
+          }}
+        >
+          {pageSizeOptions.map((size) => (
+            <option key={size} value={size}>
+              {size}
+            </option>
+          ))}
+        </select>
+        <span style={{ fontSize: '14px' }}>items per page</span>
+      </div>
+
+      {/* Right Side: Page Navigation */}
+      <div className="pageNavigation" style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
+        <button
+          onClick={() => handlePageClick(currentPage - 1)}
+          disabled={currentPage === 1}
+          onMouseDown={(e) => e.preventDefault()}
+          style={{ 
+            padding: '8px 12px', 
+            border: '1px solid #ccc', 
+            backgroundColor: currentPage === 1 ? '#f0f0f0' : 'white', 
+            cursor: currentPage === 1 ? 'not-allowed' : 'pointer',
+            borderRadius: '4px',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            outline: 'none'
+          }}
+        >
+          Prev
+        </button>
+        {renderPageNumbers()}
+        <button
+          onClick={() => handlePageClick(currentPage + 1)}
+          disabled={currentPage === totalPages}
+          onMouseDown={(e) => e.preventDefault()}
+          style={{ 
+            padding: '8px 12px', 
+            border: '1px solid #ccc', 
+            backgroundColor: currentPage === totalPages ? '#f0f0f0' : 'white', 
+            cursor: currentPage === totalPages ? 'not-allowed' : 'pointer',
+            borderRadius: '4px',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            outline: 'none'
+          }}
+        >
+          Next
+        </button>
+      </div>
+    </div>
+  );
+};
 
 const LedgerView = () => {
   // Navigation state
@@ -23,7 +144,7 @@ const LedgerView = () => {
   };
 
   // Sample data for the ledger with sub-subcategory
-  const [transactions] = useState([
+  const transactions = useMemo(() => [
     { 
       ticketId: 'TK-001', 
       date: '05-12-2025', 
@@ -64,22 +185,58 @@ const LedgerView = () => {
       amount: '₱5,800',
       type: 'Operational Expenditure' 
     },
-  ]);
+    { 
+      ticketId: 'TK-006', 
+      date: '03-15-2025', 
+      category: 'Office Supplies', 
+      subSubcategory: 'Stationery', 
+      amount: '₱3,500',
+      type: 'Operational Expenditure' 
+    },
+    { 
+      ticketId: 'TK-007', 
+      date: '03-10-2025', 
+      category: 'Travel', 
+      subSubcategory: 'Business Trip', 
+      amount: '₱15,000',
+      type: 'Operational Expenditure' 
+    },
+    { 
+      ticketId: 'TK-008', 
+      date: '03-05-2025', 
+      category: 'Marketing', 
+      subSubcategory: 'Advertising', 
+      amount: '₱20,000',
+      type: 'Operational Expenditure' 
+    },
+    { 
+      ticketId: 'TK-009', 
+      date: '02-28-2025', 
+      category: 'Training & Development', 
+      subSubcategory: 'Workshop', 
+      amount: '₱7,500',
+      type: 'Operational Expenditure' 
+    },
+    { 
+      ticketId: 'TK-010', 
+      date: '02-20-2025', 
+      category: 'Maintenance', 
+      subSubcategory: 'Equipment Repair', 
+      amount: '₱6,800',
+      type: 'Operational Expenditure' 
+    },
+  ], []);
 
   // State for UI elements
   const [currentDate, setCurrentDate] = useState(new Date());
   const [searchTerm, setSearchTerm] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
-  const [activeFilters, setActiveFilters] = useState({
-    category: '',
-    transactionType: ''
-  });
-
-  // Filtered transactions based on search and filters
-  const [filteredTransactions, setFilteredTransactions] = useState(transactions);
+  const [pageSize, setPageSize] = useState(5);
+  const [selectedCategory, setSelectedCategory] = useState('All Categories');
 
   // Filter options - Updated with new categories
   const categoryOptions = [
+    'All Categories',
     'Travel',
     'Office Supplies',
     'Utilities',
@@ -120,65 +277,26 @@ const LedgerView = () => {
     };
   }, []);
 
-  // Effect to filter transactions when search term or active filters change
-  useEffect(() => {
-    let result = [...transactions];
-    
-    // Apply search filter
-    if (searchTerm) {
-      const term = searchTerm.toLowerCase();
-      result = result.filter(transaction => 
-        transaction.ticketId.toLowerCase().includes(term) ||
-        transaction.subSubcategory.toLowerCase().includes(term) ||
-        transaction.category.toLowerCase().includes(term) ||
-        transaction.amount.toLowerCase().includes(term) ||
-        transaction.date.toLowerCase().includes(term) ||
-        transaction.type.toLowerCase().includes(term)
-      );
-    }
-    
-    // Apply category filter
-    if (activeFilters.category) {
-      result = result.filter(transaction => 
-        transaction.category === activeFilters.category
-      );
-    }
-    
-    // Apply transaction type filter
-    if (activeFilters.transactionType) {
-      result = result.filter(transaction => 
-        transaction.type === activeFilters.transactionType
-      );
-    }
-    
-    setFilteredTransactions(result);
-    setCurrentPage(1); // Reset to first page when filters change
-  }, [searchTerm, activeFilters, transactions]);
+  // Filtered transactions based on search and category
+  const filteredTransactions = useMemo(() => {
+    return transactions.filter(transaction => {
+      const matchesSearch = transaction.ticketId.toLowerCase().includes(searchTerm.toLowerCase()) ||
+             transaction.subSubcategory.toLowerCase().includes(searchTerm.toLowerCase()) ||
+             transaction.category.toLowerCase().includes(searchTerm.toLowerCase()) ||
+             transaction.amount.toLowerCase().includes(searchTerm.toLowerCase()) ||
+             transaction.date.toLowerCase().includes(searchTerm.toLowerCase()) ||
+             transaction.type.toLowerCase().includes(searchTerm.toLowerCase());
+      
+      const matchesCategory = selectedCategory === 'All Categories' || transaction.category === selectedCategory;
+      
+      return matchesSearch && matchesCategory;
+    });
+  }, [searchTerm, selectedCategory, transactions]);
 
-  // Handle search input change
-  const handleSearchChange = (e) => {
-    setSearchTerm(e.target.value);
-  };
-
-  // Handle category selection from dropdown
-  const handleCategoryChange = (category) => {
-    setActiveFilters(prev => ({
-      ...prev,
-      category: category
-    }));
-    setShowCategoryDropdown(false);
-  };
-
-  // Pagination logic
-  const itemsPerPage = 5;
-  const indexOfLastItem = currentPage * itemsPerPage;
-  const indexOfFirstItem = indexOfLastItem - itemsPerPage;
+  // Pagination logic - Updated to use pageSize state
+  const indexOfLastItem = currentPage * pageSize;
+  const indexOfFirstItem = indexOfLastItem - pageSize;
   const currentTransactions = filteredTransactions.slice(indexOfFirstItem, indexOfLastItem);
-  const totalPages = Math.ceil(filteredTransactions.length / itemsPerPage);
-
-  const paginate = (pageNumber) => setCurrentPage(pageNumber);
-  const nextPage = () => setCurrentPage(prev => Math.min(prev + 1, totalPages));
-  const prevPage = () => setCurrentPage(prev => Math.max(prev - 1, 1));
 
   // Navigation dropdown handlers
   const toggleBudgetDropdown = () => {
@@ -226,6 +344,12 @@ const LedgerView = () => {
     if (showNotifications) setShowNotifications(false);
   };
 
+  const handleCategorySelect = (category) => {
+    setSelectedCategory(category);
+    setShowCategoryDropdown(false);
+    setCurrentPage(1);
+  };
+
   const handleNavigate = (path) => {
     navigate(path);
     setShowBudgetDropdown(false);
@@ -248,8 +372,8 @@ const LedgerView = () => {
     }
   };
 
-  // Format date and time for display - Updated to include day of week
-  const formattedDay = currentDate.toLocaleDateString('en-US', { weekday: 'long' }); // e.g., "Monday"
+  // Format date and time for display
+  const formattedDay = currentDate.toLocaleDateString('en-US', { weekday: 'long' });
   const formattedDate = currentDate.toLocaleDateString('en-US', { 
     month: 'long', 
     day: 'numeric', 
@@ -318,6 +442,8 @@ const LedgerView = () => {
               <div 
                 className={`nav-link ${showBudgetDropdown ? 'active' : ''}`}
                 onClick={toggleBudgetDropdown}
+                onMouseDown={(e) => e.preventDefault()}
+                style={{ outline: 'none' }}
               >
                 Budget <ChevronDown size={14} className={`dropdown-arrow ${showBudgetDropdown ? 'rotated' : ''}`} />
               </div>
@@ -332,7 +458,7 @@ const LedgerView = () => {
                   <div className="dropdown-item" onClick={() => handleNavigate('/finance/ledger-view')}>
                     Ledger View
                   </div>
-                  <div className="dropdown-item" onClick={() => handleNavigate('/finance/journal-entry')}>
+                  <div className="dropdown-item" onClick={() => handleNavigate('/finance/budget-allocation')}>
                     Budget Allocation
                   </div>
                   <div className="dropdown-item" onClick={() => handleNavigate('/finance/budget-variance-report')}>
@@ -347,6 +473,8 @@ const LedgerView = () => {
               <div 
                 className={`nav-link ${showExpenseDropdown ? 'active' : ''}`}
                 onClick={toggleExpenseDropdown}
+                onMouseDown={(e) => e.preventDefault()}
+                style={{ outline: 'none' }}
               >
                 Expense <ChevronDown size={14} className={`dropdown-arrow ${showExpenseDropdown ? 'rotated' : ''}`} />
               </div>
@@ -365,7 +493,7 @@ const LedgerView = () => {
 
           {/* User Controls */}
           <div className="navbar-controls" style={{ display: 'flex', alignItems: 'center', gap: '15px' }}>
-            {/* Timestamp/Date - Updated format */}
+            {/* Timestamp/Date */}
             <div className="date-time-badge" style={{
               background: '#f3f4f6',
               borderRadius: '16px',
@@ -384,7 +512,8 @@ const LedgerView = () => {
               <div 
                 className="notification-icon"
                 onClick={toggleNotifications}
-                style={{ position: 'relative', cursor: 'pointer' }}
+                onMouseDown={(e) => e.preventDefault()}
+                style={{ position: 'relative', cursor: 'pointer', outline: 'none' }}
               >
                 <Bell size={20} />
                 <span className="notification-badge" style={{
@@ -417,7 +546,13 @@ const LedgerView = () => {
                 }}>
                   <div className="notification-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
                     <h3>Notifications</h3>
-                    <button className="clear-all-btn">Clear All</button>
+                    <button 
+                      className="clear-all-btn"
+                      onMouseDown={(e) => e.preventDefault()}
+                      style={{ outline: 'none' }}
+                    >
+                      Clear All
+                    </button>
                   </div>
                   <div className="notification-list">
                     <div className="notification-item" style={{ display: 'flex', padding: '8px 0', borderBottom: '1px solid #eee' }}>
@@ -429,7 +564,13 @@ const LedgerView = () => {
                         <div className="notification-message">Your Q3 budget has been approved</div>
                         <div className="notification-time" style={{ fontSize: '12px', color: '#666' }}>2 hours ago</div>
                       </div>
-                      <button className="notification-delete" style={{ background: 'none', border: 'none', cursor: 'pointer' }}>&times;</button>
+                      <button 
+                        className="notification-delete" 
+                        style={{ background: 'none', border: 'none', cursor: 'pointer', outline: 'none' }}
+                        onMouseDown={(e) => e.preventDefault()}
+                      >
+                        &times;
+                      </button>
                     </div>
                     <div className="notification-item" style={{ display: 'flex', padding: '8px 0', borderBottom: '1px solid #eee' }}>
                       <div className="notification-icon-wrapper" style={{ marginRight: '10px' }}>
@@ -440,22 +581,28 @@ const LedgerView = () => {
                         <div className="notification-message">New expense report needs review</div>
                         <div className="notification-time" style={{ fontSize: '12px', color: '#666' }}>5 hours ago</div>
                       </div>
-                      <button className="notification-delete" style={{ background: 'none', border: 'none', cursor: 'pointer' }}>&times;</button>
+                      <button 
+                        className="notification-delete" 
+                        style={{ background: 'none', border: 'none', cursor: 'pointer', outline: 'none' }}
+                        onMouseDown={(e) => e.preventDefault()}
+                      >
+                        &times;
+                      </button>
                     </div>
                   </div>
                 </div>
               )}
             </div>
 
-            {/* Profile Dropdown - Removed arrow icon */}
+            {/* Profile Dropdown */}
             <div className="profile-container" style={{ position: 'relative' }}>
               <div 
                 className="profile-trigger"
                 onClick={toggleProfileDropdown}
-                style={{ display: 'flex', alignItems: 'center', cursor: 'pointer' }}
+                onMouseDown={(e) => e.preventDefault()}
+                style={{ display: 'flex', alignItems: 'center', cursor: 'pointer', outline: 'none' }}
               >
                 <img src={userProfile.avatar} alt="User avatar" className="profile-image" style={{ width: '32px', height: '32px', borderRadius: '50%' }} />
-                {/* Removed the ChevronDown icon */}
               </div>
               
               {showProfileDropdown && (
@@ -478,18 +625,31 @@ const LedgerView = () => {
                     </div>
                   </div>
                   <div className="dropdown-divider" style={{ height: '1px', backgroundColor: '#eee', margin: '10px 0' }}></div>
-                  <div className="dropdown-item" style={{ display: 'flex', alignItems: 'center', padding: '8px 0', cursor: 'pointer' }}>
+                  <div 
+                    className="dropdown-item" 
+                    style={{ display: 'flex', alignItems: 'center', padding: '8px 0', cursor: 'pointer', outline: 'none' }}
+                    onMouseDown={(e) => e.preventDefault()}
+                  >
                     <User size={16} style={{ marginRight: '8px' }} />
                     <span>Manage Profile</span>
                   </div>
                   {userProfile.role === "Admin" && (
-                    <div className="dropdown-item" style={{ display: 'flex', alignItems: 'center', padding: '8px 0', cursor: 'pointer' }}>
+                    <div 
+                      className="dropdown-item" 
+                      style={{ display: 'flex', alignItems: 'center', padding: '8px 0', cursor: 'pointer', outline: 'none' }}
+                      onMouseDown={(e) => e.preventDefault()}
+                    >
                       <Settings size={16} style={{ marginRight: '8px' }} />
                       <span>User Management</span>
                     </div>
                   )}
                   <div className="dropdown-divider" style={{ height: '1px', backgroundColor: '#eee', margin: '10px 0' }}></div>
-                  <div className="dropdown-item" onClick={handleLogout} style={{ display: 'flex', alignItems: 'center', padding: '8px 0', cursor: 'pointer' }}>
+                  <div 
+                    className="dropdown-item" 
+                    onClick={handleLogout} 
+                    style={{ display: 'flex', alignItems: 'center', padding: '8px 0', cursor: 'pointer', outline: 'none' }}
+                    onMouseDown={(e) => e.preventDefault()}
+                  >
                     <LogOut size={16} style={{ marginRight: '8px' }} />
                     <span>Log Out</span>
                   </div>
@@ -500,9 +660,9 @@ const LedgerView = () => {
         </div>
       </nav>
 
-      {/* Main Content - Updated to place everything inside the ledger container */}
+      {/* Main Content */}
       <div className="content-container" style={{ padding: '20px', maxWidth: '1200px', margin: '0 auto' }}>
-        {/* Page Container for everything - All elements now inside the ledger container */}
+        {/* Page Container for everything */}
         <div className="ledger-container" style={{ 
           backgroundColor: 'white', 
           borderRadius: '8px', 
@@ -511,31 +671,50 @@ const LedgerView = () => {
           overflow: 'hidden',
           display: 'flex',
           flexDirection: 'column',
-          height: 'calc(100vh - 100px)'
+          minHeight: 'calc(80vh - 100px)'
         }}>
-          {/* Header Section with Title and Controls - Now inside ledger container */}
+          {/* Header Section with Title and Controls */}
           <div className="top" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
             <h2 className="page-title">
               Ledger View 
             </h2>
             
             <div className="controls-container" style={{ display: 'flex', gap: '10px' }}>
-              <input
+              {/* Search Bar - Functionality Restored */}
+              <div style={{ position: 'relative' }}>
+                <input
                 type="text"
                 placeholder="Search"
                 value={searchTerm}
-                onChange={handleSearchChange}
+                onChange={(e) => setSearchTerm(e.target.value)}
                 className="search-account-input"
-                style={{ padding: '8px 12px', border: '1px solid #ccc', borderRadius: '4px' }}
-              />
+                style={{ 
+                  padding: '8px 12px', 
+                  border: '1px solid #ccc', 
+                  borderRadius: '4px',
+                  outline: 'none'
+                  }}
+                />
+              </div>
               
+              {/* Category Filter */}
               <div className="filter-dropdown" style={{ position: 'relative' }}>
                 <button 
                   className={`filter-dropdown-btn ${showCategoryDropdown ? 'active' : ''}`} 
                   onClick={toggleCategoryDropdown}
-                  style={{ padding: '8px 12px', border: '1px solid #ccc', borderRadius: '4px', backgroundColor: 'white', display: 'flex', alignItems: 'center', gap: '5px' }}
+                  onMouseDown={(e) => e.preventDefault()}
+                  style={{ 
+                    padding: '8px 12px', 
+                    border: '1px solid #ccc', 
+                    borderRadius: '4px', 
+                    backgroundColor: 'white', 
+                    display: 'flex', 
+                    alignItems: 'center', 
+                    gap: '5px',
+                    outline: 'none'
+                  }}
                 >
-                  <span>{activeFilters.category || 'All Categories'}</span>
+                  <span>{selectedCategory}</span>
                   <ChevronDown size={14} />
                 </button>
                 {showCategoryDropdown && (
@@ -549,19 +728,18 @@ const LedgerView = () => {
                     width: '100%',
                     zIndex: 1000
                   }}>
-                    <div
-                      className={`category-dropdown-item ${activeFilters.category === '' ? 'active' : ''}`}
-                      onClick={() => handleCategoryChange('')}
-                      style={{ padding: '8px 12px', cursor: 'pointer', backgroundColor: activeFilters.category === '' ? '#f0f0f0' : 'white' }}
-                    >
-                      All Categories
-                    </div>
-                    {categoryOptions.map((category, index) => (
+                    {categoryOptions.map((category) => (
                       <div
-                        key={index}
-                        className={`category-dropdown-item ${activeFilters.category === category ? 'active' : ''}`}
-                        onClick={() => handleCategoryChange(category)}
-                        style={{ padding: '8px 12px', cursor: 'pointer', backgroundColor: activeFilters.category === category ? '#f0f0f0' : 'white' }}
+                        key={category}
+                        className={`category-dropdown-item ${selectedCategory === category ? 'active' : ''}`}
+                        onClick={() => handleCategorySelect(category)}
+                        onMouseDown={(e) => e.preventDefault()}
+                        style={{ 
+                          padding: '8px 12px', 
+                          cursor: 'pointer', 
+                          backgroundColor: selectedCategory === category ? '#f0f0f0' : 'white',
+                          outline: 'none'
+                        }}
                       >
                         {category}
                       </div>
@@ -579,12 +757,12 @@ const LedgerView = () => {
             marginBottom: '20px'
           }}></div>
 
-          {/* Transactions Table - Made scrollable */}
+          {/* Steady Transactions Table - No Scroll */}
           <div style={{ 
-            flex: 1,
-            overflow: 'auto',
+            flex: '0 0 auto',
             border: '1px solid #e0e0e0',
-            borderRadius: '4px'
+            borderRadius: '4px',
+            overflow: 'hidden'
           }}>
             <table className="ledger-table" style={{ 
               width: '100%', 
@@ -592,7 +770,7 @@ const LedgerView = () => {
               tableLayout: 'fixed'
             }}>
               <thead>
-                <tr style={{ backgroundColor: '#f8f9fa', position: 'sticky', top: 0, zIndex: 10 }}>
+                <tr style={{ backgroundColor: '#f8f9fa' }}>
                   <th style={{ 
                     width: '12%', 
                     padding: '0.75rem', 
@@ -600,7 +778,8 @@ const LedgerView = () => {
                     borderBottom: '2px solid #dee2e6',
                     height: '50px',
                     verticalAlign: 'middle',
-                    backgroundColor: '#f8f9fa'
+                    wordWrap: 'break-word',
+                    overflowWrap: 'break-word'
                   }}>TICKET ID</th>
                   <th style={{ 
                     width: '15%', 
@@ -609,7 +788,8 @@ const LedgerView = () => {
                     borderBottom: '2px solid #dee2e6',
                     height: '50px',
                     verticalAlign: 'middle',
-                    backgroundColor: '#f8f9fa'
+                    wordWrap: 'break-word',
+                    overflowWrap: 'break-word'
                   }}>DATE</th>
                   <th style={{ 
                     width: '19%', 
@@ -618,7 +798,8 @@ const LedgerView = () => {
                     borderBottom: '2px solid #dee2e6',
                     height: '50px',
                     verticalAlign: 'middle',
-                    backgroundColor: '#f8f9fa'
+                    wordWrap: 'break-word',
+                    overflowWrap: 'break-word'
                   }}>CATEGORY</th>
                   <th style={{ 
                     width: '17%', 
@@ -627,7 +808,8 @@ const LedgerView = () => {
                     borderBottom: '2px solid #dee2e6',
                     height: '50px',
                     verticalAlign: 'middle',
-                    backgroundColor: '#f8f9fa'
+                    wordWrap: 'break-word',
+                    overflowWrap: 'break-word'
                   }}>SUB-SUBCATEGORY</th>
                   <th style={{ 
                     width: '17%', 
@@ -636,7 +818,8 @@ const LedgerView = () => {
                     borderBottom: '2px solid #dee2e6',
                     height: '50px',
                     verticalAlign: 'middle',
-                    backgroundColor: '#f8f9fa'
+                    wordWrap: 'break-word',
+                    overflowWrap: 'break-word'
                   }}>ACCOUNT</th>
                   <th style={{ 
                     width: '10%', 
@@ -645,7 +828,8 @@ const LedgerView = () => {
                     borderBottom: '2px solid #dee2e6',
                     height: '50px',
                     verticalAlign: 'middle',
-                    backgroundColor: '#f8f9fa'
+                    wordWrap: 'break-word',
+                    overflowWrap: 'break-word'
                   }}>AMOUNT</th>
                 </tr>
               </thead>
@@ -662,7 +846,7 @@ const LedgerView = () => {
                         transition: 'background-color 0.2s ease'
                       }}
                       onMouseEnter={(e) => {
-                        e.currentTarget.style.backgroundColor = '#D1D5DB'; // Gray 300
+                        e.currentTarget.style.backgroundColor = '#fcfcfc';
                       }}
                       onMouseLeave={(e) => {
                         e.currentTarget.style.backgroundColor = index % 2 === 1 ? '#F8F8F8' : '#FFFFFF';
@@ -671,32 +855,50 @@ const LedgerView = () => {
                       <td style={{ 
                         padding: '0.75rem', 
                         borderBottom: '1px solid #dee2e6',
-                        verticalAlign: 'middle'
+                        verticalAlign: 'middle',
+                        wordWrap: 'break-word',
+                        overflowWrap: 'break-word',
+                        whiteSpace: 'normal'
                       }}>{transaction.ticketId}</td>
                       <td style={{ 
                         padding: '0.75rem', 
                         borderBottom: '1px solid #dee2e6',
-                        verticalAlign: 'middle'
+                        verticalAlign: 'middle',
+                        wordWrap: 'break-word',
+                        overflowWrap: 'break-word',
+                        whiteSpace: 'normal'
                       }}>{transaction.date}</td>
                       <td style={{ 
                         padding: '0.75rem', 
                         borderBottom: '1px solid #dee2e6',
-                        verticalAlign: 'middle'
+                        verticalAlign: 'middle',
+                        wordWrap: 'break-word',
+                        overflowWrap: 'break-word',
+                        whiteSpace: 'normal'
                       }}>{transaction.category}</td>
                       <td style={{ 
                         padding: '0.75rem', 
-                        borderBottom: '1px solid ',
-                        verticalAlign: 'middle'
+                        borderBottom: '1px solid #dee2e6',
+                        verticalAlign: 'middle',
+                        wordWrap: 'break-word',
+                        overflowWrap: 'break-word',
+                        whiteSpace: 'normal'
                       }}>{transaction.subSubcategory}</td>
                       <td style={{ 
                         padding: '0.75rem', 
                         borderBottom: '1px solid #dee2e6',
-                        verticalAlign: 'middle'
+                        verticalAlign: 'middle',
+                        wordWrap: 'break-word',
+                        overflowWrap: 'break-word',
+                        whiteSpace: 'normal'
                       }}>{transaction.type}</td>
                       <td style={{ 
                         padding: '0.75rem', 
                         borderBottom: '1px solid #dee2e6',
-                        verticalAlign: 'middle'
+                        verticalAlign: 'middle',
+                        wordWrap: 'break-word',
+                        overflowWrap: 'break-word',
+                        whiteSpace: 'normal'
                       }}>{transaction.amount}</td>
                     </tr>
                   ))
@@ -708,7 +910,9 @@ const LedgerView = () => {
                       height: '50px',
                       verticalAlign: 'middle'
                     }}>
-                      No transactions match your search criteria.
+                      {searchTerm || selectedCategory !== 'All Categories' 
+                        ? 'No transactions match your search criteria.' 
+                        : 'No transactions found.'}
                     </td>
                   </tr>
                 )}
@@ -716,53 +920,19 @@ const LedgerView = () => {
             </table>
           </div>
           
-          {/* Pagination Controls - Preserved as is */}
-          {totalPages > 1 && (
-            <div className="pagination" style={{ 
-              display: 'flex', 
-              justifyContent: 'center', 
-              alignItems: 'center', 
-              gap: '5px',
-              marginTop: '20px',
-              padding: '10px 0'
-            }}>
-              <button 
-                onClick={prevPage} 
-                disabled={currentPage === 1}
-                className="pagination-btn"
-                style={{ padding: '8px 12px', border: '1px solid #ccc', backgroundColor: currentPage === 1 ? '#f0f0f0' : 'white', cursor: currentPage === 1 ? 'not-allowed' : 'pointer' }}
-              >
-                <ChevronLeft size={16} />
-              </button>
-              
-              {[...Array(totalPages)].map((_, index) => (
-                <button
-                  key={index + 1}
-                  onClick={() => paginate(index + 1)}
-                  className={`pagination-btn ${
-                    currentPage === index + 1 ? 'active' : ''
-                  }`}
-                  style={{ 
-                    padding: '8px 12px', 
-                    border: '1px solid #ccc', 
-                    backgroundColor: currentPage === index + 1 ? '#007bff' : 'white',
-                    color: currentPage === index + 1 ? 'white' : 'black',
-                    cursor: 'pointer'
-                  }}
-                >
-                  {index + 1}
-                </button>
-              ))}
-              
-              <button 
-                onClick={nextPage} 
-                disabled={currentPage === totalPages}
-                className="pagination-btn"
-                style={{ padding: '8px 12px', border: '1px solid #ccc', backgroundColor: currentPage === totalPages ? '#f0f0f0' : 'white', cursor: currentPage === totalPages ? 'not-allowed' : 'pointer' }}
-              >
-                <ChevronRight size={16} />
-              </button>
-            </div>
+          {/* New Pagination Component */}
+          {filteredTransactions.length > 0 && (
+            <Pagination
+              currentPage={currentPage}
+              pageSize={pageSize}
+              totalItems={filteredTransactions.length}
+              onPageChange={setCurrentPage}
+              onPageSizeChange={(newSize) => {
+                setPageSize(newSize);
+                setCurrentPage(1); // Reset to first page when page size changes
+              }}
+              pageSizeOptions={[5, 10, 20, 50]}
+            />
           )}
         </div>
       </div>

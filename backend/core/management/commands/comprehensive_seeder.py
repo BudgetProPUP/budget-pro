@@ -114,7 +114,7 @@ class Command(BaseCommand):
 
     # REMOVE: def create_users(self, departments): ...
 
-    def create_account_types(self): # No change needed here
+    def create_account_types(self): 
         self.stdout.write('Creating account types...')
         account_types_data = [
             {'name': 'Asset', 'description': 'Resources owned by the company'},
@@ -196,31 +196,50 @@ class Command(BaseCommand):
         return created_years
 
     def create_expense_categories(self):
-        self.stdout.write('Creating expense categories...')
+        self.stdout.write('Creating hierarchical expense categories...')
         
-        # Define the categories based on your UI mockups and common business needs
-        categories_data = [
-            {'code': 'TRAIN', 'name': 'Training and Development', 'level': 1},
-            {'code': 'PROF_SERV', 'name': 'Professional Services', 'level': 1},
-            {'code': 'EQUIP', 'name': 'Equipment and Maintenance', 'level': 1},
-            {'code': 'TRAVEL', 'name': 'Travel', 'level': 1},
-            {'code': 'OFFICE', 'name': 'Office Supplies', 'level': 1},
-            {'code': 'UTIL', 'name': 'Utilities', 'level': 1},
-            {'code': 'MKTG', 'name': 'Marketing & Advertising', 'level': 1},
-            {'code': 'MISC', 'name': 'Miscellaneous', 'level': 1},
-        ]
+        # LEVEL 1: Top-level financial groups
+        parent_asset, _ = ExpenseCategory.objects.update_or_create(
+            code='ASSET', defaults={'name': 'Asset', 'level': 1}
+        )
+        parent_expense, _ = ExpenseCategory.objects.update_or_create(
+            code='EXPENSE', defaults={'name': 'Expense', 'level': 1}
+        )
+        parent_liability, _ = ExpenseCategory.objects.update_or_create(
+            code='LIABILITY', defaults={'name': 'Liabilities', 'level': 1}
+        )
 
-        created_categories = []
-        for cat_data in categories_data:
-            # Use update_or_create to ensure this is idempotent and safe to run multiple times
-            category, created = ExpenseCategory.objects.update_or_create(
-                code=cat_data['code'],
-                defaults={'name': cat_data['name'], 'level': cat_data['level'], 'is_active': True}
-            )
-            created_categories.append(category)
+        # LEVEL 2: Operational sub-categories
+        ExpenseCategory.objects.update_or_create(
+            code='EQUIP', defaults={'name': 'Equipment and Maintenance', 'level': 2, 'parent_category': parent_asset}
+        )
+        ExpenseCategory.objects.update_or_create(
+            code='TRAIN', defaults={'name': 'Training and Development', 'level': 2, 'parent_category': parent_expense}
+        )
+        ExpenseCategory.objects.update_or_create(
+            code='PROF_SERV', defaults={'name': 'Professional Services', 'level': 2, 'parent_category': parent_expense}
+        )
+        ExpenseCategory.objects.update_or_create(
+            code='TRAVEL', defaults={'name': 'Travel', 'level': 2, 'parent_category': parent_expense}
+        )
+        ExpenseCategory.objects.update_or_create(
+            code='OFFICE', defaults={'name': 'Office Supplies', 'level': 2, 'parent_category': parent_expense}
+        )
+        ExpenseCategory.objects.update_or_create(
+            code='UTIL', defaults={'name': 'Utilities', 'level': 2, 'parent_category': parent_expense}
+        )
+        ExpenseCategory.objects.update_or_create(
+            code='MKTG', defaults={'name': 'Marketing & Advertising', 'level': 2, 'parent_category': parent_expense}
+        )
+        ExpenseCategory.objects.update_or_create(
+            code='MISC', defaults={'name': 'Miscellaneous', 'level': 2, 'parent_category': parent_expense}
+        )
+        ExpenseCategory.objects.update_or_create(
+            code='PAYABLE', defaults={'name': 'Payables and Loans', 'level': 2, 'parent_category': parent_liability}
+        )
 
-        self.stdout.write(self.style.SUCCESS(f'Created/Updated {len(created_categories)} expense categories.'))
-        return created_categories
+        self.stdout.write(self.style.SUCCESS('Successfully created/updated hierarchical expense categories.'))
+        return list(ExpenseCategory.objects.all())
 
 
     def create_budget_proposals(self, departments, fiscal_years): # MODIFIED: removed users param
@@ -433,7 +452,7 @@ class Command(BaseCommand):
 
 
     def create_expenses(self, departments, accounts, budget_allocations, expense_categories): # IDEMPOTENT
-        self.stdout.write('Creating expenses...')
+        self.stdout.write('Creating realistic expenses (US-002)...')
         expenses_list = []
         if not budget_allocations:
             self.stdout.write(self.style.WARNING("No budget allocations to create expenses for. Skipping expense creation."))
@@ -448,31 +467,38 @@ class Command(BaseCommand):
             sim_submitter = random.choice(department_users) if department_users else random.choice(SIMULATED_USERS)
 
             status = random.choice(['SUBMITTED', 'APPROVED', 'REJECTED', 'DRAFT'])
-            deterministic_desc = f"Expense for {alloc.project.name[:20]} - Seeded Item #{i+1}" # IDEMPOTENCY: Create a stable key.
-            
+            deterministic_desc = f"Expense for {alloc.project.name[:20]} - Seeded Item #{i+1}"
+
+            # --- KEY CHANGE FOR DATA QUALITY --
+            expense_cat = alloc.category
+            # --- END KEY CHANGE ---
+
             defaults = {
-                'budget_allocation': alloc, 'account': alloc.account, 'department': alloc.department,
+                'budget_allocation': alloc,
+                'account': alloc.account,
+                'department': alloc.department,
+                'project': alloc.project,
                 'date': timezone.now() - timedelta(days=random.randint(1, 60)),
                 'amount': Decimal(random.randint(100, int(alloc.amount / 20) if alloc.amount > 2000 else 100)),
-                'vendor': random.choice(['Vendor X', 'Vendor Y', 'Vendor Z']),
+                'vendor': random.choice(['Office World', 'Tech Solutions Inc.', 'Travel Agency Co.']),
                 'submitted_by_user_id': sim_submitter['id'],
                 'submitted_by_username': sim_submitter['username'],
                 'status': status,
-                'category': random.choice(expense_categories) if expense_categories else None
+                'category': expense_cat
             }
             if status == 'APPROVED':
                 sim_approver = random.choice([u for u in SIMULATED_USERS if u['username'] in ['admin_auth', 'finance_head_auth']])
                 defaults['approved_by_user_id'] = sim_approver['id']
                 defaults['approved_by_username'] = sim_approver['username']
                 defaults['approved_at'] = timezone.now()
-            
+
             expense_obj, _ = Expense.objects.get_or_create(
-                project=alloc.project,                                              # IDEMPOTENCY: Use a compound key.
-                description=deterministic_desc,                                     # IDEMPOTENCY: Use a compound key.
+                project=alloc.project,
+                description=deterministic_desc,
                 defaults=defaults
             )
             expenses_list.append(expense_obj)
-        self.stdout.write(self.style.SUCCESS(f'Created/Updated {len(expenses_list)} expenses'))
+        self.stdout.write(self.style.SUCCESS(f'Created/Updated {len(expenses_list)} realistic expenses'))
         return expenses_list
 
     def create_proposal_history(self, proposals): # IDEMPOTENT

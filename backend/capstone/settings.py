@@ -342,7 +342,7 @@ AUTH_PASSWORD_VALIDATORS = [
 ]
 
 PASSWORD_HASHERS = [
-    'core.hashers.CustomArgon2PasswordHasher',
+    # 'core.hashers.CustomArgon2PasswordHasher',
     'django.contrib.auth.hashers.Argon2PasswordHasher',      # Strongest
     'django.contrib.auth.hashers.PBKDF2PasswordHasher',      # Default ; Fallback
     'django.contrib.auth.hashers.PBKDF2SHA1PasswordHasher',

@@ -5,7 +5,7 @@ from .models import (
     BudgetProposal, BudgetProposalItem, BudgetAllocation,
     BudgetTransfer, JournalEntry, JournalEntryLine, Expense,
     ProposalHistory, ProposalComment, TransactionAudit,
-    Project, DashboardMetric, RiskMetric
+    Project, DashboardMetric, RiskMetric, ExpenseCategory
 )
 
 # Register all models with the Django admin site
@@ -26,3 +26,4 @@ admin.site.register(TransactionAudit)
 admin.site.register(Project)
 admin.site.register(DashboardMetric)
 admin.site.register(RiskMetric)
+admin.site.register(ExpenseCategory)

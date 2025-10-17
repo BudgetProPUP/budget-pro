@@ -1,37 +1,10 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { ChevronDown, Search, ArrowLeft, ChevronLeft, ChevronRight, User, LogOut, Bell, Settings } from 'lucide-react';
+import { Search, ChevronDown, ArrowLeft, ChevronLeft, ChevronRight, User, Mail, Briefcase, LogOut, Bell, Settings, X } from 'lucide-react';
 import LOGOMAP from '../../assets/MAP.jpg';
-import './ProposalHistory.css';
+import './BudgetAllocation.css';
 
-// Status Component - Integrated directly
-const Status = ({
-  type,
-  name,
-  personName = null,
-  location = null,
-}) => {
-  return (
-    <div className={`status-${type.split(" ").join("-")}`}>
-      <div className="circle"></div>
-      {name}
-      {(personName != null || location != null) && (
-        <span className="status-details">
-          <span className="status-to">to</span>
-          <div className="icon">
-            {/* Since we don't have the icons, we'll use a simple div instead */}
-            <div className="icon-placeholder"></div>
-          </div>
-          <span className="status-target">
-            {personName != null ? personName : location}
-          </span>
-        </span>
-      )}
-    </div>
-  );
-};
-
-// Pagination Component - Copied from LedgerView
+// Pagination Component (copied from LedgerView)
 const Pagination = ({
   currentPage,
   pageSize,
@@ -152,19 +125,17 @@ const Pagination = ({
   );
 };
 
-const ProposalHistory = () => {
+function BudgetAllocation() {
   const [showBudgetDropdown, setShowBudgetDropdown] = useState(false);
   const [showExpenseDropdown, setShowExpenseDropdown] = useState(false);
-  const [showStatusDropdown, setShowStatusDropdown] = useState(false);
-  const [showProfileDropdown, setShowProfileDropdown] = useState(false);
-  const [showNotifications, setShowNotifications] = useState(false);
-  const [selectedStatus, setSelectedStatus] = useState('All Status');
-  const [searchTerm, setSearchTerm] = useState('');
-  const [currentPage, setCurrentPage] = useState(1);
-  const [pageSize, setPageSize] = useState(5); // Added pageSize state
   const [showCategoryDropdown, setShowCategoryDropdown] = useState(false);
   const [selectedCategory, setSelectedCategory] = useState('All Categories');
-  const [currentDate, setCurrentDate] = useState(new Date());
+  const [showAddJournalModal, setShowAddJournalModal] = useState(false);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [currentPage, setCurrentPage] = useState(1);
+  const [pageSize, setPageSize] = useState(5);
+  const [showNotifications, setShowNotifications] = useState(false);
+  const [showProfileDropdown, setShowProfileDropdown] = useState(false);
   const navigate = useNavigate();
 
   // User profile data
@@ -175,102 +146,38 @@ const ProposalHistory = () => {
     avatar: "https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?ixlib=rb-1.2.1&ixid=eyJhcHBfaWQiOjEyMDd9&auto=format&fit=facearea&facepad=2&w=256&h=256&q=80"
   };
 
-  // Sample data for demonstration
-  const proposals = useMemo(() => [
-    {
-      id: 'FP-2025-042',
-      title: 'IT Infrastructure Upgrade',
-      lastModified: '04-12-2025',
-      modifiedBy: 'J.Thompson',
-      status: 'approved',
-      category: 'Technology',
-      subcategory: 'Hardware'
-    },
-    {
-      id: 'FP-2025-942',
-      title: 'Facility Expansion Plan',
-      lastModified: '04-12-2025',
-      modifiedBy: 'A.Williams',
-      status: 'approved',
-      category: 'Operations',
-      subcategory: 'Facilities'
-    },
-    {
-      id: 'FP-2025-128',
-      title: 'DevOps Certification',
-      lastModified: '03-25-2025',
-      modifiedBy: 'L.Chen',
-      status: 'rejected',
-      category: 'Human Resources',
-      subcategory: 'Training'
-    },
-    {
-      id: 'FP-2025-367',
-      title: 'IT Budget',
-      lastModified: '02-14-2025',
-      modifiedBy: 'K.Thomas',
-      status: 'approved',
-      category: 'Technology',
-      subcategory: 'Software'
-    },
-    {
-      id: 'FP-2025-002',
-      title: 'Server Racks',
-      lastModified: '01-25-2025',
-      modifiedBy: 'A.Ford',
-      status: 'approved',
-      category: 'Technology',
-      subcategory: 'Infrastructure'
-    },
-    {
-      id: 'FP-2024-042',
-      title: 'Company Laptops',
-      lastModified: '12-12-2024',
-      modifiedBy: 'A.Ford',
-      status: 'approved',
-      category: 'Technology',
-      subcategory: 'Hardware'
-    },
-    {
-      id: 'FP-2024-043',
-      title: 'Office Renovation',
-      lastModified: '11-10-2024',
-      modifiedBy: 'M.Johnson',
-      status: 'pending',
-      category: 'Operations',
-      subcategory: 'Facilities'
-    },
-    {
-      id: 'FP-2024-044',
-      title: 'Marketing Campaign',
-      lastModified: '10-05-2024',
-      modifiedBy: 'S.Williams',
-      status: 'approved',
-      category: 'Marketing',
-      subcategory: 'Advertising'
-    },
-    {
-      id: 'FP-2024-045',
-      title: 'Employee Training',
-      lastModified: '09-15-2024',
-      modifiedBy: 'R.Davis',
-      status: 'rejected',
-      category: 'Human Resources',
-      subcategory: 'Training'
-    },
-    {
-      id: 'FP-2024-046',
-      title: 'Software Licenses',
-      lastModified: '08-20-2024',
-      modifiedBy: 'T.Miller',
-      status: 'approved',
-      category: 'Technology',
-      subcategory: 'Software'
-    }
+  // Function to format date as YYYY-MM-DD for input type="date"
+  const formatDateForInput = (date) => {
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+  };
+
+  // Initial form state with current date - REMOVED transactionType field
+  const [journalForm, setJournalForm] = useState({
+    entryId: 'System generated ID',
+    date: formatDateForInput(new Date()),
+    category: '',
+    account: '',
+    description: '',
+    amount: ''
+  });
+
+  // Sample journal entries data
+  const journalEntries = useMemo(() => [
+    { id: 'EX-001', date: '05-12-2025', category: 'Miscellaneous', account: 'Expenses', description: 'Internet Bill', amount: 'P8,300' },
+    { id: 'AS-001', date: '05-03-2025', category: 'Equipment & Maintenance', account: 'Assets', description: 'Company Laptops', amount: 'P250,000' },
+    { id: 'LI-001', date: '04-21-2025', category: 'Miscellaneous', account: 'Liabilities', description: 'Office Rent', amount: 'P45,000' },
+    { id: 'EX-002', date: '04-15-2025', category: 'Miscellaneous', account: 'Expenses', description: 'Electricity Bill', amount: 'P12,750' },
+    { id: 'AS-002', date: '04-10-2025', category: 'Equipment & Maintenance', account: 'Assets', description: 'Office Furniture', amount: 'P85,000' },
+    { id: 'EX-003', date: '04-05-2025', category: 'Travel', account: 'Expenses', description: 'Business Trip', amount: 'P15,000' },
+    { id: 'EX-004', date: '03-28-2025', category: 'Office Supplies', account: 'Expenses', description: 'Stationery', amount: 'P5,500' },
+    { id: 'EX-005', date: '03-20-2025', category: 'Utilities', account: 'Expenses', description: 'Water Bill', amount: 'P3,200' },
   ], []);
 
-  // Define all available categories
-  const categories = [
+  // Category options - Updated with new categories
+  const categoryOptions = [
     'All Categories',
     'Travel',
     'Office Supplies',
@@ -282,32 +189,183 @@ const ProposalHistory = () => {
     'Miscellaneous'
   ];
 
-  // Status options
-  const statusOptions = ['All Status', 'pending', 'approved', 'rejected'];
+  // Close dropdowns when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (!event.target.closest('.nav-dropdown') && !event.target.closest('.profile-container') && !event.target.closest('.filter-dropdown')) {
+        setShowBudgetDropdown(false);
+        setShowExpenseDropdown(false);
+        setShowCategoryDropdown(false);
+        setShowProfileDropdown(false);
+        setShowNotifications(false);
+      }
+    };
 
-  // Filter proposals based on search term, category and status
-  const filteredProposals = useMemo(() => {
-    return proposals.filter(proposal => {
-      const matchesSearch = proposal.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-             proposal.id.toLowerCase().includes(searchTerm.toLowerCase()) ||
-             proposal.category.toLowerCase().includes(searchTerm.toLowerCase()) ||
-             proposal.subcategory.toLowerCase().includes(searchTerm.toLowerCase()) ||
-             proposal.modifiedBy.toLowerCase().includes(searchTerm.toLowerCase());
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, []);
+
+  // Filter journal entries based on search query and selected category
+  const filteredEntries = useMemo(() => {
+    return journalEntries.filter(entry => {
+      const matchesSearch = entry.description.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                         entry.category.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                         entry.id.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                         entry.account.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                         entry.amount.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                         entry.date.toLowerCase().includes(searchTerm.toLowerCase());
       
-      const matchesCategory = selectedCategory === 'All Categories' || proposal.category === selectedCategory;
+      const matchesCategory = selectedCategory === 'All Categories' || entry.category === selectedCategory;
       
-      const matchesStatus = selectedStatus === 'All Status' || proposal.status === selectedStatus.toLowerCase();
-      
-      return matchesSearch && matchesCategory && matchesStatus;
+      return matchesSearch && matchesCategory;
     });
-  }, [searchTerm, selectedCategory, selectedStatus, proposals]);
+  }, [searchTerm, selectedCategory, journalEntries]);
 
-  // Updated pagination logic to use pageSize state
+  // Pagination logic - Updated to use pageSize state (from LedgerView)
   const indexOfLastItem = currentPage * pageSize;
   const indexOfFirstItem = indexOfLastItem - pageSize;
-  const currentProposals = filteredProposals.slice(indexOfFirstItem, indexOfLastItem);
+  const currentEntries = filteredEntries.slice(indexOfFirstItem, indexOfLastItem);
 
-  // Format date and time for display - Updated to include day of week (same as LedgerView)
+  // Navigation dropdown handlers
+  const toggleBudgetDropdown = () => {
+    setShowBudgetDropdown(!showBudgetDropdown);
+    if (showExpenseDropdown) setShowExpenseDropdown(false);
+    if (showCategoryDropdown) setShowCategoryDropdown(false);
+    if (showProfileDropdown) setShowProfileDropdown(false);
+    if (showNotifications) setShowNotifications(false);
+  };
+
+  const toggleExpenseDropdown = () => {
+    setShowExpenseDropdown(!showExpenseDropdown);
+    if (showBudgetDropdown) setShowBudgetDropdown(false);
+    if (showCategoryDropdown) setShowCategoryDropdown(false);
+    if (showProfileDropdown) setShowProfileDropdown(false);
+    if (showNotifications) setShowNotifications(false);
+  };
+
+  const toggleCategoryDropdown = () => {
+    setShowCategoryDropdown(!showCategoryDropdown);
+    if (showBudgetDropdown) setShowBudgetDropdown(false);
+    if (showExpenseDropdown) setShowExpenseDropdown(false);
+    if (showProfileDropdown) setShowProfileDropdown(false);
+    if (showNotifications) setShowNotifications(false);
+  };
+
+  const toggleNotifications = () => {
+    setShowNotifications(!showNotifications);
+    if (showBudgetDropdown) setShowBudgetDropdown(false);
+    if (showExpenseDropdown) setShowExpenseDropdown(false);
+    if (showCategoryDropdown) setShowCategoryDropdown(false);
+    if (showProfileDropdown) setShowProfileDropdown(false);
+  };
+
+  const toggleProfileDropdown = () => {
+    setShowProfileDropdown(!showProfileDropdown);
+    if (showBudgetDropdown) setShowBudgetDropdown(false);
+    if (showExpenseDropdown) setShowExpenseDropdown(false);
+    if (showCategoryDropdown) setShowCategoryDropdown(false);
+    if (showNotifications) setShowNotifications(false);
+  };
+
+  const handleCategorySelect = (category) => {
+    setSelectedCategory(category);
+    setCurrentPage(1);
+    setShowCategoryDropdown(false);
+  };
+  
+  const handleNavigate = (path) => {
+    navigate(path);
+    setShowBudgetDropdown(false);
+    setShowExpenseDropdown(false);
+    setShowProfileDropdown(false);
+    setShowNotifications(false);
+  };
+
+  // Updated logout function with navigation to login screen
+  const handleLogout = () => {
+    try {
+      localStorage.removeItem('authToken');
+      localStorage.removeItem('userSession');
+      localStorage.removeItem('userProfile');
+      sessionStorage.clear();
+      setShowProfileDropdown(false);
+      navigate('/login', { replace: true });
+      console.log('User logged out successfully');
+    } catch (error) {
+      console.error('Error during logout:', error);
+      navigate('/login', { replace: true });
+    }
+  };
+  
+  const openAddJournalModal = () => {
+    setJournalForm({
+      ...journalForm,
+      date: formatDateForInput(new Date()),
+      amount: '' // Reset amount when opening modal
+    });
+    setShowAddJournalModal(true);
+  };
+  
+  const closeAddJournalModal = () => {
+    setShowAddJournalModal(false);
+  };
+  
+  const handleInputChange = (e) => {
+    const { name, value } = e.target;
+    
+    if (name === 'amount') {
+      // Allow typing any amount and format as peso
+      if (value === '') {
+        setJournalForm({
+          ...journalForm,
+          [name]: ''
+        });
+      } else {
+        // Remove any existing peso symbol and format properly
+        const cleanValue = value.replace('₱', '').replace(/,/g, '');
+        
+        // Only allow numbers and decimal point
+        const numericValue = cleanValue.replace(/[^\d.]/g, '');
+        
+        // Format as peso currency with comma separators
+        const formattedValue = `₱${numericValue.replace(/\B(?=(\d{3})+(?!\d))/g, ',')}`;
+        
+        setJournalForm({
+          ...journalForm,
+          [name]: formattedValue
+        });
+      }
+    } else {
+      setJournalForm({
+        ...journalForm,
+        [name]: value
+      });
+    }
+  };
+
+  // Clear amount field
+  const clearAmount = () => {
+    setJournalForm({
+      ...journalForm,
+      amount: ''
+    });
+  };
+
+  // Date and time for Navbar
+  const [currentDate, setCurrentDate] = useState(new Date());
+  
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setCurrentDate(new Date());
+    }, 1000);
+
+    return () => {
+      clearInterval(interval);
+    };
+  }, []);
+  
   const formattedDay = currentDate.toLocaleDateString('en-US', { weekday: 'long' });
   const formattedDate = currentDate.toLocaleDateString('en-US', { 
     month: 'long', 
@@ -320,133 +378,9 @@ const ProposalHistory = () => {
     hour12: true 
   }).toUpperCase();
 
-  // Close dropdowns when clicking outside
-  useEffect(() => {
-    const handleClickOutside = (event) => {
-      if (!event.target.closest('.nav-dropdown') && 
-          !event.target.closest('.profile-container') && 
-          !event.target.closest('.notification-container') &&
-          !event.target.closest('.filter-dropdown')) {
-        setShowBudgetDropdown(false);
-        setShowExpenseDropdown(false);
-        setShowProfileDropdown(false);
-        setShowNotifications(false);
-        setShowStatusDropdown(false);
-        setShowCategoryDropdown(false);
-      }
-    };
-
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => {
-      document.removeEventListener('mousedown', handleClickOutside);
-    };
-  }, []);
-
-  // Update current date/time
-  useEffect(() => {
-    const interval = setInterval(() => {
-      setCurrentDate(new Date());
-    }, 1000);
-
-    return () => {
-      clearInterval(interval);
-    };
-  }, []);
-
-  // Navigation dropdown handlers - Updated with LedgerView functionality
-  const toggleBudgetDropdown = () => {
-    setShowBudgetDropdown(!showBudgetDropdown);
-    if (showExpenseDropdown) setShowExpenseDropdown(false);
-    if (showProfileDropdown) setShowProfileDropdown(false);
-    if (showNotifications) setShowNotifications(false);
-    if (showStatusDropdown) setShowStatusDropdown(false);
-    if (showCategoryDropdown) setShowCategoryDropdown(false);
-  };
-
-  const toggleExpenseDropdown = () => {
-    setShowExpenseDropdown(!showExpenseDropdown);
-    if (showBudgetDropdown) setShowBudgetDropdown(false);
-    if (showProfileDropdown) setShowProfileDropdown(false);
-    if (showNotifications) setShowNotifications(false);
-    if (showStatusDropdown) setShowStatusDropdown(false);
-    if (showCategoryDropdown) setShowCategoryDropdown(false);
-  };
-
-  const toggleProfileDropdown = () => {
-    setShowProfileDropdown(!showProfileDropdown);
-    if (showBudgetDropdown) setShowBudgetDropdown(false);
-    if (showExpenseDropdown) setShowExpenseDropdown(false);
-    if (showNotifications) setShowNotifications(false);
-    if (showStatusDropdown) setShowStatusDropdown(false);
-    if (showCategoryDropdown) setShowCategoryDropdown(false);
-  };
-
-  const toggleNotifications = () => {
-    setShowNotifications(!showNotifications);
-    if (showBudgetDropdown) setShowBudgetDropdown(false);
-    if (showExpenseDropdown) setShowExpenseDropdown(false);
-    if (showProfileDropdown) setShowProfileDropdown(false);
-    if (showStatusDropdown) setShowStatusDropdown(false);
-    if (showCategoryDropdown) setShowCategoryDropdown(false);
-  };
-
-  const toggleCategoryDropdown = () => {
-    setShowCategoryDropdown(!showCategoryDropdown);
-    if (showStatusDropdown) setShowStatusDropdown(false);
-    if (showBudgetDropdown) setShowBudgetDropdown(false);
-    if (showExpenseDropdown) setShowExpenseDropdown(false);
-    if (showProfileDropdown) setShowProfileDropdown(false);
-    if (showNotifications) setShowNotifications(false);
-  };
-
-  const toggleStatusDropdown = () => {
-    setShowStatusDropdown(!showStatusDropdown);
-    if (showCategoryDropdown) setShowCategoryDropdown(false);
-    if (showBudgetDropdown) setShowBudgetDropdown(false);
-    if (showExpenseDropdown) setShowExpenseDropdown(false);
-    if (showProfileDropdown) setShowProfileDropdown(false);
-    if (showNotifications) setShowNotifications(false);
-  };
-
-  const handleCategorySelect = (category) => {
-    setSelectedCategory(category);
-    setShowCategoryDropdown(false);
-    setCurrentPage(1);
-  };
-
-  const handleStatusSelect = (status) => {
-    setSelectedStatus(status);
-    setShowStatusDropdown(false);
-    setCurrentPage(1);
-  };
-
-  const handleNavigate = (path) => {
-    navigate(path);
-    setShowBudgetDropdown(false);
-    setShowExpenseDropdown(false);
-    setShowProfileDropdown(false);
-    setShowNotifications(false);
-    setShowStatusDropdown(false);
-    setShowCategoryDropdown(false);
-  };
-
-  const handleLogout = () => {
-    try {
-      localStorage.removeItem('authToken');
-      localStorage.removeItem('userSession');
-      localStorage.removeItem('userProfile');
-      sessionStorage.clear();
-      setShowProfileDropdown(false);
-      navigate('/login', { replace: true });
-    } catch (error) {
-      console.error('Error during logout:', error);
-      navigate('/login', { replace: true });
-    }
-  };
-
   return (
     <div className="app-container" style={{ minWidth: '1200px', overflowY: 'auto', height: '100vh' }}>
-      {/* Navigation Bar - Updated with LedgerView's exact navbar */}
+      {/* Navigation Bar - Preserved as is */}
       <nav className="navbar" style={{ position: 'static', marginBottom: '20px' }}>
         <div className="navbar-content" style={{ 
           display: 'flex', 
@@ -496,7 +430,7 @@ const ProposalHistory = () => {
           <div className="navbar-links" style={{ display: 'flex', gap: '20px' }}>
             <Link to="/dashboard" className="nav-link">Dashboard</Link>
             
-            {/* Budget Dropdown - Updated with LedgerView functionality */}
+            {/* Budget Dropdown */}
             <div className="nav-dropdown">
               <div 
                 className={`nav-link ${showBudgetDropdown ? 'active' : ''}`}
@@ -527,7 +461,7 @@ const ProposalHistory = () => {
               )}
             </div>
 
-            {/* Expense Dropdown - Updated with LedgerView functionality */}
+            {/* Expense Dropdown */}
             <div className="nav-dropdown">
               <div 
                 className={`nav-link ${showExpenseDropdown ? 'active' : ''}`}
@@ -550,9 +484,9 @@ const ProposalHistory = () => {
             </div>
           </div>
 
-          {/* User Controls - Updated with LedgerView's exact controls */}
+          {/* User Controls */}
           <div className="navbar-controls" style={{ display: 'flex', alignItems: 'center', gap: '15px' }}>
-            {/* Timestamp/Date - Updated to match LedgerView format */}
+            {/* Timestamp/Date */}
             <div className="date-time-badge" style={{
               background: '#f3f4f6',
               borderRadius: '16px',
@@ -566,7 +500,7 @@ const ProposalHistory = () => {
               {formattedDay}, {formattedDate} | {formattedTime}
             </div>
 
-            {/* Notification Icon - Updated with LedgerView functionality */}
+            {/* Notification Icon */}
             <div className="notification-container">
               <div 
                 className="notification-icon"
@@ -653,7 +587,7 @@ const ProposalHistory = () => {
               )}
             </div>
 
-            {/* Profile Dropdown - Updated with LedgerView functionality */}
+            {/* Profile Dropdown */}
             <div className="profile-container" style={{ position: 'relative' }}>
               <div 
                 className="profile-trigger"
@@ -719,10 +653,10 @@ const ProposalHistory = () => {
         </div>
       </nav>
 
-      {/* Main Content - Updated with LedgerView's layout and functionality */}
+      {/* Main Content - Updated with LedgerView table and pagination layout */}
       <div className="content-container" style={{ padding: '20px', maxWidth: '1200px', margin: '0 auto' }}>
         {/* Page Container for everything - Updated with LedgerView styling */}
-        <div className="proposal-history" style={{ 
+        <div className="ledger-container" style={{ 
           backgroundColor: 'white', 
           borderRadius: '8px', 
           boxShadow: '0 2px 4px rgba(0,0,0,0.1)',
@@ -735,7 +669,7 @@ const ProposalHistory = () => {
           {/* Header Section with Title and Controls - Updated with LedgerView layout */}
           <div className="top" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
             <h2 className="page-title">
-              Proposal History 
+              Budget Adjustment 
             </h2>
             
             <div className="controls-container" style={{ display: 'flex', gap: '10px' }}>
@@ -756,7 +690,7 @@ const ProposalHistory = () => {
                 />
               </div>
               
-              {/* Category Filter - Updated with LedgerView styling */}
+              {/* Category Filter - Updated with LedgerView functionality */}
               <div className="filter-dropdown" style={{ position: 'relative' }}>
                 <button 
                   className={`filter-dropdown-btn ${showCategoryDropdown ? 'active' : ''}`} 
@@ -787,7 +721,7 @@ const ProposalHistory = () => {
                     width: '100%',
                     zIndex: 1000
                   }}>
-                    {categories.map((category) => (
+                    {categoryOptions.map((category) => (
                       <div
                         key={category}
                         className={`category-dropdown-item ${selectedCategory === category ? 'active' : ''}`}
@@ -807,69 +741,28 @@ const ProposalHistory = () => {
                 )}
               </div>
               
-              {/* Status Filter - Updated with LedgerView styling */}
-              <div className="filter-dropdown" style={{ position: 'relative' }}>
-                <button 
-                  className={`filter-dropdown-btn ${showStatusDropdown ? 'active' : ''}`} 
-                  onClick={toggleStatusDropdown}
-                  onMouseDown={(e) => e.preventDefault()}
-                  style={{ 
-                    padding: '8px 12px', 
-                    border: '1px solid #ccc', 
-                    borderRadius: '4px', 
-                    backgroundColor: 'white', 
-                    display: 'flex', 
-                    alignItems: 'center', 
-                    gap: '5px',
-                    outline: 'none'
-                  }}
-                >
-                  <span>Status: {selectedStatus}</span>
-                  <ChevronDown size={14} />
-                </button>
-                {showStatusDropdown && (
-                  <div className="category-dropdown-menu" style={{
-                    position: 'absolute',
-                    top: '100%',
-                    left: 0,
-                    backgroundColor: 'white',
-                    border: '1px solid #ccc',
-                    borderRadius: '4px',
-                    width: '100%',
-                    zIndex: 1000
-                  }}>
-                    {statusOptions.map((status) => (
-                      <div
-                        key={status}
-                        className={`category-dropdown-item ${selectedStatus === status ? 'active' : ''}`}
-                        onClick={() => handleStatusSelect(status)}
-                        onMouseDown={(e) => e.preventDefault()}
-                        style={{ 
-                          padding: '8px 12px', 
-                          cursor: 'pointer', 
-                          backgroundColor: selectedStatus === status ? '#f0f0f0' : 'white',
-                          outline: 'none'
-                        }}
-                      >
-                        {status === 'pending' ? 'Pending' :
-                         status === 'approved' ? 'Approved' :
-                         status === 'rejected' ? 'Rejected' : status}
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
+              <button className="add-journal-button" onClick={openAddJournalModal} style={{ 
+                padding: '8px 12px', 
+                border: '1px solid #ccc', 
+                borderRadius: '4px', 
+                backgroundColor: '#007bff', 
+                color: 'white', 
+                cursor: 'pointer',
+                outline: 'none'
+              }}>
+                Modify Budget
+              </button>
             </div>
           </div>
 
-          {/* Separator line between title and table - Added from LedgerView */}
+          {/* Separator line between title and table - From LedgerView */}
           <div style={{
             height: '1px',
             backgroundColor: '#e0e0e0',
             marginBottom: '20px'
           }}></div>
 
-          {/* Updated Table Layout - Using LedgerView's steady table design */}
+          {/* Journal Entries Table - Updated with LedgerView table layout (no scroll) */}
           <div style={{ 
             flex: '0 0 auto',
             border: '1px solid #e0e0e0',
@@ -884,7 +777,7 @@ const ProposalHistory = () => {
               <thead>
                 <tr style={{ backgroundColor: '#f8f9fa' }}>
                   <th style={{ 
-                    width: '15%', 
+                    width: '12%', 
                     padding: '0.75rem', 
                     textAlign: 'left', 
                     borderBottom: '2px solid #dee2e6',
@@ -894,7 +787,17 @@ const ProposalHistory = () => {
                     overflowWrap: 'break-word'
                   }}>TICKET ID</th>
                   <th style={{ 
-                    width: '20%', 
+                    width: '15%', 
+                    padding: '0.75rem', 
+                    textAlign: 'left', 
+                    borderBottom: '2px solid #dee2e6',
+                    height: '50px',
+                    verticalAlign: 'middle',
+                    wordWrap: 'break-word',
+                    overflowWrap: 'break-word'
+                  }}>DATE</th>
+                  <th style={{ 
+                    width: '21%', 
                     padding: '0.75rem', 
                     textAlign: 'left', 
                     borderBottom: '2px solid #dee2e6',
@@ -904,7 +807,7 @@ const ProposalHistory = () => {
                     overflowWrap: 'break-word'
                   }}>CATEGORY</th>
                   <th style={{ 
-                    width: '20%', 
+                    width: '13%', 
                     padding: '0.75rem', 
                     textAlign: 'left', 
                     borderBottom: '2px solid #dee2e6',
@@ -912,9 +815,9 @@ const ProposalHistory = () => {
                     verticalAlign: 'middle',
                     wordWrap: 'break-word',
                     overflowWrap: 'break-word'
-                  }}>SUBCATEGORY</th>
+                  }}>ACCOUNT</th>
                   <th style={{ 
-                    width: '15%', 
+                    width: '17%', 
                     padding: '0.75rem', 
                     textAlign: 'left', 
                     borderBottom: '2px solid #dee2e6',
@@ -922,9 +825,9 @@ const ProposalHistory = () => {
                     verticalAlign: 'middle',
                     wordWrap: 'break-word',
                     overflowWrap: 'break-word'
-                  }}>LAST MODIFIED</th>
+                  }}>DESCRIPTION</th>
                   <th style={{ 
-                    width: '15%', 
+                    width: '10%', 
                     padding: '0.75rem', 
                     textAlign: 'left', 
                     borderBottom: '2px solid #dee2e6',
@@ -932,24 +835,14 @@ const ProposalHistory = () => {
                     verticalAlign: 'middle',
                     wordWrap: 'break-word',
                     overflowWrap: 'break-word'
-                  }}>MODIFIED BY</th>
-                  <th style={{ 
-                    width: '15%', 
-                    padding: '0.75rem', 
-                    textAlign: 'left', 
-                    borderBottom: '2px solid #dee2e6',
-                    height: '50px',
-                    verticalAlign: 'middle',
-                    wordWrap: 'break-word',
-                    overflowWrap: 'break-word'
-                  }}>STATUS</th>
+                  }}>AMOUNT</th>
                 </tr>
               </thead>
               <tbody>
-                {currentProposals.length > 0 ? (
-                  currentProposals.map((proposal, index) => (
+                {currentEntries.length > 0 ? (
+                  currentEntries.map((entry, index) => (
                     <tr 
-                      key={proposal.id} 
+                      key={entry.id} 
                       className={index % 2 === 1 ? 'alternate-row' : ''} 
                       style={{ 
                         backgroundColor: index % 2 === 1 ? '#F8F8F8' : '#FFFFFF', 
@@ -971,7 +864,7 @@ const ProposalHistory = () => {
                         wordWrap: 'break-word',
                         overflowWrap: 'break-word',
                         whiteSpace: 'normal'
-                      }}>{proposal.id}</td>
+                      }}>{entry.id}</td>
                       <td style={{ 
                         padding: '0.75rem', 
                         borderBottom: '1px solid #dee2e6',
@@ -979,7 +872,7 @@ const ProposalHistory = () => {
                         wordWrap: 'break-word',
                         overflowWrap: 'break-word',
                         whiteSpace: 'normal'
-                      }}>{proposal.category}</td>
+                      }}>{entry.date}</td>
                       <td style={{ 
                         padding: '0.75rem', 
                         borderBottom: '1px solid #dee2e6',
@@ -987,7 +880,7 @@ const ProposalHistory = () => {
                         wordWrap: 'break-word',
                         overflowWrap: 'break-word',
                         whiteSpace: 'normal'
-                      }}>{proposal.subcategory}</td>
+                      }}>{entry.category}</td>
                       <td style={{ 
                         padding: '0.75rem', 
                         borderBottom: '1px solid #dee2e6',
@@ -995,7 +888,7 @@ const ProposalHistory = () => {
                         wordWrap: 'break-word',
                         overflowWrap: 'break-word',
                         whiteSpace: 'normal'
-                      }}>{proposal.lastModified}</td>
+                      }}>{entry.account}</td>
                       <td style={{ 
                         padding: '0.75rem', 
                         borderBottom: '1px solid #dee2e6',
@@ -1003,7 +896,7 @@ const ProposalHistory = () => {
                         wordWrap: 'break-word',
                         overflowWrap: 'break-word',
                         whiteSpace: 'normal'
-                      }}>{proposal.modifiedBy}</td>
+                      }}>{entry.description}</td>
                       <td style={{ 
                         padding: '0.75rem', 
                         borderBottom: '1px solid #dee2e6',
@@ -1011,15 +904,7 @@ const ProposalHistory = () => {
                         wordWrap: 'break-word',
                         overflowWrap: 'break-word',
                         whiteSpace: 'normal'
-                      }}>
-                        <Status 
-                          type={proposal.status} 
-                          name={
-                            proposal.status === 'pending' ? 'Pending' : 
-                            proposal.status === 'approved' ? 'Approved' : 'Rejected'
-                          }
-                        />
-                      </td>
+                      }}>{entry.amount}</td>
                     </tr>
                   ))
                 ) : (
@@ -1030,9 +915,9 @@ const ProposalHistory = () => {
                       height: '50px',
                       verticalAlign: 'middle'
                     }}>
-                      {searchTerm || selectedCategory !== 'All Categories' || selectedStatus !== 'All Status'
-                        ? 'No proposals match your search criteria.' 
-                        : 'No proposals found.'}
+                      {searchTerm || selectedCategory !== 'All Categories' 
+                        ? 'No budget allocation entries match your search criteria.' 
+                        : 'No budget allocation entries found.'}
                     </td>
                   </tr>
                 )}
@@ -1041,11 +926,11 @@ const ProposalHistory = () => {
           </div>
           
           {/* New Pagination Component from LedgerView */}
-          {filteredProposals.length > 0 && (
+          {filteredEntries.length > 0 && (
             <Pagination
               currentPage={currentPage}
               pageSize={pageSize}
-              totalItems={filteredProposals.length}
+              totalItems={filteredEntries.length}
               onPageChange={setCurrentPage}
               onPageSizeChange={(newSize) => {
                 setPageSize(newSize);
@@ -1057,114 +942,303 @@ const ProposalHistory = () => {
         </div>
       </div>
 
-      {/* Add Status component CSS directly */}
-      <style jsx>{`
-        .status-approved,
-        .status-rejected,
-        .status-pending {
-          display: inline-flex;
-          height: auto;
-          min-height: 4vh;
-          width: fit-content;
-          flex-direction: row;
-          align-items: center;
-          padding: 4px 12px;
-          border-radius: 40px;
-          gap: 5px;
-          font-size: 0.75rem;
-          overflow: visible;
-          white-space: normal;
-          max-width: 100%;
-        }
-
-        .status-approved .circle,
-        .status-rejected .circle,
-        .status-pending .circle {
-          height: 6px;
-          width: 6px;
-          border-radius: 50%;
-          margin-right: 3px;
-          animation: statusPulse 2s infinite;
-        }
-
-        @keyframes statusPulse {
-          0% {
-            box-shadow: 0 0 0 0 rgba(var(--pulse-color), 0.4);
-          }
-          70% {
-            box-shadow: 0 0 0 6px rgba(var(--pulse-color), 0);
-          }
-          100% {
-            box-shadow: 0 0 0 0 rgba(var(--pulse-color), 0);
-          }
-        }
-
-        .status-approved {
-          background-color: #e8f5e8;
-          color: #2e7d32;
-        }
-
-        .status-approved .circle {
-          background-color: #2e7d32;
-          --pulse-color: 46, 125, 50;
-        }
-
-        .status-rejected {
-          background-color: #ffebee;
-          color: #c62828;
-        }
-
-        .status-rejected .circle {
-          background-color: #c62828;
-          --pulse-color: 198, 40, 40;
-        }
-
-        .status-pending {
-          background-color: #fff3e0;
-          color: #ef6c00;
-        }
-
-        .status-pending .circle {
-          background-color: #ef6c00;
-          --pulse-color: 239, 108, 0;
-        }
-
-        .status-details {
-          display: flex;
-          align-items: center;
-          gap: 5px;
-          flex-wrap: nowrap;
-          max-width: 100%;
-        }
-
-        .status-to {
-          margin: 0 2px;
-          white-space: nowrap;
-        }
-
-        .status-target {
-          white-space: normal;
-          word-break: break-word;
-          max-width: 100%;
-        }
-
-        .icon {
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          flex-shrink: 0;
-        }
-
-        .icon-placeholder {
-          height: 12px;
-          width: 12px;
-          flex-shrink: 0;
-          background-color: currentColor;
-          border-radius: 2px;
-        }
-      `}</style>
+      {/* Add Journal Modal - REMOVED Transaction Type field completely */}
+      {showAddJournalModal && (
+        <div className="modal-overlay" style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          backgroundColor: 'rgba(0, 0, 0, 0.5)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          zIndex: 2000
+        }}>
+          <div className="modal-container" style={{
+            backgroundColor: 'white',
+            borderRadius: '8px',
+            width: '500px',
+            maxWidth: '90%',
+            maxHeight: '90vh',
+            overflow: 'auto',
+            boxShadow: '0 4px 6px rgba(0, 0, 0, 0.1)'
+          }}>
+            <div className="modal-content" style={{ padding: '24px' }}>
+              <h3 className="modal-title" style={{ 
+                margin: '0 0 20px 0', 
+                fontSize: '20px', 
+                fontWeight: 'bold',
+                color: '#0C0C0C'
+              }}>Modify Budget Entry</h3>
+              
+              <div className="form-group" style={{ marginBottom: '16px' }}>
+                <label htmlFor="entryId" style={{ 
+                  display: 'block', 
+                  marginBottom: '8px',
+                  fontWeight: '500'
+                }}>Entry ID (System generated)</label>
+                <input 
+                  type="text" 
+                  id="entryId" 
+                  name="entryId" 
+                  value={journalForm.entryId} 
+                  disabled 
+                  className="form-control"
+                  style={{
+                    width: '100%',
+                    padding: '8px 12px',
+                    border: '1px solid #e0e0e0',
+                    borderRadius: '4px',
+                    backgroundColor: '#f5f5f5'
+                  }}
+                />
+                <span className="helper-text" style={{ fontSize: '12px', color: '#666', marginTop: '4px', display: 'block' }}>System generated ID</span>
+              </div>
+              
+              <div className="form-group" style={{ marginBottom: '16px' }}>
+                <label htmlFor="date" style={{ 
+                  display: 'block', 
+                  marginBottom: '8px',
+                  fontWeight: '500'
+                }}>Date</label>
+                <input 
+                  type="date" 
+                  id="date" 
+                  name="date" 
+                  value={journalForm.date} 
+                  onChange={handleInputChange} 
+                  className="form-control"
+                  readOnly
+                  style={{
+                    width: '100%',
+                    padding: '8px 12px',
+                    border: '1px solid #e0e0e0',
+                    borderRadius: '4px',
+                    backgroundColor: '#f5f5f5',
+                    cursor: 'not-allowed'
+                  }}
+                />
+                <span className="helper-text" style={{ fontSize: '12px', color: '#666', marginTop: '4px', display: 'block' }}>Automatically generated</span>
+              </div>
+              
+              {/* Category Dropdown */}
+              <div className="form-group" style={{ marginBottom: '16px' }}>
+                <label htmlFor="category" style={{ 
+                  display: 'block', 
+                  marginBottom: '8px',
+                  fontWeight: '500'
+                }}>Category</label>
+                <div className="select-wrapper" style={{ position: 'relative' }}>
+                  <select 
+                    id="category" 
+                    name="category" 
+                    value={journalForm.category} 
+                    onChange={handleInputChange} 
+                    className="form-control"
+                    style={{
+                      width: '100%',
+                      padding: '8px 12px',
+                      border: '1px solid #e0e0e0',
+                      borderRadius: '4px',
+                      backgroundColor: 'white',
+                      appearance: 'none',
+                      outline: 'none',
+                      fontSize: '14px'
+                    }}
+                  >
+                    <option value="">Select a category</option>
+                    <option value="Assets">Assets</option>
+                    <option value="Liabilities">Liabilities</option>
+                    <option value="Expenses">Expenses</option>
+                    <option value="Revenue">Revenue</option>
+                    <option value="Travel">Travel</option>
+                    <option value="Office Supplies">Office Supplies</option>
+                    <option value="Utilities">Utilities</option>
+                    <option value="Marketing & Advertising">Marketing & Advertising</option>
+                    <option value="Professional Services">Professional Services</option>
+                    <option value="Training & Development">Training & Development</option>
+                    <option value="Equipment & Maintenance">Equipment & Maintenance</option>
+                    <option value="Miscellaneous">Miscellaneous</option>
+                  </select>
+                  <ChevronDown size={16} style={{ 
+                    position: 'absolute', 
+                    right: '12px', 
+                    top: '50%', 
+                    transform: 'translateY(-50%)',
+                    pointerEvents: 'none',
+                    color: '#666'
+                  }} />
+                </div>
+              </div>
+              
+              {/* Account Dropdown */}
+              <div className="form-group" style={{ marginBottom: '16px' }}>
+                <label htmlFor="account" style={{ 
+                  display: 'block', 
+                  marginBottom: '8px',
+                  fontWeight: '500'
+                }}>Account</label>
+                <div className="select-wrapper" style={{ position: 'relative' }}>
+                  <select 
+                    id="account" 
+                    name="account" 
+                    value={journalForm.account} 
+                    onChange={handleInputChange} 
+                    className="form-control"
+                    style={{
+                      width: '100%',
+                      padding: '8px 12px',
+                      border: '1px solid #e0e0e0',
+                      borderRadius: '4px',
+                      backgroundColor: 'white',
+                      appearance: 'none',
+                      outline: 'none',
+                      fontSize: '14px'
+                    }}
+                  >
+                    <option value="">Select an Account</option>
+                    <option value="asset">Assets</option>
+                    <option value="expense">Expenses</option>
+                    <option value="liability">Liabilities</option>
+                    <option value="revenue">Revenue</option>
+                    <option value="equity">Equity</option>
+                  </select>
+                  <ChevronDown size={16} style={{ 
+                    position: 'absolute', 
+                    right: '12px', 
+                    top: '50%', 
+                    transform: 'translateY(-50%)',
+                    pointerEvents: 'none',
+                    color: '#666'
+                  }} />
+                </div>
+              </div>
+              
+              <div className="form-group" style={{ marginBottom: '16px' }}>
+                <label htmlFor="description" style={{ 
+                  display: 'block', 
+                  marginBottom: '8px',
+                  fontWeight: '500'
+                }}>Description</label>
+                <input 
+                  type="text" 
+                  id="description" 
+                  name="description" 
+                  placeholder="Type here..." 
+                  value={journalForm.description} 
+                  onChange={handleInputChange} 
+                  className="form-control"
+                  style={{
+                    width: '100%',
+                    padding: '8px 12px',
+                    border: '1px solid #e0e0e0',
+                    borderRadius: '4px',
+                    outline: 'none'
+                  }}
+                />
+              </div>
+              
+              {/* REMOVED: Transaction Type Dropdown Section */}
+              
+              {/* Amount Input with Clear Button - REMOVED HELPER TEXT */}
+              <div className="form-group" style={{ marginBottom: '16px' }}>
+                <label htmlFor="amount" style={{ 
+                  display: 'block', 
+                  marginBottom: '8px',
+                  fontWeight: '500'
+                }}>Amount</label>
+                <div style={{ position: 'relative' }}>
+                  <input 
+                    type="text" 
+                    id="amount" 
+                    name="amount" 
+                    placeholder="₱0.00" 
+                    value={journalForm.amount} 
+                    onChange={handleInputChange} 
+                    className="form-control"
+                    style={{
+                      width: '100%',
+                      padding: '8px 40px 8px 12px',
+                      border: '1px solid #e0e0e0',
+                      borderRadius: '4px',
+                      outline: 'none',
+                      fontSize: '14px'
+                    }}
+                  />
+                  {journalForm.amount && (
+                    <button
+                      type="button"
+                      onClick={clearAmount}
+                      style={{
+                        position: 'absolute',
+                        right: '8px',
+                        top: '50%',
+                        transform: 'translateY(-50%)',
+                        background: 'none',
+                        border: 'none',
+                        cursor: 'pointer',
+                        padding: '4px',
+                        borderRadius: '50%',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        outline: 'none'
+                      }}
+                      onMouseDown={(e) => e.preventDefault()}
+                    >
+                      <X size={16} color="#666" />
+                    </button>
+                  )}
+                </div>
+                {/* REMOVED: The helper text that was here */}
+              </div>
+              
+              {/* Modal Actions */}
+              <div className="modal-actions" style={{ marginTop: '24px' }}>
+                <div className="button-row" style={{ display: 'flex', gap: '10px', justifyContent: 'flex-end' }}>
+                  <button 
+                    className="btn-cancel" 
+                    onClick={closeAddJournalModal}
+                    onMouseDown={(e) => e.preventDefault()}
+                    style={{ 
+                      padding: '8px 16px', 
+                      border: '1px solid #ccc', 
+                      borderRadius: '4px', 
+                      backgroundColor: '#f8f9fa', 
+                      color: '#333', 
+                      cursor: 'pointer',
+                      minWidth: '80px',
+                      outline: 'none'
+                    }}
+                  >
+                    Cancel
+                  </button>
+                  <button 
+                    className="btn-save"
+                    onMouseDown={(e) => e.preventDefault()}
+                    style={{ 
+                      padding: '8px 16px', 
+                      border: '1px solid #ccc', 
+                      borderRadius: '4px', 
+                      backgroundColor: '#007bff', 
+                      color: 'white', 
+                      cursor: 'pointer',
+                      minWidth: '80px',
+                      outline: 'none'
+                    }}
+                  >
+                    Save
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
-};
+}
 
-export default ProposalHistory;
+export default BudgetAllocation;

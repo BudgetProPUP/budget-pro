@@ -1,112 +1,158 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
-import { Eye, EyeOff } from 'lucide-react';
-import { useAuth } from '../../context/AuthContext'; // Import the useAuth hook
-import './loginPage.css';
-import backgroundImage from '../../assets/BUDGET1.png';
+import { useForm } from "react-hook-form";
+import './LoginPage.css';
+import backgroundImage from '../../assets/LOGO.jpg';
+import { FaEye, FaEyeSlash } from 'react-icons/fa'; // Import eye icons
 
-function LoginPage() {
-  const [loginData, setLoginData] = useState({ 
-    email: '', 
-    phone_number: '',
-    password: '' 
-  });
-  const [showPassword, setShowPassword] = useState(false);
-  const [error, setError] = useState('');
-  const [isLoading, setIsLoading] = useState(false);
+function LoginPage({ setIsAuthenticated }) {
   const navigate = useNavigate();
-  const { login } = useAuth(); // Get the login function from our context
+  const [isInvalidCredentials, setInvalidCredentials] = useState(null);
+  const [isSubmitting, setSubmitting] = useState(false);
+  const [showPassword, setShowPassword] = useState(false); // State for password visibility
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    setError('');
-    setIsLoading(true);
+  const {
+    register,
+    handleSubmit,
+    formState: { errors, isValid },
+  } = useForm({
+    mode: "all",
+  });
+
+  const submission = async (data) => {
+    const { email, password } = data;
+    setSubmitting(true);
 
     try {
-      // Use the login function from the context. It handles everything.
-      await login(loginData);
-      // Navigation is now handled inside the login function in the context
-    } catch (err) {
-      // The context throws an error on failure, which we catch here.
-      setError(err.detail || 'Login failed. Please check your credentials.');
-      console.error('Login error:', err);
+      // Replace with your actual authentication logic
+      const response = await fakeAuthAPI({ email, password });
+      
+      if (response.success) {
+        setInvalidCredentials(false);
+        setIsAuthenticated(true);
+        navigate('/dashboard');
+      } else {
+        setInvalidCredentials(true);
+      }
+    } catch {
+      console.log("login failed!");
+      setInvalidCredentials(true);
     } finally {
-      setIsLoading(false);
+      setSubmitting(false);
     }
   };
 
-  const handleInputChange = (e) => {
-    const { name, value } = e.target;
-    setLoginData(prev => ({
-      ...prev,
-      [name]: value
-    }));
+  // Mock authentication function - replace with real API call
+  const fakeAuthAPI = async ({ email, password }) => {
+    return new Promise(resolve => {
+      setTimeout(() => {
+        // Basic validation - replace with real authentication
+        const isValid = email && password && password.length >= 6;
+        resolve({ 
+          success: isValid
+        });
+      }, 1000);
+    });
+  };
+
+  useEffect(() => {
+    if (isInvalidCredentials) {
+      setTimeout(() => {
+        setInvalidCredentials(false);
+      }, 5000);
+    }
+  }, [isInvalidCredentials]);
+
+  // Toggle password visibility
+  const togglePasswordVisibility = () => {
+    setShowPassword(!showPassword);
   };
 
   return (
-    <div 
-      className="login-container"
-      style={{ 
-        backgroundImage: `url(${backgroundImage})`,
-        backgroundSize: 'cover',
-        backgroundPosition: 'center',
-        backgroundRepeat: 'no-repeat'
-      }}
-    >
-      <form className="form" onSubmit={handleSubmit}>
-        <h1>BUDGET PRO</h1>
-        <p>Welcome! Please provide the credentials to log in</p>
+    <>
+      {isInvalidCredentials && (
+        <div className="error-message">Invalid credentials.</div>
+      )}
 
-        {error && <div className="error-message">{error}</div>}
-
-        <div className="input-group">
-          <input
-            id="email"
-            name="email"
-            type="email"
-            placeholder="Email"
-            value={loginData.email}
-            onChange={handleInputChange}
-            required
+      <main className="login-page">
+        <section className="left-panel">
+          <img
+            src={backgroundImage}
+            alt="login-illustration"
+            className="asset-image"
           />
-        </div>
+        </section>
+        
+        <section className="right-panel">
+          <header className="form-header">
+            <section className="logo">
+              <h1 className="logo-text">BUDGET PRO</h1>
+            </section>
+            <p>Welcome! Please provide the credentials to log in</p>
+          </header>
 
-        <div className="input-group">
-          <div className="password-input-container">
-            <input
-              id="password"
-              name="password"
-              type={showPassword ? "text" : "password"}
-              placeholder="Password"
-              value={loginData.password}
-              onChange={handleInputChange}
-              required
-              minLength="6"
-            />
-            <button 
-              type="button" 
-              className="password-toggle"
-              onClick={() => setShowPassword(!showPassword)}
-              aria-label={showPassword ? "Hide password" : "Show password"}
+          <form onSubmit={handleSubmit(submission)}>
+            <fieldset>
+              <label>Email:</label>
+
+              {errors.email && <span>{errors.email.message}</span>}
+
+              <input
+                type="email"
+                name="email"
+                placeholder="Enter your email"
+                {...register("email", {
+                  required: "Must not empty",
+                  pattern: {
+                    value: /^[^\s@]+@[^\s@]+\.[^\s@]+$/,
+                    message: "Invalid email format",
+                  },
+                })}
+              />
+            </fieldset>
+
+            <fieldset>
+              <label>Password:</label>
+
+              {errors.password && <span>{errors.password.message}</span>}
+
+              <div className="password-container">
+                <input
+                  type={showPassword ? "text" : "password"} // Toggle input type
+                  name="password"
+                  placeholder="Enter your password"
+                  {...register("password", { 
+                    required: "Must not empty",
+                    minLength: {
+                      value: 6,
+                      message: "Password must be at least 6 characters"
+                    }
+                  })}
+                />
+                <span 
+                  className="password-toggle"
+                  onClick={togglePasswordVisibility}
+                >
+                  {showPassword ? <FaEyeSlash /> : <FaEye />}
+                </span>
+              </div>
+            </fieldset>
+
+            <button
+              type="submit"
+              disabled={!isValid || isSubmitting}
+              className="log-in-button"
             >
-              {showPassword ? <EyeOff size={18} color="#808080" /> : <Eye size={18} color="#808080" />}
+              {!isSubmitting ? "LOG IN" : "LOGGING IN..."}
             </button>
-          </div>
-        </div>
+          </form>
 
-        <button 
-          type="submit" 
-          className="form-button"
-          disabled={isLoading}
-        >
-          {isLoading ? 'LOGGING IN...' : 'LOG IN'}
-        </button>
-
-        <div className="forgot-password">
-          <Link to="/forgot-password">Forgot Password?</Link>
-        </div>
-      </form>
-    </div>
+          <Link to="/forgot-password" className="forgot-password-link">
+            Forgot Password?
+          </Link>
+        </section>
+      </main>
+    </>
   );
 }
 

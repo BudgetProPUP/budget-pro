@@ -1,77 +1,78 @@
 import { useState } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
-import { useAuth } from '../../context/AuthContext';
-import './ForgotPassword.css'; // Use its own CSS
+import { useNavigate } from 'react-router-dom';
+import axios from 'axios';
+import './LoginPage.css'; // Using the same CSS as LoginPage
+import backgroundImage from '../../assets/LOGO.jpg'; // Import the image
 
 function ForgotPasswordPage() {
   const [email, setEmail] = useState('');
   const [message, setMessage] = useState('');
-  const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const navigate = useNavigate();
-  const { requestPasswordReset } = useAuth(); // MODIFIED: Get the specific function
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     setIsLoading(true);
-    setMessage('');
-    setError('');
     try {
-      // MODIFIED: Call the function from the context
-      await requestPasswordReset(email);
+      await axios.post('http://localhost:8000/api/auth/password/reset/', { email });
       setMessage('If this email is registered, you will receive a password reset link shortly.');
-    } catch (err) {
-      setError('Error sending reset email. Please try again.');
-      console.error("Forgot password error:", err);
+    } catch {
+      setMessage('Error sending reset email. Please try again.');
     } finally {
       setIsLoading(false);
     }
   };
 
   return (
-    <div className="login-container">
-      <div className="bg-element-1"></div>
-      <div className="bg-element-2"></div>
-      <div className="bg-chart">
-        <div className="bar"></div>
-        <div className="bar"></div>
-        <div className="bar"></div>
-        <div className="bar"></div>
-      </div>
+    <div className="login-page">
+      <section className="left-panel">
+        <img
+          src={backgroundImage} // Use the imported image
+          alt="BudgetPro Logo"
+          className="asset-image"
+        />
+      </section>
       
-      <div className="login-content">
-        <div className="form-container">
-          <h2>Forgot Password</h2>
-          
-          {message && <div className="error-message success">{message}</div>}
-          {error && <div className="error-message">{error}</div>}
+      <section className="right-panel">
+        <header className="form-header">
+          <section className="logo">
+            <h1 className="logo-text">BUDGET PRO</h1>
+          </section>
+          <p>Enter your email to reset your password</p>
+        </header>
 
-          <form onSubmit={handleSubmit}>
-            <div>
-              <label className="form-label">Email Address</label>
-              <input
-                type="email"
-                className="form-input"
-                placeholder="Enter your email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                required
-              />
-            </div>
-            <button 
-              type="submit" 
-              className="login-button"
-              disabled={isLoading}
-            >
-              {isLoading ? 'Sending...' : 'Send Reset Link'}
-            </button>
-          </form>
-          
-          <Link to="/login" className="back-to-login">
-            ← Back to Login
-          </Link>
-        </div>
-      </div>
+        {message && (
+          <div className={`error-message ${message.includes('registered') ? 'success-message' : ''}`}>
+            {message}
+          </div>
+        )}
+
+        <form onSubmit={handleSubmit} className="forgot-password-form">
+          <fieldset>
+            <label>Email:</label>
+            <input
+              type="email"
+              className="form-input"
+              placeholder="Enter your registered email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              required
+            />
+          </fieldset>
+
+          <button
+            type="submit"
+            className="log-in-button"
+            disabled={isLoading}
+          >
+            {isLoading ? 'SENDING...' : 'SEND RESET LINK'}
+          </button>
+        </form>
+
+        <p className="back-to-login-text" onClick={() => navigate('/login')}>
+          Back to Login
+        </p>
+      </section>
     </div>
   );
 }

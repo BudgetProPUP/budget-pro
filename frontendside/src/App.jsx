@@ -34,7 +34,7 @@ function App() {
         />
 
         {/* Protected Dashboard Route */}
-        <Route 
+        {/* <Route 
           path="/dashboard" 
           element={
             isAuthenticated ? (
@@ -43,6 +43,10 @@ function App() {
               <Navigate to="/login" replace />
             )
           } 
+        /> */}
+        <Route 
+          path="/dashboard" 
+          element={<Dashboard />} 
         />
 
         <Route 

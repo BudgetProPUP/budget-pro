@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
-import { useForm } from "react-hook-form";
-import './LoginPage.css';
+// import { useForm } from "react-hook-form";
+import './loginPage.css';
 import backgroundImage from '../../assets/LOGO.jpg';
 import { FaEye, FaEyeSlash } from 'react-icons/fa'; // Import eye icons
 

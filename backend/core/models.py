@@ -106,7 +106,7 @@ class DashboardMetric(models.Model):
 
 class BudgetProposal(models.Model):
     STATUS_CHOICES = [
-        # ('DRAFT', 'Draft'),
+        ('DRAFT', 'Draft'),
         ('SUBMITTED', 'Submitted'),
         # ('UNDER_REVIEW', 'Under Review'),
         ('APPROVED', 'Approved'),

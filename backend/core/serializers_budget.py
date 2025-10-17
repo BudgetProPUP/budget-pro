@@ -19,12 +19,13 @@ class BudgetProposalListSerializer(serializers.ModelSerializer):
     submitted_by = serializers.CharField(
         source='submitted_by_name', read_only=True)
     amount = serializers.SerializerMethodField()
-    reference = serializers.CharField(source='external_system_id', read_only=True)
-    
+    reference = serializers.CharField(
+        source='external_system_id', read_only=True)
+
     # MODIFIED: Change source back to 'title' to match the model field.
     # The frontend will use 'proposal.title'.
     subject = serializers.CharField(source='title', read_only=True)
-    
+
     category = serializers.SerializerMethodField()
 
     class Meta:
@@ -44,6 +45,7 @@ class BudgetProposalListSerializer(serializers.ModelSerializer):
         if first_item and first_item.account and first_item.account.account_type:
             return first_item.account.account_type.name
         return "Uncategorized"
+
 
 class BudgetProposalItemSerializer(serializers.ModelSerializer):
     account_code = serializers.CharField(source='account.code', read_only=True)
@@ -118,7 +120,8 @@ class ProposalHistorySerializer(serializers.ModelSerializer):
     last_modified_by = serializers.CharField(
         source='action_by_name', read_only=True)
     # RENAMED: from action_at to match UI
-    last_modified = serializers.DateTimeField(source='action_at', read_only=True)
+    last_modified = serializers.DateTimeField(
+        source='action_at', read_only=True)
     # RENAMED: from new_status to match UI
     status = serializers.CharField(source='new_status', read_only=True)
 
@@ -126,7 +129,8 @@ class ProposalHistorySerializer(serializers.ModelSerializer):
         model = ProposalHistory
         fields = ['id', 'proposal_id', 'proposal',
                   'last_modified', 'last_modified_by', 'status']
-        
+
+
 class AccountSetupSerializer(serializers.ModelSerializer):
     account_type = serializers.CharField(source='account_type.name')
     accomplished = serializers.SerializerMethodField()
@@ -181,7 +185,8 @@ class LedgerViewSerializer(serializers.ModelSerializer):
     class Meta:
         model = JournalEntryLine
         # UPDATED: Matched fields to the new UI columns
-        fields = ['reference_id', 'date', 'category', 'description', 'account', 'amount']
+        fields = ['reference_id', 'date', 'category',
+                  'description', 'account', 'amount']
 
 
 class JournalEntryListSerializer(serializers.ModelSerializer):
@@ -197,25 +202,63 @@ class JournalEntryListSerializer(serializers.ModelSerializer):
 
 
 class JournalEntryLineInputSerializer(serializers.Serializer):
-    account_id = serializers.IntegerField()
-    transaction_type = serializers.ChoiceField(choices=['DEBIT', 'CREDIT'])
+    account_id = serializers.IntegerField(
+        help_text="ID of the account for this journal line."
+    )
+    transaction_type = serializers.ChoiceField(
+        choices=['DEBIT', 'CREDIT'],
+        help_text="Specify 'DEBIT' or 'CREDIT' for this line."
+    )
     journal_transaction_type = serializers.ChoiceField(
-        choices=['CAPITAL_EXPENDITURE', 'OPERATIONAL_EXPENDITURE', 'TRANSFER'])
-    amount = serializers.DecimalField(max_digits=15, decimal_places=2)
+        choices=['CAPITAL_EXPENDITURE', 'OPERATIONAL_EXPENDITURE', 'TRANSFER'],
+        help_text="Type of transaction: Capital, Operational, or Transfer."
+    )
+    amount = serializers.DecimalField(
+        max_digits=15, decimal_places=2,
+        help_text="Amount for this journal line (PHP)."
+    )
 
 
 class JournalEntryCreateSerializer(serializers.Serializer):
-    date = serializers.DateField()
+    date = serializers.DateField(
+        help_text="Date of the journal entry (YYYY-MM-DD)."
+    )
     category = serializers.ChoiceField(
-        choices=[c[0] for c in JournalEntry._meta.get_field('category').choices])
-    description = serializers.CharField()
-    lines = JournalEntryLineInputSerializer(many=True)
+        choices=[c[0]
+                 for c in JournalEntry._meta.get_field('category').choices],
+        help_text="Category of the journal entry (e.g., EXPENSES, ASSETS)."
+    )
+    description = serializers.CharField(
+        help_text="Description of the journal entry."
+    )
+    lines = JournalEntryLineInputSerializer(
+        many=True,
+        help_text="List of journal entry lines. Must include at least one DEBIT and one CREDIT."
+    )
 
-    def validate_lines(self, value):  # Fine
+    def validate_lines(self, value):
         if len(value) < 2:
             raise serializers.ValidationError(
-                "At least 2 journal lines are required (e.g., 1 debit and 1 credit).")
+                "At least 2 journal lines are required (e.g., 1 debit and 1 credit)."
+            )
         return value
+
+    def validate(self, data):
+        """
+        Check that total debits equal total credits.
+        """
+        lines = data.get('lines', [])
+        total_debits = sum(line['amount']
+                           for line in lines if line['transaction_type'] == 'DEBIT')
+        total_credits = sum(
+            line['amount'] for line in lines if line['transaction_type'] == 'CREDIT')
+
+        if total_debits != total_credits:
+            raise serializers.ValidationError(
+                f"The journal entry is not balanced. Debits ({total_debits}) do not equal Credits ({total_credits})."
+            )
+
+        return data
 
     def create(self, validated_data):
         # user = self.context['request'].user # OLD
@@ -302,6 +345,8 @@ class BudgetProposalMessageSerializer(serializers.ModelSerializer):
     # Field for output, maps to model's 'external_system_id'
     external_system_id = serializers.CharField(read_only=True)
 
+    # Write-only field for Draft Flag for saving a draft or submitting
+    is_draft = serializers.BooleanField(write_only=True, required=False, default=False)
     class Meta:
         model = BudgetProposal
         fields = [
@@ -314,7 +359,8 @@ class BudgetProposalMessageSerializer(serializers.ModelSerializer):
             'ticket_id',          # For input (payload key)
             'document', 'items',
             'submitted_at', 'last_modified', 'sync_status', 'last_sync_timestamp',
-            'approved_by_name', 'approval_date', 'rejected_by_name', 'rejection_date'
+            'approved_by_name', 'approval_date', 'rejected_by_name', 'rejection_date',
+            'is_draft'
         ]
         read_only_fields = [
             # external_system_id is read_only because it's populated from ticket_id
@@ -345,6 +391,7 @@ class BudgetProposalMessageSerializer(serializers.ModelSerializer):
         return department_obj
 
     def create(self, validated_data):
+        is_draft = validated_data.pop('is_draft', False)
         # This comes from 'department_input' due to source
         department_obj = validated_data.pop('department')
         items_data = validated_data.pop('items')
@@ -354,27 +401,34 @@ class BudgetProposalMessageSerializer(serializers.ModelSerializer):
 
         # Assign the actual Department instance
         validated_data['department'] = department_obj
-        validated_data['status'] = 'SUBMITTED'
+        validated_data['status'] = 'DRAFT' if is_draft else 'SUBMITTED'
         validated_data.setdefault('submitted_at', timezone.now())
         validated_data['sync_status'] = 'SYNCED'
         validated_data['last_sync_timestamp'] = timezone.now()
-        
+
         validated_data.pop('approved_by_name', None)
         validated_data.pop('approval_date', None)
         validated_data.pop('rejected_by_name', None)
         validated_data.pop('rejection_date', None)
-        
+
         proposal = BudgetProposal.objects.create(**validated_data)
         for item_data in items_data:
             BudgetProposalItem.objects.create(proposal=proposal, **item_data)
 
         ProposalHistory.objects.create(
             proposal=proposal,
-            action='SUBMITTED', # Reflects that it arrived as submitted
+            action='SUBMITTED',  # Reflects that it arrived as submitted
             action_by_name=proposal.submitted_by_name or "System (External Message)",
             new_status=proposal.status,
             comments=f"Proposal received from external system (ID={proposal.external_system_id}) for department {department_obj.name}."
         )
+        # Only create a history record for actual submissions
+        if not is_draft:
+            ProposalHistory.objects.create(
+                proposal=proposal,
+                action='SUBMITTED',
+                # ...
+            )
         return proposal
 
     def update(self, instance, validated_data):
@@ -421,15 +475,21 @@ class ProposalReviewSerializer(serializers.Serializer):
         if value not in ['APPROVED', 'REJECTED']:
             raise serializers.ValidationError("Invalid status for review.")
         return value
-    
+
+
 class ProposalReviewBudgetOverviewSerializer(serializers.Serializer):
     """
     Serializer for the budget overview section in the proposal review modal.
     """
-    total_department_budget = serializers.DecimalField(max_digits=15, decimal_places=2)
-    currently_allocated = serializers.DecimalField(max_digits=15, decimal_places=2)
-    available_budget = serializers.DecimalField(max_digits=15, decimal_places=2)
-    budget_after_proposal = serializers.DecimalField(max_digits=15, decimal_places=2)
+    total_department_budget = serializers.DecimalField(
+        max_digits=15, decimal_places=2)
+    currently_allocated = serializers.DecimalField(
+        max_digits=15, decimal_places=2)
+    available_budget = serializers.DecimalField(
+        max_digits=15, decimal_places=2)
+    budget_after_proposal = serializers.DecimalField(
+        max_digits=15, decimal_places=2)
+
 
 class BudgetAdjustmentSerializer(serializers.Serializer):
     """
@@ -438,14 +498,16 @@ class BudgetAdjustmentSerializer(serializers.Serializer):
     """
     date = serializers.DateField()
     description = serializers.CharField(max_length=255)
-    
+
     # The allocation to be modified
     source_allocation_id = serializers.IntegerField()
     # The allocation receiving the funds (optional, for transfers)
-    destination_allocation_id = serializers.IntegerField(required=False, allow_null=True)
-    
-    amount = serializers.DecimalField(max_digits=15, decimal_places=2, validators=[MinValueValidator(Decimal('0.01'))])
-    
+    destination_allocation_id = serializers.IntegerField(
+        required=False, allow_null=True)
+
+    amount = serializers.DecimalField(max_digits=15, decimal_places=2, validators=[
+                                      MinValueValidator(Decimal('0.01'))])
+
     # An account to represent the source of funds for an increase,
     # or the destination for a decrease (e.g., a general reserve account)
     offsetting_account_id = serializers.IntegerField()
@@ -455,23 +517,28 @@ class BudgetAdjustmentSerializer(serializers.Serializer):
         dest_id = data.get('destination_allocation_id')
 
         if source_id == dest_id and dest_id is not None:
-            raise serializers.ValidationError("Source and destination allocations cannot be the same.")
-        
+            raise serializers.ValidationError(
+                "Source and destination allocations cannot be the same.")
+
         try:
             BudgetAllocation.objects.get(id=source_id, is_active=True)
         except BudgetAllocation.DoesNotExist:
-            raise serializers.ValidationError({"source_allocation_id": "Active source allocation not found."})
+            raise serializers.ValidationError(
+                {"source_allocation_id": "Active source allocation not found."})
 
         if dest_id:
             try:
                 BudgetAllocation.objects.get(id=dest_id, is_active=True)
             except BudgetAllocation.DoesNotExist:
-                raise serializers.ValidationError({"destination_allocation_id": "Active destination allocation not found."})
-        
+                raise serializers.ValidationError(
+                    {"destination_allocation_id": "Active destination allocation not found."})
+
         try:
-            Account.objects.get(id=data.get('offsetting_account_id'), is_active=True)
+            Account.objects.get(id=data.get(
+                'offsetting_account_id'), is_active=True)
         except Account.DoesNotExist:
-             raise serializers.ValidationError({"offsetting_account_id": "Active offsetting account not found."})
+            raise serializers.ValidationError(
+                {"offsetting_account_id": "Active offsetting account not found."})
 
         return data
 

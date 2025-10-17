@@ -3,6 +3,7 @@ from django.contrib.auth import authenticate
 from django.utils import timezone
 from .models import *
 from drf_spectacular.utils import extend_schema_field
+from django.db.models import Sum
 
 
 
@@ -77,3 +78,30 @@ class CategoryAllocationSerializer(serializers.ModelSerializer):
         model = ExpenseCategory
         fields = ['id', 'name', 'total_allocated']
         
+class ProjectDetailSerializer(serializers.ModelSerializer):
+    """
+    Provides detailed information for a single project for the 'View' modal.
+    """
+    department_name = serializers.CharField(source='department.name', read_only=True)
+    total_budget = serializers.SerializerMethodField()
+    total_spent = serializers.SerializerMethodField()
+
+    class Meta:
+        model = Project
+        fields = [
+            'id', 'name', 'description', 'start_date', 'end_date', 
+            'department_name', 'status', 'completion_percentage',
+            'total_budget', 'total_spent'
+        ]
+
+    def get_total_budget(self, obj):
+        # sum up all active allocations for this project
+        return obj.allocations.filter(is_active=True).aggregate(
+            total=Sum('amount')
+        )['total'] or Decimal('0.00')
+
+    def get_total_spent(self, obj):
+        # Sum up all approved expenses for the project
+        return obj.expenses.filter(status='APPROVED').aggregate(
+            total=Sum('amount')
+        )['total'] or Decimal('0.00')

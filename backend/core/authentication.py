@@ -6,48 +6,56 @@ from .auth_client import auth_client
 import jwt
 from django.conf import settings
 
+
 class CustomUser:
-    """Mock user object with auth service data"""
-    def __init__(self, user_data):
-        self.id = user_data.get('id')
-        self.email = user_data.get('email')
-        self.username = user_data.get('username') # ADDED: Good practice to have username
-        self.first_name = user_data.get('first_name', '')
-        self.last_name = user_data.get('last_name', '')
-        self.is_active = user_data.get('is_active', True)
-        self.is_staff = user_data.get('is_staff', False)
-        self.is_superuser = user_data.get('is_superuser', False)
-        self.role = user_data.get('role', 'Finance')
-        
-        # --- THIS IS THE CRITICAL FIX ---
-        # Correctly map the department info from the auth_service payload
-        self.department_id = user_data.get('department_id')
-        self.department_name = user_data.get('department_name')
-        # REMOVED: self.department = user_data.get('department', '')
-    
+    """Mock user object with auth service data from the JWT."""
+
+    def __init__(self, jwt_payload):
+        self.id = jwt_payload.get('user_id')
+        self.email = jwt_payload.get('email')
+        self.username = jwt_payload.get('username')
+        self.first_name = jwt_payload.get('first_name', '')
+        self.last_name = jwt_payload.get('last_name', '')
+
+        # --- RBAC ---
+        # Store the entire roles dictionary from the JWT payload
+        # e.g., {'bms': 'FINANCE_HEAD', 'dts': 'user'}
+        self.roles = jwt_payload.get('roles', {})
+
+        # we can keep department info if it's also in the JWT
+        self.department_id = jwt_payload.get('department_id')
+        self.department_name = jwt_payload.get('department_name')
+
+        # Standard Django properties
+        self.is_active = True  # If the token is valid, the user is considered active
+        self.is_staff = False  # Staff/superuser status should be determined by roles
+        self.is_superuser = False
+
     @property
-    def is_authenticated(self): # MODIFIED: Changed to a property for better compatibility
+    def is_authenticated(self):
         return True
-    
+
+    def get_full_name(self):
+        return f"{self.first_name} {self.last_name}".strip()
+
     def __str__(self):
         return self.email
 
+
 class MicroserviceJWTAuthentication(JWTAuthentication):
-    """Custom JWT authentication that validates users via auth service"""
-    
+    """
+    Custom JWT authentication that creates a CustomUser from the validated token payload.
+    """
+
     def get_user(self, validated_token):
-        """Get user from auth service instead of local database"""
+        """
+        Returns a CustomUser instance from the token payload
+        Does not query the database or an external service
+        """
         try:
-            user_id = validated_token.get('user_id')
-            if not user_id:
-                raise InvalidToken('Token does not contain user_id')
-            
-            # Get user from auth service
-            user_data = auth_client.get_user_info(user_id)
-            if not user_data:
-                raise InvalidToken('User not found in auth service')
-            
-            return CustomUser(user_data)
-            
+            # The validated_token IS the payload.
+            return CustomUser(validated_token)
         except Exception as e:
-            raise InvalidToken(f'Invalid user: {str(e)}')
+            raise InvalidToken(
+                f'Could not construct user from token: {str(e)}')
+#  `request.user` object in every `budget_service` view will now have a `request.user.roles` dictionary that we can check for permissions

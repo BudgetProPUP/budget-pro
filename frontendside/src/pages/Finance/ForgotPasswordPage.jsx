@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
-import './LoginPage.css'; // Using the same CSS as LoginPage
+import './loginPage.css'; // Using the same CSS as LoginPage
 import backgroundImage from '../../assets/LOGO.jpg'; // Import the image
 
 function ForgotPasswordPage() {

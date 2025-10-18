@@ -16,6 +16,7 @@ function App() {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
 
   return (
+    // Temporary Fix, Redo later
     <Router>
       <Routes>
         {/* Public Route */}
@@ -34,7 +35,7 @@ function App() {
         />
 
         {/* Protected Dashboard Route */}
-        <Route 
+        {/* <Route 
           path="/dashboard" 
           element={
             isAuthenticated ? (
@@ -43,95 +44,45 @@ function App() {
               <Navigate to="/login" replace />
             )
           } 
+        /> */}
+        <Route 
+          path="/dashboard" 
+          element={<Dashboard />} 
         />
 
         <Route 
           path="/finance/ledger-view" 
-          element={
-            isAuthenticated ? (
-              <LedgerView />
-            ) : (
-              <Navigate to="/login" replace />
-            )
-          } 
+          element={<LedgerView />} 
         />
 
         <Route 
           path="/finance/budget-allocation" 
-          element={
-            isAuthenticated ? (
-              <BudgetAllocation />
-            ) : (
-              <Navigate to="/login" replace />
-            )
-          } 
+          element={<BudgetAllocation />} 
         />
 
         <Route 
           path="/finance/budget-proposal" 
-          element={
-            isAuthenticated ? (
-              <BudgetProposal />
-            ) : (
-              <Navigate to="/login" replace />
-            )
-          } 
+          element={<BudgetProposal />} 
         />
 
         <Route 
           path="/finance/proposal-history" 
-          element={
-            isAuthenticated ? (
-              <ProposalHistory />
-            ) : (
-              <Navigate to="/login" replace />
-            )
-          } 
+          element={<ProposalHistory />} 
         />
 
         <Route 
           path="/finance/expense-tracking" 
-          element={
-            isAuthenticated ? (
-              <ExpenseTracking />
-            ) : (
-              <Navigate to="/login" replace />
-            )
-          } 
+          element={<ExpenseTracking />} 
         />
 
         <Route 
           path="/finance/expense-history" 
-          element={
-            isAuthenticated ? (
-              <ExpenseHistory />
-            ) : (
-              <Navigate to="/login" replace />
-            )
-          } 
+          element={<ExpenseHistory />} 
         />
 
         <Route 
           path="/finance/budget-variance-report" 
-          element={
-            isAuthenticated ? (
-              <BudgetVarianceReport />
-            ) : (
-              <Navigate to="/login" replace />
-            )
-          } 
-        />
-
-        {/* Default redirect */}
-        <Route 
-          path="/" 
-          element={<Navigate to="/login" replace />} 
-        />
-
-        {/* Catch-all route */}
-        <Route 
-          path="*" 
-          element={<Navigate to="/login" replace />} 
+          element={<BudgetVarianceReport />} 
         />
       </Routes>
     </Router>

@@ -1,4 +1,4 @@
-import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
+import { Routes, Route, Navigate } from 'react-router-dom';
 import { useState } from 'react';
 import LoginPage from './pages/Finance/LoginPage';
 import ForgotPasswordPage from './pages/Finance/ForgotPasswordPage'; // Import the ForgotPassword component
@@ -10,82 +10,64 @@ import ProposalHistory from './pages/Finance/ProposalHistory';
 import ExpenseTracking from './pages/Finance/ExpenseTracking';
 import ExpenseHistory from './pages/Finance/ExpenseHistory';
 import BudgetVarianceReport from './pages/Finance/BudgetVarianceReport';
+import { useAuth } from './context/AuthContext'; // Import the custom hook
+import ResetPasswordPage from './pages/ResetPasswordPage'; // Correct path
 
 
 function App() {
-  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const { isAuthenticated, loading } = useAuth(); 
+ 
+  if (loading) {
+    return <div>Loading...</div>;
+  }
 
   return (
-    // Temporary Fix, Redo later
-    <Router>
       <Routes>
-        {/* Public Route */}
+        {/* Default route: redirect root */}
         <Route 
-          path="/login" 
-          element={
-            <LoginPage 
-              setIsAuthenticated={setIsAuthenticated} 
-            />
-          } 
-        />
-      {/* new public route for forgot password */}
-        <Route 
-          path="/forgot-password" 
-          element={<ForgotPasswordPage />} 
+          path="/"
+          element={isAuthenticated ? <Navigate to="/dashboard" replace /> : <Navigate to="/login" replace />}
         />
 
-        {/* Protected Dashboard Route */}
-        {/* <Route 
-          path="/dashboard" 
-          element={
-            isAuthenticated ? (
-              <Dashboard />
-            ) : (
-              <Navigate to="/login" replace />
-            )
-          } 
-        /> */}
+        {/* Public Routes */}
+        <Route path="/login" element={<LoginPage />} />
+        <Route path="/forgot-password" element={<ForgotPasswordPage />} />
+        <Route path="/reset-password/:uid/:token" element={<ResetPasswordPage />} />
+
+        {/* Protected Routes */}
         <Route 
           path="/dashboard" 
-          element={<Dashboard />} 
+          element={isAuthenticated ? <Dashboard /> : <Navigate to="/login" replace />} 
         />
-
         <Route 
           path="/finance/ledger-view" 
-          element={<LedgerView />} 
+          element={isAuthenticated ? <LedgerView /> : <Navigate to="/login" replace />} 
         />
-
         <Route 
           path="/finance/budget-allocation" 
-          element={<BudgetAllocation />} 
+          element={isAuthenticated ? <BudgetAllocation /> : <Navigate to="/login" replace />} 
         />
-
         <Route 
           path="/finance/budget-proposal" 
-          element={<BudgetProposal />} 
+          element={isAuthenticated ? <BudgetProposal /> : <Navigate to="/login" replace />} 
         />
-
         <Route 
           path="/finance/proposal-history" 
-          element={<ProposalHistory />} 
+          element={isAuthenticated ? <ProposalHistory /> : <Navigate to="/login" replace />} 
         />
-
         <Route 
           path="/finance/expense-tracking" 
-          element={<ExpenseTracking />} 
+          element={isAuthenticated ? <ExpenseTracking /> : <Navigate to="/login" replace />} 
         />
-
         <Route 
           path="/finance/expense-history" 
-          element={<ExpenseHistory />} 
+          element={isAuthenticated ? <ExpenseHistory /> : <Navigate to="/login" replace />} 
         />
-
         <Route 
           path="/finance/budget-variance-report" 
-          element={<BudgetVarianceReport />} 
+          element={isAuthenticated ? <BudgetVarianceReport /> : <Navigate to="/login" replace />} 
         />
       </Routes>
-    </Router>
   );
 }
 

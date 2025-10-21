@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import axios from 'axios';
+import { confirmPasswordReset } from '../API/authAPI';
 
 function ResetPasswordPage() {
   const { uid, token } = useParams();
@@ -12,27 +12,36 @@ function ResetPasswordPage() {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    setMessage(''); // Clear previous messages
     if (password !== confirmPassword) {
       setMessage('Passwords do not match');
       return;
     }
 
-    // Client-side validation
     if (password.length < 8 || password.length > 64) {
-      setMessage('Password must be 8-64 characters long');
+      setMessage('Password must be between 8 and 64 characters long.');
       return;
     }
 
     setIsLoading(true);
     try {
-      await axios.post('http://localhost:8000/api/auth/password/reset/confirm/', {
-        uid, // From URl
-        token, // From URL
-        password // From form input
-      }); // Sent and processed in PasswordResetConfirmSerializer in serializers_password_reset.py
-      navigate('/login');
+ 
+      await confirmPasswordReset(uid, token, password);
+      
+      // On success, navigate to the login page with a success message
+      navigate('/login', { state: { message: 'Password reset successfully! Please log in.' } });
+
     } catch (error) {
-      setMessage(error.response?.data?.detail || 'Password reset failed');
+      // Handle specific errors from the backend serializer
+      const errors = error.response?.data;
+      if (errors) {
+        if (errors.uid) setMessage(errors.uid[0]);
+        else if (errors.token) setMessage(errors.token[0]);
+        else if (errors.password) setMessage(errors.password.join(' '));
+        else setMessage('An unknown error occurred.');
+      } else {
+        setMessage('Password reset failed. The link may be invalid or expired.');
+      }
     } finally {
       setIsLoading(false);
     }

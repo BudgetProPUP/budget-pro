@@ -1,23 +1,31 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import axios from 'axios';
-import './loginPage.css'; // Using the same CSS as LoginPage
-import backgroundImage from '../../assets/LOGO.jpg'; // Import the image
+import './loginPage.css';
+import backgroundImage from '../../assets/LOGO.jpg';
+import { requestPasswordReset } from '../../API/authAPI';
 
 function ForgotPasswordPage() {
   const [email, setEmail] = useState('');
   const [message, setMessage] = useState('');
+  const [isSuccess, setIsSuccess] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const navigate = useNavigate();
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     setIsLoading(true);
+    setMessage('');
+    setIsSuccess(false);
+
     try {
-      await axios.post('http://localhost:8000/api/auth/password/reset/', { email });
-      setMessage('If this email is registered, you will receive a password reset link shortly.');
-    } catch {
-      setMessage('Error sending reset email. Please try again.');
+      
+      await requestPasswordReset(email);
+      setMessage('Password reset link has been sent.');
+      setIsSuccess(true);
+    } catch (error) {
+      // Even on error, show a generic message to prevent email enumeration
+      setMessage('Password reset link has been sent.');
+      setIsSuccess(true); // Treat as "success" from a UI perspective
     } finally {
       setIsLoading(false);
     }
@@ -26,23 +34,17 @@ function ForgotPasswordPage() {
   return (
     <div className="login-page">
       <section className="left-panel">
-        <img
-          src={backgroundImage} // Use the imported image
-          alt="BudgetPro Logo"
-          className="asset-image"
-        />
+        <img src={backgroundImage} alt="BudgetPro Logo" className="asset-image" />
       </section>
       
       <section className="right-panel">
         <header className="form-header">
-          <section className="logo">
-            <h1 className="logo-text">BUDGET PRO</h1>
-          </section>
+          <section className="logo"><h1 className="logo-text">BUDGET PRO</h1></section>
           <p>Enter your email to reset your password</p>
         </header>
 
         {message && (
-          <div className={`error-message ${message.includes('registered') ? 'success-message' : ''}`}>
+          <div className={isSuccess ? 'success-message' : 'error-message'}>
             {message}
           </div>
         )}
@@ -63,7 +65,7 @@ function ForgotPasswordPage() {
           <button
             type="submit"
             className="log-in-button"
-            disabled={isLoading}
+            disabled={isLoading || isSuccess} // Disable after successful submission
           >
             {isLoading ? 'SENDING...' : 'SEND RESET LINK'}
           </button>

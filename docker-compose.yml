@@ -24,7 +24,6 @@ services:
   auth_service:
     build: ./auth_service
     container_name: auth_service
-    command: gunicorn core.wsgi:application --bind 0.0.0.0:8000
     volumes:
       - ./auth_service:/app
     ports:
@@ -60,7 +59,6 @@ services:
   budget_service:
     build: ./backend
     container_name: budget_service
-    command: gunicorn capstone.wsgi:application --bind 0.0.0.0:8000
     volumes:
       - ./backend:/app
     ports:

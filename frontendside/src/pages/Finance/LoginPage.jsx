@@ -1,78 +1,54 @@
-import { useState, useEffect } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
-// import { useForm } from "react-hook-form";
+import { useState } from 'react';
+import { useLocation, Link } from 'react-router-dom'; 
+import { useForm } from "react-hook-form"; 
 import './loginPage.css';
 import backgroundImage from '../../assets/LOGO.jpg';
-import { FaEye, FaEyeSlash } from 'react-icons/fa'; // Import eye icons
+import { FaEye, FaEyeSlash } from 'react-icons/fa';
 
-function LoginPage({ setIsAuthenticated }) {
-  const navigate = useNavigate();
-  const [isInvalidCredentials, setInvalidCredentials] = useState(null);
+import { login as apiLogin } from '../../API/authAPI';
+import { useAuth } from '../../context/AuthContext';
+
+function LoginPage() {
+  const { login } = useAuth(); // Getlogin function from context
+  const location = useLocation(); // To get messages from other pages (like password reset)
+  const [apiError, setApiError] = useState(null);
   const [isSubmitting, setSubmitting] = useState(false);
-  const [showPassword, setShowPassword] = useState(false); // State for password visibility
+  const [showPassword, setShowPassword] = useState(false);
+
+  // Display success message from password reset if it exists
+  const successMessage = location.state?.message;
 
   const {
     register,
     handleSubmit,
     formState: { errors, isValid },
-  } = useForm({
-    mode: "all",
-  });
+  } = useForm({ mode: "all" });
 
   const submission = async (data) => {
-    const { email, password } = data;
     setSubmitting(true);
+    setApiError(null);
 
     try {
-      // Replace with your actual authentication logic
-      const response = await fakeAuthAPI({ email, password });
-      
-      if (response.success) {
-        setInvalidCredentials(false);
-        setIsAuthenticated(true);
-        navigate('/dashboard');
-      } else {
-        setInvalidCredentials(true);
-      }
-    } catch {
-      console.log("login failed!");
-      setInvalidCredentials(true);
+      // Call the login function from the context
+      await login(data.email, data.password);
+      // Navigation now handled inside the login function in AuthContext
+    } catch (error) {
+      const errorMessage = error.response?.data?.detail || 'Login failed. Please check your credentials.';
+      setApiError(errorMessage);
     } finally {
       setSubmitting(false);
     }
   };
 
-  // Mock authentication function - replace with real API call
-  const fakeAuthAPI = async ({ email, password }) => {
-    return new Promise(resolve => {
-      setTimeout(() => {
-        // Basic validation - replace with real authentication
-        const isValid = email && password && password.length >= 6;
-        resolve({ 
-          success: isValid
-        });
-      }, 1000);
-    });
-  };
 
-  useEffect(() => {
-    if (isInvalidCredentials) {
-      setTimeout(() => {
-        setInvalidCredentials(false);
-      }, 5000);
-    }
-  }, [isInvalidCredentials]);
-
-  // Toggle password visibility
   const togglePasswordVisibility = () => {
     setShowPassword(!showPassword);
   };
 
   return (
     <>
-      {isInvalidCredentials && (
-        <div className="error-message">Invalid credentials.</div>
-      )}
+      {apiError && <div className="error-message">{apiError}</div>}
+      {successMessage && <div className="success-message">{successMessage}</div>}
 
       <main className="login-page">
         <section className="left-panel">
@@ -93,40 +69,29 @@ function LoginPage({ setIsAuthenticated }) {
 
           <form onSubmit={handleSubmit(submission)}>
             <fieldset>
-              <label>Email:</label>
-
+              {/* The label can say "Email / Phone Number" for clarity */}
+              <label>Email / Phone Number:</label>
               {errors.email && <span>{errors.email.message}</span>}
-
               <input
-                type="email"
+                type="text" // Change to text to allow phone numbers
                 name="email"
-                placeholder="Enter your email"
-                {...register("email", {
-                  required: "Must not empty",
-                  pattern: {
-                    value: /^[^\s@]+@[^\s@]+\.[^\s@]+$/,
-                    message: "Invalid email format",
-                  },
+                placeholder="Enter your email or phone number"
+                {...register("email", { // Keep using 'email' as the field name for simplicity
+                  required: "This field must not be empty",
                 })}
               />
             </fieldset>
 
             <fieldset>
               <label>Password:</label>
-
               {errors.password && <span>{errors.password.message}</span>}
-
               <div className="password-container">
                 <input
-                  type={showPassword ? "text" : "password"} // Toggle input type
+                  type={showPassword ? "text" : "password"}
                   name="password"
                   placeholder="Enter your password"
                   {...register("password", { 
-                    required: "Must not empty",
-                    minLength: {
-                      value: 6,
-                      message: "Password must be at least 6 characters"
-                    }
+                    required: "Password must not be empty",
                   })}
                 />
                 <span 

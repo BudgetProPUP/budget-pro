@@ -461,7 +461,7 @@ class LoginAttemptSerializer(serializers.ModelSerializer):
         model = LoginAttempt
         fields = ['id', 'username', 'username_input', 'ip_address', 'user_agent', 'success', 'timestamp']
 
-# --- Password Reset Serializers (already good from previous response) ---
+# --- Password Reset Serializers 
 class PasswordResetRequestSerializer(serializers.Serializer):
     email = serializers.EmailField(required=True)
     def validate_email(self, value):

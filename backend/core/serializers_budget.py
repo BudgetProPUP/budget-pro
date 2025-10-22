@@ -21,19 +21,13 @@ class BudgetProposalListSerializer(serializers.ModelSerializer):
     amount = serializers.SerializerMethodField()
     reference = serializers.CharField(
         source='external_system_id', read_only=True)
-
-    # MODIFIED: Change source back to 'title' to match the model field.
-    # The frontend will use 'proposal.title'.
     subject = serializers.CharField(source='title', read_only=True)
-
     category = serializers.SerializerMethodField()
 
     class Meta:
         model = BudgetProposal
-        # MODIFIED: The key here should be 'title', not 'subject', to match the model.
-        # The frontend will map this to the "Subject" column.
         fields = [
-            'id', 'reference', 'subject', 'title', 'category', 'submitted_by',
+            'id', 'reference', 'subject', 'category', 'submitted_by',  # Removed 'title'
             'amount', 'status'
         ]
 

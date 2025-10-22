@@ -1,7 +1,7 @@
 from decimal import Decimal
 from django.db.models import Sum, F, DecimalField, Q
 from django.db.models.functions import Coalesce
-from rest_framework import viewsets, views, status,generics
+from rest_framework import viewsets, views, status, generics
 from rest_framework.response import Response
 from rest_framework.views import APIView
 from drf_spectacular.utils import extend_schema, OpenApiParameter, OpenApiExample, OpenApiResponse
@@ -17,8 +17,9 @@ from rest_framework.decorators import api_view, permission_classes, action
 import calendar
 from decimal import Decimal
 from django.utils import timezone
-
-
+from datetime import date
+from dateutil.relativedelta import relativedelta
+from .serializers_dashboard import ForecastSerializer
 
 
 class DepartmentBudgetView(views.APIView):
@@ -291,7 +292,7 @@ class MonthlyBudgetActualViewSet(viewsets.ViewSet):
         if total_months <= 0:
             return result
 
-        #Distribute budget evenly across months (simple approach)
+        # Distribute budget evenly across months (simple approach)
         monthly_budget = total_budget / total_months
 
         # For each month in the fiscal year
@@ -489,6 +490,7 @@ class MonthlyBudgetActualViewSet(viewsets.ViewSet):
 
         return result
 
+
 @extend_schema(
     summary="Get all projects (no filters)",
     description="Returns a list of all projects in the system, with no filters or conditions.",
@@ -501,6 +503,7 @@ def get_all_projects(request):
     projects = Project.objects.all()
     serializer = SimpleProjectSerializer(projects, many=True)
     return Response(serializer.data)
+
 
 @extend_schema(
     summary="Project Table List",
@@ -680,7 +683,6 @@ def get_department_budget_status(request):
     return Response(serializer.data)
 
 
-
 class TopCategoryBudgetAllocationView(APIView):
     permission_classes = [IsAuthenticated]
     """
@@ -704,34 +706,41 @@ class TopCategoryBudgetAllocationView(APIView):
         limit = int(request.query_params.get('limit', 3))
 
         today = timezone.now().date()
-        active_fiscal_year = FiscalYear.objects.filter(start_date__lte=today, end_date__gte=today, is_active=True).first()
+        active_fiscal_year = FiscalYear.objects.filter(
+            start_date__lte=today, end_date__gte=today, is_active=True).first()
 
         if not active_fiscal_year:
-             return Response({"detail": "No active fiscal year for filtering top categories."}, status=status.HTTP_404_NOT_FOUND)
+            return Response({"detail": "No active fiscal year for filtering top categories."}, status=status.HTTP_404_NOT_FOUND)
 
         category_allocations = ExpenseCategory.objects.annotate(
             total_allocated=Coalesce(
-                Sum('budget_allocations__amount', filter=Q(budget_allocations__is_active=True, budget_allocations__fiscal_year=active_fiscal_year)), # Added fiscal year filter
+                Sum('budget_allocations__amount', filter=Q(budget_allocations__is_active=True,
+                    budget_allocations__fiscal_year=active_fiscal_year)),  # Added fiscal year filter
                 Decimal('0'), output_field=DecimalField()
             )
         ).filter(total_allocated__gt=0).order_by('-total_allocated')[:limit]
-        serializer = CategoryAllocationSerializer(category_allocations, many=True)
+        serializer = CategoryAllocationSerializer(
+            category_allocations, many=True)
         return Response(serializer.data)
-    
+
+
 @extend_schema(
     tags=["Dashboard"],
     summary="Overall Monthly Budget vs Actual (Money Flow)",
     description="Returns a monthly breakdown of the total budget vs. total actual expenses across ALL departments for a given fiscal year.",
     parameters=[
-        OpenApiParameter(name='fiscal_year_id', type=int, required=False, description="ID of the fiscal year. If not provided, the current active fiscal year will be used."),
+        OpenApiParameter(name='fiscal_year_id', type=int, required=False,
+                         description="ID of the fiscal year. If not provided, the current active fiscal year will be used."),
     ],
     responses={200: MonthlyBudgetActualSerializer(many=True)},
     examples=[
         OpenApiExample(
             "Overall Monthly Budget Example",
             value=[
-                {"month": 1, "month_name": "January", "budget": "150000.00", "actual": "110000.00"},
-                {"month": 2, "month_name": "February", "budget": "150000.00", "actual": "135000.00"},
+                {"month": 1, "month_name": "January",
+                    "budget": "150000.00", "actual": "110000.00"},
+                {"month": 2, "month_name": "February",
+                    "budget": "150000.00", "actual": "135000.00"},
             ],
             response_only=True
         )
@@ -741,7 +750,7 @@ class TopCategoryBudgetAllocationView(APIView):
 @permission_classes([IsAuthenticated])
 def overall_monthly_budget_actual(request):
     fiscal_year_id = request.query_params.get('fiscal_year_id')
-    
+
     if fiscal_year_id:
         try:
             fiscal_year = FiscalYear.objects.get(id=fiscal_year_id)
@@ -749,7 +758,8 @@ def overall_monthly_budget_actual(request):
             return Response({"error": "Fiscal year not found"}, status=status.HTTP_404_NOT_FOUND)
     else:
         today = timezone.now().date()
-        fiscal_year = FiscalYear.objects.filter(start_date__lte=today, end_date__gte=today, is_active=True).first()
+        fiscal_year = FiscalYear.objects.filter(
+            start_date__lte=today, end_date__gte=today, is_active=True).first()
         if not fiscal_year:
             return Response({"detail": "No active fiscal year found."}, status=status.HTTP_404_NOT_FOUND)
 
@@ -766,11 +776,12 @@ def overall_monthly_budget_actual(request):
         # Get actual expenses for this month
         actual_expenses = Expense.objects.filter(
             status='APPROVED',
-            date__year=fiscal_year.start_date.year, # Assuming fiscal year is within one calendar year
+            # Assuming fiscal year is within one calendar year
+            date__year=fiscal_year.start_date.year,
             date__month=month_num,
             budget_allocation__fiscal_year=fiscal_year
         ).aggregate(total=Coalesce(Sum('amount'), Decimal('0')))['total']
-        
+
         monthly_data.append({
             'month': month_num,
             'month_name': calendar.month_name[month_num],
@@ -787,15 +798,18 @@ def overall_monthly_budget_actual(request):
     summary="Budget per Category Status",
     description="Returns the budget, spending, and usage percentage for each expense category in the active fiscal year. This is for the 'Budget per Category' table.",
     parameters=[
-        OpenApiParameter(name='fiscal_year_id', type=int, required=False, description="ID of the fiscal year. If not provided, the current active fiscal year will be used."),
+        OpenApiParameter(name='fiscal_year_id', type=int, required=False,
+                         description="ID of the fiscal year. If not provided, the current active fiscal year will be used."),
     ],
     responses={200: CategoryBudgetStatusSerializer(many=True)},
     examples=[
         OpenApiExample(
             "Example Response",
             value=[
-                {"category_id": 1, "category_name": "Professional Services", "budget": "50000.00", "spent": "25000.00", "percentage_used": 50.0},
-                {"category_id": 2, "category_name": "Equipment and Maintenance", "budget": "120000.00", "spent": "100000.00", "percentage_used": 83.33},
+                {"category_id": 1, "category_name": "Professional Services",
+                    "budget": "50000.00", "spent": "25000.00", "percentage_used": 50.0},
+                {"category_id": 2, "category_name": "Equipment and Maintenance",
+                    "budget": "120000.00", "spent": "100000.00", "percentage_used": 83.33},
             ],
             response_only=True
         )
@@ -805,7 +819,7 @@ def overall_monthly_budget_actual(request):
 @permission_classes([IsAuthenticated])
 def get_category_budget_status(request):
     fiscal_year_id = request.query_params.get('fiscal_year_id')
-    
+
     if fiscal_year_id:
         try:
             fiscal_year = FiscalYear.objects.get(id=fiscal_year_id)
@@ -813,7 +827,8 @@ def get_category_budget_status(request):
             return Response({"error": "Fiscal year not found"}, status=status.HTTP_404_NOT_FOUND)
     else:
         today = timezone.now().date()
-        fiscal_year = FiscalYear.objects.filter(start_date__lte=today, end_date__gte=today, is_active=True).first()
+        fiscal_year = FiscalYear.objects.filter(
+            start_date__lte=today, end_date__gte=today, is_active=True).first()
         if not fiscal_year:
             return Response({"detail": "No active fiscal year found."}, status=status.HTTP_404_NOT_FOUND)
 
@@ -834,7 +849,7 @@ def get_category_budget_status(request):
             category=cat,
             budget_allocation__fiscal_year=fiscal_year
         ).aggregate(total=Coalesce(Sum('amount'), Decimal('0')))['total']
-        
+
         # Only include categories that have a budget
         if budget > 0:
             percent_used = (spent / budget * 100) if budget > 0 else 0
@@ -849,6 +864,7 @@ def get_category_budget_status(request):
     serializer = CategoryBudgetStatusSerializer(result, many=True)
     return Response(serializer.data)
 
+
 @extend_schema(
     tags=["Dashboard"],
     summary="Get Single Project Details",
@@ -859,3 +875,118 @@ class ProjectDetailView(generics.RetrieveAPIView):
     queryset = Project.objects.all()
     serializer_class = ProjectDetailSerializer
     permission_classes = [IsAuthenticated]
+
+    """
+Function: get_budget_forecast()
+Complete Rework of Forecasting Logic: The function was entirely refactored to replace the incorrect, constant-value forecast with a proper cumulative calculation.
+Old Behavior: Calculated a single average monthly expense and returned that same value for all 12 months.
+New Behavior:
+Calculates the total spending from previous months (total_historical_spent).
+Calculates the average_monthly_expense based on that historical data.
+For the current and future months, it now calculates a cumulative forecast using the formula:
+Forecast = Total Historical Spend + (Average Monthly Expense * Number of Future Months)
+This results in a correctly ascending forecast line on the chart, as intended.
+Added Robustness: The function now includes checks to handle cases where there is no historical spending data, preventing potential errors and returning an empty list [] gracefully.
+    """
+
+@extend_schema(
+    tags=["Dashboard", "Forecasting"],
+    summary="Generate Budget Forecast",
+    description="Calculates a simple linear forecast for the remaining months of a fiscal year based on average monthly spending.",
+    parameters=[
+        OpenApiParameter(name='fiscal_year_id', type=int, required=False,
+                         description="ID of the fiscal year. If not provided, the current active fiscal year will be used."),
+    ],
+    responses={200: ForecastSerializer(many=True)},
+)
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def get_budget_forecast(request):
+    """
+    Generates a simple forecast based on historical spending.
+    Returns actuals for past months and a cumulative forecast for future months.
+    """
+    fiscal_year_id = request.query_params.get('fiscal_year_id')
+
+    # Determine the fiscal year
+    today = timezone.now().date()
+    if fiscal_year_id:
+        try:
+            fiscal_year = FiscalYear.objects.get(id=fiscal_year_id)
+        except FiscalYear.DoesNotExist:
+            return Response({"error": "Fiscal year not found"}, status=status.HTTP_404_NOT_FOUND)
+    else:
+        fiscal_year = FiscalYear.objects.filter(
+            start_date__lte=today, end_date__gte=today, is_active=True).first()
+        if not fiscal_year:
+            return Response({"detail": "No active fiscal year found."}, status=status.HTTP_404_NOT_FOUND)
+
+    current_month_num = today.month
+
+    # Get expenses up to the beginning of the current month
+    historical_expenses = Expense.objects.filter(
+        status='APPROVED',
+        budget_allocation__fiscal_year=fiscal_year,
+        date__lt=today.replace(day=1)
+    )
+
+    # Get the earliest spending month to calculate the number of months accurately
+    first_expense = historical_expenses.order_by('date').first()
+    if not first_expense:
+        # Cannot forecast with no historical data, return empty list
+        return Response([], status=status.HTTP_200_OK)
+
+    start_date_for_avg = max(first_expense.date, fiscal_year.start_date)
+    # Number of full months that have passed with spending data
+    num_past_months = (today.year - start_date_for_avg.year) * \
+        12 + (today.month - start_date_for_avg.month)
+
+    if num_past_months <= 0:
+        # Not enough data for a meaningful average, return empty list
+        return Response([], status=status.HTTP_200_OK)
+
+    total_historical_spent = historical_expenses.aggregate(
+        total=Coalesce(Sum('amount'), Decimal('0.0'))
+    )['total']
+
+    average_monthly_expense = total_historical_spent / num_past_months
+
+    # --- FORECAST GENERATION ---
+    forecast_data = []
+
+    # Get actual total spent month by month for historical data points
+    actuals_by_month = {i: Decimal('0.0') for i in range(1, 13)}
+
+    # Assuming fiscal year is within one calendar year for simplicity
+    fy_year = fiscal_year.start_date.year
+
+    monthly_actuals_query = Expense.objects.filter(
+        status='APPROVED',
+        budget_allocation__fiscal_year=fiscal_year,
+        date__year=fy_year
+    ).values('date__month').annotate(total=Sum('amount'))
+
+    for item in monthly_actuals_query:
+        actuals_by_month[item['date__month']] = item['total']
+
+    # Generate the data for all 12 months
+    cumulative_actuals = Decimal('0.0')
+    for month_num in range(1, 13):
+        cumulative_actuals += actuals_by_month.get(month_num, Decimal('0.0'))
+        forecast_value = None
+
+        # If the month is in the future, calculate the cumulative forecast
+        if month_num >= current_month_num:
+            # How many months into the future from the start of the current month
+            months_into_future = month_num - current_month_num + 1
+            forecast_value = total_historical_spent + \
+                (average_monthly_expense * months_into_future)
+
+        forecast_data.append({
+            'month': month_num,
+            'month_name': calendar.month_name[month_num],
+            'forecast': round(forecast_value, 2) if forecast_value is not None else None
+        })
+
+    serializer = ForecastSerializer(forecast_data, many=True)
+    return Response(serializer.data)

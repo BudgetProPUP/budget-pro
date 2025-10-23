@@ -71,7 +71,23 @@ class BudgetProposalListView(generics.ListAPIView):
     # MODIFIED: Use new pagination class for 5 items per page
     pagination_class = FiveResultsSetPagination
 
-    def get_queryset(self):  # Logic seems fine
+    def get_queryset(self):
+        user = self.request.user # CustomUser object from the JWT
+        # --- DATA ISOLATION LOGIC (US-018) ---
+        user_roles = getattr(user, 'roles', {})
+        bms_role = user_roles.get('bms') # 'bms' service slug
+
+        # Privileged users (Admins, Finance Heads) can see all proposals.
+        if bms_role in ['ADMIN', 'FINANCE_HEAD']:
+            queryset = BudgetProposal.objects.all()
+        # Regular users are restricted to their own department.
+        elif hasattr(user, 'department_id') and user.department_id is not None:
+            queryset = BudgetProposal.objects.filter(department_id=user.department_id)
+        else:
+            # If a user has no roles or department, they see nothing.
+            return BudgetProposal.objects.none()
+          # --- END OF DATA ISOLATION LOGIC ---
+          
         queryset = BudgetProposal.objects.select_related('department').filter(
             is_deleted=False)  # Added select_related and is_deleted filter
         department_code = self.request.query_params.get('department')

@@ -15,6 +15,7 @@ from rest_framework import status
 from django.db.models import Sum, Q
 from django.db.models.functions import Coalesce
 
+
 def get_date_range_from_filter(filter_value):
     today = timezone.now().date()
     if filter_value == 'this_month':
@@ -33,37 +34,39 @@ def get_date_range_from_filter(filter_value):
 class ExpenseHistoryView(generics.ListAPIView):
     serializer_class = ExpenseHistorySerializer
     permission_classes = [IsAuthenticated]
-    # MODIFIED: Changed to FiveResultsSetPagination to match the UI spec (5 items per page)
-    pagination_class = FiveResultsSetPagination 
+    pagination_class = FiveResultsSetPagination
     filter_backends = [DjangoFilterBackend, filters.SearchFilter]
     search_fields = ['description', 'vendor']
     filterset_fields = ['category__code']
 
     def get_queryset(self):
-        user = self.request.user # This is CustomUser or TokenUser
-        
-        # User must have department_id from JWT to filter by department
-        if not hasattr(user, 'department_id') or user.department_id is None:
-            # Handle case where user might not have a department_id (e.g., superadmin not tied to a dept)
-            # Option 1: Return no expenses
-            # return Expense.objects.none()
-            # Option 2: Return all approved expenses (if admin/finance head role allows)
-            if hasattr(user, 'role') and user.role in ['ADMIN', 'FINANCE_HEAD']:
-                 return Expense.objects.filter(status='APPROVED').order_by('-date')
-            return Expense.objects.none() # Default to no expenses if no department and not privileged
+        user = self.request.user
 
-        try:
-            # Fetch the actual Department object using the department_id from the user (JWT)
-            # NOTE: This view intentionally only shows APPROVED expenses.
-            # New expenses with 'SUBMITTED' status will appear here only after they have been approved.
-            user_department = Department.objects.get(id=user.department_id)
-            return Expense.objects.filter(
-                department=user_department, # Filter by the Department instance
+        # --- REFINED DATA ISOLATION LOGIC (US-018) ---
+        user_roles = getattr(user, 'roles', {})
+        bms_role = user_roles.get('bms')
+
+        # Privileged users see all approved expenses.
+        if bms_role in ['ADMIN', 'FINANCE_HEAD']:
+            queryset = Expense.objects.filter(status='APPROVED')
+        # Regular users see approved expenses from their department OR expenses they personally submitted.
+        elif hasattr(user, 'department_id') and user.department_id is not None:
+            queryset = Expense.objects.filter(
+                Q(department_id=user.department_id) | Q(
+                    submitted_by_user_id=user.id),
                 status='APPROVED'
-            ).order_by('-date')
-        except Department.DoesNotExist:
-            # Log this? Department ID in JWT doesn't match any local Department.
-            return Expense.objects.none() # Or handle as an error
+            ).distinct()
+        else:
+            # If no department, they can only see approved expenses they submitted.
+            queryset = Expense.objects.filter(
+                submitted_by_user_id=user.id, status='APPROVED')
+
+        # Apply additional filters if provided in the query parameters.
+        category_code = self.request.query_params.get('category__code')
+        if category_code:
+            queryset = queryset.filter(category__code=category_code)
+
+        return queryset.order_by('-date')
 
     @extend_schema(
         tags=['Expense History Page'],
@@ -88,39 +91,34 @@ class ExpenseTrackingView(generics.ListAPIView):
     permission_classes = [IsAuthenticated]
     pagination_class = FiveResultsSetPagination
     filter_backends = [filters.SearchFilter]
-    
+
     # MODIFIED: Expanded the search fields to include reference number and type
     search_fields = [
-        'description', 
-        'vendor', 
+        'description',
+        'vendor',
         'transaction_id',  # For "REF NO." column
-        'account__account_type__name' # For "TYPE" column
+        'account__account_type__name'  # For "TYPE" column
     ]
 
     def get_queryset(self):
-        user = self.request.user # This is CustomUser or TokenUser
-        
-        # Base queryset starts empty
-        queryset = Expense.objects.none()
+        user = self.request.user
 
-        if hasattr(user, 'role') and user.role in ['ADMIN', 'FINANCE_HEAD']:
-            # Admins/Finance Heads can see all expenses across all departments.
+        # --- REFINED DATA ISOLATION LOGIC (US-018) ---
+        user_roles = getattr(user, 'roles', {})
+        bms_role = user_roles.get('bms')
+
+        # Privileged users see all expenses.
+        if bms_role in ['ADMIN', 'FINANCE_HEAD']:
             queryset = Expense.objects.all()
+        # Regular users see expenses from their department OR expenses they personally submitted.
         elif hasattr(user, 'department_id') and user.department_id is not None:
-            # Regular users see expenses from their own department OR expenses they submitted,
-            # which is useful if they submit an expense for another department's project.
-            try:
-                user_department = Department.objects.get(id=user.department_id)
-                queryset = Expense.objects.filter(
-                    Q(department=user_department) | Q(submitted_by_user_id=user.id)
-                ).distinct() # Use distinct to avoid duplicates if user submits for own dept
-            except Department.DoesNotExist:
-                # If department in JWT is invalid, only show what user submitted.
-                queryset = Expense.objects.filter(submitted_by_user_id=user.id)
+            queryset = Expense.objects.filter(
+                Q(department_id=user.department_id) | Q(
+                    submitted_by_user_id=user.id)
+            ).distinct()
         else:
-            # If user has no role or department, they can only see what they submitted.
+            # If no department, they can only see what they submitted.
             queryset = Expense.objects.filter(submitted_by_user_id=user.id)
-
 
         category_code = self.request.query_params.get('category__code')
         if category_code:
@@ -136,10 +134,11 @@ class ExpenseTrackingView(generics.ListAPIView):
     @extend_schema(
         tags=['Expense Tracking Page'],
         summary="Get expense tracking data",
-        description="Paginated list of expenses with filters for category and date range. The search parameter now looks in the 'REF NO.', 'TYPE', 'DESCRIPTION', and vendor fields.", # MODIFIED: Updated description
+        description="Paginated list of expenses with filters for category and date range. The search parameter now looks in the 'REF NO.', 'TYPE', 'DESCRIPTION', and vendor fields.",  # MODIFIED: Updated description
         parameters=[
             OpenApiParameter(
-                name="search", description="Search by Ref No, Type, Description, or Vendor", required=False, type=str), # MODIFIED: Updated description
+                # MODIFIED: Updated description
+                name="search", description="Search by Ref No, Type, Description, or Vendor", required=False, type=str),
             OpenApiParameter(
                 name="category__code", description="Filter by category code", required=False, type=str),
             OpenApiParameter(
@@ -164,25 +163,26 @@ class ExpenseTrackingSummaryView(APIView):
         user = request.user
         if not hasattr(user, 'department_id'):
             return Response({"error": "User has no associated department."}, status=status.HTTP_400_BAD_REQUEST)
-        
+
         try:
             department = Department.objects.get(id=user.department_id)
         except Department.DoesNotExist:
             return Response({"error": "Department not found."}, status=status.HTTP_404_NOT_FOUND)
 
         today = timezone.now().date()
-        active_fiscal_year = FiscalYear.objects.filter(start_date__lte=today, end_date__gte=today, is_active=True).first()
+        active_fiscal_year = FiscalYear.objects.filter(
+            start_date__lte=today, end_date__gte=today, is_active=True).first()
         if not active_fiscal_year:
             return Response({"error": "No active fiscal year found."}, status=status.HTTP_404_NOT_FOUND)
 
         # NOTE: The summary calculations (budget remaining, expenses this month) are based on 'APPROVED'
         # expenses only. Newly submitted expenses will not affect these totals until they are approved.
-        
+
         # 1. Calculate Budget Remaining for the department
         total_budget = BudgetAllocation.objects.filter(
             department=department, fiscal_year=active_fiscal_year, is_active=True
         ).aggregate(total=Coalesce(Sum('amount'), Decimal('0.0')))['total']
-        
+
         total_spent = Expense.objects.filter(
             department=department, budget_allocation__fiscal_year=active_fiscal_year, status='APPROVED'
         ).aggregate(total=Coalesce(Sum('amount'), Decimal('0.0')))['total']
@@ -219,6 +219,8 @@ class BudgetAllocationCreateView(generics.CreateAPIView):
     def perform_create(self, serializer):
         # The serializer's create method handles the logic
         serializer.save(context={'request': self.request})
+
+
 class ExpenseCreateView(APIView):
     permission_classes = [IsAuthenticated]
 
@@ -245,11 +247,14 @@ class ExpenseCreateView(APIView):
         responses={201: serializers.SerializerMethodField()}
     )
     def post(self, request):
-        serializer = ExpenseCreateSerializer(data=request.data, context={'request': request})
+        serializer = ExpenseCreateSerializer(
+            data=request.data, context={'request': request})
         if serializer.is_valid():
             expense = serializer.save()
             return Response({'success': 'Expense submitted', 'id': expense.id}, status=201)
         return Response(serializer.errors, status=400)
+
+
 @extend_schema(
     tags=['Expense Category Dropdowns'],
     summary="List Expense Categories",
@@ -259,20 +264,22 @@ class ExpenseCreateView(APIView):
 class ExpenseCategoryDropdownView(generics.ListAPIView):
     serializer_class = ExpenseCategoryDropdownSerializer
     permission_classes = [IsAuthenticated]
-    
+
     def get_queryset(self):
         return ExpenseCategory.objects.filter(is_active=True).order_by('code')
 
     @extend_schema(parameters=[])
     def get(self, request, *args, **kwargs):
         return super().get(request, *args, **kwargs)
-    
+
+
 @extend_schema(
     tags=['Expense History Page'],
     # MODIFIED: Updated summary and description for clarity
     summary="Get the parent proposal ID for a single expense",
     description="Returns the project and budget_proposal ID for a given expense ID. This is used by the frontend to fetch the full proposal details for the 'View' modal.",
-    responses={200: ExpenseDetailForModalSerializer} # MODIFIED: Response schema is now correct
+    # MODIFIED: Response schema is now correct
+    responses={200: ExpenseDetailForModalSerializer}
 )
 class ExpenseDetailView(generics.RetrieveAPIView):
     permission_classes = [IsAuthenticated]

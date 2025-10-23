@@ -140,6 +140,7 @@ class DepartmentBudgetView(views.APIView):
 @permission_classes([IsAuthenticated])
 def get_dashboard_budget_summary(request):
 
+    user = request.user
     today = timezone.now().date()
     fiscal_year = FiscalYear.objects.filter(
         start_date__lte=today,
@@ -150,10 +151,26 @@ def get_dashboard_budget_summary(request):
     if not fiscal_year:
         return Response({"detail": "No active fiscal year found."}, status=404)
 
+    # Base querysets
     allocations = BudgetAllocation.objects.filter(
-        is_active=True,
-        fiscal_year=fiscal_year
-    )
+        is_active=True, fiscal_year=fiscal_year)
+    expenses = Expense.objects.filter(
+        status='APPROVED', budget_allocation__fiscal_year=fiscal_year)
+
+    # --- DATA ISOLATION LOGIC (US-018) ---
+    user_roles = getattr(user, 'roles', {})
+    bms_role = user_roles.get('bms')
+
+    if bms_role not in ['ADMIN', 'FINANCE_HEAD']:
+        if hasattr(user, 'department_id') and user.department_id is not None:
+            allocations = allocations.filter(department_id=user.department_id)
+            expenses = expenses.filter(department_id=user.department_id)
+        else:
+            # If no department, they have no budget
+            allocations = allocations.none()
+            expenses = expenses.none()
+    # --- END OF DATA ISOLATION LOGIC ---
+
     total_budget = allocations.aggregate(total=Sum('amount'))['total'] or 0
 
     total_spent = Expense.objects.filter(
@@ -888,6 +905,7 @@ Forecast = Total Historical Spend + (Average Monthly Expense * Number of Future 
 This results in a correctly ascending forecast line on the chart, as intended.
 Added Robustness: The function now includes checks to handle cases where there is no historical spending data, preventing potential errors and returning an empty list [] gracefully.
     """
+
 
 @extend_schema(
     tags=["Dashboard", "Forecasting"],

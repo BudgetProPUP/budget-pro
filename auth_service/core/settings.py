@@ -5,9 +5,34 @@ from datetime import timedelta
 import dj_database_url
 import re
 
-# Base directory for the auth_service
-BASE_DIR = Path(__file__).resolve().parent
-load_dotenv(BASE_DIR.parent / '.env')  # Load .env from auth_service folder
+BASE_DIR = Path(__file__).resolve().parent  # This is auth_service/core/
+
+# Load .env - Check multiple locations
+env_locations = [
+    BASE_DIR.parent / '.env',           # auth_service/.env
+    BASE_DIR.parent.parent / '.env',    # project_root/.env
+]
+
+env_loaded = False
+for env_path in env_locations:
+    if env_path.exists():
+        load_dotenv(dotenv_path=env_path)
+        print(f"✅ Loaded .env from: {env_path}")
+        env_loaded = True
+        break
+
+if not env_loaded:
+    print("⚠️ No .env file found in expected locations")
+    print(f"Searched: {[str(p) for p in env_locations]}")
+
+# Debug email configuration
+print("=" * 60)
+print("EMAIL CONFIGURATION:")
+print(f"EMAIL_HOST_USER: {os.getenv('EMAIL_HOST_USER')}")
+print(f"EMAIL_HOST_PASSWORD: {'*' * len(os.getenv('EMAIL_HOST_PASSWORD', ''))} (length: {len(os.getenv('EMAIL_HOST_PASSWORD', ''))})")
+print(f"EMAIL_HOST: {os.getenv('EMAIL_HOST')}")
+print(f"EMAIL_PORT: {os.getenv('EMAIL_PORT')}")
+print("=" * 60)
 
 SECRET_KEY = os.getenv('DJANGO_SECRET_KEY')
 

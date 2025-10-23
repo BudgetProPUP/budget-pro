@@ -105,3 +105,11 @@ class ProjectDetailSerializer(serializers.ModelSerializer):
         return obj.expenses.filter(status='APPROVED').aggregate(
             total=Sum('amount')
         )['total'] or Decimal('0.00')
+        
+class ForecastSerializer(serializers.Serializer):
+    """
+    Serializer for the monthly forecast data.
+    """
+    month = serializers.IntegerField()
+    month_name = serializers.CharField()
+    forecast = serializers.DecimalField(max_digits=15, decimal_places=2)

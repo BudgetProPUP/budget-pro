@@ -7,7 +7,7 @@ from . import views_expense, views_dashboard  # ,TokenObtainPairView
 from .views_dashboard import (
     DepartmentBudgetView, MonthlyBudgetActualViewSet, TopCategoryBudgetAllocationView,
     get_all_projects, get_dashboard_budget_summary, get_department_budget_status,
-    overall_monthly_budget_actual, get_category_budget_status, ProjectDetailView
+    overall_monthly_budget_actual, get_category_budget_status, get_budget_forecast, ProjectDetailView
 )
 from .views import (
     DepartmentViewSet,
@@ -122,4 +122,7 @@ urlpatterns = [
          name='journal-entry-create'),
     # --- Utility Endpoints ---
     path('utils/server-time/', get_server_time, name='server-time'),
+    
+    # --- Forecasting Endpoints ---
+    path('dashboard/forecast/', get_budget_forecast, name='dashboard-forecast'),
 ]

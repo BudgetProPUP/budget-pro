@@ -6,6 +6,7 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 from drf_spectacular.utils import extend_schema, OpenApiParameter, OpenApiExample, OpenApiResponse
 from django.db.models import Subquery, OuterRef, Q
+from backend.core.permissions import IsBMSUser
 from core.pagination import ProjectStatusPagination, StandardResultsSetPagination
 from .models import Department, ExpenseCategory, FiscalYear, BudgetAllocation, Expense, Project
 from .serializers import DepartmentBudgetSerializer
@@ -137,9 +138,13 @@ class DepartmentBudgetView(views.APIView):
     ]
 )
 @api_view(['GET'])
-@permission_classes([IsAuthenticated])
+@permission_classes([IsBMSUser]) # MODIFIED: Use specific BMS permission
 def get_dashboard_budget_summary(request):
-
+     # --- MODIFICATION START ---
+    user = request.user
+    user_roles = getattr(user, 'roles', {})
+    bms_role = user_roles.get('bms')
+    # --- MODIFICATION END ---
     today = timezone.now().date()
     fiscal_year = FiscalYear.objects.filter(
         start_date__lte=today,
@@ -150,17 +155,30 @@ def get_dashboard_budget_summary(request):
     if not fiscal_year:
         return Response({"detail": "No active fiscal year found."}, status=404)
 
-    allocations = BudgetAllocation.objects.filter(
+    # --- MODIFICATION START ---
+    # Base querysets for data isolation
+    allocations_qs = BudgetAllocation.objects.filter(
         is_active=True,
         fiscal_year=fiscal_year
     )
-    total_budget = allocations.aggregate(total=Sum('amount'))['total'] or 0
 
+    if bms_role == 'FINANCE_HEAD':
+        department_id = getattr(user, 'department_id', None)
+        if department_id:
+            allocations_qs = allocations_qs.filter(department_id=department_id)
+        else:
+            allocations_qs = BudgetAllocation.objects.none()
+    # ADMIN role sees all allocations by default
+
+    total_budget = allocations_qs.aggregate(total=Sum('amount'))['total'] or 0
+
+    # Filter expenses based on the isolated allocations
     total_spent = Expense.objects.filter(
-        budget_allocation__in=allocations,
+        budget_allocation__in=allocations_qs,
         status='APPROVED'
     ).aggregate(total=Sum('amount'))['total'] or 0
-
+    # --- MODIFICATION END ---
+    
     remaining_budget = total_budget - total_spent
     remaining_percentage = (
         remaining_budget / total_budget * 100) if total_budget > 0 else 0
@@ -557,10 +575,10 @@ def get_all_projects(request):
     ]
 )
 @api_view(['GET'])
-@permission_classes([IsAuthenticated])
+@permission_classes([IsBMSUser]) # MODIFIED: Use specific BMS permission
 def get_project_status_list(request):
     paginator = ProjectStatusPagination()
-
+    user = request.user # MODIFIED: Get user
     today = timezone.now().date()
 
     fiscal_year = FiscalYear.objects.filter(
@@ -572,14 +590,28 @@ def get_project_status_list(request):
     if not fiscal_year:
         return Response({"detail": "No active fiscal year found."}, status=404)
 
-    allocations = BudgetAllocation.objects.filter(
+    # --- MODIFICATION START ---
+    allocations_qs = BudgetAllocation.objects.filter(
         fiscal_year=fiscal_year,
         is_active=True
     ).select_related('project')
 
+    user_roles = getattr(user, 'roles', {})
+    bms_role = user_roles.get('bms')
+
+    if bms_role == 'FINANCE_HEAD':
+        department_id = getattr(user, 'department_id', None)
+        if department_id:
+            allocations_qs = allocations_qs.filter(department_id=department_id)
+        else:
+            allocations_qs = BudgetAllocation.objects.none()
+    # ADMIN sees all
+    # --- MODIFICATION END ---
+
     project_data = []
 
-    for alloc in allocations:
+    # MODIFIED: Use the filtered queryset
+    for alloc in allocations_qs:
         expenses = Expense.objects.filter(
             budget_allocation=alloc,
             status='APPROVED'
@@ -639,8 +671,9 @@ def get_project_status_list(request):
     ]
 )
 @api_view(['GET'])
-@permission_classes([IsAuthenticated])
+@permission_classes([IsBMSUser]) # MODIFIED: Use specific BMS permission
 def get_department_budget_status(request):
+    user = request.user # MODIFIED: Get user
     today = timezone.now().date()
 
     fiscal_year = FiscalYear.objects.filter(
@@ -652,14 +685,28 @@ def get_department_budget_status(request):
     if not fiscal_year:
         return Response({"detail": "No active fiscal year found."}, status=404)
 
-    departments = Department.objects.filter(is_active=True)
+    # --- MODIFICATION START ---
+    departments_qs = Department.objects.filter(is_active=True)
+
+    user_roles = getattr(user, 'roles', {})
+    bms_role = user_roles.get('bms')
+
+    if bms_role == 'FINANCE_HEAD':
+        department_id = getattr(user, 'department_id', None)
+        if department_id:
+            departments_qs = departments_qs.filter(id=department_id)
+        else:
+            departments_qs = Department.objects.none()
+    # ADMIN sees all
+    # --- MODIFICATION END ---
     result = []
 
-    for dept in departments:
+    # MODIFIED: Iterate over the filtered queryset
+    for dept in departments_qs:
         allocations = BudgetAllocation.objects.filter(
             is_active=True,
             fiscal_year=fiscal_year,
-            project__budget_proposal__department=dept
+            department=dept # MODIFIED: Use department object
         )
 
         budget = allocations.aggregate(total=Sum('amount'))['total'] or 0
@@ -747,9 +794,10 @@ class TopCategoryBudgetAllocationView(APIView):
     ]
 )
 @api_view(['GET'])
-@permission_classes([IsAuthenticated])
+@permission_classes([IsBMSUser]) # Use specific BMS permission
 def overall_monthly_budget_actual(request):
     fiscal_year_id = request.query_params.get('fiscal_year_id')
+    user = request.user
 
     if fiscal_year_id:
         try:
@@ -763,24 +811,39 @@ def overall_monthly_budget_actual(request):
         if not fiscal_year:
             return Response({"detail": "No active fiscal year found."}, status=status.HTTP_404_NOT_FOUND)
 
-    # Get total budget for the fiscal year
-    total_budget = BudgetAllocation.objects.filter(
-        fiscal_year=fiscal_year, is_active=True
-    ).aggregate(total=Coalesce(Sum('amount'), Decimal('0')))['total']
+    # --- MODIFICATION START ---
+    # Apply data isolation to budget and expense queries
+    user_roles = getattr(user, 'roles', {})
+    bms_role = user_roles.get('bms')
+    
+    budget_query = BudgetAllocation.objects.filter(fiscal_year=fiscal_year, is_active=True)
+    expense_query_base = Expense.objects.filter(status='APPROVED', budget_allocation__fiscal_year=fiscal_year)
+
+    if bms_role == 'FINANCE_HEAD':
+        department_id = getattr(user, 'department_id', None)
+        if department_id:
+            budget_query = budget_query.filter(department_id=department_id)
+            expense_query_base = expense_query_base.filter(department_id=department_id)
+        else:
+            budget_query = budget_query.none()
+            expense_query_base = expense_query_base.none()
+    # ADMIN role will not be filtered and will see overall data
+    
+    total_budget = budget_query.aggregate(total=Coalesce(Sum('amount'), Decimal('0')))['total']
+    # --- MODIFICATION END ---
 
     # Simple even distribution of budget across 12 months for the chart
     monthly_budget = total_budget / 12
 
     monthly_data = []
     for month_num in range(1, 13):
-        # Get actual expenses for this month
-        actual_expenses = Expense.objects.filter(
-            status='APPROVED',
-            # Assuming fiscal year is within one calendar year
+        # --- MODIFICATION START ---
+        # Filtered expense query base
+        actual_expenses = expense_query_base.filter(
             date__year=fiscal_year.start_date.year,
-            date__month=month_num,
-            budget_allocation__fiscal_year=fiscal_year
+            date__month=month_num
         ).aggregate(total=Coalesce(Sum('amount'), Decimal('0')))['total']
+        # --- MODIFICATION END ---
 
         monthly_data.append({
             'month': month_num,
@@ -872,9 +935,29 @@ def get_category_budget_status(request):
     responses={200: ProjectDetailSerializer}
 )
 class ProjectDetailView(generics.RetrieveAPIView):
-    queryset = Project.objects.all()
+    # queryset = Project.objects.all() # REMOVED: Will be handled by get_queryset
     serializer_class = ProjectDetailSerializer
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsBMSUser] # MODIFIED: Use specific BMS permission
+    
+    # --- MODIFICATION START ---
+    def get_queryset(self):
+        """
+        Implements data isolation for viewing project details.
+        """
+        user = self.request.user
+        user_roles = getattr(user, 'roles', {})
+        bms_role = user_roles.get('bms')
+
+        if bms_role == 'ADMIN':
+            return Project.objects.all()
+        
+        if bms_role == 'FINANCE_HEAD':
+            department_id = getattr(user, 'department_id', None)
+            if department_id:
+                return Project.objects.filter(department_id=department_id)
+        
+        return Project.objects.none()
+    # --- MODIFICATION END ---
 
     """
 Function: get_budget_forecast()
@@ -900,13 +983,14 @@ Added Robustness: The function now includes checks to handle cases where there i
     responses={200: ForecastSerializer(many=True)},
 )
 @api_view(['GET'])
-@permission_classes([IsAuthenticated])
+@permission_classes([IsBMSUser]) # Use specific BMS permission
 def get_budget_forecast(request):
     """
     Generates a simple forecast based on historical spending.
     Returns actuals for past months and a cumulative forecast for future months.
     """
     fiscal_year_id = request.query_params.get('fiscal_year_id')
+    user = request.user
 
     # Determine the fiscal year
     today = timezone.now().date()
@@ -923,12 +1007,28 @@ def get_budget_forecast(request):
 
     current_month_num = today.month
 
-    # Get expenses up to the beginning of the current month
-    historical_expenses = Expense.objects.filter(
+    # --- MODIFICATION START ---
+    # Apply data isolation to the historical expense query
+    user_roles = getattr(user, 'roles', {})
+    bms_role = user_roles.get('bms')
+    
+    historical_expenses_query = Expense.objects.filter(
         status='APPROVED',
         budget_allocation__fiscal_year=fiscal_year,
         date__lt=today.replace(day=1)
     )
+
+    if bms_role == 'FINANCE_HEAD':
+        department_id = getattr(user, 'department_id', None)
+        if department_id:
+            historical_expenses_query = historical_expenses_query.filter(department_id=department_id)
+        else:
+            historical_expenses_query = historical_expenses_query.none()
+    # ADMIN sees all historical data
+    
+    # Get expenses up to the beginning of the current month
+    historical_expenses = historical_expenses_query
+    # --- MODIFICATION END ---
 
     # Get the earliest spending month to calculate the number of months accurately
     first_expense = historical_expenses.order_by('date').first()

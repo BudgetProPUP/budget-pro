@@ -15,7 +15,7 @@ from django.utils import timezone
 from django.conf import settings
 from django.core.mail import send_mail
 
-from rest_framework import generics, status, viewsets
+from rest_framework import generics, status, viewsets, filters
 from rest_framework.response import Response
 from rest_framework.views import APIView
 from rest_framework.permissions import IsAuthenticated
@@ -55,53 +55,68 @@ from .serializers_budget import (
 
 
 # --- Budget Proposal Page Views ---
-@extend_schema(
-    tags=['Budget Proposal Page'],
-    summary="List budget proposals with filters",
-    parameters=[
-        OpenApiParameter(name="department", type=str), OpenApiParameter(
-            name="status", type=str),
-        OpenApiParameter(name="search", type=str),
-    ],
-    responses={200: BudgetProposalListSerializer(many=True)}
-)
-class BudgetProposalListView(generics.ListAPIView):
-    serializer_class = BudgetProposalListSerializer
-    permission_classes = [IsAuthenticated]
-    # MODIFIED: Use new pagination class for 5 items per page
-    pagination_class = FiveResultsSetPagination
+# @extend_schema(
+#     tags=['Budget Proposal Page'],
+#     summary="List budget proposals with filters",
+#     parameters=[
+#         OpenApiParameter(name="department", type=str), OpenApiParameter(
+#             name="status", type=str),
+#         OpenApiParameter(name="search", type=str),
+#     ],
+#     responses={200: BudgetProposalListSerializer(many=True)}
+# )
+# class BudgetProposalListView(generics.ListAPIView):
+#     serializer_class = BudgetProposalListSerializer
+#     permission_classes = [IsAuthenticated]
+#     # MODIFIED: Use new pagination class for 5 items per page
+#     pagination_class = FiveResultsSetPagination
 
-    def get_queryset(self):  # Logic seems fine
-        queryset = BudgetProposal.objects.select_related('department').filter(
-            is_deleted=False)  # Added select_related and is_deleted filter
-        department_code = self.request.query_params.get('department')
-        status_filter = self.request.query_params.get('status')
-        search = self.request.query_params.get('search')
-        if department_code:
-            queryset = queryset.filter(department__code=department_code)
-        if status_filter:
-            queryset = queryset.filter(status=status_filter)
-        if search:
-            queryset = queryset.filter(
-                Q(title__icontains=search) | Q(
-                    external_system_id__icontains=search)
-            )
-        return queryset.order_by('-created_at')  # Added default ordering
+#     def get_queryset(self):  # Logic seems fine
+#         queryset = BudgetProposal.objects.select_related('department').filter(
+#             is_deleted=False)  # Added select_related and is_deleted filter
+#         department_code = self.request.query_params.get('department')
+#         status_filter = self.request.query_params.get('status')
+#         search = self.request.query_params.get('search')
+#         if department_code:
+#             queryset = queryset.filter(department__code=department_code)
+#         if status_filter:
+#             queryset = queryset.filter(status=status_filter)
+#         if search:
+#             queryset = queryset.filter(
+#                 Q(title__icontains=search) | Q(
+#                     external_system_id__icontains=search)
+#             )
+#         return queryset.order_by('-created_at')  # Added default ordering
 
 
 class BudgetProposalSummaryView(generics.GenericAPIView):
-    permission_classes = [IsAuthenticated]
-    serializer_class = BudgetProposalSummarySerializer  # For schema generation
+    # --- MODIFICATION START ---
+    # Changed permission from IsAuthenticated to the more specific IsBMSUser
+    permission_classes = [IsBMSUser]
+    # --- MODIFICATION END ---
+    serializer_class = BudgetProposalSummarySerializer
 
     @extend_schema(
         tags=['Budget Proposal Page'],
         summary="Get summary of budget proposals (cards)",
         responses={200: BudgetProposalSummarySerializer}
     )
-    def get(self, request):  # Logic seems fine
-        # Consider filtering by active fiscal year if necessary
-        active_proposals = BudgetProposal.objects.filter(
-            is_deleted=False)  # Filter out deleted
+    def get(self, request):
+        user = request.user
+        user_roles = getattr(user, 'roles', {})
+        bms_role = user_roles.get('bms')
+
+        # --- MODIFICATION START ---
+        # Applied data isolation to the queryset used for the summary
+        active_proposals = BudgetProposal.objects.filter(is_deleted=False)
+
+        if bms_role == 'FINANCE_HEAD':
+            department_id = getattr(user, 'department_id', None)
+            if department_id:
+                active_proposals = active_proposals.filter(department_id=department_id)
+            else:
+                active_proposals = BudgetProposal.objects.none()
+        # Admins will see all proposals by default
         total = active_proposals.count()
         # Assuming PENDING means SUBMITTED for approval
         pending = active_proposals.filter(status='SUBMITTED').count()
@@ -118,19 +133,19 @@ class BudgetProposalSummaryView(generics.GenericAPIView):
         return Response(serializer.data)
 
 
-class BudgetProposalDetailView(generics.RetrieveAPIView):  
-    queryset = BudgetProposal.objects.filter(is_deleted=False).prefetch_related('items__account', 'comments')
-    serializer_class = BudgetProposalDetailSerializer
-    permission_classes = [IsBMSUser] # JWT permission
+# class BudgetProposalDetailView(generics.RetrieveAPIView):  
+#     queryset = BudgetProposal.objects.filter(is_deleted=False).prefetch_related('items__account', 'comments')
+#     serializer_class = BudgetProposalDetailSerializer
+#     permission_classes = [IsBMSUser] # JWT permission
 
-    @extend_schema(
-        tags=['Budget Proposal Page'],
-        summary="Retrieve full details of a proposal",
-        description="Returns details including items and estimated costs.",
-        responses={200: BudgetProposalDetailSerializer}
-    )
-    def get(self, request, *args, **kwargs):
-        return super().get(request, *args, **kwargs)
+#     @extend_schema(
+#         tags=['Budget Proposal Page'],
+#         summary="Retrieve full details of a proposal",
+#         description="Returns details including items and estimated costs.",
+#         responses={200: BudgetProposalDetailSerializer}
+#     )
+#     def get(self, request, *args, **kwargs):
+#         return super().get(request, *args, **kwargs)
 
 
 # --- Proposal History Page View ---
@@ -460,384 +475,162 @@ class AccountTypeDropdownView(generics.ListAPIView):
         return super().get(request, *args, **kwargs)
 
 
-class BudgetProposalViewSet(viewsets.ModelViewSet):
-    queryset = BudgetProposal.objects.filter(is_deleted=False).select_related(
-        'department', 'fiscal_year'  # Optimize queries
-    ).prefetch_related(
-        'items__account', 'comments'  # Optimize queries
-    ).order_by('-created_at')
+class ExternalBudgetProposalViewSet(viewsets.ModelViewSet):
+    """
+    ViewSet for EXTERNAL service-to-service communication (e.g., from DTS/TTS).
+    Handles creating, updating, and deleting proposals via API Key authentication.
+    """
+    queryset = BudgetProposal.objects.filter(is_deleted=False)
+    serializer_class = BudgetProposalMessageSerializer
+    permission_classes = [IsTrustedService] # Enforces API Key for all actions
 
-    def get_permissions(self):
-        if self.action in ['create', 'update', 'partial_update', 'destroy']:
-            return [IsTrustedService()]
+    # This ViewSet uses the default create(), update(), partial_update(), and destroy()
+    # methods from ModelViewSet, which are now correctly protected.
+
+
+class BudgetProposalUIViewSet(viewsets.ReadOnlyModelViewSet):
+    """
+    ViewSet for the User Interface (UI).
+    Handles listing, retrieving, reviewing, and commenting on proposals for
+    authenticated users with JWTs.
+    """
+    permission_classes = [IsBMSUser]
+    pagination_class = FiveResultsSetPagination
+    filter_backends = [filters.SearchFilter]
+    search_fields = ['title', 'external_system_id']
+
+    def get_queryset(self):
+        """
+        Dynamically filters the queryset based on user role for data isolation.
+        - ADMINs see all proposals.
+        - FINANCE_HEADs see proposals for their own department.
+        """
+        user = self.request.user
+        base_queryset = BudgetProposal.objects.filter(is_deleted=False).select_related(
+            'department', 'fiscal_year'
+        ).prefetch_related('items__account', 'comments')
+
+        user_roles = getattr(user, 'roles', {})
+        bms_role = user_roles.get('bms')
         
-        # Use your new permission classes for actions performed by human users
-        if self.action == 'review':
-             # Only a Finance Head can approve or reject
-            return [IsBMSFinanceHead()]
+        status_filter = self.request.query_params.get('status')
+        department_filter = self.request.query_params.get('department')
+
+        if bms_role == 'ADMIN':
+            queryset = base_queryset
+            if department_filter:
+                queryset = queryset.filter(department__code=department_filter)
+        elif bms_role == 'FINANCE_HEAD':
+            department_id = getattr(user, 'department_id', None)
+            if not department_id:
+                return BudgetProposal.objects.none()
+            queryset = base_queryset.filter(department_id=department_id)
+        else:
+            return BudgetProposal.objects.none()
+
+        if status_filter:
+            queryset = queryset.filter(status=status_filter)
             
-        return [IsBMSUser()]
+        return queryset.order_by('-created_at')
 
     def get_serializer_class(self):
-        # This ViewSet is primarily for external system interaction via messages
-        # or direct trusted API calls. For such cases, BudgetProposalMessageSerializer is used.
-        # If your UI also uses this ViewSet for GET, BudgetProposalMessageSerializer might
-        # not be ideal for display as 'items' is write_only by default if not changed.
-        # Let's assume BudgetProposalMessageSerializer is now read/write for items.
-        if self.action == 'review':
-            return ProposalReviewSerializer  # For the review action's request
-        elif self.action == 'retrieve':
-            return BudgetProposalDetailSerializer  # For detailed view for UI
-        elif self.action == 'list':
-            return BudgetProposalListSerializer  # For list view for UI
-        return BudgetProposalMessageSerializer  # For create, update, partial_update
+        if self.action == 'retrieve':
+            return BudgetProposalDetailSerializer
+        # For 'list' action
+        return BudgetProposalListSerializer
 
-    # CREATE (POST /external-budget-proposals/)
     @extend_schema(
-        summary="Create new Budget Proposal (from external system)",
-        description="""
-Create a new Budget Proposal.
-
-**Payload format:**
-- `title` (string, required)
-- `project_summary` (string, required)
-- `project_description` (string, required)
-- `performance_notes` (string, optional)
-- `department_input` (integer OR string, required): Department ID (integer) or Department Code (string, e.g., "FIN"). This is for the `department` field.
-- `fiscal_year` (integer, required): FiscalYear ID.
-- `submitted_by_name` (string, required)
-- `status` (string, required)
-- `performance_start_date` (date "YYYY-MM-DD", required)
-- `performance_end_date` (date "YYYY-MM-DD", required)
-- `ticket_id` (string, required): The unique identifier from the originating external system. This will be stored as `external_system_id`.
-- `document` (file, optional)
-- `items` (array of objects, required): Line items. Each item: `cost_element`(str), `description`(str), `estimated_cost`(decimal), `account`(int), `notes`(str, opt).
-""",
-        request=BudgetProposalMessageSerializer,
-        # Response will show 'external_system_id' and 'department_details'
-        responses={201: BudgetProposalMessageSerializer},
-        examples=[
-            OpenApiExample(
-                name="Create Budget Proposal Example",
-                value={
-                    "title": "Q1 System Upgrade 2026",
-                    "project_summary": "Upgrade core accounting software.",
-                    "project_description": "Migrate to new version of accounting platform for improved features and security.",
-                    "performance_notes": "This will run through the 3rd quarter",
-                    "department_input": "FIN",  # Payload sends 'department'
-                    "fiscal_year": 2,
-                    "submitted_by_name": "External System Interface",
-                    "status": "SUBMITTED",
-                    "performance_start_date": "2026-01-01",
-                    "performance_end_date": "2026-03-31",
-                    "ticket_id": "DTS-FIN-2026-001",  # Payload sends 'ticket_id'
-                    "items": [
-                        {"cost_element": "Software License", "description": "New Accounting Software License",
-                            "estimated_cost": "25000.00", "account": 2},
-                        {"cost_element": "Training", "description": "Staff training for new software",
-                            "estimated_cost": "5000.00", "account": 2}
-                    ]
-                },
-                request_only=True,
-                summary="Example payload for creating a new budget proposal."
-            )
-        ],
-        tags=['External Budget Proposals']
-    )
-    def create(self, request, *args, **kwargs):
-        data = request.data.copy()
-        if isinstance(data.get('items'), str):
-            try:
-                data['items'] = json.loads(data['items'])
-            except json.JSONDecodeError:
-                return Response({"items": ["Invalid JSON format for items."]}, status=status.HTTP_400_BAD_REQUEST)
-
-        serializer = self.get_serializer(data=data)
-        serializer.is_valid(raise_exception=True)
-        self.perform_create(serializer)
-        headers = self.get_success_headers(serializer.data)
-        return Response(serializer.data, status=status.HTTP_201_CREATED, headers=headers)
-
-    # UPDATE (PUT /external-budget-proposals/{pk}/)
-    @extend_schema(
-        summary="Update existing Budget Proposal (from external system - Full)",
-        request=BudgetProposalMessageSerializer,
-        responses={200: BudgetProposalMessageSerializer},
-        tags=['External Budget Proposals']
-    )
-    def update(self, request, *args, **kwargs):
-        data = request.data.copy()
-        if isinstance(data.get('items'), str):  # Handle items if sent as JSON string
-            try:
-                data['items'] = json.loads(data['items'])
-            except json.JSONDecodeError:
-                return Response({"items": ["Invalid JSON format for items."]}, status=status.HTTP_400_BAD_REQUEST)
-
-        partial = kwargs.pop('partial', False)
-        instance = self.get_object()
-        serializer = self.get_serializer(instance, data=data, partial=partial)
-        serializer.is_valid(raise_exception=True)
-        self.perform_update(serializer)  # Calls serializer.update()
-        return Response(serializer.data)
-
-    # PARTIAL_UPDATE (PATCH /external-budget-proposals/{pk}/)
-    @extend_schema(
-        summary="Partially update existing Budget Proposal (from external system)",
-        # Schema can show all fields, but only provided ones are used
-        request=BudgetProposalMessageSerializer,
-        responses={200: BudgetProposalMessageSerializer},
-        tags=['External Budget Proposals']
-    )
-    def partial_update(self, request, *args, **kwargs):
-        kwargs['partial'] = True
-        return self.update(request, *args, **kwargs)
-
-    # LIST (GET /external-budget-proposals/)
-    @extend_schema(summary="List Budget Proposals (for UI)", responses={200: BudgetProposalListSerializer(many=True)}, tags=['Budget Proposal Page'])
-    def list(self, request, *args, **kwargs):
-        # Uses get_serializer_class which returns BudgetProposalListSerializer for 'list'
-        return super().list(request, *args, **kwargs)
-
-    # RETRIEVE (GET /external-budget-proposals/{pk}/)
-    @extend_schema(summary="Retrieve a Budget Proposal (for UI)", responses={200: BudgetProposalDetailSerializer}, tags=['Budget Proposal Page'])
-    def retrieve(self, request, *args, **kwargs):
-        # Uses get_serializer_class which returns BudgetProposalDetailSerializer for 'retrieve'
-        return super().retrieve(request, *args, **kwargs)
-
-    # DESTROY (DELETE /api/external-budget-proposals/{id}/)
-    @extend_schema(
-        summary="Delete a Budget Proposal (from external system)",
-        tags=['External Budget Proposals']
-    )
-    def destroy(self, request, *args, **kwargs):
-        return super().destroy(request, *args, **kwargs)
-
-    # REVIEW ACTION (POST /external-budget-proposals/{pk}/review/)
-    @extend_schema(
-        summary="Review a proposal by an internal BMS user",
-        description="Updates proposal status (APPROVED/REJECTED) and adds a comment. User details from JWT.",
-        request=ProposalReviewSerializer,  # Input: status, comment
-        # Output: Full updated proposal
+        summary="Review a proposal (Finance Head)",
+        request=ProposalReviewSerializer,
         responses={200: BudgetProposalDetailSerializer},
         tags=['Budget Proposal Page Actions']
     )
-    @action(detail=True, methods=['post'], permission_classes=[IsAuthenticated])
+    @action(detail=True, methods=['post'], permission_classes=[IsBMSFinanceHead])
     def review(self, request, pk=None):
         proposal = self.get_object()
         review_input_serializer = ProposalReviewSerializer(data=request.data)
         review_input_serializer.is_valid(raise_exception=True)
 
         new_status = review_input_serializer.validated_data['status']
-        comment_text = review_input_serializer.validated_data.get(
-            'comment', '')
-
+        comment_text = review_input_serializer.validated_data.get('comment', '')
+        
         reviewer_user_id = request.user.id
-        reviewer_name = getattr(request.user, 'username', 'Unknown Reviewer')
-        if hasattr(request.user, 'first_name') and hasattr(request.user, 'last_name'):
-            full_name = f"{request.user.first_name} {request.user.last_name}".strip()
-            if full_name:
-                reviewer_name = full_name
+        # Use get_full_name() for consistency
+        reviewer_name = request.user.get_full_name() or request.user.username
 
         previous_status_for_history = proposal.status
 
-        # Prevent re-approving if already approved and project exists, or re-creating project
-        if new_status == 'APPROVED' and proposal.status == 'APPROVED':
-            # Potentially just add comment and history, but don't re-create project
-            # Or return an error/message indicating it's already approved.
-            # For now, let's assume UI prevents this or we allow re-stamping approval time/user.
-            pass  # Or handle as "already approved"
-
-        try:
-            with transaction.atomic():
-                proposal.status = new_status
-                if new_status == 'APPROVED':
-                    proposal.approved_by_name = reviewer_name
-                    proposal.approval_date = timezone.now()
-
-                    # --- PROJECT CREATION LOGIC ---
-                    if not hasattr(proposal, 'project') or proposal.project is None:
-                        Project.objects.create(
-                            name=f"Project for: {proposal.title}",
-                            description=proposal.project_summary,
-                            start_date=proposal.performance_start_date,
-                            end_date=proposal.performance_end_date,
-                            department=proposal.department,
-                            budget_proposal=proposal,
-                            status='PLANNING'  # Default status for a new project
-                        )
-                        print(
-                            f"Project created for approved proposal ID {proposal.id}")
-                    else:
-                        print(
-                            f"Project already exists for proposal ID {proposal.id}. Approval details updated.")
-                    # --- END PROJECT CREATION LOGIC ---
-
-                elif new_status == 'REJECTED':
-                    proposal.rejected_by_name = reviewer_name
-                    proposal.rejection_date = timezone.now()
-                    # If a project was created and now it's rejected, what happens to the project?
-                    # Option: Mark project as CANCELLED.
-                    if hasattr(proposal, 'project') and proposal.project is not None:
-                        proposal.project.status = 'CANCELLED'
-                        proposal.project.save(update_fields=['status'])
-                        print(
-                            f"Project for proposal ID {proposal.id} marked as CANCELLED due to rejection.")
-
-                proposal.last_modified = timezone.now()
-                proposal.save()
-
-                if comment_text:
-                    ProposalComment.objects.create(
-                        proposal=proposal,
-                        user_id=reviewer_user_id,
-                        user_username=reviewer_name,
-                        comment=comment_text
+        with transaction.atomic():
+            proposal.status = new_status
+            if new_status == 'APPROVED':
+                proposal.approved_by_name = reviewer_name
+                proposal.approval_date = timezone.now()
+                if not hasattr(proposal, 'project') or proposal.project is None:
+                    Project.objects.create(
+                        name=f"Project for: {proposal.title}",
+                        description=proposal.project_summary,
+                        start_date=proposal.performance_start_date,
+                        end_date=proposal.performance_end_date,
+                        department=proposal.department,
+                        budget_proposal=proposal,
+                        status='PLANNING'
                     )
+            elif new_status == 'REJECTED':
+                proposal.rejected_by_name = reviewer_name
+                proposal.rejection_date = timezone.now()
+                if hasattr(proposal, 'project') and proposal.project is not None:
+                    proposal.project.status = 'CANCELLED'
+                    proposal.project.save(update_fields=['status'])
 
-                ProposalHistory.objects.create(
-                    proposal=proposal, action=new_status,
-                    action_by_name=reviewer_name,
-                    previous_status=previous_status_for_history,
-                    new_status=proposal.status,
-                    comments=comment_text or f"Status changed to {new_status}."
-                )
-                # --- EMAIL NOTIFICATION LOGIC ---
-            submitter_email = proposal.submitted_by_name
-            if submitter_email and '@' in submitter_email:
-                subject = f"Update on your Budget Proposal: '{proposal.title}'"
-                status_text = "Approved" if new_status == 'APPROVED' else "Rejected"
-                message = (
-                    f"Dear Submitter,\n\n"
-                    f"Your budget proposal titled '{proposal.title}' has been reviewed and its status is now: {status_text}.\n\n"
-                    f"Reviewed by: {reviewer_name}\n"
-                )
-                if comment_text:
-                    message += f"Reviewer's Comment: {comment_text}\n\n"
-                message += "Thank you,\nThe Budget Management System"
+            proposal.last_modified = timezone.now()
+            proposal.save()
 
-                try:
-                    send_mail(
-                        subject,
-                        message,
-                        settings.DEFAULT_FROM_EMAIL,
-                        [submitter_email],
-                        fail_silently=False,
-                    )
-                    print(
-                        f"Approval/rejection email sent successfully to {submitter_email}")
-                except Exception as e:
-                    print(
-                        f"CRITICAL: Failed to send review email for proposal {proposal.id}: {e}")
-            # --- END EMAIL NOTIFICATION LOGIC ---
-        except Exception as e:
-            print(
-                f"Error during proposal review for proposal {proposal.id}: {e}")
-            UserActivityLog.objects.create(
-                user_id=request.user.id, user_username=reviewer_name, log_type='ERROR',
-                action=f'Failed review for proposal {proposal.id}. Status attempted: {new_status}', status='FAILED',
-                details={'error': str(e)}
+            if comment_text:
+                ProposalComment.objects.create(
+                    proposal=proposal,
+                    user_id=reviewer_user_id,
+                    user_username=reviewer_name,
+                    comment=comment_text
+                )
+
+            ProposalHistory.objects.create(
+                proposal=proposal, action=new_status,
+                action_by_name=reviewer_name,
+                previous_status=previous_status_for_history,
+                new_status=proposal.status,
+                comments=comment_text or f"Status changed to {new_status}."
             )
-            return Response({"detail": f"An error occurred: {str(e)}"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
-        # --- Outbound Notification to DTS/TTS ---
-        # Construct the payload as per the specification
-        notification_payload = {
-            "bms_proposal_id": proposal.id,
-            "external_system_id": proposal.external_system_id,
-            "new_status": proposal.status,
-            "reviewed_by_name": reviewer_name,
-            "review_timestamp": timezone.now().isoformat(),
-            "comments": comment_text if comment_text else None,
-            "bms_proposal_link": request.build_absolute_uri(f"/api/external-budget-proposals/{proposal.id}/")
-        }
-
-        # Get target URL and optional API key from settings
-        target_dts_url = getattr(settings, 'DTS_STATUS_UPDATE_URL', None)
-        api_key_for_dts = getattr(settings, 'BMS_AUTH_KEY_FOR_DTS', None)
-
-        # Proceed if the target URL is configured
-        if target_dts_url:
-            try:
-                # Prepare headers. API key is added only if it exists.
-                headers = {'Content-Type': 'application/json'}
-                if api_key_for_dts:
-                    headers['X-API-Key'] = api_key_for_dts
-
-                response_to_dts = requests.post(
-                    target_dts_url, json=notification_payload, headers=headers, timeout=10)
-                # Raise an exception for bad status codes (4xx or 5xx)
-                response_to_dts.raise_for_status()
-
-                print(
-                    f"Successfully notified external system about proposal {proposal.external_system_id} status: {proposal.status}")
-                UserActivityLog.objects.create(
-                    user_id=request.user.id, user_username=reviewer_name, log_type='PROCESS',
-                    action=f'Sent status update for proposal {proposal.id} ({proposal.external_system_id}) to external system. Status: {proposal.status}', status='SUCCESS',
-                    details={
-                        'target_system': 'DTS/TTS',
-                        'target_url': target_dts_url,
-                        'payload_sent': notification_payload,
-                        'response_status': response_to_dts.status_code
-                    }
-                )
-            except requests.RequestException as e:
-                print(
-                    f"Error notifying external system about proposal {proposal.external_system_id}: {e}")
-                UserActivityLog.objects.create(
-                    user_id=request.user.id, user_username=reviewer_name, log_type='ERROR',
-                    action=f'Failed to send status update for proposal {proposal.id} ({proposal.external_system_id}) to external system.', status='FAILED',
-                    details={
-                        'target_system': 'DTS/TTS',
-                        'target_url': target_dts_url,
-                        'error': str(e),
-                        'payload_attempted': notification_payload
-                    }
-                )
-                # Important: Do not let this failure break the response to the BMS user.
-                # The proposal review in BMS was successful.
-        else:
-            # Log a warning if the URL is not set, so we know why notifications aren't being sent.
-            print(
-                f"Warning: DTS_STATUS_UPDATE_URL not configured in settings. Cannot notify external system for proposal {proposal.id}.")
-
-        output_serializer = BudgetProposalDetailSerializer(
-            proposal, context={'request': request})
+        output_serializer = BudgetProposalDetailSerializer(proposal, context={'request': request})
         return Response(output_serializer.data, status=status.HTTP_200_OK)
 
-    # You might want a separate action for users to add comments without changing status
     @extend_schema(
         summary="Add a comment to a proposal (internal user)",
         request=ProposalCommentCreateSerializer,
         responses={201: ProposalCommentSerializer},
         tags=['Budget Proposal Page Actions']
     )
-    @action(detail=True, methods=['post'], url_path='add-comment')
+    @action(detail=True, methods=['post'], url_path='add-comment', permission_classes=[IsBMSUser])
     def add_comment(self, request, pk=None):
         proposal = self.get_object()
         comment_serializer = ProposalCommentCreateSerializer(data=request.data)
         comment_serializer.is_valid(raise_exception=True)
         comment_text = comment_serializer.validated_data['comment']
 
-        commenter_user_id = request.user.id
-        commenter_name = getattr(request.user, 'username', 'Unknown User')
-        if hasattr(request.user, 'get_full_name') and request.user.get_full_name().strip():
-            commenter_name = request.user.get_full_name()
-
+        commenter_name = f"{request.user.first_name} {request.user.last_name}".strip() or request.user.username
+        
         comment_obj = ProposalComment.objects.create(
             proposal=proposal,
-            user_id=commenter_user_id,
+            user_id=request.user.id,
             user_username=commenter_name,
             comment=comment_text
         )
-        # Also log this in ProposalHistory
         ProposalHistory.objects.create(
             proposal=proposal, action='COMMENTED', action_by_name=commenter_name,
-            comments=f"Comment added: '{comment_text[:50]}...'" if len(
-                comment_text) > 50 else f"Comment added: '{comment_text}'"
+            comments=f"Comment added: '{comment_text}'"
         )
         return Response(ProposalCommentSerializer(comment_obj).data, status=status.HTTP_201_CREATED)
-
-
+    
 '''
 Function that exports the budget proposal to an Excel File
 

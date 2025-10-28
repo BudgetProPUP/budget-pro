@@ -4,6 +4,7 @@ from django.utils import timezone
 from rest_framework import generics, filters
 from django_filters.rest_framework import DjangoFilterBackend
 from drf_spectacular.utils import extend_schema, OpenApiParameter, OpenApiExample
+from backend.core.permissions import IsBMSUser
 from core.models import BudgetAllocation, Department, Expense, ExpenseCategory, FiscalYear
 from .serializers_expense import BudgetAllocationCreateSerializer, ExpenseCategoryDropdownSerializer, ExpenseCreateSerializer, ExpenseDetailForModalSerializer, ExpenseDetailSerializer, ExpenseHistorySerializer, ExpenseTrackingSerializer, ExpenseTrackingSummarySerializer
 from core.pagination import FiveResultsSetPagination, StandardResultsSetPagination
@@ -32,38 +33,35 @@ def get_date_range_from_filter(filter_value):
 
 class ExpenseHistoryView(generics.ListAPIView):
     serializer_class = ExpenseHistorySerializer
-    permission_classes = [IsAuthenticated]
-    # MODIFIED: Changed to FiveResultsSetPagination to match the UI spec (5 items per page)
+    # --- MODIFICATION START ---
+    permission_classes = [IsBMSUser]
+    # --- MODIFICATION END ---
     pagination_class = FiveResultsSetPagination 
     filter_backends = [DjangoFilterBackend, filters.SearchFilter]
     search_fields = ['description', 'vendor']
     filterset_fields = ['category__code']
 
     def get_queryset(self):
-        user = self.request.user # This is CustomUser or TokenUser
-        
-        # User must have department_id from JWT to filter by department
-        if not hasattr(user, 'department_id') or user.department_id is None:
-            # Handle case where user might not have a department_id (e.g., superadmin not tied to a dept)
-            # Option 1: Return no expenses
-            # return Expense.objects.none()
-            # Option 2: Return all approved expenses (if admin/finance head role allows)
-            if hasattr(user, 'role') and user.role in ['ADMIN', 'FINANCE_HEAD']:
-                 return Expense.objects.filter(status='APPROVED').order_by('-date')
-            return Expense.objects.none() # Default to no expenses if no department and not privileged
+        # --- MODIFICATION START ---
+        # Replaced old logic with new role-based data isolation.
+        user = self.request.user
+        base_queryset = Expense.objects.filter(status='APPROVED')
 
-        try:
-            # Fetch the actual Department object using the department_id from the user (JWT)
-            # NOTE: This view intentionally only shows APPROVED expenses.
-            # New expenses with 'SUBMITTED' status will appear here only after they have been approved.
-            user_department = Department.objects.get(id=user.department_id)
-            return Expense.objects.filter(
-                department=user_department, # Filter by the Department instance
-                status='APPROVED'
-            ).order_by('-date')
-        except Department.DoesNotExist:
-            # Log this? Department ID in JWT doesn't match any local Department.
-            return Expense.objects.none() # Or handle as an error
+        user_roles = getattr(user, 'roles', {})
+        bms_role = user_roles.get('bms')
+
+        if bms_role == 'ADMIN':
+            # Admins see all approved expenses.
+            return base_queryset.order_by('-date')
+
+        # For any other valid BMS user (e.g., FINANCE_HEAD), filter by department.
+        department_id = getattr(user, 'department_id', None)
+        if department_id:
+            return base_queryset.filter(department_id=department_id).order_by('-date')
+
+        # If no role or department matches, return nothing.
+        return Expense.objects.none()
+        # --- MODIFICATION END ---
 
     @extend_schema(
         tags=['Expense History Page'],
@@ -85,7 +83,9 @@ class ExpenseHistoryView(generics.ListAPIView):
 
 class ExpenseTrackingView(generics.ListAPIView):
     serializer_class = ExpenseTrackingSerializer
-    permission_classes = [IsAuthenticated]
+    # --- MODIFICATION START ---
+    permission_classes = [IsBMSUser]
+    # --- MODIFICATION END ---
     pagination_class = FiveResultsSetPagination
     filter_backends = [filters.SearchFilter]
     
@@ -98,29 +98,26 @@ class ExpenseTrackingView(generics.ListAPIView):
     ]
 
     def get_queryset(self):
-        user = self.request.user # This is CustomUser or TokenUser
-        
-        # Base queryset starts empty
-        queryset = Expense.objects.none()
+        # --- MODIFICATION START ---
+        # Replaced old logic with new role-based data isolation.
+        user = self.request.user
+        # Tracking view shows all statuses, so we start with all expenses.
+        base_queryset = Expense.objects.all()
 
-        if hasattr(user, 'role') and user.role in ['ADMIN', 'FINANCE_HEAD']:
-            # Admins/Finance Heads can see all expenses across all departments.
-            queryset = Expense.objects.all()
-        elif hasattr(user, 'department_id') and user.department_id is not None:
-            # Regular users see expenses from their own department OR expenses they submitted,
-            # which is useful if they submit an expense for another department's project.
-            try:
-                user_department = Department.objects.get(id=user.department_id)
-                queryset = Expense.objects.filter(
-                    Q(department=user_department) | Q(submitted_by_user_id=user.id)
-                ).distinct() # Use distinct to avoid duplicates if user submits for own dept
-            except Department.DoesNotExist:
-                # If department in JWT is invalid, only show what user submitted.
-                queryset = Expense.objects.filter(submitted_by_user_id=user.id)
-        else:
-            # If user has no role or department, they can only see what they submitted.
-            queryset = Expense.objects.filter(submitted_by_user_id=user.id)
+        user_roles = getattr(user, 'roles', {})
+        bms_role = user_roles.get('bms')
 
+        if bms_role == 'ADMIN':
+            # Admins see all expenses from all departments.
+            queryset = base_queryset
+        else: # For any other valid BMS user (e.g., FINANCE_HEAD)
+            # Users are restricted to their department's expenses.
+            department_id = getattr(user, 'department_id', None)
+            if department_id:
+                queryset = base_queryset.filter(department_id=department_id)
+            else:
+                # If a user has no department, they see nothing.
+                queryset = Expense.objects.none()
 
         category_code = self.request.query_params.get('category__code')
         if category_code:
@@ -158,7 +155,7 @@ class ExpenseTrackingView(generics.ListAPIView):
     responses={200: ExpenseTrackingSummarySerializer}
 )
 class ExpenseTrackingSummaryView(APIView):
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsBMSUser]
 
     def get(self, request, *args, **kwargs):
         user = request.user
@@ -275,7 +272,28 @@ class ExpenseCategoryDropdownView(generics.ListAPIView):
     responses={200: ExpenseDetailForModalSerializer} # MODIFIED: Response schema is now correct
 )
 class ExpenseDetailView(generics.RetrieveAPIView):
-    permission_classes = [IsAuthenticated]
-    # MODIFIED: Changed serializer back to the one that provides the proposal_id
-    serializer_class = ExpenseDetailForModalSerializer
-    queryset = Expense.objects.select_related('project__budget_proposal').all()
+    # --- MODIFICATION START ---
+    permission_classes = [IsBMSUser]
+    serializer_class = ExpenseDetailForModalSerializer # This serializer is fine for its purpose
+
+    def get_queryset(self):
+        """
+        Implements data isolation for viewing expense details.
+        An ADMIN can see any expense.
+        Other users can only see expenses within their own department.
+        """
+        user = self.request.user
+        user_roles = getattr(user, 'roles', {})
+        bms_role = user_roles.get('bms')
+
+        base_queryset = Expense.objects.select_related('project__budget_proposal')
+
+        if bms_role == 'ADMIN':
+            return base_queryset.all()
+        
+        department_id = getattr(user, 'department_id', None)
+        if department_id:
+            return base_queryset.filter(department_id=department_id)
+        
+        return Expense.objects.none()
+    # --- MODIFICATION END ---

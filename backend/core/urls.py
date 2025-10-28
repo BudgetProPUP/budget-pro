@@ -2,7 +2,7 @@ from django.urls import path, include
 from rest_framework_simplejwt.views import TokenRefreshView
 from rest_framework.routers import DefaultRouter
 from .views_utils import get_server_time
-from .views_budget import AccountDropdownView, AccountSetupListView, BudgetAdjustmentView, BudgetProposalDetailView, BudgetProposalListView, BudgetProposalSummaryView, BudgetVarianceReportView, FiscalYearDropdownView, JournalEntryCreateView, JournalEntryListView, LedgerExportView, ProposalHistoryView, LedgerViewList, ProposalReviewBudgetOverview, export_budget_proposal_excel, export_budget_variance_excel, journal_choices, DepartmentDropdownView, AccountTypeDropdownView
+from .views_budget import AccountDropdownView, AccountSetupListView, BudgetAdjustmentView, BudgetProposalSummaryView, BudgetVarianceReportView, FiscalYearDropdownView, JournalEntryCreateView, JournalEntryListView, LedgerExportView, ProposalHistoryView, LedgerViewList, ProposalReviewBudgetOverview, export_budget_proposal_excel, export_budget_variance_excel, journal_choices, DepartmentDropdownView, AccountTypeDropdownView
 from . import views_expense, views_dashboard  # ,TokenObtainPairView
 from .views_dashboard import (
     DepartmentBudgetView, MonthlyBudgetActualViewSet, TopCategoryBudgetAllocationView,
@@ -30,11 +30,15 @@ user_management_router.register(
 
 router = DefaultRouter()
 router.register(r'external-budget-proposals',
-                views_budget.BudgetProposalViewSet, basename='external-budget-proposals')
+                views_budget.ExternalBudgetProposalViewSet, basename='external-budget-proposals')
+
+# Router for UI calls from authenticated users (JWT protected)
+ui_router = DefaultRouter()
+ui_router.register(r'budget-proposals', views_budget.BudgetProposalUIViewSet, basename='budget-proposals')
 
 urlpatterns = [
     path('', include(router.urls)),
-
+    path('', include(ui_router.urls)), # New line
     # --- Dashboard Endpoints ---
     path('dashboard/budget-summary/', views_dashboard.get_dashboard_budget_summary,
          name='dashboard-budget-summary'),
@@ -53,12 +57,12 @@ urlpatterns = [
          name='dashboard-category-budget-status'),
 
     # --- Budget Proposal Endpoints ---
-    path('budget-proposals/', BudgetProposalListView.as_view(),
-         name='budget-proposal-list'),
+#     path('budget-proposals/', BudgetProposalListView.as_view(),
+#          name='budget-proposal-list'),
     path('budget-proposals/summary/', BudgetProposalSummaryView.as_view(),
          name='budget-proposal-summary'),
-    path('budget-proposals/<int:pk>/', BudgetProposalDetailView.as_view(),
-         name='budget-proposal-detail'),
+#     path('budget-proposals/<int:pk>/', BudgetProposalDetailView.as_view(),
+#          name='budget-proposal-detail'),
     path('budget-proposals/history/',
          ProposalHistoryView.as_view(), name='proposal-history'),
     path('budget-proposals/<int:proposal_id>/export/',

@@ -168,7 +168,7 @@ class LoginSerializer(serializers.Serializer):
 class MyTokenObtainPairSerializer(OriginalTokenObtainPairSerializer):
     """
     Custom token serializer to add custom claims like role, department info.
-    This is used by LoginView to generate tokens.
+    IMPORTANT: This adds roles in a nested dictionary structure for microservices.
     """
     @classmethod
     def get_token(cls, user):
@@ -176,12 +176,18 @@ class MyTokenObtainPairSerializer(OriginalTokenObtainPairSerializer):
         # Add custom claims from the auth_service User model
         token['username'] = user.username
         token['email'] = user.email
-        token['role'] = user.role
+        token['first_name'] = user.first_name
+        token['last_name'] = user.last_name
         token['user_id'] = user.id
         token['department_id'] = user.department_id
         token['department_name'] = user.department_name
-        token['first_name'] = user.first_name
-        token['last_name'] = user.last_name
+        
+        # CRITICAL: Budget service expects roles in nested dictionary
+        # where each key is a service slug (e.g., 'bms' for Budget Management System)
+        token['roles'] = {
+            'bms': user.role  # Maps to 'ADMIN', 'FINANCE_HEAD', etc.
+        }
+        
         return token
 
 
@@ -432,19 +438,6 @@ class LoginSerializer(serializers.Serializer):
         attrs['user'] = user
         return attrs
 
-class MyTokenObtainPairSerializer(OriginalTokenObtainPairSerializer):
-    @classmethod
-    def get_token(cls, user):
-        token = super().get_token(user)
-        token['username'] = user.username
-        token['email'] = user.email
-        token['role'] = user.role
-        token['user_id'] = user.id
-        token['department_id'] = user.department_id
-        token['department_name'] = user.department_name
-        token['first_name'] = user.first_name
-        token['last_name'] = user.last_name
-        return token
 
 class LogoutSerializer(serializers.Serializer):
     refresh = serializers.CharField(required=True, help_text="Refresh token to blacklist")

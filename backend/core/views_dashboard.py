@@ -8,7 +8,7 @@ from drf_spectacular.utils import extend_schema, OpenApiParameter, OpenApiExampl
 from django.db.models import Subquery, OuterRef, Q
 from core.permissions import IsBMSUser
 from core.pagination import ProjectStatusPagination, StandardResultsSetPagination
-from .models import Department, ExpenseCategory, FiscalYear, BudgetAllocation, Expense, Project
+from .models import Department, ExpenseCategory, FiscalYear, BudgetAllocation, Expense, Forecast, Project
 from .serializers import DepartmentBudgetSerializer
 from .serializers_dashboard import CategoryAllocationSerializer, CategoryBudgetStatusSerializer, DashboardBudgetSummarySerializer, DepartmentBudgetStatusSerializer, ProjectStatusSerializer, SimpleProjectSerializer, ProjectDetailSerializer
 from rest_framework.permissions import IsAuthenticated
@@ -21,7 +21,7 @@ from django.utils import timezone
 from datetime import date
 from dateutil.relativedelta import relativedelta
 from .serializers_dashboard import ForecastSerializer
-
+from django.views.decorators.cache import cache_page
 
 class DepartmentBudgetView(views.APIView):
     """
@@ -974,8 +974,8 @@ Added Robustness: The function now includes checks to handle cases where there i
 
 @extend_schema(
     tags=["Dashboard", "Forecasting"],
-    summary="Generate Budget Forecast",
-    description="Calculates a simple linear forecast for the remaining months of a fiscal year based on average monthly spending.",
+    summary="Get Latest Budget Forecast",
+    description="Retrieves the most recently generated budget forecast for the specified or active fiscal year.",
     parameters=[
         OpenApiParameter(name='fiscal_year_id', type=int, required=False,
                          description="ID of the fiscal year. If not provided, the current active fiscal year will be used."),
@@ -984,14 +984,18 @@ Added Robustness: The function now includes checks to handle cases where there i
 )
 @api_view(['GET'])
 @permission_classes([IsBMSUser]) # Use specific BMS permission
+@cache_page(60 * 5) # (cache for 300 seconds = 5 minutes)
 def get_budget_forecast(request):
     """
-    Generates a simple forecast based on historical spending.
-    Returns actuals for past months and a cumulative forecast for future months.
+    Retrieves a pre-calculated forecast from the database.
+    This is now a very fast read operation (US-019).
+    
+    This replaces the old on-demand calculation logic with a simple database lookup,
+    dramatically improving performance.
     """
     fiscal_year_id = request.query_params.get('fiscal_year_id')
     user = request.user
-
+    
     # Determine the fiscal year
     today = timezone.now().date()
     if fiscal_year_id:
@@ -1001,92 +1005,42 @@ def get_budget_forecast(request):
             return Response({"error": "Fiscal year not found"}, status=status.HTTP_404_NOT_FOUND)
     else:
         fiscal_year = FiscalYear.objects.filter(
-            start_date__lte=today, end_date__gte=today, is_active=True).first()
+            start_date__lte=today, end_date__gte=today, is_active=True
+        ).first()
         if not fiscal_year:
             return Response({"detail": "No active fiscal year found."}, status=status.HTTP_404_NOT_FOUND)
 
-    current_month_num = today.month
+    # --- NEW, FAST RETRIEVAL LOGIC (US-019) ---
+    # Get the most recent forecast generated for this fiscal year
+    latest_forecast = Forecast.objects.filter(
+        fiscal_year=fiscal_year
+    ).select_related('fiscal_year').prefetch_related('data_points').first()
 
-    # --- MODIFICATION START ---
-    # Apply data isolation to the historical expense query
+    if not latest_forecast:
+        # If no forecast has been generated yet, return an empty list
+        # The management command should be run to generate the first forecast
+        return Response(
+            {"detail": "No forecast available. Please generate forecast data first."},
+            status=status.HTTP_200_OK
+        )
+    
+    # Get all the data points associated with that forecast, ordered by month
+    data_points = latest_forecast.data_points.all()
+    
+    # Optional: Apply data isolation for FINANCE_HEAD users
+    # Note: This assumes forecasts are organization-wide. If
+    # department-specific forecasts are needed, add a department field
+    # to the Forecast model and filter accordingly
     user_roles = getattr(user, 'roles', {})
     bms_role = user_roles.get('bms')
     
-    historical_expenses_query = Expense.objects.filter(
-        status='APPROVED',
-        budget_allocation__fiscal_year=fiscal_year,
-        date__lt=today.replace(day=1)
-    )
-
-    if bms_role == 'FINANCE_HEAD':
-        department_id = getattr(user, 'department_id', None)
-        if department_id:
-            historical_expenses_query = historical_expenses_query.filter(department_id=department_id)
-        else:
-            historical_expenses_query = historical_expenses_query.none()
-    # ADMIN sees all historical data
+    # For now, all users see the same forecast
+    # If you need department-specific forecasts later, uncomment and modify:
+    # if bms_role == 'FINANCE_HEAD':
+    #     department_id = getattr(user, 'department_id', None)
+    #     if department_id and latest_forecast.department_id != department_id:
+    #         return Response([], status=status.HTTP_200_OK)
     
-    # Get expenses up to the beginning of the current month
-    historical_expenses = historical_expenses_query
-    # --- MODIFICATION END ---
-
-    # Get the earliest spending month to calculate the number of months accurately
-    first_expense = historical_expenses.order_by('date').first()
-    if not first_expense:
-        # Cannot forecast with no historical data, return empty list
-        return Response([], status=status.HTTP_200_OK)
-
-    start_date_for_avg = max(first_expense.date, fiscal_year.start_date)
-    # Number of full months that have passed with spending data
-    num_past_months = (today.year - start_date_for_avg.year) * \
-        12 + (today.month - start_date_for_avg.month)
-
-    if num_past_months <= 0:
-        # Not enough data for a meaningful average, return empty list
-        return Response([], status=status.HTTP_200_OK)
-
-    total_historical_spent = historical_expenses.aggregate(
-        total=Coalesce(Sum('amount'), Decimal('0.0'))
-    )['total']
-
-    average_monthly_expense = total_historical_spent / num_past_months
-
-    # --- FORECAST GENERATION ---
-    forecast_data = []
-
-    # Get actual total spent month by month for historical data points
-    actuals_by_month = {i: Decimal('0.0') for i in range(1, 13)}
-
-    # Assuming fiscal year is within one calendar year for simplicity
-    fy_year = fiscal_year.start_date.year
-
-    monthly_actuals_query = Expense.objects.filter(
-        status='APPROVED',
-        budget_allocation__fiscal_year=fiscal_year,
-        date__year=fy_year
-    ).values('date__month').annotate(total=Sum('amount'))
-
-    for item in monthly_actuals_query:
-        actuals_by_month[item['date__month']] = item['total']
-
-    # Generate the data for all 12 months
-    cumulative_actuals = Decimal('0.0')
-    for month_num in range(1, 13):
-        cumulative_actuals += actuals_by_month.get(month_num, Decimal('0.0'))
-        forecast_value = None
-
-        # If the month is in the future, calculate the cumulative forecast
-        if month_num >= current_month_num:
-            # How many months into the future from the start of the current month
-            months_into_future = month_num - current_month_num + 1
-            forecast_value = total_historical_spent + \
-                (average_monthly_expense * months_into_future)
-
-        forecast_data.append({
-            'month': month_num,
-            'month_name': calendar.month_name[month_num],
-            'forecast': round(forecast_value, 2) if forecast_value is not None else None
-        })
-
-    serializer = ForecastSerializer(forecast_data, many=True)
+    # Serialize and return
+    serializer = ForecastSerializer(data_points, many=True)
     return Response(serializer.data)

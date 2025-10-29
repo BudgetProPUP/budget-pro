@@ -6,7 +6,7 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 from drf_spectacular.utils import extend_schema, OpenApiParameter, OpenApiExample, OpenApiResponse
 from django.db.models import Subquery, OuterRef, Q
-from backend.core.permissions import IsBMSUser
+from core.permissions import IsBMSUser
 from core.pagination import ProjectStatusPagination, StandardResultsSetPagination
 from .models import Department, ExpenseCategory, FiscalYear, BudgetAllocation, Expense, Project
 from .serializers import DepartmentBudgetSerializer

@@ -20,6 +20,12 @@ export const getMoneyFlowData = (fiscalYearId) => {
     });
 };
 
+export const getTopCategoryAllocations = (limit = 6) => {
+    return budgetApi.get('/dashboard/top-category-allocations/', {
+        params: { limit }
+    });
+};
+
 /**
  * Fetches the budget forecast data.
  * @param {number} fiscalYearId - The ID of the fiscal year.

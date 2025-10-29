@@ -106,10 +106,13 @@ class ProjectDetailSerializer(serializers.ModelSerializer):
             total=Sum('amount')
         )['total'] or Decimal('0.00')
         
-class ForecastSerializer(serializers.Serializer):
+class ForecastSerializer(serializers.ModelSerializer):
     """
-    Serializer for the monthly forecast data.
+    Serializer for the stored monthly forecast data points.
     """
-    month = serializers.IntegerField()
-    month_name = serializers.CharField()
-    forecast = serializers.DecimalField(max_digits=15, decimal_places=2)
+    # Renamed the field to match the frontend's expectation
+    forecast = serializers.DecimalField(source='forecasted_value', max_digits=15, decimal_places=2)
+    
+    class Meta:
+        model = ForecastDataPoint
+        fields = ['month', 'month_name', 'forecast']

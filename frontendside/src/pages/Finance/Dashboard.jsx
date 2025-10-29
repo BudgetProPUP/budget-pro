@@ -33,10 +33,13 @@ import { Link, useNavigate } from "react-router-dom";
 import LOGOMAP from "../../assets/MAP.jpg";
 import "./Dashboard.css";
 import {
-  getBudgetSummary,
+ getBudgetSummary,
   getMoneyFlowData,
   getForecastData,
-  getCategoryBudgetData,
+  // --- MODIFICATION START ---
+  getTopCategoryAllocations, // Correct API function for the pie chart
+  getDepartmentBudgetData, // API for the "View Details" section
+  // --- MODIFICATION END ---
 } from "../../API/dashboardAPI";
 
 // Register ChartJS components
@@ -68,7 +71,10 @@ function BudgetDashboard() {
   const [summaryData, setSummaryData] = useState(null);
   const [moneyFlowData, setMoneyFlowData] = useState(null);
   const [forecastData, setForecastData] = useState([]);
-  const [categoryData, setCategoryData] = useState(null);
+  // --- MODIFICATION START ---
+  const [pieChartApiData, setPieChartApiData] = useState(null); // For Pie Chart
+  const [departmentDetailsData, setDepartmentDetailsData] = useState(null); // For "View Details"
+  // --- MODIFICATION END ---
 
   // User profile data
   const userProfile = {
@@ -83,17 +89,23 @@ function BudgetDashboard() {
     const fetchDashboardData = async () => {
       try {
         setLoading(true);
-        const fiscalYearId = 2; // Replace with actual fiscal year ID if you have it
+        const fiscalYearId = 2;
 
-        const [summaryRes, moneyFlowRes, categoryRes] = await Promise.all([
+        // --- MODIFICATION START ---
+        // Updated to fetch all necessary data points for the dashboard
+        const [summaryRes, moneyFlowRes, pieChartRes, departmentDetailsRes] = await Promise.all([
           getBudgetSummary(),
           getMoneyFlowData(fiscalYearId),
-          getCategoryBudgetData(),
+          getTopCategoryAllocations(), // Fetches data for the pie chart
+          getDepartmentBudgetData(),     // Fetches data for the "View Details" section
         ]);
 
         setSummaryData(summaryRes.data);
         setMoneyFlowData(moneyFlowRes.data);
-        setCategoryData(categoryRes.data);
+        setPieChartApiData(pieChartRes.data);
+        setDepartmentDetailsData(departmentDetailsRes.data);
+        // --- MODIFICATION END ---
+
       } catch (error) {
         console.error("Failed to fetch dashboard data:", error);
       } finally {
@@ -174,11 +186,11 @@ function BudgetDashboard() {
   });
   const currentYear = currentDate.getFullYear();
 
-  // Budget data
-  const totalBudget = 800025.75;
-  const remainingBudget = 50000;
-  const planCompletion = 84.4;
-  const allocatedPercentage = 47;
+  // REMOVED old hardcoded budget data
+  // const totalBudget = 800025.75;
+  // const remainingBudget = 50000;
+  // const planCompletion = 84.4;
+  // const allocatedPercentage = 47;
 
   // Monthly data for line chart
   const monthlyData = {
@@ -290,24 +302,17 @@ function BudgetDashboard() {
 
   // Pie chart data - updated with more vibrant colors
   const pieChartData = {
-    labels: categoryData?.map((c) => c.category_name) || [],
+    labels: pieChartApiData?.map((c) => c.name) || [],
     datasets: [
       {
-        // Use the budget values from the API response
-        data: categoryData?.map((c) => c.budget) || [],
+        data: pieChartApiData?.map((c) => c.total_allocated) || [],
         backgroundColor: [
           "#007bff",
           "#28a745",
-          "#ffdc74ff",
-          "#dc3545",
-          "#8860d3ff",
-          "#c55900ff",
-          "#20c997",
-          "#6610f2",
-          "#ea10f2ff",
-          "#fd7e14",
-          "#17a2b8",
           "#ffc107",
+          "#dc3545",
+          "#6f42c1",
+          "#fd7e14",
         ],
         borderColor: "#ffffff",
         borderWidth: 2,
@@ -316,10 +321,9 @@ function BudgetDashboard() {
     ],
   };
 
-  const totalPieValue = pieChartData.datasets[0].data.reduce(
-    (sum, value) => sum + parseFloat(value),
-    0
-  );
+  const totalPieValue = pieChartApiData?.reduce(
+    (sum, item) => sum + parseFloat(item.total_allocated), 0
+  ) || 0;
 
   // Fixed the duplicate 'plugins' key issue
   const pieChartOptions = {

@@ -42,10 +42,12 @@ export const AuthProvider = ({ children }) => {
     };
 
     const logout = () => {
-        // Clear tokens and user data
+        // --- MODIFICATION START ---
+        // Ensure all relevant items are cleared on logout.
         localStorage.removeItem('access_token');
         localStorage.removeItem('refresh_token');
         localStorage.removeItem('user');
+        // --- MODIFICATION END ---
 
         // Update state
         setUser(null);

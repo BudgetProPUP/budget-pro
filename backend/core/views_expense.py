@@ -4,7 +4,7 @@ from django.utils import timezone
 from rest_framework import generics, filters
 from django_filters.rest_framework import DjangoFilterBackend
 from drf_spectacular.utils import extend_schema, OpenApiParameter, OpenApiExample
-from backend.core.permissions import IsBMSUser
+from core.permissions import IsBMSUser
 from core.models import BudgetAllocation, Department, Expense, ExpenseCategory, FiscalYear
 from .serializers_expense import BudgetAllocationCreateSerializer, ExpenseCategoryDropdownSerializer, ExpenseCreateSerializer, ExpenseDetailForModalSerializer, ExpenseDetailSerializer, ExpenseHistorySerializer, ExpenseTrackingSerializer, ExpenseTrackingSummarySerializer
 from core.pagination import FiveResultsSetPagination, StandardResultsSetPagination

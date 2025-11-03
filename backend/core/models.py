@@ -886,6 +886,47 @@ class TransactionAudit(models.Model):
                 'budget_allocation_id': instance.budget_allocation.id
             }
         )
+        
+class Forecast(models.Model):
+    """
+    A container for a specific forecast run. For example, "FY2025 Overall Forecast".
+    """
+    ALGORITHM_CHOICES = [
+        ('LINEAR_PROJECTION', 'Linear Projection'),
+        # You can add more complex algorithms here in the future
+    ]
+    
+    id = models.AutoField(primary_key=True)
+    fiscal_year = models.ForeignKey(FiscalYear, on_delete=models.CASCADE, related_name='forecasts')
+    generated_at = models.DateTimeField(auto_now_add=True, db_index=True) # Index for fast lookups
+    algorithm_used = models.CharField(max_length=50, choices=ALGORITHM_CHOICES, default='LINEAR_PROJECTION')
+    
+    # You could add a department ForeignKey if you want department-specific forecasts
+    # department = models.ForeignKey(Department, on_delete=models.CASCADE, null=True, blank=True)
+
+    class Meta:
+        ordering = ['-generated_at'] # The newest forecast is the most relevant
+
+    def __str__(self):
+        return f"Forecast for {self.fiscal_year.name} generated at {self.generated_at.strftime('%Y-%m-%d %H:%M')}"
+
+
+class ForecastDataPoint(models.Model):
+    """
+    A single data point within a forecast, representing a value for a specific month.
+    """
+    id = models.AutoField(primary_key=True)
+    forecast = models.ForeignKey(Forecast, on_delete=models.CASCADE, related_name='data_points')
+    month = models.IntegerField(validators=[MinValueValidator(1), MaxValueValidator(12)])
+    month_name = models.CharField(max_length=10) # e.g., "January"
+    forecasted_value = models.DecimalField(max_digits=15, decimal_places=2)
+
+    class Meta:
+        ordering = ['month']
+        unique_together = ('forecast', 'month') # Ensures one data point per month per forecast
+
+    def __str__(self):
+        return f"{self.month_name}: {self.forecasted_value}"
 
 
 """

@@ -23,8 +23,8 @@ class ExpenseTrackingSerializer(serializers.ModelSerializer):
         fields = ['id', 'reference_no', 'type', 'description', 'status', 'accomplished', 'date']
 
     def get_accomplished(self, obj):
-        # An expense is considered "Accomplished" if it has been approved.
-        return "Yes" if obj.status == 'APPROVED' else "No"
+        # CORRECT LOGIC: An expense is "Accomplish ed" if its underlying account is marked as such.
+        return "Yes" if obj.account.accomplished else "No"
 
 class ExpenseDetailForModalSerializer(serializers.ModelSerializer):
     """

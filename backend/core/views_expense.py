@@ -94,7 +94,9 @@ class ExpenseTrackingView(generics.ListAPIView):
         'description', 
         'vendor', 
         'transaction_id',  # For "REF NO." column
-        'account__account_type__name' # For "TYPE" column
+        'account__account_type__name', # For "TYPE" column
+        'status', # For "STATUS" column
+        'date', # MODIFICATION: Added date field for exact string matching
     ]
 
     def get_queryset(self):

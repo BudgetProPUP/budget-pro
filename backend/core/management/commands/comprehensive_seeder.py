@@ -281,25 +281,46 @@ class Command(BaseCommand):
         self.stdout.write(self.style.SUCCESS(f'Created/Updated {len(proposals)} budget proposals'))
         return proposals
 
-    def create_budget_proposal_items(self, proposals, accounts): # IDEMPOTENT
+    def create_budget_proposal_items(self, proposals, accounts):
         self.stdout.write('Creating budget proposal items...')
         items_created = 0
-        expense_accounts = [acc for acc in accounts if acc.account_type.name == 'Expense'] or accounts
+
+        # Group accounts by type for balanced selection
+        accounts_by_type = {
+            "Asset": [acct for acct in accounts if acct.account_type.name == "Asset"],
+            "Liability": [acct for acct in accounts if acct.account_type.name == "Liability"],
+            "Expense": [acct for acct in accounts if acct.account_type.name == "Expense"],
+        }
+        
+        # --- FIX START ---
+        # Filter out account types that have no accounts to prevent crashing
+        valid_account_types = [key for key, value in accounts_by_type.items() if value]
+        if not valid_account_types:
+            self.stdout.write(self.style.WARNING("No accounts available to create proposal items. Skipping."))
+            return
+        # --- FIX END ---
+
         for proposal in proposals:
-            if proposal.items.exists():                                             # IDEMPOTENCY: Skip if items already exist for this proposal.
+            if proposal.items.exists():
                 continue
 
-            for _ in range(random.randint(1,3)):
-                account = random.choice(expense_accounts)
-                BudgetProposalItem.objects.create(                                  # This is now safe due to the check above.
-                    proposal=proposal, cost_element=f"CE-{random.randint(100,999)}",
+            for _ in range(random.randint(1, 3)):
+                # --- MODIFICATION ---
+                # Randomly select an account type from the valid list, then an account from that type
+                account_type_name = random.choice(valid_account_types)
+                account = random.choice(accounts_by_type[account_type_name])
+                # --- END MODIFICATION ---
+
+                BudgetProposalItem.objects.create(
+                    proposal=proposal,
+                    cost_element=f"CE-{random.randint(100, 999)}",
                     description=f"{account.name} for {proposal.title[:20]}",
                     estimated_cost=Decimal(random.randint(1000, 50000)),
                     account=account
                 )
-                items_created +=1
-        self.stdout.write(self.style.SUCCESS(f'Created {items_created} budget proposal items'))
+                items_created += 1
 
+        self.stdout.write(self.style.SUCCESS(f'Created {items_created} budget proposal items'))
 
     def create_projects(self, departments, proposals): # No change needed here
         self.stdout.write('Creating projects...')
@@ -328,36 +349,56 @@ class Command(BaseCommand):
         if not projects or not categories:
             self.stdout.write(self.style.WARNING("Skipping budget allocation creation due to missing projects or categories."))
             return []
+        
+        category_dict = {cat.code: cat for cat in categories}
+        
+    # This new map creates a logical link between a department and the types of expenses it's likely to have.
+        DEPT_TO_CATEGORY_MAP = {
+            'FIN': [category_dict.get('PROF_SERV'), category_dict.get('MISC')],
+            'HR': [category_dict.get('TRAIN'), category_dict.get('PROF_SERV')],
+            'IT': [category_dict.get('EQUIP'), category_dict.get('PROF_SERV'), category_dict.get('TRAIN')],
+            'OPS': [category_dict.get('OFFICE'), category_dict.get('UTIL'), category_dict.get('TRAVEL')],
+            'MKT': [category_dict.get('MKTG'), category_dict.get('TRAVEL'), category_dict.get('PROF_SERV')],
+        }
+        # Filter out any None values in case a category code was mistyped
+        for dept_code in DEPT_TO_CATEGORY_MAP:
+            DEPT_TO_CATEGORY_MAP[dept_code] = [cat for cat in DEPT_TO_CATEGORY_MAP[dept_code] if cat]
 
         for project in projects:
-            # Ensure the project is linked to a proposal with items
             if not hasattr(project, 'budget_proposal') or not project.budget_proposal.items.exists():
                 continue
 
-            # Iterate through each item in the approved proposal to create a specific allocation line
-            for item in project.budget_proposal.items.all():
-                chosen_category = random.choice(categories)
+            # Get the list of plausible categories for the project's department
+            project_dept_code = project.department.code
+            plausible_categories = DEPT_TO_CATEGORY_MAP.get(project_dept_code)
+            if not plausible_categories:
+                # Fallback for departments not in the map (shouldn't happen with current data)
+                plausible_categories = [category_dict.get('MISC')]
 
-                # IDEMPOTENCY: Use a logical key (project, account, category) to prevent duplicates.
-                # This creates multiple, distinct allocation lines for a single project.
+            for item in project.budget_proposal.items.all():
+                # Choose a random, but LOGICAL, category from the department's plausible list
+                chosen_category = random.choice(plausible_categories)
+                
+                # IDEMPOTENCY check to prevent duplicates on re-runs
                 alloc, created = BudgetAllocation.objects.update_or_create(
                     project=project,
                     account=item.account,
-                    category=chosen_category,
+                    # We still use a specific category to avoid creating multiple allocations for the same project/account
+                    # but the category itself is now more logical.
+                    category=chosen_category, 
                     defaults={
                         'fiscal_year': project.budget_proposal.fiscal_year,
                         'department': project.department,
                         'proposal': project.budget_proposal,
                         'created_by_name': sim_creator_user['full_name'],
-                        'amount': item.estimated_cost,  # Allocate the cost from the proposal item
+                        'amount': item.estimated_cost,
                         'is_active': True
                     }
                 )
                 if created:
                     allocations_created += 1
 
-        self.stdout.write(self.style.SUCCESS(f'Created/Updated {allocations_created} budget allocations. (Existing ones were skipped)'))
-        # Return all relevant allocations for subsequent seeder steps
+        self.stdout.write(self.style.SUCCESS(f'Created/Updated {allocations_created} budget allocations with logical categories.'))
         return list(BudgetAllocation.objects.filter(project__in=projects))
 
     def create_budget_transfers(self, fiscal_years, allocations): # IDEMPOTENT

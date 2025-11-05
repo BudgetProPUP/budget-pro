@@ -33,17 +33,15 @@ def get_date_range_from_filter(filter_value):
 
 class ExpenseHistoryView(generics.ListAPIView):
     serializer_class = ExpenseHistorySerializer
-    # --- MODIFICATION START ---
     permission_classes = [IsBMSUser]
-    # --- MODIFICATION END ---
     pagination_class = FiveResultsSetPagination 
     filter_backends = [DjangoFilterBackend, filters.SearchFilter]
-    search_fields = ['description', 'vendor']
+    # MODIFICATION START: Add category__name and date to the search fields
+    search_fields = ['description', 'vendor', 'category__name']
+    # MODIFICATION END
     filterset_fields = ['category__code']
 
     def get_queryset(self):
-        # --- MODIFICATION START ---
-        # Replaced old logic with new role-based data isolation.
         user = self.request.user
         base_queryset = Expense.objects.filter(status='APPROVED')
 
@@ -51,17 +49,29 @@ class ExpenseHistoryView(generics.ListAPIView):
         bms_role = user_roles.get('bms')
 
         if bms_role == 'ADMIN':
-            # Admins see all approved expenses.
-            return base_queryset.order_by('-date')
+            queryset = base_queryset
+        else:
+            department_id = getattr(user, 'department_id', None)
+            if department_id:
+                queryset = base_queryset.filter(department_id=department_id)
+            else:
+                queryset = Expense.objects.none()
+        
+        # MODIFICATION START: Add custom search logic for dates
+        search_term = self.request.query_params.get('search', None)
+        if search_term:
+            # Check if the search term can be parsed as a date
+            try:
+                # Attempt to parse the date in YYYY-MM-DD format
+                search_date = datetime.strptime(search_term, '%Y-%m-%d').date()
+                # If it's a date, filter the date field exactly
+                queryset = queryset.filter(date=search_date)
+            except ValueError:
+                # If it's not a date, proceed with the regular text search on other fields
+                pass # The SearchFilter will handle this
+        # MODIFICATION END
 
-        # For any other valid BMS user (e.g., FINANCE_HEAD), filter by department.
-        department_id = getattr(user, 'department_id', None)
-        if department_id:
-            return base_queryset.filter(department_id=department_id).order_by('-date')
-
-        # If no role or department matches, return nothing.
-        return Expense.objects.none()
-        # --- MODIFICATION END ---
+        return queryset.order_by('-date')
 
     @extend_schema(
         tags=['Expense History Page'],
@@ -94,7 +104,9 @@ class ExpenseTrackingView(generics.ListAPIView):
         'description', 
         'vendor', 
         'transaction_id',  # For "REF NO." column
-        'account__account_type__name' # For "TYPE" column
+        'account__account_type__name', # For "TYPE" column
+        'status', # For "STATUS" column
+        'date', # MODIFICATION: Added date field for exact string matching
     ]
 
     def get_queryset(self):
@@ -297,3 +309,6 @@ class ExpenseDetailView(generics.RetrieveAPIView):
         
         return Expense.objects.none()
     # --- MODIFICATION END ---
+    
+    # TODO: Improve search function, could include only description for filtering. DATE not working at the moment for search
+    # TODO: Implement actual user information in the user modal, fix also name used in the UI

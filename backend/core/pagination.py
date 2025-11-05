@@ -45,7 +45,7 @@ class FiveResultsSetPagination(PageNumberPagination):
     """ Pagination with a page size of 5. """
     page_size = 5
     page_size_query_param = 'page_size'
-    max_page_size = 20
+    max_page_size = 50 # Increase limit to match the largest dropdown option
     
     # ADDED: Restore the custom response method
     def get_paginated_response(self, data):

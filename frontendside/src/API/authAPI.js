@@ -42,4 +42,26 @@ export const confirmPasswordReset = async (uid, token, password) => {
     return response.data;
 };
 
-// TODO Add functions for logout, etc.
+
+/**
+ * Logs out the user by telling the auth_service to blacklist the refresh token.
+ * @param {string} refreshToken - The user's refresh token.
+ * @returns {Promise<object>} - The success message from the API.
+ */
+export const logout = async (refreshToken) => {
+    const response = await api.post('/logout/', { refresh: refreshToken });
+    // Also clear tokens from local storage after successful server logout
+    localStorage.removeItem('access_token');
+    localStorage.removeItem('refresh_token');
+    return response.data;
+};
+
+/**
+ * Uses the refresh token to get a new access token.
+ * @param {string} refreshToken - The user's refresh token.
+ * @returns {Promise<object>} - The response containing the new access token.
+ */
+export const refreshToken = async (refreshToken) => {
+    const response = await api.post('/token/refresh/', { refresh: refreshToken });
+    return response.data;
+};

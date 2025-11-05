@@ -122,3 +122,17 @@ class ForecastSerializer(serializers.ModelSerializer):
         model = ForecastDataPoint
         fields = ['month', 'month_name', 'forecast']
         read_only_fields = ['month', 'month_name', 'forecast']  # All fields are read-only for GET
+
+
+# MODIFICATION START: new serializer for US-028
+class ForecastAccuracySerializer(serializers.Serializer):
+    """
+    Serializer for the forecast accuracy metric card on the dashboard.
+    """
+    month_name = serializers.CharField()
+    year = serializers.IntegerField()
+    actual_spend = serializers.DecimalField(max_digits=15, decimal_places=2)
+    forecasted_spend = serializers.DecimalField(max_digits=15, decimal_places=2)
+    accuracy_percentage = serializers.FloatField()
+    variance = serializers.DecimalField(max_digits=15, decimal_places=2)
+# MODIFICATION END

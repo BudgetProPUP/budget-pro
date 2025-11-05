@@ -292,24 +292,28 @@ class Command(BaseCommand):
             "Expense": [acct for acct in accounts if acct.account_type.name == "Expense"],
         }
         
-        # --- FIX START ---
         # Filter out account types that have no accounts to prevent crashing
         valid_account_types = [key for key, value in accounts_by_type.items() if value]
         if not valid_account_types:
             self.stdout.write(self.style.WARNING("No accounts available to create proposal items. Skipping."))
             return
-        # --- FIX END ---
+        
+        # Check if ANY items need to be created at all (performance optimization)
+        proposals_without_items = [p for p in proposals if not p.items.exists()]
+        
+        if not proposals_without_items:
+            self.stdout.write(self.style.SUCCESS(f'All {len(proposals)} proposals already have items. Skipping creation.'))
+            return
 
-        for proposal in proposals:
-            if proposal.items.exists():
-                continue
+        self.stdout.write(f'Found {len(proposals_without_items)} proposals without items.')
 
-            for _ in range(random.randint(1, 3)):
-                # --- MODIFICATION ---
+        for proposal in proposals_without_items:
+            num_items = random.randint(1, 3)
+            
+            for _ in range(num_items):
                 # Randomly select an account type from the valid list, then an account from that type
                 account_type_name = random.choice(valid_account_types)
                 account = random.choice(accounts_by_type[account_type_name])
-                # --- END MODIFICATION ---
 
                 BudgetProposalItem.objects.create(
                     proposal=proposal,
@@ -492,9 +496,14 @@ class Command(BaseCommand):
         self.stdout.write(self.style.SUCCESS(f'Added lines to {len(journal_entries)} journal entries'))
 
 
-    def create_expenses(self, departments, accounts, budget_allocations, expense_categories): # IDEMPOTENT
-        self.stdout.write('Creating realistic expenses (US-002)...')
+    def create_expenses(self, departments, accounts, budget_allocations, expense_categories):
+        """
+        Creates realistic expenses spanning multiple years for robust forecasting.
+        IDEMPOTENT: Uses deterministic_desc as a unique key to prevent duplicates.
+        """
+        self.stdout.write('Creating multi-year realistic expenses for forecasting...')
         expenses_list = []
+        
         if not budget_allocations:
             self.stdout.write(self.style.WARNING("No budget allocations to create expenses for. Skipping expense creation."))
             return []
@@ -502,44 +511,144 @@ class Command(BaseCommand):
             self.stdout.write(self.style.ERROR("SIMULATED_USERS list is empty. Cannot create expenses."))
             return []
 
-        for i in range(50): # Create 50 expenses
-            alloc = random.choice(budget_allocations)
-            department_users = [u for u in SIMULATED_USERS if u['department_code'] == alloc.department.code]
-            sim_submitter = random.choice(department_users) if department_users else random.choice(SIMULATED_USERS)
+        current_year = datetime.now().year
+        
+        # --- MULTI-YEAR CONFIGURATION ---
+        # Define how many expenses to create per year
+        EXPENSES_PER_YEAR = {
+            current_year - 2: 40,   # 2 years ago - full year of data
+            current_year - 1: 50,   # Last year - more data
+            current_year: 60,       # Current year - most recent data
+        }
+        
+        # Seasonal spending patterns (multiplier by month)
+        # This simulates real-world patterns where certain months have higher/lower spending
+        SEASONAL_MULTIPLIERS = {
+            1: 0.9,   # January - Post-holiday slowdown
+            2: 0.85,  # February - Lowest spending
+            3: 1.0,   # March - Normal
+            4: 1.1,   # April - Q2 start, increased activity
+            5: 1.05,  # May
+            6: 1.15,  # June - End of Q2 push
+            7: 0.95,  # July - Mid-year slowdown
+            8: 0.9,   # August - Summer vacation period
+            9: 1.2,   # September - Back to business
+            10: 1.1,  # October
+            11: 1.25, # November - Year-end push begins
+            12: 1.3,  # December - Highest spending (year-end budget use)
+        }
+        
+        expense_counter = 0
+        
+        for year, num_expenses in EXPENSES_PER_YEAR.items():
+            self.stdout.write(f"  Creating {num_expenses} expenses for year {year}...")
+            
+            for i in range(num_expenses):
+                alloc = random.choice(budget_allocations)
+                department_users = [u for u in SIMULATED_USERS if u['department_code'] == alloc.department.code]
+                sim_submitter = random.choice(department_users) if department_users else random.choice(SIMULATED_USERS)
 
-            status = random.choice(['SUBMITTED', 'APPROVED', 'REJECTED', 'DRAFT'])
-            deterministic_desc = f"Expense for {alloc.project.name[:20]} - Seeded Item #{i+1}"
-
-            # --- KEY CHANGE FOR DATA QUALITY --
-            expense_cat = alloc.category
-            # --- END KEY CHANGE ---
-
-            defaults = {
-                'budget_allocation': alloc,
-                'account': alloc.account,
-                'department': alloc.department,
-                'project': alloc.project,
-                'date': timezone.now() - timedelta(days=random.randint(1, 60)),
-                'amount': Decimal(random.randint(100, int(alloc.amount / 20) if alloc.amount > 2000 else 100)),
-                'vendor': random.choice(['Office World', 'Tech Solutions Inc.', 'Travel Agency Co.']),
-                'submitted_by_user_id': sim_submitter['id'],
-                'submitted_by_username': sim_submitter['username'],
-                'status': status,
-                'category': expense_cat
-            }
-            if status == 'APPROVED':
-                sim_approver = random.choice([u for u in SIMULATED_USERS if u['username'] in ['admin_auth', 'finance_head_auth']])
-                defaults['approved_by_user_id'] = sim_approver['id']
-                defaults['approved_by_username'] = sim_approver['username']
-                defaults['approved_at'] = timezone.now()
-
-            expense_obj, _ = Expense.objects.get_or_create(
-                project=alloc.project,
-                description=deterministic_desc,
-                defaults=defaults
+                # Generate a date within the target year with seasonal variation
+                # More expenses in high-activity months
+                month_weights = [SEASONAL_MULTIPLIERS[m] for m in range(1, 13)]
+                selected_month = random.choices(range(1, 13), weights=month_weights, k=1)[0]
+                
+                # Random day within the selected month
+                if selected_month == 2:
+                    max_day = 28 if year % 4 != 0 else 29
+                elif selected_month in [4, 6, 9, 11]:
+                    max_day = 30
+                else:
+                    max_day = 31
+                
+                selected_day = random.randint(1, max_day)
+                expense_date = datetime(year, selected_month, selected_day).date()
+                
+                # Determine status based on date
+                # Past expenses should mostly be approved
+                # Current year expenses can have mixed status
+                today = timezone.now().date()
+                if expense_date < today.replace(year=today.year - 1):
+                    # Expenses from 2+ years ago: 95% approved
+                    status = random.choices(
+                        ['APPROVED', 'REJECTED'],
+                        weights=[0.95, 0.05],
+                        k=1
+                    )[0]
+                elif expense_date < today:
+                    # Last year and older current year: 85% approved
+                    status = random.choices(
+                        ['APPROVED', 'REJECTED', 'SUBMITTED'],
+                        weights=[0.85, 0.05, 0.10],
+                        k=1
+                    )[0]
+                else:
+                    # Future dates (shouldn't happen but just in case)
+                    status = 'SUBMITTED'
+                
+                # Create unique deterministic description for idempotency
+                expense_counter += 1
+                deterministic_desc = f"Expense Y{year}M{selected_month:02d} {alloc.department.code} {alloc.project.name[:15]} #{expense_counter}"
+                
+                # Use the allocation's category for data quality
+                expense_cat = alloc.category
+                
+                # Calculate amount with seasonal variation
+                base_amount = random.randint(100, int(alloc.amount / 20) if alloc.amount > 2000 else 100)
+                seasonal_amount = Decimal(base_amount) * Decimal(str(SEASONAL_MULTIPLIERS[selected_month]))
+                
+                defaults = {
+                    'budget_allocation': alloc,
+                    'account': alloc.account,
+                    'department': alloc.department,
+                    'project': alloc.project,
+                    'date': expense_date,
+                    'amount': round(seasonal_amount, 2),
+                    'vendor': random.choice([
+                        'Office World', 'Tech Solutions Inc.', 'Travel Agency Co.',
+                        'Global Supplies Ltd', 'Corporate Services Inc', 'Metro Equipment',
+                        'Professional Consulting Group', 'National Vendors LLC'
+                    ]),
+                    'submitted_by_user_id': sim_submitter['id'],
+                    'submitted_by_username': sim_submitter['username'],
+                    'status': status,
+                    'category': expense_cat
+                }
+                
+                if status == 'APPROVED':
+                    sim_approver = random.choice([u for u in SIMULATED_USERS if u['username'] in ['admin_auth', 'finance_head_auth']])
+                    defaults['approved_by_user_id'] = sim_approver['id']
+                    defaults['approved_by_username'] = sim_approver['username']
+                    # Approval typically happens a few days after submission
+                    defaults['approved_at'] = timezone.make_aware(
+                        datetime.combine(expense_date + timedelta(days=random.randint(1, 7)), datetime.min.time())
+                    )
+                
+                # IDEMPOTENCY: Use get_or_create with deterministic_desc
+                expense_obj, created = Expense.objects.get_or_create(
+                    description=deterministic_desc,
+                    defaults=defaults
+                )
+                
+                if created:
+                    expenses_list.append(expense_obj)
+        
+        self.stdout.write(self.style.SUCCESS(
+            f'Created {len(expenses_list)} new multi-year expenses across {len(EXPENSES_PER_YEAR)} years'
+        ))
+        self.stdout.write(self.style.SUCCESS(
+            f'Total expenses in database: {Expense.objects.count()}'
+        ))
+        
+        # Display summary by year and status
+        for year in EXPENSES_PER_YEAR.keys():
+            year_expenses = Expense.objects.filter(date__year=year)
+            approved_count = year_expenses.filter(status='APPROVED').count()
+            total_count = year_expenses.count()
+            self.stdout.write(
+                f'  Year {year}: {approved_count}/{total_count} expenses approved'
             )
-            expenses_list.append(expense_obj)
-        self.stdout.write(self.style.SUCCESS(f'Created/Updated {len(expenses_list)} realistic expenses'))
+        
         return expenses_list
 
     def create_proposal_history(self, proposals): # IDEMPOTENT

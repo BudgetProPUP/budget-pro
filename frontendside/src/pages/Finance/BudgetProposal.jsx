@@ -4,6 +4,9 @@ import { Link, useNavigate } from 'react-router-dom';
 import LOGOMAP from '../../assets/MAP.jpg';
 import './BudgetProposal.css';
 
+// Import ManageProfile component
+import ManageProfile from './ManageProfile';
+
 // Status Component - Copied from ProposalHistory
 const Status = ({
   type,
@@ -171,6 +174,8 @@ const BudgetProposal = () => {
   const [selectedCategory, setSelectedCategory] = useState('All Categories');
   const [selectedStatus, setSelectedStatus] = useState('All Status');
   const [pageSize, setPageSize] = useState(5); // Added pageSize state from LedgerView
+  const [appropriationType, setAppropriationType] = useState('New Proposal'); // State for appropriation type
+  const [showManageProfile, setShowManageProfile] = useState(false); // New state for ManageProfile
   const navigate = useNavigate();
 
   // User profile data
@@ -252,6 +257,8 @@ const BudgetProposal = () => {
       requestedBy: 'IT Department',
       vendor: 'TechTrain Inc.',
       description: 'Website Redesign Project',
+      appropriationType: 'New Proposal',
+      fiscalYear: 'FY 2025-2026 (April 2025 – March 2026)',
       approvalMetadata: {
         approvedBy: '',
         rejectedBy: '',
@@ -272,6 +279,8 @@ const BudgetProposal = () => {
       requestedBy: 'Security Department',
       vendor: 'SecureTech Solutions',
       description: 'Cybersecurity Upgrade',
+      appropriationType: 'Continuing',
+      fiscalYear: 'FY 2025-2026 (April 2025 – March 2026)',
       approvalMetadata: {
         approvedBy: 'Jane Smith',
         rejectedBy: '',
@@ -292,6 +301,8 @@ const BudgetProposal = () => {
       requestedBy: 'Infrastructure Team',
       vendor: 'CloudServe Ltd.',
       description: 'Cloud Storage Expansion',
+      appropriationType: 'New Proposal',
+      fiscalYear: 'FY 2025-2026 (April 2025 – March 2026)',
       approvalMetadata: {
         approvedBy: 'Robert Johnson',
         rejectedBy: '',
@@ -312,6 +323,8 @@ const BudgetProposal = () => {
       requestedBy: 'Retail Department',
       vendor: 'RetailTech Solutions',
       description: 'AR Retail Solution',
+      appropriationType: 'Continuing',
+      fiscalYear: 'FY 2025-2026 (April 2025 – March 2026)',
       approvalMetadata: {
         approvedBy: '',
         rejectedBy: 'Sarah Wilson',
@@ -447,6 +460,17 @@ const BudgetProposal = () => {
     setShowStatusDropdown(false);
   };
 
+  // New function to handle Manage Profile click
+  const handleManageProfile = () => {
+    setShowManageProfile(true);
+    setShowProfileDropdown(false);
+  };
+
+  // New function to close Manage Profile
+  const handleCloseManageProfile = () => {
+    setShowManageProfile(false);
+  };
+
   // Updated logout function
   const handleLogout = () => {
     try {
@@ -466,6 +490,7 @@ const BudgetProposal = () => {
   // Proposal review functions
   const handleReviewClick = (proposal) => {
     setSelectedProposal(proposal);
+    setAppropriationType(proposal.appropriationType); // Set appropriation type from proposal
     setReviewStatus(proposal.status);
     setReviewComment(proposal.approvalMetadata?.comments || '');
     setRejectionReason(proposal.approvalMetadata?.rejectionReason || '');
@@ -515,11 +540,19 @@ const BudgetProposal = () => {
       rejectionReason: reviewStatus === 'rejected' ? rejectionReason : '',
       approvedBy: reviewStatus === 'approved' ? userProfile.name : '',
       rejectedBy: reviewStatus === 'rejected' ? userProfile.name : '',
-      timestamp: timestamp
+      timestamp: timestamp,
+      appropriationType: appropriationType // Include appropriation type in submission
     });
     
     closeConfirmationPopup();
     closeReviewPopup();
+  };
+
+  // Handle appropriation type change - only if proposal is not approved
+  const handleAppropriationTypeChange = (type) => {
+    if (selectedProposal && selectedProposal.status !== 'approved') {
+      setAppropriationType(type);
+    }
   };
 
   return (
@@ -764,6 +797,7 @@ const BudgetProposal = () => {
                   <div className="dropdown-divider" style={{ height: '1px', backgroundColor: '#eee', margin: '10px 0' }}></div>
                   <div 
                     className="dropdown-item" 
+                    onClick={handleManageProfile} // Updated to use new function
                     style={{ display: 'flex', alignItems: 'center', padding: '8px 0', cursor: 'pointer', outline: 'none' }}
                     onMouseDown={(e) => e.preventDefault()}
                   >
@@ -798,448 +832,458 @@ const BudgetProposal = () => {
       </nav>
 
       <div className="content-container" style={{ padding: '20px', maxWidth: '1200px', margin: '0 auto' }}>
-        {/* Budget Summary Cards - Updated with new totals */}
-        <div className="budget-summary" style={{ display: 'flex', gap: '1rem', justifyContent: 'space-between', marginBottom: '20px' }}>
-          <div className="budget-card" style={{ 
-            flex: '1', 
-            minWidth: '200px', 
-            maxWidth: '300px',
-            height: '100px',
-            display: 'flex',
-            flexDirection: 'column',
-            justifyContent: 'center',
-            alignItems: 'center',
-            padding: '15px',
-            boxSizing: 'border-box',
-            backgroundColor: 'white',
-            borderRadius: '8px',
-            boxShadow: '0 2px 4px rgba(0,0,0,0.1)'
-          }}>
-            <div className="budget-card-label" style={{ marginBottom: '10px' }}>
-              <p style={{ margin: 0, fontSize: '14px', color: '#666' }}>Total Proposals</p>
-            </div>
-            <div className="budget-card-amount" style={{ fontSize: '24px', fontWeight: 'bold' }}>{budgetData.totalProposals}</div>
-          </div>
-
-          <div className="budget-card" style={{ 
-            flex: '1', 
-            minWidth: '200px', 
-            maxWidth: '300px',
-            height: '100px',
-            display: 'flex',
-            flexDirection: 'column',
-            justifyContent: 'center',
-            alignItems: 'center',
-            padding: '15px',
-            boxSizing: 'border-box',
-            backgroundColor: 'white',
-            borderRadius: '8px',
-            boxShadow: '0 2px 4px rgba(0,0,0,0.1)'
-          }}>
-            <div className="budget-card-label" style={{ marginBottom: '10px' }}>
-              <p style={{ margin: 0, fontSize: '14px', color: '#666' }}>Pending Approval</p>
-            </div>
-            <div className="budget-card-amount" style={{ fontSize: '24px', fontWeight: 'bold' }}>{budgetData.pendingApproval}</div>
-          </div>
-
-          <div className="budget-card" style={{ 
-            flex: '1', 
-            minWidth: '200px', 
-            maxWidth: '300px',
-            height: '100px',
-            display: 'flex',
-            flexDirection: 'column',
-            justifyContent: 'center',
-            alignItems: 'center',
-            padding: '15px',
-            boxSizing: 'border-box',
-            backgroundColor: 'white',
-            borderRadius: '8px',
-            boxShadow: '0 2px 4px rgba(0,0,0,0.1)'
-          }}>
-            <div className="budget-card-label" style={{ marginBottom: '10px' }}>
-              <p style={{ margin: 0, fontSize: '14px', color: '#666' }}>Budget Total</p>
-            </div>
-            <div className="budget-card-amount" style={{ fontSize: '24px', fontWeight: 'bold' }}>{budgetData.budgetTotal}</div>
-          </div>
-        </div>
-
-        {/* Main Content - Updated with LedgerView Layout */}
-        <div className="proposal-history" style={{ 
-          backgroundColor: 'white', 
-          borderRadius: '8px', 
-          boxShadow: '0 2px 4px rgba(0,0,0,0.1)',
-          padding: '20px',
-          overflow: 'hidden',
-          display: 'flex',
-          flexDirection: 'column',
-          minHeight: 'calc(100vh - 240px)'
-        }}>
-          {/* Header Section with Title and Controls - Updated with LedgerView styling */}
-          <div className="top" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
-            <h2 className="page-title" style={{ margin: 0, fontSize: '29px', fontWeight: 'bold', color: '#0C0C0C' }}>
-              Budget Proposal 
-            </h2>
-            
-            <div className="controls-container" style={{ display: 'flex', gap: '10px' }}>
-              {/* Search Bar - Updated with LedgerView styling */}
-              <div style={{ position: 'relative' }}>
-                <input
-                  type="text"
-                  placeholder="Search"
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  className="search-account-input"
-                  style={{ 
-                    padding: '8px 12px', 
-                    border: '1px solid #ccc', 
-                    borderRadius: '4px',
-                    outline: 'none'
-                  }}
-                />
+        {/* Conditionally render either BudgetProposal content or ManageProfile */}
+        {showManageProfile ? (
+          <ManageProfile 
+            onClose={handleCloseManageProfile} 
+            userProfile={userProfile}
+          />
+        ) : (
+          <>
+            {/* Budget Summary Cards - Updated with new totals */}
+            <div className="budget-summary" style={{ display: 'flex', gap: '1rem', justifyContent: 'space-between', marginBottom: '20px' }}>
+              <div className="budget-card" style={{ 
+                flex: '1', 
+                minWidth: '200px', 
+                maxWidth: '300px',
+                height: '100px',
+                display: 'flex',
+                flexDirection: 'column',
+                justifyContent: 'center',
+                alignItems: 'center',
+                padding: '15px',
+                boxSizing: 'border-box',
+                backgroundColor: 'white',
+                borderRadius: '8px',
+                boxShadow: '0 2px 4px rgba(0,0,0,0.1)'
+              }}>
+                <div className="budget-card-label" style={{ marginBottom: '10px' }}>
+                  <p style={{ margin: 0, fontSize: '14px', color: '#666' }}>Total Proposals</p>
+                </div>
+                <div className="budget-card-amount" style={{ fontSize: '24px', fontWeight: 'bold' }}>{budgetData.totalProposals}</div>
               </div>
-              
-              {/* Category Filter - Updated with LedgerView styling */}
-              <div className="filter-dropdown" style={{ position: 'relative' }}>
-                <button 
-                  className={`filter-dropdown-btn ${showCategoryDropdown ? 'active' : ''}`} 
-                  onClick={toggleCategoryDropdown}
-                  onMouseDown={(e) => e.preventDefault()}
-                  style={{ 
-                    padding: '8px 12px', 
-                    border: '1px solid #ccc', 
-                    borderRadius: '4px', 
-                    backgroundColor: 'white', 
-                    display: 'flex', 
-                    alignItems: 'center', 
-                    gap: '5px',
-                    outline: 'none'
-                  }}
-                >
-                  <span>{selectedCategory}</span>
-                  <ChevronDown size={14} />
-                </button>
-                {showCategoryDropdown && (
-                  <div className="category-dropdown-menu" style={{
-                    position: 'absolute',
-                    top: '100%',
-                    left: 0,
-                    backgroundColor: 'white',
-                    border: '1px solid #ccc',
-                    borderRadius: '4px',
-                    width: '100%',
-                    zIndex: 1000
-                  }}>
-                    {categories.map((category) => (
-                      <div
-                        key={category}
-                        className={`category-dropdown-item ${selectedCategory === category ? 'active' : ''}`}
-                        onClick={() => handleCategorySelect(category)}
-                        onMouseDown={(e) => e.preventDefault()}
-                        style={{ 
-                          padding: '8px 12px', 
-                          cursor: 'pointer', 
-                          backgroundColor: selectedCategory === category ? '#f0f0f0' : 'white',
-                          outline: 'none'
-                        }}
-                      >
-                        {category}
-                      </div>
-                    ))}
-                  </div>
-                )}
+
+              <div className="budget-card" style={{ 
+                flex: '1', 
+                minWidth: '200px', 
+                maxWidth: '300px',
+                height: '100px',
+                display: 'flex',
+                flexDirection: 'column',
+                justifyContent: 'center',
+                alignItems: 'center',
+                padding: '15px',
+                boxSizing: 'border-box',
+                backgroundColor: 'white',
+                borderRadius: '8px',
+                boxShadow: '0 2px 4px rgba(0,0,0,0.1)'
+              }}>
+                <div className="budget-card-label" style={{ marginBottom: '10px' }}>
+                  <p style={{ margin: 0, fontSize: '14px', color: '#666' }}>Pending Approval</p>
+                </div>
+                <div className="budget-card-amount" style={{ fontSize: '24px', fontWeight: 'bold' }}>{budgetData.pendingApproval}</div>
               </div>
-              
-              {/* Status Filter - Updated with LedgerView styling */}
-              <div className="filter-dropdown" style={{ position: 'relative' }}>
-                <button 
-                  className={`filter-dropdown-btn ${showStatusDropdown ? 'active' : ''}`} 
-                  onClick={toggleStatusDropdown}
-                  onMouseDown={(e) => e.preventDefault()}
-                  style={{ 
-                    padding: '8px 12px', 
-                    border: '1px solid #ccc', 
-                    borderRadius: '4px', 
-                    backgroundColor: 'white', 
-                    display: 'flex', 
-                    alignItems: 'center', 
-                    gap: '5px',
-                    outline: 'none'
-                  }}
-                >
-                  <span>Status: {selectedStatus}</span>
-                  <ChevronDown size={14} />
-                </button>
-                {showStatusDropdown && (
-                  <div className="category-dropdown-menu" style={{
-                    position: 'absolute',
-                    top: '100%',
-                    left: 0,
-                    backgroundColor: 'white',
-                    border: '1px solid #ccc',
-                    borderRadius: '4px',
-                    width: '100%',
-                    zIndex: 1000
-                  }}>
-                    {statusOptions.map((status) => (
-                      <div
-                        key={status}
-                        className={`category-dropdown-item ${selectedStatus === status ? 'active' : ''}`}
-                        onClick={() => handleStatusSelect(status)}
-                        onMouseDown={(e) => e.preventDefault()}
-                        style={{ 
-                          padding: '8px 12px', 
-                          cursor: 'pointer', 
-                          backgroundColor: selectedStatus === status ? '#f0f0f0' : 'white',
-                          outline: 'none'
-                        }}
-                      >
-                        {status === 'pending' ? 'Pending' :
-                         status === 'approved' ? 'Approved' :
-                         status === 'rejected' ? 'Rejected' : status}
-                      </div>
-                    ))}
-                  </div>
-                )}
+
+              <div className="budget-card" style={{ 
+                flex: '1', 
+                minWidth: '200px', 
+                maxWidth: '300px',
+                height: '100px',
+                display: 'flex',
+                flexDirection: 'column',
+                justifyContent: 'center',
+                alignItems: 'center',
+                padding: '15px',
+                boxSizing: 'border-box',
+                backgroundColor: 'white',
+                borderRadius: '8px',
+                boxShadow: '0 2px 4px rgba(0,0,0,0.1)'
+              }}>
+                <div className="budget-card-label" style={{ marginBottom: '10px' }}>
+                  <p style={{ margin: 0, fontSize: '14px', color: '#666' }}>Budget Total</p>
+                </div>
+                <div className="budget-card-amount" style={{ fontSize: '24px', fontWeight: 'bold' }}>{budgetData.budgetTotal}</div>
               </div>
             </div>
-          </div>
 
-          {/* Separator line between title and table */}
-          <div style={{
-            height: '1px',
-            backgroundColor: '#e0e0e0',
-            marginBottom: '20px'
-          }}></div>
-
-          {/* Proposals Table - Updated with LedgerView table layout */}
-          <div style={{ 
-            flex: '0 0 auto',
-            border: '1px solid #e0e0e0',
-            borderRadius: '4px',
-            overflow: 'hidden'
-          }}>
-            <table className="ledger-table" style={{ 
-              width: '100%', 
-              borderCollapse: 'collapse',
-              tableLayout: 'fixed'
+            {/* Main Content - Updated with LedgerView Layout */}
+            <div className="proposal-history" style={{ 
+              backgroundColor: 'white', 
+              borderRadius: '8px', 
+              boxShadow: '0 2px 4px rgba(0,0,0,0.1)',
+              padding: '20px',
+              overflow: 'hidden',
+              display: 'flex',
+              flexDirection: 'column',
+              minHeight: 'calc(100vh - 240px)'
             }}>
-              <thead>
-                <tr style={{ backgroundColor: '#f8f9fa' }}>
-                  <th style={{ 
-                    width: '14%', 
-                    padding: '0.75rem', 
-                    textAlign: 'left', 
-                    borderBottom: '2px solid #dee2e6',
-                    height: '50px',
-                    verticalAlign: 'middle',
-                    wordWrap: 'break-word',
-                    overflowWrap: 'break-word'
-                  }}>TICKET ID</th>
-                  <th style={{ 
-                    width: '22%', 
-                    padding: '0.75rem', 
-                    textAlign: 'left', 
-                    borderBottom: '2px solid #dee2e6',
-                    height: '50px',
-                    verticalAlign: 'middle',
-                    wordWrap: 'break-word',
-                    overflowWrap: 'break-word'
-                  }}>DESCRIPTION</th>
-                  <th style={{ 
-                    width: '20%', 
-                    padding: '0.75rem', 
-                    textAlign: 'left', 
-                    borderBottom: '2px solid #dee2e6',
-                    height: '50px',
-                    verticalAlign: 'middle',
-                    wordWrap: 'break-word',
-                    overflowWrap: 'break-word'
-                  }}>CATEGORY</th>
-                  <th style={{ 
-                    width: '14%', 
-                    padding: '0.75rem', 
-                    textAlign: 'left', 
-                    borderBottom: '2px solid #dee2e6',
-                    height: '50px',
-                    verticalAlign: 'middle',
-                    wordWrap: 'break-word',
-                    overflowWrap: 'break-word'
-                  }}>SUBMITTED BY</th>
-                  <th style={{ 
-                    width: '12%', 
-                    padding: '0.75rem', 
-                    textAlign: 'left', 
-                    borderBottom: '2px solid #dee2e6',
-                    height: '50px',
-                    verticalAlign: 'middle',
-                    wordWrap: 'break-word',
-                    overflowWrap: 'break-word'
-                  }}>AMOUNT</th>
-                  <th style={{ 
-                    width: '14%', 
-                    padding: '0.75rem', 
-                    textAlign: 'middle', 
-                    borderBottom: '2px solid #dee2e6',
-                    height: '50px',
-                    verticalAlign: 'middle',
-                    wordWrap: 'break-word',
-                    overflowWrap: 'break-word'
-                  }}>STATUS</th>
-                  <th style={{ 
-                    width: '12%', 
-                    padding: '0.75rem', 
-                    textAlign: 'left', 
-                    borderBottom: '2px solid #dee2e6',
-                    height: '50px',
-                    verticalAlign: 'middle',
-                    wordWrap: 'break-word',
-                    overflowWrap: 'break-word'
-                  }}>ACTIONS</th>
-                </tr>
-              </thead>
-              <tbody>
-                {currentProposals.length > 0 ? (
-                  currentProposals.map((proposal, index) => (
-                    <tr 
-                      key={proposal.id} 
-                      className={index % 2 === 1 ? 'alternate-row' : ''} 
+              {/* Header Section with Title and Controls - Updated with LedgerView styling */}
+              <div className="top" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
+                <h2 className="page-title" style={{ margin: 0, fontSize: '29px', fontWeight: 'bold', color: '#0C0C0C' }}>
+                  Budget Proposal 
+                </h2>
+                
+                <div className="controls-container" style={{ display: 'flex', gap: '10px' }}>
+                  {/* Search Bar - Updated with LedgerView styling */}
+                  <div style={{ position: 'relative' }}>
+                    <input
+                      type="text"
+                      placeholder="Search"
+                      value={searchTerm}
+                      onChange={(e) => setSearchTerm(e.target.value)}
+                      className="search-account-input"
                       style={{ 
-                        backgroundColor: index % 2 === 1 ? '#F8F8F8' : '#FFFFFF', 
-                        color: '#0C0C0C',
-                        height: '50px',
-                        transition: 'background-color 0.2s ease',
-                        cursor: 'pointer'
+                        padding: '8px 12px', 
+                        border: '1px solid #ccc', 
+                        borderRadius: '4px',
+                        outline: 'none'
                       }}
-                      onMouseEnter={(e) => {
-                        e.currentTarget.style.backgroundColor = '#fcfcfc';
+                    />
+                  </div>
+                  
+                  {/* Category Filter - Updated with LedgerView styling */}
+                  <div className="filter-dropdown" style={{ position: 'relative' }}>
+                    <button 
+                      className={`filter-dropdown-btn ${showCategoryDropdown ? 'active' : ''}`} 
+                      onClick={toggleCategoryDropdown}
+                      onMouseDown={(e) => e.preventDefault()}
+                      style={{ 
+                        padding: '8px 12px', 
+                        border: '1px solid #ccc', 
+                        borderRadius: '4px', 
+                        backgroundColor: 'white', 
+                        display: 'flex', 
+                        alignItems: 'center', 
+                        gap: '5px',
+                        outline: 'none'
                       }}
-                      onMouseLeave={(e) => {
-                        e.currentTarget.style.backgroundColor = index % 2 === 1 ? '#F8F8F8' : '#FFFFFF';
-                      }}
-                      onClick={() => handleReviewClick(proposal)}
                     >
-                      <td style={{ 
-                        padding: '0.75rem', 
-                        borderBottom: '1px solid #dee2e6',
-                        verticalAlign: 'middle',
-                        wordWrap: 'break-word',
-                        overflowWrap: 'break-word',
-                        whiteSpace: 'normal'
-                      }}>{proposal.ticketId}</td>
-                      <td style={{ 
-                        padding: '0.75rem', 
-                        borderBottom: '1px solid #dee2e6',
-                        verticalAlign: 'middle',
-                        wordWrap: 'break-word',
-                        overflowWrap: 'break-word',
-                        whiteSpace: 'normal'
-                      }}>{proposal.description}</td>
-                      <td style={{ 
-                        padding: '0.75rem', 
-                        borderBottom: '1px solid #dee2e6',
-                        verticalAlign: 'middle',
-                        wordWrap: 'break-word',
-                        overflowWrap: 'break-word',
-                        whiteSpace: 'normal'
-                      }}>{proposal.category} {proposal.subCategory && `- ${proposal.subCategory}`}</td>
-                      <td style={{ 
-                        padding: '0.75rem', 
-                        borderBottom: '1px solid #dee2e6',
-                        verticalAlign: 'middle',
-                        wordWrap: 'break-word',
-                        overflowWrap: 'break-word',
-                        whiteSpace: 'normal'
-                      }}>{proposal.submittedBy}</td>
-                      <td style={{ 
-                        padding: '0.75rem', 
-                        borderBottom: '1px solid #dee2e6',
-                        verticalAlign: 'middle',
-                        wordWrap: 'break-word',
-                        overflowWrap: 'break-word',
-                        whiteSpace: 'normal'
-                      }}>{proposal.amount}</td>
-                      <td style={{ 
-                        padding: '0.75rem', 
-                        borderBottom: '1px solid #dee2e6',
-                        verticalAlign: 'middle',
-                        wordWrap: 'break-word',
-                        overflowWrap: 'break-word',
-                        whiteSpace: 'normal'
+                      <span>{selectedCategory}</span>
+                      <ChevronDown size={14} />
+                    </button>
+                    {showCategoryDropdown && (
+                      <div className="category-dropdown-menu" style={{
+                        position: 'absolute',
+                        top: '100%',
+                        left: 0,
+                        backgroundColor: 'white',
+                        border: '1px solid #ccc',
+                        borderRadius: '4px',
+                        width: '100%',
+                        zIndex: 1000
                       }}>
-                        {/* Updated to use Status component from ProposalHistory */}
-                        <Status 
-                          type={proposal.status} 
-                          name={
-                            proposal.status === 'pending' ? 'Pending' : 
-                            proposal.status === 'approved' ? 'Approved' : 'Rejected'
-                          }
-                        />
-                      </td>
-                      <td style={{ 
+                        {categories.map((category) => (
+                          <div
+                            key={category}
+                            className={`category-dropdown-item ${selectedCategory === category ? 'active' : ''}`}
+                            onClick={() => handleCategorySelect(category)}
+                            onMouseDown={(e) => e.preventDefault()}
+                            style={{ 
+                              padding: '8px 12px', 
+                              cursor: 'pointer', 
+                              backgroundColor: selectedCategory === category ? '#f0f0f0' : 'white',
+                              outline: 'none'
+                            }}
+                          >
+                            {category}
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                  
+                  {/* Status Filter - Updated with LedgerView styling */}
+                  <div className="filter-dropdown" style={{ position: 'relative' }}>
+                    <button 
+                      className={`filter-dropdown-btn ${showStatusDropdown ? 'active' : ''}`} 
+                      onClick={toggleStatusDropdown}
+                      onMouseDown={(e) => e.preventDefault()}
+                      style={{ 
+                        padding: '8px 12px', 
+                        border: '1px solid #ccc', 
+                        borderRadius: '4px', 
+                        backgroundColor: 'white', 
+                        display: 'flex', 
+                        alignItems: 'center', 
+                        gap: '5px',
+                        outline: 'none'
+                      }}
+                    >
+                      <span>Status: {selectedStatus}</span>
+                      <ChevronDown size={14} />
+                    </button>
+                    {showStatusDropdown && (
+                      <div className="category-dropdown-menu" style={{
+                        position: 'absolute',
+                        top: '100%',
+                        left: 0,
+                        backgroundColor: 'white',
+                        border: '1px solid #ccc',
+                        borderRadius: '4px',
+                        width: '100%',
+                        zIndex: 1000
+                      }}>
+                        {statusOptions.map((status) => (
+                          <div
+                            key={status}
+                            className={`category-dropdown-item ${selectedStatus === status ? 'active' : ''}`}
+                            onClick={() => handleStatusSelect(status)}
+                            onMouseDown={(e) => e.preventDefault()}
+                            style={{ 
+                              padding: '8px 12px', 
+                              cursor: 'pointer', 
+                              backgroundColor: selectedStatus === status ? '#f0f0f0' : 'white',
+                              outline: 'none'
+                            }}
+                          >
+                            {status === 'pending' ? 'Pending' :
+                             status === 'approved' ? 'Approved' :
+                             status === 'rejected' ? 'Rejected' : status}
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+
+              {/* Separator line between title and table */}
+              <div style={{
+                height: '1px',
+                backgroundColor: '#e0e0e0',
+                marginBottom: '20px'
+              }}></div>
+
+              {/* Proposals Table - Updated with LedgerView table layout */}
+              <div style={{ 
+                flex: '0 0 auto',
+                border: '1px solid #e0e0e0',
+                borderRadius: '4px',
+                overflow: 'hidden'
+              }}>
+                <table className="ledger-table" style={{ 
+                  width: '100%', 
+                  borderCollapse: 'collapse',
+                  tableLayout: 'fixed'
+                }}>
+                  <thead>
+                    <tr style={{ backgroundColor: '#f8f9fa' }}>
+                      <th style={{ 
+                        width: '14%', 
                         padding: '0.75rem', 
-                        borderBottom: '1px solid #dee2e6',
+                        textAlign: 'left', 
+                        borderBottom: '2px solid #dee2e6',
+                        height: '50px',
                         verticalAlign: 'middle',
                         wordWrap: 'break-word',
-                        overflowWrap: 'break-word',
-                        whiteSpace: 'normal'
-                      }}>
-                        <button 
-                          className="blue-button action-btn"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            handleReviewClick(proposal);
-                          }}
-                          style={{ 
-                            padding: '6px 12px', 
-                            backgroundColor: '#007bff', 
-                            color: 'white', 
-                            border: 'none', 
-                            borderRadius: '4px', 
-                            cursor: 'pointer',
-                            fontSize: '12px',
-                            minWidth: '70px',
-                            outline: 'none'
-                          }}
-                        >
-                          {proposal.action}
-                        </button>
-                      </td>
+                        overflowWrap: 'break-word'
+                      }}>TICKET ID</th>
+                      <th style={{ 
+                        width: '22%', 
+                        padding: '0.75rem', 
+                        textAlign: 'left', 
+                        borderBottom: '2px solid #dee2e6',
+                        height: '50px',
+                        verticalAlign: 'middle',
+                        wordWrap: 'break-word',
+                        overflowWrap: 'break-word'
+                      }}>DESCRIPTION</th>
+                      <th style={{ 
+                        width: '20%', 
+                        padding: '0.75rem', 
+                        textAlign: 'left', 
+                        borderBottom: '2px solid #dee2e6',
+                        height: '50px',
+                        verticalAlign: 'middle',
+                        wordWrap: 'break-word',
+                        overflowWrap: 'break-word'
+                      }}>CATEGORY</th>
+                      <th style={{ 
+                        width: '14%', 
+                        padding: '0.75rem', 
+                        textAlign: 'left', 
+                        borderBottom: '2px solid #dee2e6',
+                        height: '50px',
+                        verticalAlign: 'middle',
+                        wordWrap: 'break-word',
+                        overflowWrap: 'break-word'
+                      }}>SUBMITTED BY</th>
+                      <th style={{ 
+                        width: '12%', 
+                        padding: '0.75rem', 
+                        textAlign: 'left', 
+                        borderBottom: '2px solid #dee2e6',
+                        height: '50px',
+                        verticalAlign: 'middle',
+                        wordWrap: 'break-word',
+                        overflowWrap: 'break-word'
+                      }}>AMOUNT</th>
+                      <th style={{ 
+                        width: '14%', 
+                        padding: '0.75rem', 
+                        textAlign: 'middle', 
+                        borderBottom: '2px solid #dee2e6',
+                        height: '50px',
+                        verticalAlign: 'middle',
+                        wordWrap: 'break-word',
+                        overflowWrap: 'break-word'
+                      }}>STATUS</th>
+                      <th style={{ 
+                        width: '12%', 
+                        padding: '0.75rem', 
+                        textAlign: 'left', 
+                        borderBottom: '2px solid #dee2e6',
+                        height: '50px',
+                        verticalAlign: 'middle',
+                        wordWrap: 'break-word',
+                        overflowWrap: 'break-word'
+                      }}>ACTIONS</th>
                     </tr>
-                  ))
-                ) : (
-                  <tr>
-                    <td colSpan="7" className="no-results" style={{ 
-                      padding: '20px', 
-                      textAlign: 'center',
-                      height: '50px',
-                      verticalAlign: 'middle'
-                    }}>
-                      {searchTerm || selectedCategory !== 'All Categories' || selectedStatus !== 'All Status'
-                        ? 'No proposals match your search criteria.' 
-                        : 'No proposals found.'}
-                    </td>
-                  </tr>
-                )}
-              </tbody>
-            </table>
-          </div>
-          
-          {/* New Pagination Component from LedgerView */}
-          {filteredProposals.length > 0 && (
-            <Pagination
-              currentPage={currentPage}
-              pageSize={pageSize}
-              totalItems={filteredProposals.length}
-              onPageChange={setCurrentPage}
-              onPageSizeChange={(newSize) => {
-                setPageSize(newSize);
-                setCurrentPage(1); // Reset to first page when page size changes
-              }}
-              pageSizeOptions={[5, 10, 20, 50]}
-            />
-          )}
-        </div>
+                  </thead>
+                  <tbody>
+                    {currentProposals.length > 0 ? (
+                      currentProposals.map((proposal, index) => (
+                        <tr 
+                          key={proposal.id} 
+                          className={index % 2 === 1 ? 'alternate-row' : ''} 
+                          style={{ 
+                            backgroundColor: index % 2 === 1 ? '#F8F8F8' : '#FFFFFF', 
+                            color: '#0C0C0C',
+                            height: '50px',
+                            transition: 'background-color 0.2s ease',
+                            cursor: 'pointer'
+                          }}
+                          onMouseEnter={(e) => {
+                            e.currentTarget.style.backgroundColor = '#fcfcfc';
+                          }}
+                          onMouseLeave={(e) => {
+                            e.currentTarget.style.backgroundColor = index % 2 === 1 ? '#F8F8F8' : '#FFFFFF';
+                          }}
+                          onClick={() => handleReviewClick(proposal)}
+                        >
+                          <td style={{ 
+                            padding: '0.75rem', 
+                            borderBottom: '1px solid #dee2e6',
+                            verticalAlign: 'middle',
+                            wordWrap: 'break-word',
+                            overflowWrap: 'break-word',
+                            whiteSpace: 'normal'
+                          }}>{proposal.ticketId}</td>
+                          <td style={{ 
+                            padding: '0.75rem', 
+                            borderBottom: '1px solid #dee2e6',
+                            verticalAlign: 'middle',
+                            wordWrap: 'break-word',
+                            overflowWrap: 'break-word',
+                            whiteSpace: 'normal'
+                          }}>{proposal.description}</td>
+                          <td style={{ 
+                            padding: '0.75rem', 
+                            borderBottom: '1px solid #dee2e6',
+                            verticalAlign: 'middle',
+                            wordWrap: 'break-word',
+                            overflowWrap: 'break-word',
+                            whiteSpace: 'normal'
+                          }}>{proposal.category} {proposal.subCategory && `- ${proposal.subCategory}`}</td>
+                          <td style={{ 
+                            padding: '0.75rem', 
+                            borderBottom: '1px solid #dee2e6',
+                            verticalAlign: 'middle',
+                            wordWrap: 'break-word',
+                            overflowWrap: 'break-word',
+                            whiteSpace: 'normal'
+                          }}>{proposal.submittedBy}</td>
+                          <td style={{ 
+                            padding: '0.75rem', 
+                            borderBottom: '1px solid #dee2e6',
+                            verticalAlign: 'middle',
+                            wordWrap: 'break-word',
+                            overflowWrap: 'break-word',
+                            whiteSpace: 'normal'
+                          }}>{proposal.amount}</td>
+                          <td style={{ 
+                            padding: '0.75rem', 
+                            borderBottom: '1px solid #dee2e6',
+                            verticalAlign: 'middle',
+                            wordWrap: 'break-word',
+                            overflowWrap: 'break-word',
+                            whiteSpace: 'normal'
+                          }}>
+                            {/* Updated to use Status component from ProposalHistory */}
+                            <Status 
+                              type={proposal.status} 
+                              name={
+                                proposal.status === 'pending' ? 'Pending' : 
+                                proposal.status === 'approved' ? 'Approved' : 'Rejected'
+                              }
+                            />
+                          </td>
+                          <td style={{ 
+                            padding: '0.75rem', 
+                            borderBottom: '1px solid #dee2e6',
+                            verticalAlign: 'middle',
+                            wordWrap: 'break-word',
+                            overflowWrap: 'break-word',
+                            whiteSpace: 'normal'
+                          }}>
+                            <button 
+                              className="blue-button action-btn"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleReviewClick(proposal);
+                              }}
+                              style={{ 
+                                padding: '6px 12px', 
+                                backgroundColor: '#007bff', 
+                                color: 'white', 
+                                border: 'none', 
+                                borderRadius: '4px', 
+                                cursor: 'pointer',
+                                fontSize: '12px',
+                                minWidth: '70px',
+                                outline: 'none'
+                              }}
+                            >
+                              {proposal.action}
+                            </button>
+                          </td>
+                        </tr>
+                      ))
+                    ) : (
+                      <tr>
+                        <td colSpan="7" className="no-results" style={{ 
+                          padding: '20px', 
+                          textAlign: 'center',
+                          height: '50px',
+                          verticalAlign: 'middle'
+                        }}>
+                          {searchTerm || selectedCategory !== 'All Categories' || selectedStatus !== 'All Status'
+                            ? 'No proposals match your search criteria.' 
+                            : 'No proposals found.'}
+                        </td>
+                      </tr>
+                    )}
+                  </tbody>
+                </table>
+              </div>
+              
+              {/* New Pagination Component from LedgerView */}
+              {filteredProposals.length > 0 && (
+                <Pagination
+                  currentPage={currentPage}
+                  pageSize={pageSize}
+                  totalItems={filteredProposals.length}
+                  onPageChange={setCurrentPage}
+                  onPageSizeChange={(newSize) => {
+                    setPageSize(newSize);
+                    setCurrentPage(1); // Reset to first page when page size changes
+                  }}
+                  pageSizeOptions={[5, 10, 20, 50]}
+                />
+              )}
+            </div>
+          </>
+        )}
       </div>
 
       {/* All popup components remain unchanged */}
@@ -1298,6 +1342,71 @@ const BudgetProposal = () => {
               <div className="proposal-header">
                 <h3 className="proposal-project-title">{selectedProposal.description}</h3>
                 <span className="proposal-date">April 30, 2025</span>
+              </div>
+              
+              {/* Appropriation Type and Fiscal Year - UPDATED SECTION */}
+              <div className="appropriation-section" style={{ 
+                marginBottom: '20px',
+                padding: '15px',
+                backgroundColor: '#f8f9fa',
+                borderRadius: '8px',
+                border: '1px solid #e9ecef'
+              }}>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
+                  <div className="appropriation-item">
+                    <strong style={{ fontSize: '14px', display: 'block', marginBottom: '8px' }}>Appropriation Type:</strong>
+                    {/* Check if proposal is approved - if so, show as read-only */}
+                    {selectedProposal.status === 'approved' ? (
+                      <div style={{ 
+                        padding: '8px 12px', 
+                        backgroundColor: 'white', 
+                        borderRadius: '4px', 
+                        border: '1px solid #ced4da',
+                        fontSize: '13px',
+                        color: '#495057'
+                      }}>
+                        {selectedProposal.appropriationType}
+                      </div>
+                    ) : (
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                        <label style={{ display: 'flex', alignItems: 'center', cursor: 'pointer' }}>
+                          <input 
+                            type="radio" 
+                            name="appropriationType" 
+                            value="New Proposal" 
+                            checked={appropriationType === 'New Proposal'}
+                            onChange={() => handleAppropriationTypeChange('New Proposal')}
+                            style={{ marginRight: '8px', cursor: 'pointer' }}
+                          />
+                          <span style={{ fontSize: '13px' }}>New Proposal</span>
+                        </label>
+                        <label style={{ display: 'flex', alignItems: 'center', cursor: 'pointer' }}>
+                          <input 
+                            type="radio" 
+                            name="appropriationType" 
+                            value="Continuing" 
+                            checked={appropriationType === 'Continuing'}
+                            onChange={() => handleAppropriationTypeChange('Continuing')}
+                            style={{ marginRight: '8px', cursor: 'pointer' }}
+                          />
+                          <span style={{ fontSize: '13px' }}>Continuing</span>
+                        </label>
+                      </div>
+                    )}
+                  </div>
+                  <div className="fiscal-year-item">
+                    <strong style={{ fontSize: '14px', display: 'block', marginBottom: '8px' }}>Fiscal Year:</strong>
+                    <div style={{ 
+                      padding: '8px 12px', 
+                      backgroundColor: 'white', 
+                      borderRadius: '4px', 
+                      border: '1px solid #ced4da',
+                      fontSize: '13px'
+                    }}>
+                      {selectedProposal.fiscalYear}
+                    </div>
+                  </div>
+                </div>
               </div>
               
               {/* Project Details */}
@@ -1526,6 +1635,42 @@ const BudgetProposal = () => {
                 {selectedProposal.description}
               </h3>
               
+              {/* Appropriation Type and Fiscal Year - UPDATED SECTION */}
+              <div className="appropriation-section" style={{ 
+                marginBottom: '20px',
+                padding: '15px',
+                backgroundColor: '#f8f9fa',
+                borderRadius: '8px',
+                border: '1px solid #e9ecef'
+              }}>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
+                  <div className="appropriation-item">
+                    <strong style={{ fontSize: '14px', display: 'block', marginBottom: '8px' }}>Appropriation Type:</strong>
+                    <div style={{ 
+                      padding: '8px 12px', 
+                      backgroundColor: 'white', 
+                      borderRadius: '4px', 
+                      border: '1px solid #ced4da',
+                      fontSize: '13px'
+                    }}>
+                      {appropriationType}
+                    </div>
+                  </div>
+                  <div className="fiscal-year-item">
+                    <strong style={{ fontSize: '14px', display: 'block', marginBottom: '8px' }}>Fiscal Year:</strong>
+                    <div style={{ 
+                      padding: '8px 12px', 
+                      backgroundColor: 'white', 
+                      borderRadius: '4px', 
+                      border: '1px solid #ced4da',
+                      fontSize: '13px'
+                    }}>
+                      {selectedProposal.fiscalYear}
+                    </div>
+                  </div>
+                </div>
+              </div>
+              
               {/* Project Details */}
               <div className="project-info-section">
                 <div className="project-detail-inline">
@@ -1715,6 +1860,42 @@ const BudgetProposal = () => {
               <h3 className="project-title-section">
                 {selectedProposal.description}
               </h3>
+              
+              {/* Appropriation Type and Fiscal Year - UPDATED SECTION */}
+              <div className="appropriation-section" style={{ 
+                marginBottom: '20px',
+                padding: '15px',
+                backgroundColor: '#f8f9fa',
+                borderRadius: '8px',
+                border: '1px solid #e9ecef'
+              }}>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
+                  <div className="appropriation-item">
+                    <strong style={{ fontSize: '14px', display: 'block', marginBottom: '8px' }}>Appropriation Type:</strong>
+                    <div style={{ 
+                      padding: '8px 12px', 
+                      backgroundColor: 'white', 
+                      borderRadius: '4px', 
+                      border: '1px solid #ced4da',
+                      fontSize: '13px'
+                    }}>
+                      {selectedProposal.appropriationType}
+                    </div>
+                  </div>
+                  <div className="fiscal-year-item">
+                    <strong style={{ fontSize: '14px', display: 'block', marginBottom: '8px' }}>Fiscal Year:</strong>
+                    <div style={{ 
+                      padding: '8px 12px', 
+                      backgroundColor: 'white', 
+                      borderRadius: '4px', 
+                      border: '1px solid #ced4da',
+                      fontSize: '13px'
+                    }}>
+                      {selectedProposal.fiscalYear}
+                    </div>
+                  </div>
+                </div>
+              </div>
               
               {/* Project Details */}
               <div className="project-info-section">

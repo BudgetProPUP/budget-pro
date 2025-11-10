@@ -4,6 +4,9 @@ import { ChevronDown, Search, ArrowLeft, ChevronLeft, ChevronRight, User, LogOut
 import LOGOMAP from '../../assets/MAP.jpg';
 import './ProposalHistory.css';
 
+// Import ManageProfile component
+import ManageProfile from './ManageProfile';
+
 // Status Component - Integrated directly
 const Status = ({
   type,
@@ -165,6 +168,7 @@ const ProposalHistory = () => {
   const [showCategoryDropdown, setShowCategoryDropdown] = useState(false);
   const [selectedCategory, setSelectedCategory] = useState('All Categories');
   const [currentDate, setCurrentDate] = useState(new Date());
+  const [showManageProfile, setShowManageProfile] = useState(false); // New state for ManageProfile
   const navigate = useNavigate();
 
   // User profile data
@@ -418,6 +422,17 @@ const ProposalHistory = () => {
     setSelectedStatus(status);
     setShowStatusDropdown(false);
     setCurrentPage(1);
+  };
+
+  // New function to handle Manage Profile click
+  const handleManageProfile = () => {
+    setShowManageProfile(true);
+    setShowProfileDropdown(false);
+  };
+
+  // New function to close Manage Profile
+  const handleCloseManageProfile = () => {
+    setShowManageProfile(false);
   };
 
   const handleNavigate = (path) => {
@@ -686,6 +701,7 @@ const ProposalHistory = () => {
                   <div className="dropdown-divider" style={{ height: '1px', backgroundColor: '#eee', margin: '10px 0' }}></div>
                   <div 
                     className="dropdown-item" 
+                    onClick={handleManageProfile} // Updated to use new function
                     style={{ display: 'flex', alignItems: 'center', padding: '8px 0', cursor: 'pointer', outline: 'none' }}
                     onMouseDown={(e) => e.preventDefault()}
                   >
@@ -721,340 +737,348 @@ const ProposalHistory = () => {
 
       {/* Main Content - Updated with LedgerView's layout and functionality */}
       <div className="content-container" style={{ padding: '20px', maxWidth: '1200px', margin: '0 auto' }}>
-        {/* Page Container for everything - Updated with LedgerView styling */}
-        <div className="proposal-history" style={{ 
-          backgroundColor: 'white', 
-          borderRadius: '8px', 
-          boxShadow: '0 2px 4px rgba(0,0,0,0.1)',
-          padding: '20px',
-          overflow: 'hidden',
-          display: 'flex',
-          flexDirection: 'column',
-          minHeight: 'calc(80vh - 100px)'
-        }}>
-          {/* Header Section with Title and Controls - Updated with LedgerView layout */}
-          <div className="top" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
-            <h2 className="page-title">
-              Proposal History 
-            </h2>
-            
-            <div className="controls-container" style={{ display: 'flex', gap: '10px' }}>
-              {/* Search Bar - Updated with LedgerView functionality */}
-              <div style={{ position: 'relative' }}>
-                <input
-                  type="text"
-                  placeholder="Search"
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  className="search-account-input"
-                  style={{ 
-                    padding: '8px 12px', 
-                    border: '1px solid #ccc', 
-                    borderRadius: '4px',
-                    outline: 'none'
-                  }}
-                />
-              </div>
+        {/* Conditionally render either ProposalHistory content or ManageProfile */}
+        {showManageProfile ? (
+          <ManageProfile 
+            onClose={handleCloseManageProfile} 
+            userProfile={userProfile}
+          />
+        ) : (
+          /* Page Container for everything - Updated with LedgerView styling */
+          <div className="proposal-history" style={{ 
+            backgroundColor: 'white', 
+            borderRadius: '8px', 
+            boxShadow: '0 2px 4px rgba(0,0,0,0.1)',
+            padding: '20px',
+            overflow: 'hidden',
+            display: 'flex',
+            flexDirection: 'column',
+            minHeight: 'calc(80vh - 100px)'
+          }}>
+            {/* Header Section with Title and Controls - Updated with LedgerView layout */}
+            <div className="top" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
+              <h2 className="page-title">
+                Proposal History 
+              </h2>
               
-              {/* Category Filter - Updated with LedgerView styling */}
-              <div className="filter-dropdown" style={{ position: 'relative' }}>
-                <button 
-                  className={`filter-dropdown-btn ${showCategoryDropdown ? 'active' : ''}`} 
-                  onClick={toggleCategoryDropdown}
-                  onMouseDown={(e) => e.preventDefault()}
-                  style={{ 
-                    padding: '8px 12px', 
-                    border: '1px solid #ccc', 
-                    borderRadius: '4px', 
-                    backgroundColor: 'white', 
-                    display: 'flex', 
-                    alignItems: 'center', 
-                    gap: '5px',
-                    outline: 'none'
-                  }}
-                >
-                  <span>{selectedCategory}</span>
-                  <ChevronDown size={14} />
-                </button>
-                {showCategoryDropdown && (
-                  <div className="category-dropdown-menu" style={{
-                    position: 'absolute',
-                    top: '100%',
-                    left: 0,
-                    backgroundColor: 'white',
-                    border: '1px solid #ccc',
-                    borderRadius: '4px',
-                    width: '100%',
-                    zIndex: 1000
-                  }}>
-                    {categories.map((category) => (
-                      <div
-                        key={category}
-                        className={`category-dropdown-item ${selectedCategory === category ? 'active' : ''}`}
-                        onClick={() => handleCategorySelect(category)}
-                        onMouseDown={(e) => e.preventDefault()}
-                        style={{ 
-                          padding: '8px 12px', 
-                          cursor: 'pointer', 
-                          backgroundColor: selectedCategory === category ? '#f0f0f0' : 'white',
-                          outline: 'none'
-                        }}
-                      >
-                        {category}
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
-              
-              {/* Status Filter - Updated with LedgerView styling */}
-              <div className="filter-dropdown" style={{ position: 'relative' }}>
-                <button 
-                  className={`filter-dropdown-btn ${showStatusDropdown ? 'active' : ''}`} 
-                  onClick={toggleStatusDropdown}
-                  onMouseDown={(e) => e.preventDefault()}
-                  style={{ 
-                    padding: '8px 12px', 
-                    border: '1px solid #ccc', 
-                    borderRadius: '4px', 
-                    backgroundColor: 'white', 
-                    display: 'flex', 
-                    alignItems: 'center', 
-                    gap: '5px',
-                    outline: 'none'
-                  }}
-                >
-                  <span>Status: {selectedStatus}</span>
-                  <ChevronDown size={14} />
-                </button>
-                {showStatusDropdown && (
-                  <div className="category-dropdown-menu" style={{
-                    position: 'absolute',
-                    top: '100%',
-                    left: 0,
-                    backgroundColor: 'white',
-                    border: '1px solid #ccc',
-                    borderRadius: '4px',
-                    width: '100%',
-                    zIndex: 1000
-                  }}>
-                    {statusOptions.map((status) => (
-                      <div
-                        key={status}
-                        className={`category-dropdown-item ${selectedStatus === status ? 'active' : ''}`}
-                        onClick={() => handleStatusSelect(status)}
-                        onMouseDown={(e) => e.preventDefault()}
-                        style={{ 
-                          padding: '8px 12px', 
-                          cursor: 'pointer', 
-                          backgroundColor: selectedStatus === status ? '#f0f0f0' : 'white',
-                          outline: 'none'
-                        }}
-                      >
-                        {status === 'pending' ? 'Pending' :
-                         status === 'approved' ? 'Approved' :
-                         status === 'rejected' ? 'Rejected' : status}
-                      </div>
-                    ))}
-                  </div>
-                )}
+              <div className="controls-container" style={{ display: 'flex', gap: '10px' }}>
+                {/* Search Bar - Updated with LedgerView functionality */}
+                <div style={{ position: 'relative' }}>
+                  <input
+                    type="text"
+                    placeholder="Search"
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                    className="search-account-input"
+                    style={{ 
+                      padding: '8px 12px', 
+                      border: '1px solid #ccc', 
+                      borderRadius: '4px',
+                      outline: 'none'
+                    }}
+                  />
+                </div>
+                
+                {/* Category Filter - Updated with LedgerView styling */}
+                <div className="filter-dropdown" style={{ position: 'relative' }}>
+                  <button 
+                    className={`filter-dropdown-btn ${showCategoryDropdown ? 'active' : ''}`} 
+                    onClick={toggleCategoryDropdown}
+                    onMouseDown={(e) => e.preventDefault()}
+                    style={{ 
+                      padding: '8px 12px', 
+                      border: '1px solid #ccc', 
+                      borderRadius: '4px', 
+                      backgroundColor: 'white', 
+                      display: 'flex', 
+                      alignItems: 'center', 
+                      gap: '5px',
+                      outline: 'none'
+                    }}
+                  >
+                    <span>{selectedCategory}</span>
+                    <ChevronDown size={14} />
+                  </button>
+                  {showCategoryDropdown && (
+                    <div className="category-dropdown-menu" style={{
+                      position: 'absolute',
+                      top: '100%',
+                      left: 0,
+                      backgroundColor: 'white',
+                      border: '1px solid #ccc',
+                      borderRadius: '4px',
+                      width: '100%',
+                      zIndex: 1000
+                    }}>
+                      {categories.map((category) => (
+                        <div
+                          key={category}
+                          className={`category-dropdown-item ${selectedCategory === category ? 'active' : ''}`}
+                          onClick={() => handleCategorySelect(category)}
+                          onMouseDown={(e) => e.preventDefault()}
+                          style={{ 
+                            padding: '8px 12px', 
+                            cursor: 'pointer', 
+                            backgroundColor: selectedCategory === category ? '#f0f0f0' : 'white',
+                            outline: 'none'
+                          }}
+                        >
+                          {category}
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+                
+                {/* Status Filter - Updated with LedgerView styling */}
+                <div className="filter-dropdown" style={{ position: 'relative' }}>
+                  <button 
+                    className={`filter-dropdown-btn ${showStatusDropdown ? 'active' : ''}`} 
+                    onClick={toggleStatusDropdown}
+                    onMouseDown={(e) => e.preventDefault()}
+                    style={{ 
+                      padding: '8px 12px', 
+                      border: '1px solid #ccc', 
+                      borderRadius: '4px', 
+                      backgroundColor: 'white', 
+                      display: 'flex', 
+                      alignItems: 'center', 
+                      gap: '5px',
+                      outline: 'none'
+                    }}
+                  >
+                    <span>Status: {selectedStatus}</span>
+                    <ChevronDown size={14} />
+                  </button>
+                  {showStatusDropdown && (
+                    <div className="category-dropdown-menu" style={{
+                      position: 'absolute',
+                      top: '100%',
+                      left: 0,
+                      backgroundColor: 'white',
+                      border: '1px solid #ccc',
+                      borderRadius: '4px',
+                      width: '100%',
+                      zIndex: 1000
+                    }}>
+                      {statusOptions.map((status) => (
+                        <div
+                          key={status}
+                          className={`category-dropdown-item ${selectedStatus === status ? 'active' : ''}`}
+                          onClick={() => handleStatusSelect(status)}
+                          onMouseDown={(e) => e.preventDefault()}
+                          style={{ 
+                            padding: '8px 12px', 
+                            cursor: 'pointer', 
+                            backgroundColor: selectedStatus === status ? '#f0f0f0' : 'white',
+                            outline: 'none'
+                          }}
+                        >
+                          {status === 'pending' ? 'Pending' :
+                           status === 'approved' ? 'Approved' :
+                           status === 'rejected' ? 'Rejected' : status}
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
               </div>
             </div>
-          </div>
 
-          {/* Separator line between title and table - Added from LedgerView */}
-          <div style={{
-            height: '1px',
-            backgroundColor: '#e0e0e0',
-            marginBottom: '20px'
-          }}></div>
+            {/* Separator line between title and table - Added from LedgerView */}
+            <div style={{
+              height: '1px',
+              backgroundColor: '#e0e0e0',
+              marginBottom: '20px'
+            }}></div>
 
-          {/* Updated Table Layout - Using LedgerView's steady table design */}
-          <div style={{ 
-            flex: '0 0 auto',
-            border: '1px solid #e0e0e0',
-            borderRadius: '4px',
-            overflow: 'hidden'
-          }}>
-            <table className="ledger-table" style={{ 
-              width: '100%', 
-              borderCollapse: 'collapse',
-              tableLayout: 'fixed'
+            {/* Updated Table Layout - Using LedgerView's steady table design */}
+            <div style={{ 
+              flex: '0 0 auto',
+              border: '1px solid #e0e0e0',
+              borderRadius: '4px',
+              overflow: 'hidden'
             }}>
-              <thead>
-                <tr style={{ backgroundColor: '#f8f9fa' }}>
-                  <th style={{ 
-                    width: '15%', 
-                    padding: '0.75rem', 
-                    textAlign: 'left', 
-                    borderBottom: '2px solid #dee2e6',
-                    height: '50px',
-                    verticalAlign: 'middle',
-                    wordWrap: 'break-word',
-                    overflowWrap: 'break-word'
-                  }}>TICKET ID</th>
-                  <th style={{ 
-                    width: '20%', 
-                    padding: '0.75rem', 
-                    textAlign: 'left', 
-                    borderBottom: '2px solid #dee2e6',
-                    height: '50px',
-                    verticalAlign: 'middle',
-                    wordWrap: 'break-word',
-                    overflowWrap: 'break-word'
-                  }}>CATEGORY</th>
-                  <th style={{ 
-                    width: '20%', 
-                    padding: '0.75rem', 
-                    textAlign: 'left', 
-                    borderBottom: '2px solid #dee2e6',
-                    height: '50px',
-                    verticalAlign: 'middle',
-                    wordWrap: 'break-word',
-                    overflowWrap: 'break-word'
-                  }}>SUBCATEGORY</th>
-                  <th style={{ 
-                    width: '15%', 
-                    padding: '0.75rem', 
-                    textAlign: 'left', 
-                    borderBottom: '2px solid #dee2e6',
-                    height: '50px',
-                    verticalAlign: 'middle',
-                    wordWrap: 'break-word',
-                    overflowWrap: 'break-word'
-                  }}>LAST MODIFIED</th>
-                  <th style={{ 
-                    width: '15%', 
-                    padding: '0.75rem', 
-                    textAlign: 'left', 
-                    borderBottom: '2px solid #dee2e6',
-                    height: '50px',
-                    verticalAlign: 'middle',
-                    wordWrap: 'break-word',
-                    overflowWrap: 'break-word'
-                  }}>MODIFIED BY</th>
-                  <th style={{ 
-                    width: '15%', 
-                    padding: '0.75rem', 
-                    textAlign: 'left', 
-                    borderBottom: '2px solid #dee2e6',
-                    height: '50px',
-                    verticalAlign: 'middle',
-                    wordWrap: 'break-word',
-                    overflowWrap: 'break-word'
-                  }}>STATUS</th>
-                </tr>
-              </thead>
-              <tbody>
-                {currentProposals.length > 0 ? (
-                  currentProposals.map((proposal, index) => (
-                    <tr 
-                      key={proposal.id} 
-                      className={index % 2 === 1 ? 'alternate-row' : ''} 
-                      style={{ 
-                        backgroundColor: index % 2 === 1 ? '#F8F8F8' : '#FFFFFF', 
-                        color: '#0C0C0C',
+              <table className="ledger-table" style={{ 
+                width: '100%', 
+                borderCollapse: 'collapse',
+                tableLayout: 'fixed'
+              }}>
+                <thead>
+                  <tr style={{ backgroundColor: '#f8f9fa' }}>
+                    <th style={{ 
+                      width: '15%', 
+                      padding: '0.75rem', 
+                      textAlign: 'left', 
+                      borderBottom: '2px solid #dee2e6',
+                      height: '50px',
+                      verticalAlign: 'middle',
+                      wordWrap: 'break-word',
+                      overflowWrap: 'break-word'
+                    }}>TICKET ID</th>
+                    <th style={{ 
+                      width: '20%', 
+                      padding: '0.75rem', 
+                      textAlign: 'left', 
+                      borderBottom: '2px solid #dee2e6',
+                      height: '50px',
+                      verticalAlign: 'middle',
+                      wordWrap: 'break-word',
+                      overflowWrap: 'break-word'
+                    }}>CATEGORY</th>
+                    <th style={{ 
+                      width: '20%', 
+                      padding: '0.75rem', 
+                      textAlign: 'left', 
+                      borderBottom: '2px solid #dee2e6',
+                      height: '50px',
+                      verticalAlign: 'middle',
+                      wordWrap: 'break-word',
+                      overflowWrap: 'break-word'
+                    }}>SUBCATEGORY</th>
+                    <th style={{ 
+                      width: '15%', 
+                      padding: '0.75rem', 
+                      textAlign: 'left', 
+                      borderBottom: '2px solid #dee2e6',
+                      height: '50px',
+                      verticalAlign: 'middle',
+                      wordWrap: 'break-word',
+                      overflowWrap: 'break-word'
+                    }}>LAST MODIFIED</th>
+                    <th style={{ 
+                      width: '15%', 
+                      padding: '0.75rem', 
+                      textAlign: 'left', 
+                      borderBottom: '2px solid #dee2e6',
+                      height: '50px',
+                      verticalAlign: 'middle',
+                      wordWrap: 'break-word',
+                      overflowWrap: 'break-word'
+                    }}>MODIFIED BY</th>
+                    <th style={{ 
+                      width: '15%', 
+                      padding: '0.75rem', 
+                      textAlign: 'left', 
+                      borderBottom: '2px solid #dee2e6',
+                      height: '50px',
+                      verticalAlign: 'middle',
+                      wordWrap: 'break-word',
+                      overflowWrap: 'break-word'
+                    }}>STATUS</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {currentProposals.length > 0 ? (
+                    currentProposals.map((proposal, index) => (
+                      <tr 
+                        key={proposal.id} 
+                        className={index % 2 === 1 ? 'alternate-row' : ''} 
+                        style={{ 
+                          backgroundColor: index % 2 === 1 ? '#F8F8F8' : '#FFFFFF', 
+                          color: '#0C0C0C',
+                          height: '50px',
+                          transition: 'background-color 0.2s ease'
+                        }}
+                        onMouseEnter={(e) => {
+                          e.currentTarget.style.backgroundColor = '#fcfcfc';
+                        }}
+                        onMouseLeave={(e) => {
+                          e.currentTarget.style.backgroundColor = index % 2 === 1 ? '#F8F8F8' : '#FFFFFF';
+                        }}
+                      >
+                        <td style={{ 
+                          padding: '0.75rem', 
+                          borderBottom: '1px solid #dee2e6',
+                          verticalAlign: 'middle',
+                          wordWrap: 'break-word',
+                          overflowWrap: 'break-word',
+                          whiteSpace: 'normal'
+                        }}>{proposal.id}</td>
+                        <td style={{ 
+                          padding: '0.75rem', 
+                          borderBottom: '1px solid #dee2e6',
+                          verticalAlign: 'middle',
+                          wordWrap: 'break-word',
+                          overflowWrap: 'break-word',
+                          whiteSpace: 'normal'
+                        }}>{proposal.category}</td>
+                        <td style={{ 
+                          padding: '0.75rem', 
+                          borderBottom: '1px solid #dee2e6',
+                          verticalAlign: 'middle',
+                          wordWrap: 'break-word',
+                          overflowWrap: 'break-word',
+                          whiteSpace: 'normal'
+                        }}>{proposal.subcategory}</td>
+                        <td style={{ 
+                          padding: '0.75rem', 
+                          borderBottom: '1px solid #dee2e6',
+                          verticalAlign: 'middle',
+                          wordWrap: 'break-word',
+                          overflowWrap: 'break-word',
+                          whiteSpace: 'normal'
+                        }}>{proposal.lastModified}</td>
+                        <td style={{ 
+                          padding: '0.75rem', 
+                          borderBottom: '1px solid #dee2e6',
+                          verticalAlign: 'middle',
+                          wordWrap: 'break-word',
+                          overflowWrap: 'break-word',
+                          whiteSpace: 'normal'
+                        }}>{proposal.modifiedBy}</td>
+                        <td style={{ 
+                          padding: '0.75rem', 
+                          borderBottom: '1px solid #dee2e6',
+                          verticalAlign: 'middle',
+                          wordWrap: 'break-word',
+                          overflowWrap: 'break-word',
+                          whiteSpace: 'normal'
+                        }}>
+                          <Status 
+                            type={proposal.status} 
+                            name={
+                              proposal.status === 'pending' ? 'Pending' : 
+                              proposal.status === 'approved' ? 'Approved' : 'Rejected'
+                            }
+                          />
+                        </td>
+                      </tr>
+                    ))
+                  ) : (
+                    <tr>
+                      <td colSpan="6" className="no-results" style={{ 
+                        padding: '20px', 
+                        textAlign: 'center',
                         height: '50px',
-                        transition: 'background-color 0.2s ease'
-                      }}
-                      onMouseEnter={(e) => {
-                        e.currentTarget.style.backgroundColor = '#fcfcfc';
-                      }}
-                      onMouseLeave={(e) => {
-                        e.currentTarget.style.backgroundColor = index % 2 === 1 ? '#F8F8F8' : '#FFFFFF';
-                      }}
-                    >
-                      <td style={{ 
-                        padding: '0.75rem', 
-                        borderBottom: '1px solid #dee2e6',
-                        verticalAlign: 'middle',
-                        wordWrap: 'break-word',
-                        overflowWrap: 'break-word',
-                        whiteSpace: 'normal'
-                      }}>{proposal.id}</td>
-                      <td style={{ 
-                        padding: '0.75rem', 
-                        borderBottom: '1px solid #dee2e6',
-                        verticalAlign: 'middle',
-                        wordWrap: 'break-word',
-                        overflowWrap: 'break-word',
-                        whiteSpace: 'normal'
-                      }}>{proposal.category}</td>
-                      <td style={{ 
-                        padding: '0.75rem', 
-                        borderBottom: '1px solid #dee2e6',
-                        verticalAlign: 'middle',
-                        wordWrap: 'break-word',
-                        overflowWrap: 'break-word',
-                        whiteSpace: 'normal'
-                      }}>{proposal.subcategory}</td>
-                      <td style={{ 
-                        padding: '0.75rem', 
-                        borderBottom: '1px solid #dee2e6',
-                        verticalAlign: 'middle',
-                        wordWrap: 'break-word',
-                        overflowWrap: 'break-word',
-                        whiteSpace: 'normal'
-                      }}>{proposal.lastModified}</td>
-                      <td style={{ 
-                        padding: '0.75rem', 
-                        borderBottom: '1px solid #dee2e6',
-                        verticalAlign: 'middle',
-                        wordWrap: 'break-word',
-                        overflowWrap: 'break-word',
-                        whiteSpace: 'normal'
-                      }}>{proposal.modifiedBy}</td>
-                      <td style={{ 
-                        padding: '0.75rem', 
-                        borderBottom: '1px solid #dee2e6',
-                        verticalAlign: 'middle',
-                        wordWrap: 'break-word',
-                        overflowWrap: 'break-word',
-                        whiteSpace: 'normal'
+                        verticalAlign: 'middle'
                       }}>
-                        <Status 
-                          type={proposal.status} 
-                          name={
-                            proposal.status === 'pending' ? 'Pending' : 
-                            proposal.status === 'approved' ? 'Approved' : 'Rejected'
-                          }
-                        />
+                        {searchTerm || selectedCategory !== 'All Categories' || selectedStatus !== 'All Status'
+                          ? 'No proposals match your search criteria.' 
+                          : 'No proposals found.'}
                       </td>
                     </tr>
-                  ))
-                ) : (
-                  <tr>
-                    <td colSpan="6" className="no-results" style={{ 
-                      padding: '20px', 
-                      textAlign: 'center',
-                      height: '50px',
-                      verticalAlign: 'middle'
-                    }}>
-                      {searchTerm || selectedCategory !== 'All Categories' || selectedStatus !== 'All Status'
-                        ? 'No proposals match your search criteria.' 
-                        : 'No proposals found.'}
-                    </td>
-                  </tr>
-                )}
-              </tbody>
-            </table>
+                  )}
+                </tbody>
+              </table>
+            </div>
+            
+            {/* New Pagination Component from LedgerView */}
+            {filteredProposals.length > 0 && (
+              <Pagination
+                currentPage={currentPage}
+                pageSize={pageSize}
+                totalItems={filteredProposals.length}
+                onPageChange={setCurrentPage}
+                onPageSizeChange={(newSize) => {
+                  setPageSize(newSize);
+                  setCurrentPage(1); // Reset to first page when page size changes
+                }}
+                pageSizeOptions={[5, 10, 20, 50]}
+              />
+            )}
           </div>
-          
-          {/* New Pagination Component from LedgerView */}
-          {filteredProposals.length > 0 && (
-            <Pagination
-              currentPage={currentPage}
-              pageSize={pageSize}
-              totalItems={filteredProposals.length}
-              onPageChange={setCurrentPage}
-              onPageSizeChange={(newSize) => {
-                setPageSize(newSize);
-                setCurrentPage(1); // Reset to first page when page size changes
-              }}
-              pageSizeOptions={[5, 10, 20, 50]}
-            />
-          )}
-        </div>
+        )}
       </div>
 
       {/* Add Status component CSS directly */}
@@ -1157,7 +1181,7 @@ const ProposalHistory = () => {
 
         .icon-placeholder {
           height: 12px;
-          width: 12px;
+          width: '12px';
           flex-shrink: 0;
           background-color: currentColor;
           border-radius: 2px;

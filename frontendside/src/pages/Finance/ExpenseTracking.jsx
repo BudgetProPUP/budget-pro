@@ -27,6 +27,9 @@ import {
   createExpense,
 } from "../../API/expenseAPI";
 
+// Import ManageProfile component
+import ManageProfile from "./ManageProfile";
+
 const Status = ({ type, name, personName = null, location = null }) => {
   return (
     <div className={`status-${type.split(" ").join("-")}`}>
@@ -289,6 +292,7 @@ const ExpenseTracking = () => {
   const [selectedCategory, setSelectedCategory] = useState(""); // Default to empty for "All Categories"
   const [_selectedDate, setSelectedDate] = useState("All Time");
   const [showAddExpenseModal, setShowAddExpenseModal] = useState(false);
+  const [showManageProfile, setShowManageProfile] = useState(false); // NEW: State for ManageProfile
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize, setPageSize] = useState(5);
   const [searchTerm, setSearchTerm] = useState("");
@@ -509,6 +513,17 @@ const ExpenseTracking = () => {
   const _toggleDateDropdown = () => {
     setShowDateDropdown(!showDateDropdown);
     if (showCategoryDropdown) setShowCategoryDropdown(false);
+  };
+
+  // NEW: Function to handle Manage Profile click
+  const handleManageProfile = () => {
+    setShowManageProfile(true);
+    setShowProfileDropdown(false);
+  };
+
+  // NEW: Function to close Manage Profile
+  const handleCloseManageProfile = () => {
+    setShowManageProfile(false);
   };
 
   const handleCategorySelect = (categoryCode) => {
@@ -1151,6 +1166,7 @@ const ExpenseTracking = () => {
                   ></div>
                   <div
                     className="dropdown-item"
+                    onClick={handleManageProfile} // UPDATED: Now calls handleManageProfile
                     style={{
                       display: "flex",
                       alignItems: "center",
@@ -1210,997 +1226,1011 @@ const ExpenseTracking = () => {
         className="content-container"
         style={{ padding: "20px", maxWidth: "1200px", margin: "0 auto" }}
       >
-        {/* Budget Summary Cards - UPDATED */}
-        <div
-          className="budget-summary"
-          style={{
-            display: "flex",
-            gap: "1rem",
-            justifyContent: "space-between",
-            marginBottom: "20px",
-          }}
-        >
-          <div
-            className="budget-card"
-            style={{
-              flex: "1",
-              minWidth: "200px",
-              maxWidth: "400px", // Adjusted width
-              height: "100px",
-              display: "flex",
-              flexDirection: "column",
-              justifyContent: "center",
-              alignItems: "center",
-              padding: "15px",
-              boxSizing: "border-box",
-              backgroundColor: "white",
-              borderRadius: "8px",
-              boxShadow: "0 2px 4px rgba(0,0,0,0.1)",
-            }}
-          >
-            <div className="budget-card-label" style={{ marginBottom: "10px" }}>
-              <p style={{ margin: 0, fontSize: "14px", color: "#666" }}>
-                Budget Remaining
-              </p>
-            </div>
+        {/* Conditionally render either ExpenseTracking content or ManageProfile */}
+        {showManageProfile ? (
+          <ManageProfile 
+            onClose={handleCloseManageProfile} 
+            userProfile={userProfile}
+          />
+        ) : (
+          <>
+            {/* Budget Summary Cards - UPDATED */}
             <div
-              className="budget-card-amount"
-              style={{ fontSize: "24px", fontWeight: "bold" }}
-            >
-              ₱
-              {parseFloat(summaryData.budget_remaining).toLocaleString(
-                "en-US",
-                {
-                  minimumFractionDigits: 2,
-                  maximumFractionDigits: 2,
-                }
-              )}
-            </div>
-          </div>
-
-          <div
-            className="budget-card"
-            style={{
-              flex: "1",
-              minWidth: "200px",
-              maxWidth: "400px", // Adjusted width
-              height: "100px",
-              display: "flex",
-              flexDirection: "column",
-              justifyContent: "center",
-              alignItems: "center",
-              padding: "15px",
-              boxSizing: "border-box",
-              backgroundColor: "white",
-              borderRadius: "8px",
-              boxShadow: "0 2px 4px rgba(0,0,0,0.1)",
-            }}
-          >
-            <div className="budget-card-label" style={{ marginBottom: "10px" }}>
-              <p style={{ margin: 0, fontSize: "14px", color: "#666" }}>
-                Total Expenses This Month
-              </p>
-            </div>
-            <div
-              className="budget-card-amount"
-              style={{ fontSize: "24px", fontWeight: "bold" }}
-            >
-              ₱
-              {parseFloat(summaryData.total_expenses_this_month).toLocaleString(
-                "en-US",
-                {
-                  minimumFractionDigits: 2,
-                  maximumFractionDigits: 2,
-                }
-              )}
-            </div>
-          </div>
-        </div>
-
-        {/* Main Content - Updated with LedgerView Layout */}
-        <div
-          className="expense-tracking"
-          style={{
-            backgroundColor: "white",
-            borderRadius: "8px",
-            boxShadow: "0 2px 4px rgba(0,0,0,0.1)",
-            padding: "20px",
-            overflow: "hidden",
-            display: "flex",
-            flexDirection: "column",
-            minHeight: "calc(80vh - 100px)",
-          }}
-        >
-          {/* Header Section with Title and Controls - Updated with LedgerView styling */}
-          <div
-            className="top"
-            style={{
-              display: "flex",
-              justifyContent: "space-between",
-              alignItems: "center",
-              marginBottom: "20px",
-            }}
-          >
-            <h2
-              className="page-title"
+              className="budget-summary"
               style={{
-                margin: 0,
-                fontSize: "29px",
-                fontWeight: "bold",
-                color: "#0C0C0C",
+                display: "flex",
+                gap: "1rem",
+                justifyContent: "space-between",
+                marginBottom: "20px",
               }}
             >
-              Expense Tracking
-            </h2>
-
-            <div
-              className="controls-container"
-              style={{ display: "flex", gap: "10px" }}
-            >
-              {/* Search Bar - Updated with LedgerView styling */}
-              <div style={{ position: "relative" }}>
-                <input
-                  type="text"
-                  placeholder="Search"
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  className="search-account-input"
-                  style={{
-                    padding: "8px 12px",
-                    border: "1px solid #ccc",
-                    borderRadius: "4px",
-                    outline: "none",
-                  }}
-                />
-              </div>
-
-              {/* Category Filter - Updated with LedgerView styling */}
-              <div className="filter-dropdown" style={{ position: "relative" }}>
-                <button
-                  className={`filter-dropdown-btn ${
-                    showCategoryDropdown ? "active" : ""
-                  }`}
-                  onClick={toggleCategoryDropdown}
-                  onMouseDown={(e) => e.preventDefault()}
-                  style={{
-                    padding: "8px 12px",
-                    border: "1px solid #ccc",
-                    borderRadius: "4px",
-                    backgroundColor: "white",
-                    display: "flex",
-                    alignItems: "center",
-                    gap: "5px",
-                    outline: "none",
-                  }}
-                >
-                  <span>
-                    {selectedCategory
-                      ? categories.find((c) => c.code === selectedCategory)
-                          ?.name
-                      : "All Categories"}
-                  </span>
-                  <ChevronDown size={14} />
-                </button>
-                {showCategoryDropdown && (
-                  <div
-                    className="category-dropdown-menu"
-                    style={{
-                      position: "absolute",
-                      top: "100%",
-                      left: 0,
-                      backgroundColor: "white",
-                      border: "1px solid #ccc",
-                      borderRadius: "4px",
-                      width: "100%",
-                      zIndex: 1000,
-                    }}
-                  >
-                    {categories.map((category) => (
-                      <div
-                        key={category.code}
-                        className={`category-dropdown-item ${
-                          selectedCategory === category.code ? "active" : ""
-                        }`}
-                        onClick={() => handleCategorySelect(category.code)}
-                        onMouseDown={(e) => e.preventDefault()}
-                        style={{
-                          padding: "8px 12px",
-                          cursor: "pointer",
-                          backgroundColor:
-                            selectedCategory === category.code
-                              ? "#f0f0f0"
-                              : "white",
-                          outline: "none",
-                        }}
-                      >
-                        {category.name}
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
-
-              <button
-                className="add-journal-button"
-                onClick={handleAddExpense}
+              <div
+                className="budget-card"
                 style={{
-                  padding: "8px 12px",
-                  border: "1px solid #ccc",
-                  borderRadius: "4px",
-                  backgroundColor: "#007bff",
-                  color: "white",
-                  cursor: "pointer",
-                  outline: "none",
+                  flex: "1",
+                  minWidth: "200px",
+                  maxWidth: "400px", // Adjusted width
+                  height: "100px",
+                  display: "flex",
+                  flexDirection: "column",
+                  justifyContent: "center",
+                  alignItems: "center",
+                  padding: "15px",
+                  boxSizing: "border-box",
+                  backgroundColor: "white",
+                  borderRadius: "8px",
+                  boxShadow: "0 2px 4px rgba(0,0,0,0.1)",
                 }}
               >
-                Add Expense
-              </button>
-            </div>
-          </div>
-
-          {/* Separator line between title and table - From LedgerView */}
-          <div
-            style={{
-              height: "1px",
-              backgroundColor: "#e0e0e0",
-              marginBottom: "20px",
-            }}
-          ></div>
-
-          {/* Expenses Table - Updated to match LedgerView layout (no scroll, fixed height) */}
-          {/* MODIFICATION START */}
-          <div
-            style={{
-              border: "1px solid #e0e0e0",
-              borderRadius: "4px",
-              height: "424px", // adjust height if needed
-              overflowY: "auto",
-              overflowX: "hidden",
-            }}
-          >
-            <table
-              className="ledger-table"
-              style={{
-                width: "100%",
-                borderCollapse: "collapse",
-                tableLayout: "fixed",
-              }}
-            >
-              <thead>
-                <tr
-                  style={{
-                    backgroundColor: "#f8f9fa",
-                    position: "sticky",
-                    top: 0,
-                    zIndex: 1,
-                  }}
+                <div className="budget-card-label" style={{ marginBottom: "10px" }}>
+                  <p style={{ margin: 0, fontSize: "14px", color: "#666" }}>
+                    Budget Remaining
+                  </p>
+                </div>
+                <div
+                  className="budget-card-amount"
+                  style={{ fontSize: "24px", fontWeight: "bold" }}
                 >
-                  {" "}
-                  {/* Added sticky header */}
-                  <th
-                    style={{
-                      width: "12%",
-                      padding: "0.75rem",
-                      textAlign: "left",
-                      borderBottom: "2px solid #dee2e6",
-                      height: "50px",
-                      verticalAlign: "middle",
-                      wordWrap: "break-word",
-                      overflowWrap: "break-word",
-                    }}
-                  >
-                    REF NO.
-                  </th>
-                  <th
-                    style={{
-                      width: "10%",
-                      padding: "0.75rem",
-                      textAlign: "left",
-                      borderBottom: "2px solid #dee2e6",
-                      height: "50px",
-                      verticalAlign: "middle",
-                      wordWrap: "break-word",
-                      overflowWrap: "break-word",
-                    }}
-                  >
-                    DATE
-                  </th>
-                  <th
-                    style={{
-                      width: "12%",
-                      padding: "0.75rem",
-                      textAlign: "left",
-                      borderBottom: "2px solid #dee2e6",
-                      height: "50px",
-                      verticalAlign: "middle",
-                      wordWrap: "break-word",
-                      overflowWrap: "break-word",
-                    }}
-                  >
-                    TYPE
-                  </th>
-                  <th
-                    style={{
-                      width: "28%",
-                      padding: "0.75rem",
-                      textAlign: "left",
-                      borderBottom: "2px solid #dee2e6",
-                      height: "50px",
-                      verticalAlign: "middle",
-                      wordWrap: "break-word",
-                      overflowWrap: "break-word",
-                      whiteSpace: "normal",
-                    }}
-                  >
-                    DESCRIPTION
-                  </th>
-                  <th
-                    style={{
-                      width: "12%",
-                      padding: "0.75rem",
-                      textAlign: "left",
-                      borderBottom: "2px solid #dee2e6",
-                      height: "50px",
-                      verticalAlign: "middle",
-                      wordWrap: "break-word",
-                      overflowWrap: "break-word",
-                    }}
-                  >
-                    STATUS
-                  </th>
-                  <th
-                    style={{
-                      width: "14%",
-                      padding: "0.75rem",
-                      textAlign: "left",
-                      borderBottom: "2px solid #dee2e6",
-                      height: "50px",
-                      verticalAlign: "middle",
-                      wordWrap: "break-word",
-                      overflowWrap: "break-word",
-                    }}
-                  >
-                    ACCOMPLISHED
-                  </th>
-                </tr>
-              </thead>
-              <tbody>
-                {expenses.length > 0 ? (
-                  expenses.map((expense, index) => (
-                    <tr
-                      key={expense.id}
-                      className={index % 2 === 1 ? "alternate-row" : ""}
-                      style={{
-                        backgroundColor:
-                          index % 2 === 1 ? "#F8F8F8" : "#FFFFFF",
-                        color: "#0C0C0C",
-                        height: "50px",
-                        transition: "background-color 0.2s ease",
-                      }}
-                      onMouseEnter={(e) => {
-                        e.currentTarget.style.backgroundColor = "#fcfcfc";
-                      }}
-                      onMouseLeave={(e) => {
-                        e.currentTarget.style.backgroundColor =
-                          index % 2 === 1 ? "#F8F8F8" : "#FFFFFF";
-                      }}
-                    >
-                      <td
-                        style={{
-                          padding: "0.75rem",
-                          borderBottom: "1px solid #dee2e6",
-                          verticalAlign: "middle",
-                          wordWrap: "break-word",
-                          overflowWrap: "break-word",
-                          whiteSpace: "normal",
-                        }}
-                      >
-                        {expense.reference_no}
-                      </td>
-                      <td
-                        style={{
-                          padding: "0.75rem",
-                          borderBottom: "1px solid #dee2e6",
-                          verticalAlign: "middle",
-                          wordWrap: "break-word",
-                          overflowWrap: "break-word",
-                          whiteSpace: "normal",
-                        }}
-                      >
-                        {expense.date}
-                      </td>
-                      <td
-                        style={{
-                          padding: "0.75rem",
-                          borderBottom: "1px solid #dee2e6",
-                          verticalAlign: "middle",
-                          wordWrap: "break-word",
-                          overflowWrap: "break-word",
-                          whiteSpace: "normal",
-                        }}
-                      >
-                        {expense.type}
-                      </td>
-                      <td
-                        style={{
-                          padding: "0.75rem",
-                          borderBottom: "1px solid #dee2e6",
-                          verticalAlign: "middle",
-                          wordWrap: "break-word",
-                          overflowWrap: "break-word",
-                          whiteSpace: "normal",
-                        }}
-                      >
-                        {expense.description}
-                      </td>
-                      <td
-                        style={{
-                          padding: "0.75rem",
-                          borderBottom: "1px solid #dee2e6",
-                          verticalAlign: "middle",
-                          wordWrap: "break-word",
-                          overflowWrap: "break-word",
-                          whiteSpace: "normal",
-                        }}
-                      >
-                        <Status
-                          type={expense.status.toLowerCase()}
-                          name={expense.status}
-                        />
-                      </td>
-                      <td
-                        style={{
-                          padding: "0.75rem",
-                          borderBottom: "1px solid #dee2e6",
-                          verticalAlign: "middle",
-                          wordWrap: "break-word",
-                          overflowWrap: "break-word",
-                          whiteSpace: "normal",
-                        }}
-                      >
-                        {expense.accomplished}
-                      </td>
-                    </tr>
-                  ))
-                ) : (
-                  <tr>
-                    <td
-                      colSpan="6"
-                      className="no-results"
-                      style={{
-                        padding: "20px",
-                        textAlign: "center",
-                        height: "50px",
-                        verticalAlign: "middle",
-                      }}
-                    >
-                      {searchTerm || selectedCategory !== ""
-                        ? "No expenses match your search criteria."
-                        : "No expenses found."}
-                    </td>
-                  </tr>
-                )}
-              </tbody>
-            </table>
-          </div>
+                  ₱
+                  {parseFloat(summaryData.budget_remaining).toLocaleString(
+                    "en-US",
+                    {
+                      minimumFractionDigits: 2,
+                      maximumFractionDigits: 2,
+                    }
+                  )}
+                </div>
+              </div>
 
-          {/* New Pagination Component from LedgerView */}
-          {expenses.length > 0 && (
-            <Pagination
-              currentPage={currentPage}
-              pageSize={pageSize}
-              totalItems={pagination.count}
-              onPageChange={setCurrentPage}
-              onPageSizeChange={(newSize) => {
-                setPageSize(newSize);
-                setCurrentPage(1); // Reset to first page when page size changes
-              }}
-              pageSizeOptions={[5, 10, 20, 50]}
-            />
-          )}
-        </div>
-      </div>
-
-      {/* UPDATED: Add Expense Modal with BudgetAllocation's amount input format */}
-      {showAddExpenseModal && (
-        <div
-          className="modal-overlay"
-          style={{
-            position: "fixed",
-            top: 0,
-            left: 0,
-            right: 0,
-            bottom: 0,
-            backgroundColor: "rgba(0, 0, 0, 0.5)",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            zIndex: 2000,
-          }}
-        >
-          <div
-            className="modal-container"
-            style={{
-              backgroundColor: "white",
-              borderRadius: "8px",
-              width: "550px",
-              maxWidth: "90%",
-              maxHeight: "90vh",
-              overflow: "auto",
-              boxShadow: "0 4px 6px rgba(0, 0, 0, 0.1)",
-            }}
-          >
-            <div className="modal-content" style={{ padding: "24px" }}>
-              <h3
-                className="modal-title"
+              <div
+                className="budget-card"
                 style={{
-                  margin: "0 0 20px 0",
-                  fontSize: "20px",
-                  fontWeight: "bold",
-                  color: "#0C0C0C",
+                  flex: "1",
+                  minWidth: "200px",
+                  maxWidth: "400px", // Adjusted width
+                  height: "100px",
+                  display: "flex",
+                  flexDirection: "column",
+                  justifyContent: "center",
+                  alignItems: "center",
+                  padding: "15px",
+                  boxSizing: "border-box",
+                  backgroundColor: "white",
+                  borderRadius: "8px",
+                  boxShadow: "0 2px 4px rgba(0,0,0,0.1)",
                 }}
               >
-                Add Expense
-              </h3>
-
-              <form onSubmit={handleSubmitExpense} className="budget-form">
-                <div className="form-group" style={{ marginBottom: "16px" }}>
-                  <label
-                    htmlFor="ticketId"
-                    style={{
-                      display: "block",
-                      marginBottom: "8px",
-                      fontWeight: "500",
-                    }}
-                  >
-                    Ticket ID
-                  </label>
-                  <input
-                    type="text"
-                    id="ticketId"
-                    name="ticketId"
-                    value={newExpense.ticketId}
-                    onChange={handleInputChange}
-                    placeholder="Enter ticket ID"
-                    className="form-control"
-                    style={{
-                      width: "100%",
-                      padding: "8px 12px",
-                      border: "1px solid #ccc",
-                      borderRadius: "4px",
-                      outline: "none",
-                    }}
-                  />
-                  <span
-                    className="helper-text"
-                    style={{
-                      fontSize: "12px",
-                      color: "#666",
-                      marginTop: "4px",
-                      display: "block",
-                    }}
-                  >
-                    Optional - system will generate if left blank
-                  </span>
+                <div className="budget-card-label" style={{ marginBottom: "10px" }}>
+                  <p style={{ margin: 0, fontSize: "14px", color: "#666" }}>
+                    Total Expenses This Month
+                  </p>
                 </div>
-
-                <div className="form-group" style={{ marginBottom: "16px" }}>
-                  <label
-                    htmlFor="description"
-                    style={{
-                      display: "block",
-                      marginBottom: "8px",
-                      fontWeight: "500",
-                    }}
-                  >
-                    Description <span style={{ color: "red" }}>*</span>
-                  </label>
-                  <input
-                    type="text"
-                    id="description"
-                    name="description"
-                    value={newExpense.description}
-                    onChange={handleInputChange}
-                    placeholder="Enter expense description"
-                    required
-                    className="form-control"
-                    style={{
-                      width: "100%",
-                      padding: "8px 12px",
-                      border: "1px solid #ccc",
-                      borderRadius: "4px",
-                      outline: "none",
-                    }}
-                  />
+                <div
+                  className="budget-card-amount"
+                  style={{ fontSize: "24px", fontWeight: "bold" }}
+                >
+                  ₱
+                  {parseFloat(summaryData.total_expenses_this_month).toLocaleString(
+                    "en-US",
+                    {
+                      minimumFractionDigits: 2,
+                      maximumFractionDigits: 2,
+                    }
+                  )}
                 </div>
+              </div>
+            </div>
 
-                <div className="form-group" style={{ marginBottom: "16px" }}>
-                  <label
-                    htmlFor="date"
-                    style={{
-                      display: "block",
-                      marginBottom: "8px",
-                      fontWeight: "500",
-                    }}
-                  >
-                    Date
-                  </label>
-                  <input
-                    type="date"
-                    id="date"
-                    name="date"
-                    value={newExpense.date}
-                    onChange={handleInputChange}
-                    readOnly
-                    className="form-control"
-                    style={{
-                      width: "100%",
-                      padding: "8px 12px",
-                      border: "1px solid #ccc",
-                      borderRadius: "4px",
-                      backgroundColor: "#f5f5f5",
-                      cursor: "not-allowed",
-                      outline: "none",
-                    }}
-                  />
-                  <span
-                    className="helper-text"
-                    style={{
-                      fontSize: "12px",
-                      color: "#666",
-                      marginTop: "4px",
-                      display: "block",
-                    }}
-                  >
-                    Automatically generated
-                  </span>
-                </div>
+            {/* Main Content - Updated with LedgerView Layout */}
+            <div
+              className="expense-tracking"
+              style={{
+                backgroundColor: "white",
+                borderRadius: "8px",
+                boxShadow: "0 2px 4px rgba(0,0,0,0.1)",
+                padding: "20px",
+                overflow: "hidden",
+                display: "flex",
+                flexDirection: "column",
+                minHeight: "calc(80vh - 100px)",
+              }}
+            >
+              {/* Header Section with Title and Controls - Updated with LedgerView styling */}
+              <div
+                className="top"
+                style={{
+                  display: "flex",
+                  justifyContent: "space-between",
+                  alignItems: "center",
+                  marginBottom: "20px",
+                }}
+              >
+                <h2
+                  className="page-title"
+                  style={{
+                    margin: 0,
+                    fontSize: "29px",
+                    fontWeight: "bold",
+                    color: "#0C0C0C",
+                  }}
+                >
+                  Expense Tracking
+                </h2>
 
-                <div className="form-group" style={{ marginBottom: "16px" }}>
-                  <label
-                    htmlFor="category"
-                    style={{
-                      display: "block",
-                      marginBottom: "8px",
-                      fontWeight: "500",
-                    }}
-                  >
-                    Category <span style={{ color: "red" }}>*</span>
-                  </label>
-                  <div
-                    className="select-wrapper"
-                    style={{ position: "relative" }}
-                  >
-                    <select
-                      id="category"
-                      name="category"
-                      value={newExpense.category}
-                      onChange={handleInputChange}
-                      required
-                      className="form-control"
-                      style={{
-                        width: "100%",
-                        padding: "8px 12px",
-                        border: "1px solid #ccc",
-                        borderRadius: "4px",
-                        backgroundColor: "white",
-                        appearance: "none",
-                        outline: "none",
-                      }}
-                    >
-                      <option value="">Select a category</option>
-                      {categories
-                        .filter((cat) => cat.code !== "") // Filter out "All Categories"
-                        .map((cat) => (
-                          <option key={cat.code} value={cat.name}>
-                            {cat.name}
-                          </option>
-                        ))}
-                    </select>
-                    <ChevronDown
-                      size={16}
-                      style={{
-                        position: "absolute",
-                        right: "12px",
-                        top: "50%",
-                        transform: "translateY(-50%)",
-                        pointerEvents: "none",
-                      }}
-                    />
-                  </div>
-                </div>
-
-                <div className="form-group" style={{ marginBottom: "16px" }}>
-                  <label
-                    htmlFor="vendor"
-                    style={{
-                      display: "block",
-                      marginBottom: "8px",
-                      fontWeight: "500",
-                    }}
-                  >
-                    Vendor <span style={{ color: "red" }}>*</span>
-                  </label>
-                  <div
-                    className="select-wrapper"
-                    style={{ position: "relative" }}
-                  >
-                    <select
-                      id="vendor"
-                      name="vendor"
-                      value={newExpense.vendor}
-                      onChange={handleInputChange}
-                      required
-                      className="form-control"
-                      style={{
-                        width: "100%",
-                        padding: "8px 12px",
-                        border: "1px solid #ccc",
-                        borderRadius: "4px",
-                        backgroundColor: "white",
-                        appearance: "none",
-                        outline: "none",
-                      }}
-                    >
-                      <option value="">Select a vendor</option>
-                      {vendors.map((vendor, idx) => (
-                        <option key={idx} value={vendor}>
-                          {vendor}
-                        </option>
-                      ))}
-                    </select>
-                    <ChevronDown
-                      size={16}
-                      style={{
-                        position: "absolute",
-                        right: "12px",
-                        top: "50%",
-                        transform: "translateY(-50%)",
-                        pointerEvents: "none",
-                      }}
-                    />
-                  </div>
-                </div>
-
-                {/* UPDATED: Amount Input with BudgetAllocation's format and Clear Button */}
-                <div className="form-group" style={{ marginBottom: "16px" }}>
-                  <label
-                    htmlFor="amount"
-                    style={{
-                      display: "block",
-                      marginBottom: "8px",
-                      fontWeight: "500",
-                    }}
-                  >
-                    Amount
-                  </label>
+                <div
+                  className="controls-container"
+                  style={{ display: "flex", gap: "10px" }}
+                >
+                  {/* Search Bar - Updated with LedgerView styling */}
                   <div style={{ position: "relative" }}>
                     <input
                       type="text"
-                      id="amount"
-                      name="amount"
-                      placeholder="₱0.00"
-                      value={newExpense.amount}
+                      placeholder="Search"
+                      value={searchTerm}
+                      onChange={(e) => setSearchTerm(e.target.value)}
+                      className="search-account-input"
+                      style={{
+                        padding: "8px 12px",
+                        border: "1px solid #ccc",
+                        borderRadius: "4px",
+                        outline: "none",
+                      }}
+                    />
+                  </div>
+
+                  {/* Category Filter - Updated with LedgerView styling */}
+                  <div className="filter-dropdown" style={{ position: "relative" }}>
+                    <button
+                      className={`filter-dropdown-btn ${
+                        showCategoryDropdown ? "active" : ""
+                      }`}
+                      onClick={toggleCategoryDropdown}
+                      onMouseDown={(e) => e.preventDefault()}
+                      style={{
+                        padding: "8px 12px",
+                        border: "1px solid #ccc",
+                        borderRadius: "4px",
+                        backgroundColor: "white",
+                        display: "flex",
+                        alignItems: "center",
+                        gap: "5px",
+                        outline: "none",
+                      }}
+                    >
+                      <span>
+                        {selectedCategory
+                          ? categories.find((c) => c.code === selectedCategory)
+                              ?.name
+                          : "All Categories"}
+                      </span>
+                      <ChevronDown size={14} />
+                    </button>
+                    {showCategoryDropdown && (
+                      <div
+                        className="category-dropdown-menu"
+                        style={{
+                          position: "absolute",
+                          top: "100%",
+                          left: 0,
+                          backgroundColor: "white",
+                          border: "1px solid #ccc",
+                          borderRadius: "4px",
+                          width: "100%",
+                          zIndex: 1000,
+                        }}
+                      >
+                        {categories.map((category) => (
+                          <div
+                            key={category.code}
+                            className={`category-dropdown-item ${
+                              selectedCategory === category.code ? "active" : ""
+                            }`}
+                            onClick={() => handleCategorySelect(category.code)}
+                            onMouseDown={(e) => e.preventDefault()}
+                            style={{
+                              padding: "8px 12px",
+                              cursor: "pointer",
+                              backgroundColor:
+                                selectedCategory === category.code
+                                  ? "#f0f0f0"
+                                  : "white",
+                              outline: "none",
+                            }}
+                          >
+                            {category.name}
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+
+                  <button
+                    className="add-journal-button"
+                    onClick={handleAddExpense}
+                    style={{
+                      padding: "8px 12px",
+                      border: "1px solid #ccc",
+                      borderRadius: "4px",
+                      backgroundColor: "#007bff",
+                      color: "white",
+                      cursor: "pointer",
+                      outline: "none",
+                    }}
+                  >
+                    Add Expense
+                  </button>
+                </div>
+              </div>
+
+              {/* Separator line between title and table - From LedgerView */}
+              <div
+                style={{
+                  height: "1px",
+                  backgroundColor: "#e0e0e0",
+                  marginBottom: "20px",
+                }}
+              ></div>
+
+              {/* Expenses Table - Updated to match LedgerView layout (no scroll, fixed height) */}
+              {/* MODIFICATION START */}
+              <div
+                style={{
+                  border: "1px solid #e0e0e0",
+                  borderRadius: "4px",
+                  height: "424px", // adjust height if needed
+                  overflowY: "auto",
+                  overflowX: "hidden",
+                }}
+              >
+                <table
+                  className="ledger-table"
+                  style={{
+                    width: "100%",
+                    borderCollapse: "collapse",
+                    tableLayout: "fixed",
+                  }}
+                >
+                  <thead>
+                    <tr
+                      style={{
+                        backgroundColor: "#f8f9fa",
+                        position: "sticky",
+                        top: 0,
+                        zIndex: 1,
+                      }}
+                    >
+                      {" "}
+                      {/* Added sticky header */}
+                      <th
+                        style={{
+                          width: "12%",
+                          padding: "0.75rem",
+                          textAlign: "left",
+                          borderBottom: "2px solid #dee2e6",
+                          height: "50px",
+                          verticalAlign: "middle",
+                          wordWrap: "break-word",
+                          overflowWrap: "break-word",
+                        }}
+                      >
+                        REF NO.
+                      </th>
+                      <th
+                        style={{
+                          width: "10%",
+                          padding: "0.75rem",
+                          textAlign: "left",
+                          borderBottom: "2px solid #dee2e6",
+                          height: "50px",
+                          verticalAlign: "middle",
+                          wordWrap: "break-word",
+                          overflowWrap: "break-word",
+                        }}
+                      >
+                        DATE
+                      </th>
+                      <th
+                        style={{
+                          width: "12%",
+                          padding: "0.75rem",
+                          textAlign: "left",
+                          borderBottom: "2px solid #dee2e6",
+                          height: "50px",
+                          verticalAlign: "middle",
+                          wordWrap: "break-word",
+                          overflowWrap: "break-word",
+                        }}
+                      >
+                        TYPE
+                      </th>
+                      <th
+                        style={{
+                          width: "28%",
+                          padding: "0.75rem",
+                          textAlign: "left",
+                          borderBottom: "2px solid #dee2e6",
+                          height: "50px",
+                          verticalAlign: "middle",
+                          wordWrap: "break-word",
+                          overflowWrap: "break-word",
+                          whiteSpace: "normal",
+                        }}
+                      >
+                        DESCRIPTION
+                      </th>
+                      <th
+                        style={{
+                          width: "12%",
+                          padding: "0.75rem",
+                          textAlign: "left",
+                          borderBottom: "2px solid #dee2e6",
+                          height: "50px",
+                          verticalAlign: "middle",
+                          wordWrap: "break-word",
+                          overflowWrap: "break-word",
+                        }}
+                      >
+                        STATUS
+                      </th>
+                      <th
+                        style={{
+                          width: "14%",
+                          padding: "0.75rem",
+                          textAlign: "left",
+                          borderBottom: "2px solid #dee2e6",
+                          height: "50px",
+                          verticalAlign: "middle",
+                          wordWrap: "break-word",
+                          overflowWrap: "break-word",
+                        }}
+                      >
+                        ACCOMPLISHED
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {expenses.length > 0 ? (
+                      expenses.map((expense, index) => (
+                        <tr
+                          key={expense.id}
+                          className={index % 2 === 1 ? "alternate-row" : ""}
+                          style={{
+                            backgroundColor:
+                              index % 2 === 1 ? "#F8F8F8" : "#FFFFFF",
+                            color: "#0C0C0C",
+                            height: "50px",
+                            transition: "background-color 0.2s ease",
+                          }}
+                          onMouseEnter={(e) => {
+                            e.currentTarget.style.backgroundColor = "#fcfcfc";
+                          }}
+                          onMouseLeave={(e) => {
+                            e.currentTarget.style.backgroundColor =
+                              index % 2 === 1 ? "#F8F8F8" : "#FFFFFF";
+                          }}
+                        >
+                          <td
+                            style={{
+                              padding: "0.75rem",
+                              borderBottom: "1px solid #dee2e6",
+                              verticalAlign: "middle",
+                              wordWrap: "break-word",
+                              overflowWrap: "break-word",
+                              whiteSpace: "normal",
+                            }}
+                          >
+                            {expense.reference_no}
+                          </td>
+                          <td
+                            style={{
+                              padding: "0.75rem",
+                              borderBottom: "1px solid #dee2e6",
+                              verticalAlign: "middle",
+                              wordWrap: "break-word",
+                              overflowWrap: "break-word",
+                              whiteSpace: "normal",
+                            }}
+                          >
+                            {expense.date}
+                          </td>
+                          <td
+                            style={{
+                              padding: "0.75rem",
+                              borderBottom: "1px solid #dee2e6",
+                              verticalAlign: "middle",
+                              wordWrap: "break-word",
+                              overflowWrap: "break-word",
+                              whiteSpace: "normal",
+                            }}
+                          >
+                            {expense.type}
+                          </td>
+                          <td
+                            style={{
+                              padding: "0.75rem",
+                              borderBottom: "1px solid #dee2e6",
+                              verticalAlign: "middle",
+                              wordWrap: "break-word",
+                              overflowWrap: "break-word",
+                              whiteSpace: "normal",
+                            }}
+                          >
+                            {expense.description}
+                          </td>
+                          <td
+                            style={{
+                              padding: "0.75rem",
+                              borderBottom: "1px solid #dee2e6",
+                              verticalAlign: "middle",
+                              wordWrap: "break-word",
+                              overflowWrap: "break-word",
+                              whiteSpace: "normal",
+                            }}
+                          >
+                            <Status
+                              type={expense.status.toLowerCase()}
+                              name={expense.status}
+                            />
+                          </td>
+                          <td
+                            style={{
+                              padding: "0.75rem",
+                              borderBottom: "1px solid #dee2e6",
+                              verticalAlign: "middle",
+                              wordWrap: "break-word",
+                              overflowWrap: "break-word",
+                              whiteSpace: "normal",
+                            }}
+                          >
+                            {expense.accomplished}
+                          </td>
+                        </tr>
+                      ))
+                    ) : (
+                      <tr>
+                        <td
+                          colSpan="6"
+                          className="no-results"
+                          style={{
+                            padding: "20px",
+                            textAlign: "center",
+                            height: "50px",
+                            verticalAlign: "middle",
+                          }}
+                        >
+                          {searchTerm || selectedCategory !== ""
+                            ? "No expenses match your search criteria."
+                            : "No expenses found."}
+                        </td>
+                      </tr>
+                    )}
+                  </tbody>
+                </table>
+              </div>
+
+              {/* New Pagination Component from LedgerView */}
+              {expenses.length > 0 && (
+                <Pagination
+                  currentPage={currentPage}
+                  pageSize={pageSize}
+                  totalItems={pagination.count}
+                  onPageChange={setCurrentPage}
+                  onPageSizeChange={(newSize) => {
+                    setPageSize(newSize);
+                    setCurrentPage(1); // Reset to first page when page size changes
+                  }}
+                  pageSizeOptions={[5, 10, 20, 50]}
+                />
+              )}
+            </div>
+          </>
+        )}
+
+        {/* UPDATED: Add Expense Modal with BudgetAllocation's amount input format */}
+        {showAddExpenseModal && (
+          <div
+            className="modal-overlay"
+            style={{
+              position: "fixed",
+              top: 0,
+              left: 0,
+              right: 0,
+              bottom: 0,
+              backgroundColor: "rgba(0, 0, 0, 0.5)",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              zIndex: 2000,
+            }}
+          >
+            <div
+              className="modal-container"
+              style={{
+                backgroundColor: "white",
+                borderRadius: "8px",
+                width: "550px",
+                maxWidth: "90%",
+                maxHeight: "90vh",
+                overflow: "auto",
+                boxShadow: "0 4px 6px rgba(0, 0, 0, 0.1)",
+              }}
+            >
+              <div className="modal-content" style={{ padding: "24px" }}>
+                <h3
+                  className="modal-title"
+                  style={{
+                    margin: "0 0 20px 0",
+                    fontSize: "20px",
+                    fontWeight: "bold",
+                    color: "#0C0C0C",
+                  }}
+                >
+                  Add Expense
+                </h3>
+
+                <form onSubmit={handleSubmitExpense} className="budget-form">
+                  <div className="form-group" style={{ marginBottom: "16px" }}>
+                    <label
+                      htmlFor="ticketId"
+                      style={{
+                        display: "block",
+                        marginBottom: "8px",
+                        fontWeight: "500",
+                      }}
+                    >
+                      Ticket ID
+                    </label>
+                    <input
+                      type="text"
+                      id="ticketId"
+                      name="ticketId"
+                      value={newExpense.ticketId}
                       onChange={handleInputChange}
+                      placeholder="Enter ticket ID"
                       className="form-control"
                       style={{
                         width: "100%",
-                        padding: "8px 40px 8px 12px",
-                        border: "1px solid #e0e0e0",
+                        padding: "8px 12px",
+                        border: "1px solid #ccc",
                         borderRadius: "4px",
                         outline: "none",
-                        fontSize: "14px",
                       }}
                     />
-                    {newExpense.amount && (
-                      <button
-                        type="button"
-                        onClick={clearAmount}
+                    <span
+                      className="helper-text"
+                      style={{
+                        fontSize: "12px",
+                        color: "#666",
+                        marginTop: "4px",
+                        display: "block",
+                      }}
+                    >
+                      Optional - system will generate if left blank
+                    </span>
+                  </div>
+
+                  <div className="form-group" style={{ marginBottom: "16px" }}>
+                    <label
+                      htmlFor="description"
+                      style={{
+                        display: "block",
+                        marginBottom: "8px",
+                        fontWeight: "500",
+                      }}
+                    >
+                      Description <span style={{ color: "red" }}>*</span>
+                    </label>
+                    <input
+                      type="text"
+                      id="description"
+                      name="description"
+                      value={newExpense.description}
+                      onChange={handleInputChange}
+                      placeholder="Enter expense description"
+                      required
+                      className="form-control"
+                      style={{
+                        width: "100%",
+                        padding: "8px 12px",
+                        border: "1px solid #ccc",
+                        borderRadius: "4px",
+                        outline: "none",
+                      }}
+                    />
+                  </div>
+
+                  <div className="form-group" style={{ marginBottom: "16px" }}>
+                    <label
+                      htmlFor="date"
+                      style={{
+                        display: "block",
+                        marginBottom: "8px",
+                        fontWeight: "500",
+                      }}
+                    >
+                      Date
+                    </label>
+                    <input
+                      type="date"
+                      id="date"
+                      name="date"
+                      value={newExpense.date}
+                      onChange={handleInputChange}
+                      readOnly
+                      className="form-control"
+                      style={{
+                        width: "100%",
+                        padding: "8px 12px",
+                        border: "1px solid #ccc",
+                        borderRadius: "4px",
+                        backgroundColor: "#f5f5f5",
+                        cursor: "not-allowed",
+                        outline: "none",
+                      }}
+                    />
+                    <span
+                      className="helper-text"
+                      style={{
+                        fontSize: "12px",
+                        color: "#666",
+                        marginTop: "4px",
+                        display: "block",
+                      }}
+                    >
+                      Automatically generated
+                    </span>
+                  </div>
+
+                  <div className="form-group" style={{ marginBottom: "16px" }}>
+                    <label
+                      htmlFor="category"
+                      style={{
+                        display: "block",
+                        marginBottom: "8px",
+                        fontWeight: "500",
+                      }}
+                    >
+                      Category <span style={{ color: "red" }}>*</span>
+                    </label>
+                    <div
+                      className="select-wrapper"
+                      style={{ position: "relative" }}
+                    >
+                      <select
+                        id="category"
+                        name="category"
+                        value={newExpense.category}
+                        onChange={handleInputChange}
+                        required
+                        className="form-control"
                         style={{
-                          position: "absolute",
-                          right: "8px",
-                          top: "50%",
-                          transform: "translateY(-50%)",
-                          background: "none",
-                          border: "none",
-                          cursor: "pointer",
-                          padding: "4px",
-                          borderRadius: "50%",
-                          display: "flex",
-                          alignItems: "center",
-                          justifyContent: "center",
+                          width: "100%",
+                          padding: "8px 12px",
+                          border: "1px solid #ccc",
+                          borderRadius: "4px",
+                          backgroundColor: "white",
+                          appearance: "none",
                           outline: "none",
                         }}
-                        onMouseDown={(e) => e.preventDefault()}
                       >
-                        <X size={16} color="#666" />
-                      </button>
-                    )}
+                        <option value="">Select a category</option>
+                        {categories
+                          .filter((cat) => cat.code !== "") // Filter out "All Categories"
+                          .map((cat) => (
+                            <option key={cat.code} value={cat.name}>
+                              {cat.name}
+                            </option>
+                          ))}
+                      </select>
+                      <ChevronDown
+                        size={16}
+                        style={{
+                          position: "absolute",
+                          right: "12px",
+                          top: "50%",
+                          transform: "translateY(-50%)",
+                          pointerEvents: "none",
+                        }}
+                      />
+                    </div>
                   </div>
-                  {/* REMOVED: The helper text that was here to match BudgetAllocation */}
-                </div>
 
-                {/* Modal Actions */}
-                <div className="modal-actions" style={{ marginTop: "24px" }}>
-                  <div
-                    className="button-row"
-                    style={{
-                      display: "flex",
-                      gap: "10px",
-                      justifyContent: "flex-end",
-                    }}
-                  >
-                    <button
-                      type="button"
-                      className="btn-cancel"
-                      onClick={handleCloseModal}
-                      onMouseDown={(e) => e.preventDefault()}
+                  <div className="form-group" style={{ marginBottom: "16px" }}>
+                    <label
+                      htmlFor="vendor"
                       style={{
-                        padding: "8px 16px",
-                        border: "1px solid #ccc",
-                        borderRadius: "4px",
-                        backgroundColor: "#f8f9fa",
-                        color: "#333",
-                        cursor: "pointer",
-                        minWidth: "80px",
-                        outline: "none",
+                        display: "block",
+                        marginBottom: "8px",
+                        fontWeight: "500",
                       }}
                     >
-                      Cancel
-                    </button>
-                    <button
-                      type="submit"
-                      className="btn-save"
-                      onMouseDown={(e) => e.preventDefault()}
-                      style={{
-                        padding: "8px 16px",
-                        border: "1px solid #ccc",
-                        borderRadius: "4px",
-                        backgroundColor: "#007bff",
-                        color: "white",
-                        cursor: "pointer",
-                        minWidth: "80px",
-                        outline: "none",
-                      }}
+                      Vendor <span style={{ color: "red" }}>*</span>
+                    </label>
+                    <div
+                      className="select-wrapper"
+                      style={{ position: "relative" }}
                     >
-                      Save
-                    </button>
+                      <select
+                        id="vendor"
+                        name="vendor"
+                        value={newExpense.vendor}
+                        onChange={handleInputChange}
+                        required
+                        className="form-control"
+                        style={{
+                          width: "100%",
+                          padding: "8px 12px",
+                          border: "1px solid #ccc",
+                          borderRadius: "4px",
+                          backgroundColor: "white",
+                          appearance: "none",
+                          outline: "none",
+                        }}
+                      >
+                        <option value="">Select a vendor</option>
+                        {vendors.map((vendor, idx) => (
+                          <option key={idx} value={vendor}>
+                            {vendor}
+                          </option>
+                        ))}
+                      </select>
+                      <ChevronDown
+                        size={16}
+                        style={{
+                          position: "absolute",
+                          right: "12px",
+                          top: "50%",
+                          transform: "translateY(-50%)",
+                          pointerEvents: "none",
+                        }}
+                      />
+                    </div>
                   </div>
-                </div>
-              </form>
+
+                  {/* UPDATED: Amount Input with BudgetAllocation's format and Clear Button */}
+                  <div className="form-group" style={{ marginBottom: "16px" }}>
+                    <label
+                      htmlFor="amount"
+                      style={{
+                        display: "block",
+                        marginBottom: "8px",
+                        fontWeight: "500",
+                      }}
+                    >
+                      Amount
+                    </label>
+                    <div style={{ position: "relative" }}>
+                      <input
+                        type="text"
+                        id="amount"
+                        name="amount"
+                        placeholder="₱0.00"
+                        value={newExpense.amount}
+                        onChange={handleInputChange}
+                        className="form-control"
+                        style={{
+                          width: "100%",
+                          padding: "8px 40px 8px 12px",
+                          border: "1px solid #e0e0e0",
+                          borderRadius: "4px",
+                          outline: "none",
+                          fontSize: "14px",
+                        }}
+                      />
+                      {newExpense.amount && (
+                        <button
+                          type="button"
+                          onClick={clearAmount}
+                          style={{
+                            position: "absolute",
+                            right: "8px",
+                            top: "50%",
+                            transform: "translateY(-50%)",
+                            background: "none",
+                            border: "none",
+                            cursor: "pointer",
+                            padding: "4px",
+                            borderRadius: "50%",
+                            display: "flex",
+                            alignItems: "center",
+                            justifyContent: "center",
+                            outline: "none",
+                          }}
+                          onMouseDown={(e) => e.preventDefault()}
+                        >
+                          <X size={16} color="#666" />
+                        </button>
+                      )}
+                    </div>
+                    {/* REMOVED: The helper text that was here to match BudgetAllocation */}
+                  </div>
+
+                  {/* Modal Actions */}
+                  <div className="modal-actions" style={{ marginTop: "24px" }}>
+                    <div
+                      className="button-row"
+                      style={{
+                        display: "flex",
+                        gap: "10px",
+                        justifyContent: "flex-end",
+                      }}
+                    >
+                      <button
+                        type="button"
+                        className="btn-cancel"
+                        onClick={handleCloseModal}
+                        onMouseDown={(e) => e.preventDefault()}
+                        style={{
+                          padding: "8px 16px",
+                          border: "1px solid #ccc",
+                          borderRadius: "4px",
+                          backgroundColor: "#f8f9fa",
+                          color: "#333",
+                          cursor: "pointer",
+                          minWidth: "80px",
+                          outline: "none",
+                        }}
+                      >
+                        Cancel
+                      </button>
+                      <button
+                        type="submit"
+                        className="btn-save"
+                        onMouseDown={(e) => e.preventDefault()}
+                        style={{
+                          padding: "8px 16px",
+                          border: "1px solid #ccc",
+                          borderRadius: "4px",
+                          backgroundColor: "#007bff",
+                          color: "white",
+                          cursor: "pointer",
+                          minWidth: "80px",
+                          outline: "none",
+                        }}
+                      >
+                        Save
+                      </button>
+                    </div>
+                  </div>
+                </form>
+              </div>
             </div>
           </div>
-        </div>
-      )}
+        )}
 
-      {/* Add Status component CSS directly */}
-      <style jsx>{`
-        .status-active,
-        .status-inactive,
-        .status-draft,
-        .status-submitted,
-        .status-approved,
-        .status-rejected {
-          display: inline-flex;
-          height: auto;
-          min-height: 4vh;
-          width: fit-content;
-          flex-direction: row;
-          align-items: center;
-          padding: 4px 12px;
-          border-radius: 40px;
-          gap: 5px;
-          font-size: 0.75rem;
-          overflow: visible;
-          white-space: normal;
-          max-width: 100%;
-        }
-
-        .status-active .circle,
-        .status-inactive .circle,
-        .status-draft .circle,
-        .status-submitted .circle,
-        .status-approved .circle,
-        .status-rejected .circle {
-          height: 6px;
-          width: 6px;
-          border-radius: 50%;
-          margin-right: 3px;
-          animation: statusPulse 2s infinite;
-        }
-
-        @keyframes statusPulse {
-          0% {
-            box-shadow: 0 0 0 0 rgba(var(--pulse-color), 0.4);
+        {/* Add Status component CSS directly */}
+        <style jsx>{`
+          .status-active,
+          .status-inactive,
+          .status-draft,
+          .status-submitted,
+          .status-approved,
+          .status-rejected {
+            display: inline-flex;
+            height: auto;
+            min-height: 4vh;
+            width: fit-content;
+            flex-direction: row;
+            align-items: center;
+            padding: 4px 12px;
+            border-radius: 40px;
+            gap: 5px;
+            font-size: 0.75rem;
+            overflow: visible;
+            white-space: normal;
+            max-width: 100%;
           }
-          70% {
-            box-shadow: 0 0 0 6px rgba(var(--pulse-color), 0);
+
+          .status-active .circle,
+          .status-inactive .circle,
+          .status-draft .circle,
+          .status-submitted .circle,
+          .status-approved .circle,
+          .status-rejected .circle {
+            height: 6px;
+            width: 6px;
+            border-radius: 50%;
+            margin-right: 3px;
+            animation: statusPulse 2s infinite;
           }
-          100% {
-            box-shadow: 0 0 0 0 rgba(var(--pulse-color), 0);
+
+          @keyframes statusPulse {
+            0% {
+              box-shadow: 0 0 0 0 rgba(var(--pulse-color), 0.4);
+            }
+            70% {
+              box-shadow: 0 0 0 6px rgba(var(--pulse-color), 0);
+            }
+            100% {
+              box-shadow: 0 0 0 0 rgba(var(--pulse-color), 0);
+            }
           }
-        }
 
-        .status-approved,
-        .status-active {
-          background-color: #e8f5e8;
-          color: #2e7d32;
-        }
+          .status-approved,
+          .status-active {
+            background-color: #e8f5e8;
+            color: #2e7d32;
+          }
 
-        .status-approved .circle,
-        .status-active .circle {
-          background-color: #2e7d32;
-          --pulse-color: 46, 125, 50;
-        }
+          .status-approved .circle,
+          .status-active .circle {
+            background-color: #2e7d32;
+            --pulse-color: 46, 125, 50;
+          }
 
-        .status-rejected,
-        .status-inactive {
-          background-color: #ffebee;
-          color: #c62828;
-        }
+          .status-rejected,
+          .status-inactive {
+            background-color: #ffebee;
+            color: #c62828;
+          }
 
-        .status-rejected .circle,
-        .status-inactive .circle {
-          background-color: #c62828;
-          --pulse-color: 198, 40, 40;
-        }
+          .status-rejected .circle,
+          .status-inactive .circle {
+            background-color: #c62828;
+            --pulse-color: 198, 40, 40;
+          }
 
-        .status-submitted {
-          background-color: #e3f2fd;
-          color: #0d47a1;
-        }
+          .status-submitted {
+            background-color: #e3f2fd;
+            color: #0d47a1;
+          }
 
-        .status-submitted .circle {
-          background-color: #0d47a1;
-          --pulse-color: 13, 71, 161;
-        }
+          .status-submitted .circle {
+            background-color: #0d47a1;
+            --pulse-color: 13, 71, 161;
+          }
 
-        .status-draft {
-          background-color: #f5f5f5;
-          color: #424242;
-        }
+          .status-draft {
+            background-color: #f5f5f5;
+            color: #424242;
+          }
 
-        .status-draft .circle {
-          background-color: #424242;
-          --pulse-color: 66, 66, 66;
-        }
+          .status-draft .circle {
+            background-color: #424242;
+            --pulse-color: 66, 66, 66;
+          }
 
-        .status-details {
-          display: flex;
-          align-items: center;
-          gap: 5px;
-          flex-wrap: nowrap;
-          max-width: 100%;
-        }
+          .status-details {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+            flex-wrap: nowrap;
+            max-width: 100%;
+          }
 
-        .status-to {
-          margin: 0 2px;
-          white-space: nowrap;
-        }
+          .status-to {
+            margin: 0 2px;
+            white-space: nowrap;
+          }
 
-        .status-target {
-          white-space: normal;
-          word-break: break-word;
-          max-width: 100%;
-        }
+          .status-target {
+            white-space: normal;
+            word-break: break-word;
+            max-width: 100%;
+          }
 
-        .icon {
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          flex-shrink: 0;
-        }
+          .icon {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+          }
 
-        .icon-placeholder {
-          height: 12px;
-          width: 12px;
-          flex-shrink: 0;
-          background-color: currentColor;
-          border-radius: 2px;
-        }
-      `}</style>
+          .icon-placeholder {
+            height: 12px;
+            width: 12px;
+            flex-shrink: 0;
+            background-color: currentColor;
+            border-radius: 2px;
+          }
+        `}</style>
+      </div>
     </div>
   );
+};
+
+export default ExpenseTracking;
+
   // What was changed:
   // 1.  Summary Cards: Replaced the three old summary cards with two new ones ("Budget Remaining", "Total Expenses This Month") that are connected to the `summaryData` state from the API. Added currency formatting.
   // 2.  Table Structure: Overhauled the table `<thead>` to match the new API response fields: "REF NO.", "DATE", "TYPE", "DESCRIPTION", "STATUS", "ACCOMPLISHED".
@@ -2209,14 +2239,14 @@ const ExpenseTracking = () => {
   // 5.  Category Filter: Modified the filter dropdown to display category names while using category codes for API requests.
   // 6.  Add Expense Modal: Updated the modal title and form fields. Added a required "Description" field and removed fields not present in the new API (Subcategory, Employee). The category dropdown now populates from the API.
   // 7.  CSS Styles: Added new CSS classes (`.status-draft`, `.status-submitted`, etc.) to the local `<style jsx>` block to support the different status types returned by the API.
-};
+
 // What was changed:
 // 1.  State Management: Updated component state to handle API data for expenses, categories, summary cards, and pagination. Removed outdated/unused state variables.
 // 2.  API Integration: Implemented a `useEffect` hook to fetch all necessary data from the backend API endpoints when the component mounts or when filters/pagination change.
 // 3.  Removed Frontend Logic: Eliminated frontend-based filtering and pagination (`useMemo`, `slice`) to rely on the backend for these operations, improving performance and data consistency.
 // 4.  Event Handlers: Modified `handleCategorySelect` to work with category codes.
 // 5.  Add Expense Submission: Re-wired the `handleSubmitExpense` function to be asynchronous, build a correct payload, and call the `createExpense` API endpoint, including success/error handling and data refetching.
-export default ExpenseTracking;
+
 
 /* TODO: For the "Type" column, the UI displays the account.accont_type.name for each expense, from the Account model
 , which can be Asset, Expense, Liability. The seeder assigns random category to each allocation, create_expense function creates expense using that allocation's

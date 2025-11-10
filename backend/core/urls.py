@@ -6,7 +6,7 @@ from .views_budget import AccountDropdownView, AccountSetupListView, BudgetAdjus
 from . import views_expense, views_dashboard  # ,TokenObtainPairView
 from .views_dashboard import (
     DepartmentBudgetView, MonthlyBudgetActualViewSet, TopCategoryBudgetAllocationView,
-    get_all_projects, get_dashboard_budget_summary, get_department_budget_status,
+    get_all_projects, get_dashboard_budget_summary, get_department_budget_status, get_forecast_accuracy,
     overall_monthly_budget_actual, get_category_budget_status, get_budget_forecast, ProjectDetailView
 )
 from .views import (
@@ -129,4 +129,6 @@ urlpatterns = [
     
     # --- Forecasting Endpoints ---
     path('dashboard/forecast/', get_budget_forecast, name='dashboard-forecast'),
+    path('dashboard/forecast-accuracy/', get_forecast_accuracy, name='dashboard-forecast-accuracy'),
+
 ]

@@ -1,5 +1,4 @@
-
-//TODO: Fix page numbers  
+//TODO: Fix page numbers
 
 import React, { useState, useEffect, useMemo } from "react";
 import {
@@ -62,26 +61,126 @@ const Pagination = ({
 
   const renderPageNumbers = () => {
     const pages = [];
+    const pageLimit = 5;
+    const sideButtons = Math.floor(pageLimit / 2);
 
-    for (let i = 1; i <= totalPages; i++) {
+    if (totalPages <= pageLimit + 2) {
+      // Show all pages if few
+      for (let i = 1; i <= totalPages; i++) {
+        pages.push(
+          <button
+            key={i}
+            className={`pageButton ${i === currentPage ? "active" : ""}`}
+            onClick={() => handlePageClick(i)}
+            onMouseDown={(e) => e.preventDefault()}
+            style={{
+              padding: "8px 12px",
+              border: "1px solid #ccc",
+              backgroundColor: i === currentPage ? "#007bff" : "white",
+              color: i === currentPage ? "white" : "black",
+              cursor: "pointer",
+              borderRadius: "4px",
+              minWidth: "40px",
+              outline: "none",
+            }}
+          >
+            {i}
+          </button>
+        );
+      }
+    } else {
+      // Always show first page
       pages.push(
         <button
-          key={i}
-          className={`pageButton ${i === currentPage ? "active" : ""}`}
-          onClick={() => handlePageClick(i)}
+          key={1}
+          className={`pageButton ${1 === currentPage ? "active" : ""}`}
+          onClick={() => handlePageClick(1)}
           onMouseDown={(e) => e.preventDefault()}
           style={{
             padding: "8px 12px",
             border: "1px solid #ccc",
-            backgroundColor: i === currentPage ? "#007bff" : "white",
-            color: i === currentPage ? "white" : "black",
+            backgroundColor: 1 === currentPage ? "#007bff" : "white",
+            color: 1 === currentPage ? "white" : "black",
             cursor: "pointer",
             borderRadius: "4px",
             minWidth: "40px",
             outline: "none",
           }}
         >
-          {i}
+          1
+        </button>
+      );
+
+      let startPage = Math.max(2, currentPage - sideButtons);
+      let endPage = Math.min(totalPages - 1, currentPage + sideButtons);
+
+      if (currentPage - sideButtons > 2) {
+        pages.push(
+          <span key="start-ellipsis" className="ellipsis">
+            ...
+          </span>
+        );
+      }
+
+      if (currentPage + sideButtons > totalPages - 1) {
+        startPage = totalPages - pageLimit;
+      }
+      if (currentPage - sideButtons < 2) {
+        endPage = pageLimit + 1;
+      }
+
+      for (let i = startPage; i <= endPage; i++) {
+        if (i > 1 && i < totalPages) {
+          pages.push(
+            <button
+              key={i}
+              className={`pageButton ${i === currentPage ? "active" : ""}`}
+              onClick={() => handlePageClick(i)}
+              onMouseDown={(e) => e.preventDefault()}
+              style={{
+                padding: "8px 12px",
+                border: "1px solid #ccc",
+                backgroundColor: i === currentPage ? "#007bff" : "white",
+                color: i === currentPage ? "white" : "black",
+                cursor: "pointer",
+                borderRadius: "4px",
+                minWidth: "40px",
+                outline: "none",
+              }}
+            >
+              {i}
+            </button>
+          );
+        }
+      }
+
+      if (currentPage + sideButtons < totalPages - 1) {
+        pages.push(
+          <span key="end-ellipsis" className="ellipsis">
+            ...
+          </span>
+        );
+      }
+
+      // Always show last page
+      pages.push(
+        <button
+          key={totalPages}
+          className={`pageButton ${totalPages === currentPage ? "active" : ""}`}
+          onClick={() => handlePageClick(totalPages)}
+          onMouseDown={(e) => e.preventDefault()}
+          style={{
+            padding: "8px 12px",
+            border: "1px solid #ccc",
+            backgroundColor: totalPages === currentPage ? "#007bff" : "white",
+            color: totalPages === currentPage ? "white" : "black",
+            cursor: "pointer",
+            borderRadius: "4px",
+            minWidth: "40px",
+            outline: "none",
+          }}
+        >
+          {totalPages}
         </button>
       );
     }
@@ -226,6 +325,14 @@ const BudgetProposal = () => {
   // Current date state
   const [currentDate, setCurrentDate] = useState(new Date());
 
+  // Debounce search term
+  useEffect(() => {
+    const timerId = setTimeout(() => {
+      setDebouncedSearchTerm(searchTerm);
+      setCurrentPage(1); // Reset to page 1 on search
+    }, 500);
+    return () => clearTimeout(timerId);
+  }, [searchTerm]);
   // Update current date/time
   useEffect(() => {
     const interval = setInterval(() => {
@@ -1228,6 +1335,8 @@ const BudgetProposal = () => {
                       borderRadius: "4px",
                       width: "100%",
                       zIndex: 1000,
+                      maxHeight: "200px", // Add max height for scrolling
+                      overflowY: "auto", // Add overflow for scrolling
                     }}
                   >
                     {categories.map((category) => (
@@ -1242,11 +1351,13 @@ const BudgetProposal = () => {
                           padding: "8px 12px",
                           cursor: "pointer",
                           backgroundColor:
-                            selectedCategory === category ? "#f0f0f0" : "white",
+                            selectedCategory === category.id
+                              ? "#f0f0f0"
+                              : "white",
                           outline: "none",
                         }}
                       >
-                        {category}
+                        {category.name}
                       </div>
                     ))}
                   </div>
@@ -1338,10 +1449,10 @@ const BudgetProposal = () => {
           {/* Proposals Table - Updated with LedgerView table layout */}
           <div
             style={{
-              flex: "0 0 auto",
+              flex: "1 1 auto", // Allow this container to grow and fill space
+              overflowY: "auto", // Make this container scrollable
               border: "1px solid #e0e0e0",
               borderRadius: "4px",
-              overflow: "hidden",
             }}
           >
             <table
@@ -1356,6 +1467,8 @@ const BudgetProposal = () => {
                 <tr style={{ backgroundColor: "#f8f9fa" }}>
                   <th
                     style={{
+                      position: "sticky", // Make header sticky
+                      top: 0, // Stick to the top of the scrollable container
                       width: "14%",
                       padding: "0.75rem",
                       textAlign: "left",
@@ -1364,6 +1477,7 @@ const BudgetProposal = () => {
                       verticalAlign: "middle",
                       wordWrap: "break-word",
                       overflowWrap: "break-word",
+                      zIndex: 1,
                     }}
                   >
                     TICKET ID

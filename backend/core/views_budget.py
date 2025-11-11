@@ -14,7 +14,7 @@ from django.http import HttpResponse
 from django.utils import timezone
 from django.conf import settings
 from django.core.mail import send_mail
-
+from django_filters.rest_framework import DjangoFilterBackend
 from rest_framework import generics, status, viewsets, filters
 from rest_framework.response import Response
 from rest_framework.views import APIView
@@ -496,8 +496,12 @@ class BudgetProposalUIViewSet(viewsets.ReadOnlyModelViewSet):
     """
     permission_classes = [IsBMSUser]
     pagination_class = FiveResultsSetPagination
-    filter_backends = [filters.SearchFilter]
+    filter_backends = [DjangoFilterBackend, filters.SearchFilter]
     search_fields = ['title', 'external_system_id']
+    filterset_fields = {
+        'status': ['exact'],
+        'items__account__account_type__id': ['exact'],
+    }
 
     def get_queryset(self):
         """

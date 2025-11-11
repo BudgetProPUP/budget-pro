@@ -1,4 +1,4 @@
-//TODO: Fix page numbers
+//TODO: Add print function
 
 import React, { useState, useEffect, useMemo } from "react";
 import {
@@ -1761,7 +1761,8 @@ const BudgetProposal = () => {
 
       {/* All popup components remain unchanged */}
       {/* Review Popup */}
-      {showReviewPopup && selectedProposal && (
+      {/* MODIFICATION START: Use object destructuring for showReviewPopup state */}
+      {showReviewPopup.visible && selectedProposal && (
         <div
           className="popup-overlay"
           style={{ backgroundColor: "rgba(0, 0, 0, 0.5)" }}
@@ -1835,34 +1836,56 @@ const BudgetProposal = () => {
 
             {/* Content */}
             <div className="popup-content">
+              {/* MODIFICATION START: Bind all modal fields to selectedProposal data */}
               {/* Title and Date */}
               <div className="proposal-header">
                 <h3 className="proposal-project-title">
-                  {selectedProposal.description}
+                  {selectedProposal.title}
                 </h3>
-                <span className="proposal-date">April 30, 2025</span>
+                <span className="proposal-date">
+                  {selectedProposal.submitted_at
+                    ? new Date(
+                        selectedProposal.submitted_at
+                      ).toLocaleDateString("en-US", {
+                        year: "numeric",
+                        month: "long",
+                        day: "numeric",
+                      })
+                    : "Date not available"}
+                </span>
               </div>
 
               {/* Project Details */}
               <div className="proposal-details-grid">
                 <div className="detail-item">
-                  <strong>Category:</strong> {selectedProposal.category}
+                  <strong>Category:</strong>{" "}
+                  {selectedProposal.category || "N/A"}
                 </div>
                 <div className="detail-item">
-                  <strong>Sub-Category:</strong> {selectedProposal.subCategory}
+                  <strong>Sub-Category:</strong>{" "}
+                  {selectedProposal.items?.[0]?.cost_element || "N/A"}
                 </div>
                 <div className="detail-item">
-                  <strong>Vendor:</strong> {selectedProposal.vendor}
+                  <strong>Vendor:</strong> {"N/A"}{" "}
+                  {/* This field is not in the API response */}
                 </div>
                 <div className="detail-item">
-                  <strong>Requested by:</strong> {selectedProposal.requestedBy}
+                  <strong>Requested by:</strong>{" "}
+                  {selectedProposal.department_name}
                 </div>
                 <div className="detail-item">
-                  <strong>Budget Amount:</strong>{" "}
-                  {selectedProposal.budgetAmount}
+                  <strong>Budget Amount:</strong>
+                  {` ₱${parseFloat(selectedProposal.total_cost).toLocaleString(
+                    "en-US",
+                    {
+                      minimumFractionDigits: 2,
+                      maximumFractionDigits: 2,
+                    }
+                  )}`}
                 </div>
                 <div className="detail-item">
-                  <strong>Submitted by:</strong> {selectedProposal.submittedBy}
+                  <strong>Submitted by:</strong>{" "}
+                  {selectedProposal.submitted_by_name}
                 </div>
               </div>
 
@@ -1870,13 +1893,7 @@ const BudgetProposal = () => {
               <div className="proposal-section">
                 <h4 className="section-label">PROJECT SUMMARY:</h4>
                 <p className="section-content">
-                  A complete redesign initiative aimed at improving mobile user
-                  engagement and operational efficiency. This project aims to
-                  achieve a 35% increase in mobile conversion rates and ensure
-                  seamless integration with existing CRM systems, thereby
-                  enhancing customer lifecycle management. This aligns with
-                  organizational goals to optimize digital experiences and
-                  streamline sales workflows.
+                  {selectedProposal.project_summary}
                 </p>
               </div>
 
@@ -1884,11 +1901,7 @@ const BudgetProposal = () => {
               <div className="proposal-section">
                 <h4 className="section-label">PROJECT DESCRIPTION:</h4>
                 <p className="section-content">
-                  ● Responsive Design Implementation: Rebuild front-end
-                  interfaces to ensure full compatibility across all mobile and
-                  desktop devices. UX Optimization: Conduct A/B testing, heatmap
-                  analysis, and apply best practices in user journey flow to
-                  boost engagement.
+                  {selectedProposal.project_description}
                 </p>
               </div>
 
@@ -1896,7 +1909,11 @@ const BudgetProposal = () => {
               <div className="proposal-section">
                 <h4 className="section-label">PERIOD OF PERFORMANCE:</h4>
                 <p className="section-content">
-                  6 months – From June 2025 to November 2025
+                  {`${new Date(
+                    selectedProposal.performance_start_date
+                  ).toLocaleDateString()} to ${new Date(
+                    selectedProposal.performance_end_date
+                  ).toLocaleDateString()}`}
                 </p>
               </div>
 
@@ -1909,29 +1926,21 @@ const BudgetProposal = () => {
                     <div className="cost-header-cell">ESTIMATED COST</div>
                   </div>
 
-                  <div className="cost-table-row">
-                    <div className="cost-cell">
-                      <span className="cost-bullet green"></span>
-                      Hardware
+                  {selectedProposal.items.map((item, index) => (
+                    <div className="cost-table-row" key={index}>
+                      <div className="cost-cell">
+                        <span className="cost-bullet green"></span>
+                        {item.cost_element}
+                      </div>
+                      <div className="cost-cell">{item.description}</div>
+                      <div className="cost-cell">{`₱${parseFloat(
+                        item.estimated_cost
+                      ).toLocaleString("en-US", {
+                        minimumFractionDigits: 2,
+                        maximumFractionDigits: 2,
+                      })}`}</div>
                     </div>
-                    <div className="cost-cell">
-                      Purchase of workstations, servers, and mobile testing
-                      devices
-                    </div>
-                    <div className="cost-cell">₱25,000.00</div>
-                  </div>
-
-                  <div className="cost-table-row">
-                    <div className="cost-cell">
-                      <span className="cost-bullet green"></span>
-                      Software
-                    </div>
-                    <div className="cost-cell">
-                      Licenses for Figma, Adobe CC, browser testing tools, and
-                      CRM APIs
-                    </div>
-                    <div className="cost-cell">₱25,000.00</div>
-                  </div>
+                  ))}
 
                   <div className="cost-table-total">
                     <div className="cost-cell"></div>
@@ -1940,69 +1949,40 @@ const BudgetProposal = () => {
                       className="cost-cell total-amount"
                       style={{ textAlign: "right" }}
                     >
-                      ₽50,000.00
+                      {`₱${parseFloat(
+                        selectedProposal.total_cost
+                      ).toLocaleString("en-US", {
+                        minimumFractionDigits: 2,
+                        maximumFractionDigits: 2,
+                      })}`}
                     </div>
                   </div>
                 </div>
               </div>
+              {/* MODIFICATION END */}
             </div>
 
             {/* Footer with Action Buttons - Hide Approve/Reject if already approved */}
-            <div
-              className="popup-footer"
-              style={{ marginTop: "20px", paddingTop: "15px" }}
-            >
+            {/* MODIFICATION START: Use the readOnly flag to show/hide buttons */}
+            {!showReviewPopup.readOnly && (
               <div
-                className="action-buttons"
-                style={{
-                  display: "flex",
-                  gap: "10px",
-                  justifyContent: "center",
-                }}
+                className="popup-footer"
+                style={{ marginTop: "20px", paddingTop: "15px" }}
               >
-                {selectedProposal.status !== "approved" && (
-                  <>
-                    <button
-                      className="action-btn approve-btn"
-                      onClick={() => handleStatusChange("approved")}
-                      style={{
-                        padding: "8px 16px",
-                        backgroundColor: "#28a745",
-                        color: "white",
-                        border: "none",
-                        borderRadius: "4px",
-                        cursor: "pointer",
-                        fontSize: "14px",
-                        minWidth: "80px",
-                        outline: "none",
-                      }}
-                    >
-                      Approve
-                    </button>
-                    <button
-                      className="action-btn reject-btn"
-                      onClick={() => handleStatusChange("rejected")}
-                      style={{
-                        padding: "8px 16px",
-                        backgroundColor: "#dc3545",
-                        color: "white",
-                        border: "none",
-                        borderRadius: "4px",
-                        cursor: "pointer",
-                        fontSize: "14px",
-                        minWidth: "80px",
-                        outline: "none",
-                      }}
-                    >
-                      Reject
-                    </button>
-                  </>
-                )}
-                {selectedProposal.status === "approved" && (
+                <div
+                  className="action-buttons"
+                  style={{
+                    display: "flex",
+                    gap: "10px",
+                    justifyContent: "center",
+                  }}
+                >
                   <button
-                    className="action-btn view-btn"
+                    className="action-btn approve-btn"
+                    onClick={() => handleStatusChange("APPROVED")}
                     style={{
                       padding: "8px 16px",
+                      backgroundColor: "#28a745",
                       color: "white",
                       border: "none",
                       borderRadius: "4px",
@@ -2012,11 +1992,29 @@ const BudgetProposal = () => {
                       outline: "none",
                     }}
                   >
-                    View
+                    Approve
                   </button>
-                )}
+                  <button
+                    className="action-btn reject-btn"
+                    onClick={() => handleStatusChange("REJECTED")}
+                    style={{
+                      padding: "8px 16px",
+                      backgroundColor: "#dc3545",
+                      color: "white",
+                      border: "none",
+                      borderRadius: "4px",
+                      cursor: "pointer",
+                      fontSize: "14px",
+                      minWidth: "80px",
+                      outline: "none",
+                    }}
+                  >
+                    Reject
+                  </button>
+                </div>
               </div>
-            </div>
+            )}
+            {/* MODIFICATION END */}
           </div>
         </div>
       )}

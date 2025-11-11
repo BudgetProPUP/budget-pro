@@ -510,9 +510,11 @@ class BudgetProposalUIViewSet(viewsets.ReadOnlyModelViewSet):
         - FINANCE_HEADs see proposals for their own department.
         """
         user = self.request.user
+        # MODIFICATION START: Improve prefetch to include account_type for efficiency
         base_queryset = BudgetProposal.objects.filter(is_deleted=False).select_related(
             'department', 'fiscal_year'
-        ).prefetch_related('items__account', 'comments')
+        ).prefetch_related('items__account__account_type', 'comments')
+        # MODIFICATION END
 
         user_roles = getattr(user, 'roles', {})
         bms_role = user_roles.get('bms')

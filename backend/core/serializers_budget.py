@@ -71,20 +71,31 @@ class BudgetProposalDetailSerializer(serializers.ModelSerializer):
     comments = ProposalCommentSerializer(many=True, read_only=True)
     last_reviewed_at = serializers.SerializerMethodField()
     latest_review_comment = serializers.SerializerMethodField()
+    # MODIFICATION START: Add a computed category field for consistency
+    category = serializers.SerializerMethodField()
+    # MODIFICATION END
 
     class Meta:
         model = BudgetProposal
         fields = [
             'id', 'external_system_id', 'title', 'project_summary', 'project_description',
             'performance_notes', 'submitted_by_name', 'status', 'department_name',
-            'fiscal_year', 'performance_start_date', 'performance_end_date',
+            'fiscal_year', 'category', 'performance_start_date', 'performance_end_date',
             'items', 'total_cost', 'document', 'comments', 'last_reviewed_at',
             'approved_by_name', 'approval_date', 'rejected_by_name', 'rejection_date',
-            'latest_review_comment',
+            'latest_review_comment', 'submitted_at',
         ]
 
     def get_total_cost(self, obj): return obj.items.aggregate(
         total=Sum('estimated_cost'))['total'] or 0
+
+    # MODIFICATION START: Add the get_category method, same as in the list serializer
+    def get_category(self, obj):
+        first_item = obj.items.first()
+        if first_item and first_item.account and first_item.account.account_type:
+            return first_item.account.account_type.name
+        return "Uncategorized"
+    # MODIFICATION END
 
     def get_last_reviewed_at(self, obj):
         if obj.status == 'APPROVED':
@@ -340,7 +351,9 @@ class BudgetProposalMessageSerializer(serializers.ModelSerializer):
     external_system_id = serializers.CharField(read_only=True)
 
     # Write-only field for Draft Flag for saving a draft or submitting
-    is_draft = serializers.BooleanField(write_only=True, required=False, default=False)
+    is_draft = serializers.BooleanField(
+        write_only=True, required=False, default=False)
+
     class Meta:
         model = BudgetProposal
         fields = [

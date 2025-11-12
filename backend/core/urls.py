@@ -3,7 +3,7 @@ from rest_framework_simplejwt.views import TokenRefreshView
 from rest_framework.routers import DefaultRouter
 from .views_utils import get_server_time
 from .views_budget import AccountDropdownView, AccountSetupListView, BudgetAdjustmentView, BudgetProposalSummaryView, BudgetVarianceReportView, FiscalYearDropdownView, JournalEntryCreateView, JournalEntryListView, LedgerExportView, ProposalHistoryView, LedgerViewList, ProposalReviewBudgetOverview, export_budget_proposal_excel, export_budget_variance_excel, journal_choices, DepartmentDropdownView, AccountTypeDropdownView
-from . import views_expense, views_dashboard  # ,TokenObtainPairView
+from . import views_expense, views_dashboard
 from .views_dashboard import (
     DepartmentBudgetView, MonthlyBudgetActualViewSet, TopCategoryBudgetAllocationView,
     get_all_projects, get_dashboard_budget_summary, get_department_budget_status, get_forecast_accuracy,
@@ -13,14 +13,12 @@ from .views import (
     DepartmentViewSet,
     ValidProjectAccountView
 )
-
 from .views_expense import (
     ExpenseDetailView, ExpenseHistoryView, ExpenseTrackingView, ExpenseCreateView,
     ExpenseCategoryDropdownView, ExpenseTrackingSummaryView,
     BudgetAllocationCreateView
 )
 from core import views_budget
-
 
 user_management_router = DefaultRouter()
 user_management_router.register(
@@ -37,44 +35,41 @@ ui_router = DefaultRouter()
 ui_router.register(r'budget-proposals', views_budget.BudgetProposalUIViewSet, basename='budget-proposals')
 
 urlpatterns = [
-    path('', include(router.urls)),
-    path('', include(ui_router.urls)), # New line
+    path('', include(router.urls)), 
+    
     # --- Dashboard Endpoints ---
     path('dashboard/budget-summary/', views_dashboard.get_dashboard_budget_summary,
          name='dashboard-budget-summary'),
     path('dashboard/project-status/',
          views_dashboard.get_project_status_list, name='project-table'),
     path('dashboard/projects/<int:pk>/', ProjectDetailView.as_view(),
-         name='project-detail'),  # Project Detail View modal
+         name='project-detail'),
     path('dashboard/department-status/', views_dashboard.get_department_budget_status,
          name='dashboard-department-status'),
     path('dashboard/top-category-allocations/',
          views_dashboard.TopCategoryBudgetAllocationView.as_view(), name='top-category-allocations'),
-    # ADDED: New Dashboard URLs
     path('dashboard/overall-monthly-flow/', overall_monthly_budget_actual,
          name='dashboard-overall-monthly-flow'),
     path('dashboard/category-budget-status/', get_category_budget_status,
          name='dashboard-category-budget-status'),
 
-    # --- Budget Proposal Endpoints ---
-#     path('budget-proposals/', BudgetProposalListView.as_view(),
-#          name='budget-proposal-list'),
+    # --- Budget Proposal Endpoints (BEFORE router inclusion) ---
     path('budget-proposals/summary/', BudgetProposalSummaryView.as_view(),
          name='budget-proposal-summary'),
-#     path('budget-proposals/<int:pk>/', BudgetProposalDetailView.as_view(),
-#          name='budget-proposal-detail'),
     path('budget-proposals/history/',
          ProposalHistoryView.as_view(), name='proposal-history'),
     path('budget-proposals/<int:proposal_id>/export/',
          export_budget_proposal_excel, name='budget-proposal-export'),
-    # ADDED: New URL for the review modal overview
     path('budget-proposals/<int:proposal_id>/review-overview/',
          ProposalReviewBudgetOverview.as_view(), name='proposal-review-overview'),
+   
+    # Router handles /budget-proposals/ (list) and /budget-proposals/{id}/ (detail)
+    # This MUST come after specific budget-proposals/ paths
+    path('', include(ui_router.urls)),
 
     # --- Budget Adjustment & Journal Entry Endpoints ---
     path('journal-entries/', JournalEntryListView.as_view(),
-         name='journal-entry-list'),  # Used for Budget Adjustment page table
-    # ADDED: New URL for the "Modify Budget" modal action
+         name='journal-entry-list'),
     path('budget-adjustments/', BudgetAdjustmentView.as_view(),
          name='budget-adjustment-create'),
 
@@ -85,7 +80,6 @@ urlpatterns = [
     # --- Report Endpoints ---
     path('reports/budget-variance/', BudgetVarianceReportView.as_view(),
          name='budget-variance-report'),
-    # ADDED: New URL for variance report export
     path('reports/budget-variance/export/',
          export_budget_variance_excel, name='budget-variance-export'),
 
@@ -93,10 +87,8 @@ urlpatterns = [
     path('expenses/history/', ExpenseHistoryView.as_view(), name='expense-history'),
     path('expenses/tracking/', ExpenseTrackingView.as_view(),
          name='expense-tracking'),
-    # ADDED: URL for the summary cards on the expense tracking page
     path('expenses/tracking/summary/', ExpenseTrackingSummaryView.as_view(),
          name='expense-tracking-summary'),
-    # ADDED: URL for the "Add Budget" modal
     path('expenses/<int:pk>/', ExpenseDetailView.as_view(), name='expense-detail'),
     path('expenses/add-budget/',
          BudgetAllocationCreateView.as_view(), name='add-budget'),
@@ -124,11 +116,11 @@ urlpatterns = [
          name='department-budget'),
     path('journal-entries/create/', JournalEntryCreateView.as_view(),
          name='journal-entry-create'),
+    
     # --- Utility Endpoints ---
     path('utils/server-time/', get_server_time, name='server-time'),
     
     # --- Forecasting Endpoints ---
     path('dashboard/forecast/', get_budget_forecast, name='dashboard-forecast'),
     path('dashboard/forecast-accuracy/', get_forecast_accuracy, name='dashboard-forecast-accuracy'),
-
 ]

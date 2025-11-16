@@ -1,5 +1,5 @@
 // TODO: Important, need massive changes and additional logic for new modals
-
+// TODO: Add logic to monthly, quarterly, and yearly filters if possible
 import React, { useState, useEffect } from "react";
 import { Line, Pie } from "react-chartjs-2";
 import {

@@ -288,9 +288,17 @@ class LedgerViewList(generics.ListAPIView):
         category = self.request.query_params.get('category')
         transaction_type = self.request.query_params.get('transaction_type')
         if search:
-            queryset = queryset.filter(Q(journal_entry__description__icontains=search) | Q(
-                description__icontains=search) |  # Also search line item description
-                Q(journal_entry__category__icontains=search) | Q(account__name__icontains=search) | Q(account__code__icontains=search))
+            # MODIFICATION START: Add entry_id (Ticket ID) and date to the search fields
+            queryset = queryset.filter(
+                Q(journal_entry__entry_id__icontains=search) | # Search by Ticket ID
+                Q(journal_entry__date__icontains=search) |       # Search by Date
+                Q(journal_entry__description__icontains=search) | 
+                Q(description__icontains=search) |
+                Q(journal_entry__category__icontains=search) | 
+                Q(account__name__icontains=search) | 
+                Q(account__code__icontains=search)
+            )
+            # MODIFICATION END
         if category:
             queryset = queryset.filter(
                 journal_entry__category__iexact=category)

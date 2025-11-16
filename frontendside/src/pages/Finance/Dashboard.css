@@ -833,3 +833,357 @@ html, body {
     height: 250px;
   }
 }
+
+/* Forecast Analysis Styles */
+.forecast-analysis-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+  gap: 1.5rem;
+  margin-bottom: 2rem;
+}
+
+.accuracy-card {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  padding: 1.5rem;
+  border-radius: 12px;
+  text-align: center;
+}
+
+.accuracy-score {
+  font-size: 2.5rem;
+  font-weight: 700;
+  margin: 0.5rem 0;
+}
+
+.accuracy-grade {
+  display: inline-block;
+  padding: 0.25rem 1rem;
+  background: rgba(255, 255, 255, 0.2);
+  border-radius: 20px;
+  font-size: 0.875rem;
+  font-weight: 600;
+}
+
+.metric-card {
+  background: white;
+  padding: 1.5rem;
+  border-radius: 12px;
+  border-left: 4px solid #007bff;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.metric-value {
+  font-size: 1.75rem;
+  font-weight: 700;
+  margin: 0.5rem 0;
+  color: #007bff;
+}
+
+.metric-label {
+  font-size: 0.875rem;
+  color: #6b7280;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+/* Performance Trend Indicators */
+.trend-improving {
+  color: #28a745;
+}
+
+.trend-declining {
+  color: #dc3545;
+}
+
+.trend-stable {
+  color: #ffc107;
+}
+
+/* Comparison Table Styles */
+.comparison-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-top: 1rem;
+}
+
+.comparison-table th {
+  background-color: #f8f9fa;
+  padding: 12px;
+  text-align: left;
+  font-weight: 600;
+  color: #374151;
+  border-bottom: 2px solid #e9ecef;
+}
+
+.comparison-table td {
+  padding: 12px;
+  border-bottom: 1px solid #e9ecef;
+}
+
+.variance-positive {
+  color: #28a745;
+  font-weight: 600;
+}
+
+.variance-negative {
+  color: #dc3545;
+  font-weight: 600;
+}
+
+.accuracy-excellent {
+  color: #28a745;
+  font-weight: 600;
+}
+
+.accuracy-good {
+  color: #007bff;
+  font-weight: 600;
+}
+
+.accuracy-fair {
+  color: #ffc107;
+  font-weight: 600;
+}
+
+.accuracy-poor {
+  color: #dc3545;
+  font-weight: 600;
+}
+
+/* Export Button Styles */
+.export-button {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 16px;
+  background-color: #28a745;
+  color: white;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 0.875rem;
+  font-weight: 500;
+  transition: all 0.2s ease;
+}
+
+.export-button:hover {
+  background-color: #218838;
+  transform: translateY(-1px);
+}
+
+/* Forecast Toggle Buttons */
+.forecast-toggle {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.toggle-button {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  background-color: #e9ecef;
+  color: #1b1d1f;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 0.75rem;
+  font-weight: 500;
+  transition: all 0.2s ease;
+}
+
+.toggle-button.active {
+  background-color: #007bff;
+  color: white;
+}
+
+.toggle-button:hover:not(.active) {
+  background-color: #dee2e6;
+}
+
+/* Responsive Design for Forecast Section */
+@media (max-width: 768px) {
+  .forecast-analysis-grid {
+    grid-template-columns: 1fr;
+  }
+  
+  .comparison-table {
+    font-size: 0.875rem;
+  }
+  
+  .comparison-table th,
+  .comparison-table td {
+    padding: 8px;
+  }
+}
+
+/* Animation for trend indicators */
+@keyframes pulse {
+  0% { transform: scale(1); }
+  50% { transform: scale(1.05); }
+  100% { transform: scale(1); }
+}
+
+.trend-improving,
+.trend-declining {
+  animation: pulse 2s infinite;
+}
+
+/* Enhanced card hover effects */
+.metric-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  transition: all 0.3s ease;
+}
+
+.accuracy-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 25px rgba(102, 126, 234, 0.3);
+  transition: all 0.3s ease;
+}
+
+/* Example Data Indicator */
+.example-data-indicator {
+  padding: 4px 8px;
+  background-color: #ffc107;
+  color: #856404;
+  border-radius: 4px;
+  font-size: 12px;
+  font-weight: 500;
+  animation: pulse 2s infinite;
+}
+
+/* New Data Button */
+.new-data-button {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  background-color: #17a2b8;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 500;
+  transition: all 0.2s ease;
+}
+
+.new-data-button:hover {
+  background-color: #138496;
+  transform: translateY(-1px);
+}
+
+/* Confidence Indicator */
+.confidence-high {
+  color: #28a745;
+  font-weight: 600;
+}
+
+.confidence-medium {
+  color: #007bff;
+  font-weight: 600;
+}
+
+.confidence-low {
+  color: #ffc107;
+  font-weight: 600;
+}
+
+/* Enhanced animations */
+@keyframes pulse {
+  0% {
+    transform: scale(1);
+    opacity: 1;
+  }
+  50% {
+    transform: scale(1.05);
+    opacity: 0.8;
+  }
+  100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+@keyframes slideIn {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Forecast section animations */
+.forecast-analysis-section {
+  animation: slideIn 0.5s ease-out;
+}
+
+/* Data refresh animation */
+.data-refreshing {
+  animation: pulse 1s ease-in-out;
+}
+
+/* Tooltip enhancements */
+.chart-tooltip {
+  background: rgba(255, 255, 255, 0.95);
+  border: 1px solid #e0e0e0;
+  border-radius: 8px;
+  padding: 12px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}
+
+.tooltip-source {
+  font-size: 0.75rem;
+  color: #6c757d;
+  font-style: italic;
+  margin-top: 4px;
+}
+
+/* Responsive improvements for forecast section */
+@media (max-width: 768px) {
+  .forecast-controls {
+    flex-direction: column;
+    gap: 8px;
+  }
+  
+  .forecast-buttons {
+    flex-wrap: wrap;
+  }
+  
+  .example-data-indicator {
+    font-size: 10px;
+    padding: 2px 6px;
+  }
+}
+
+/* Loading states for data generation */
+.data-generating {
+  position: relative;
+  overflow: hidden;
+}
+
+.data-generating::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.4), transparent);
+  animation: shimmer 1.5s infinite;
+}
+
+@keyframes shimmer {
+  0% {
+    left: -100%;
+  }
+  100% {
+    left: 100%;
+  }
+}

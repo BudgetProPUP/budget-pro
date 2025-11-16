@@ -19,6 +19,9 @@ import {
   getProposalDetails,
 } from "../../API/expenseAPI";
 
+// Import ManageProfile component
+import ManageProfile from "./ManageProfile";
+
 // Pagination Component - Copied from LedgerView
 const Pagination = ({
   currentPage,
@@ -269,6 +272,7 @@ const ExpenseHistory = () => {
   const [searchTerm, setSearchTerm] = useState("");
   const [showNotifications, setShowNotifications] = useState(false);
   const [showProfileDropdown, setShowProfileDropdown] = useState(false);
+  const [showManageProfile, setShowManageProfile] = useState(false); // NEW: State for ManageProfile
   const navigate = useNavigate();
 
   // New state variables for API data
@@ -408,6 +412,17 @@ const ExpenseHistory = () => {
     if (showExpenseDropdown) setShowExpenseDropdown(false);
     if (showCategoryDropdown) setShowCategoryDropdown(false);
     if (showNotifications) setShowNotifications(false);
+  };
+
+  // NEW: Function to handle Manage Profile click
+  const handleManageProfile = () => {
+    setShowManageProfile(true);
+    setShowProfileDropdown(false);
+  };
+
+  // NEW: Function to close Manage Profile
+  const handleCloseManageProfile = () => {
+    setShowManageProfile(false);
   };
 
   const handleCategorySelect = (categoryCode) => {
@@ -940,6 +955,7 @@ const ExpenseHistory = () => {
                   ></div>
                   <div
                     className="dropdown-item"
+                    onClick={handleManageProfile} // UPDATED: Now calls handleManageProfile
                     style={{
                       display: "flex",
                       alignItems: "center",
@@ -1003,688 +1019,696 @@ const ExpenseHistory = () => {
         className="content-container"
         style={{ padding: "20px", maxWidth: "1200px", margin: "0 auto" }}
       >
-        {/* Page Container for everything */}
-        <div
-          className="ledger-container"
-          style={{
-            backgroundColor: "white",
-            borderRadius: "8px",
-            boxShadow: "0 2px 4px rgba(0,0,0,0.1)",
-            padding: "20px",
-            overflow: "hidden",
-            display: "flex",
-            flexDirection: "column",
-            minHeight: "calc(80vh - 100px)",
-          }}
-        >
-          {!selectedExpense ? (
-            <>
-              {/* Header Section with Title and Controls */}
-              <div
-                className="top"
-                style={{
-                  display: "flex",
-                  justifyContent: "space-between",
-                  alignItems: "center",
-                  marginBottom: "20px",
-                }}
-              >
-                <h2 className="page-title">Expense History</h2>
-
+        {/* Conditionally render either ExpenseHistory content or ManageProfile */}
+        {showManageProfile ? (
+          <ManageProfile 
+            onClose={handleCloseManageProfile} 
+            userProfile={userProfile}
+          />
+        ) : (
+          /* Page Container for everything */
+          <div
+            className="ledger-container"
+            style={{
+              backgroundColor: "white",
+              borderRadius: "8px",
+              boxShadow: "0 2px 4px rgba(0,0,0,0.1)",
+              padding: "20px",
+              overflow: "hidden",
+              display: "flex",
+              flexDirection: "column",
+              minHeight: "calc(80vh - 100px)",
+            }}
+          >
+            {!selectedExpense ? (
+              <>
+                {/* Header Section with Title and Controls */}
                 <div
-                  className="controls-container"
-                  style={{ display: "flex", gap: "10px" }}
+                  className="top"
+                  style={{
+                    display: "flex",
+                    justifyContent: "space-between",
+                    alignItems: "center",
+                    marginBottom: "20px",
+                  }}
                 >
-                  {/* Search Bar */}
-                  <div style={{ position: "relative" }}>
-                    <input
-                      type="text"
-                      placeholder="Search"
-                      value={searchTerm}
-                      onChange={(e) => setSearchTerm(e.target.value)}
-                      className="search-account-input"
-                      style={{
-                        padding: "8px 12px",
-                        border: "1px solid #ccc",
-                        borderRadius: "4px",
-                        outline: "none",
-                      }}
-                    />
-                  </div>
+                  <h2 className="page-title">Expense History</h2>
 
-                  {/* Category Filter */}
                   <div
-                    className="filter-dropdown"
-                    style={{ position: "relative" }}
+                    className="controls-container"
+                    style={{ display: "flex", gap: "10px" }}
                   >
-                    <button
-                      className={`filter-dropdown-btn ${
-                        showCategoryDropdown ? "active" : ""
-                      }`}
-                      onClick={toggleCategoryDropdown}
-                      onMouseDown={(e) => e.preventDefault()}
-                      style={{
-                        padding: "8px 12px",
-                        border: "1px solid #ccc",
-                        borderRadius: "4px",
-                        backgroundColor: "white",
-                        display: "flex",
-                        alignItems: "center",
-                        gap: "5px",
-                        outline: "none",
-                      }}
-                    >
-                      {/* MODIFICATION START */}
-                      <span>
-                        {selectedCategory
-                          ? categories.find((c) => c.code === selectedCategory)
-                              ?.name
-                          : "All Categories"}
-                      </span>
-                      {/* MODIFICATION END */}
-                      <ChevronDown size={14} />
-                    </button>
-                    {showCategoryDropdown && (
-                      <div
-                        className="category-dropdown-menu"
+                    {/* Search Bar */}
+                    <div style={{ position: "relative" }}>
+                      <input
+                        type="text"
+                        placeholder="Search"
+                        value={searchTerm}
+                        onChange={(e) => setSearchTerm(e.target.value)}
+                        className="search-account-input"
                         style={{
-                          position: "absolute",
-                          top: "100%",
-                          left: 0,
-                          backgroundColor: "white",
+                          padding: "8px 12px",
                           border: "1px solid #ccc",
                           borderRadius: "4px",
-                          width: "100%",
-                          zIndex: 1000,
+                          outline: "none",
+                        }}
+                      />
+                    </div>
+
+                    {/* Category Filter */}
+                    <div
+                      className="filter-dropdown"
+                      style={{ position: "relative" }}
+                    >
+                      <button
+                        className={`filter-dropdown-btn ${
+                          showCategoryDropdown ? "active" : ""
+                        }`}
+                        onClick={toggleCategoryDropdown}
+                        onMouseDown={(e) => e.preventDefault()}
+                        style={{
+                          padding: "8px 12px",
+                          border: "1px solid #ccc",
+                          borderRadius: "4px",
+                          backgroundColor: "white",
+                          display: "flex",
+                          alignItems: "center",
+                          gap: "5px",
+                          outline: "none",
                         }}
                       >
                         {/* MODIFICATION START */}
-                        {categories.map((category) => (
-                          <div
-                            key={category.code}
-                            className={`category-dropdown-item ${
-                              selectedCategory === category.code ? "active" : ""
-                            }`}
-                            onClick={() => handleCategorySelect(category.code)}
-                            onMouseDown={(e) => e.preventDefault()}
-                            style={{
-                              padding: "8px 12px",
-                              cursor: "pointer",
-                              backgroundColor:
-                                selectedCategory === category.code
-                                  ? "#f0f0f0"
-                                  : "white",
-                              outline: "none",
-                            }}
-                          >
-                            {category.name}
-                          </div>
-                        ))}
+                        <span>
+                          {selectedCategory
+                            ? categories.find((c) => c.code === selectedCategory)
+                                ?.name
+                            : "All Categories"}
+                        </span>
                         {/* MODIFICATION END */}
-                      </div>
-                    )}
+                        <ChevronDown size={14} />
+                      </button>
+                      {showCategoryDropdown && (
+                        <div
+                          className="category-dropdown-menu"
+                          style={{
+                            position: "absolute",
+                            top: "100%",
+                            left: 0,
+                            backgroundColor: "white",
+                            border: "1px solid #ccc",
+                            borderRadius: "4px",
+                            width: "100%",
+                            zIndex: 1000,
+                          }}
+                        >
+                          {/* MODIFICATION START */}
+                          {categories.map((category) => (
+                            <div
+                              key={category.code}
+                              className={`category-dropdown-item ${
+                                selectedCategory === category.code ? "active" : ""
+                              }`}
+                              onClick={() => handleCategorySelect(category.code)}
+                              onMouseDown={(e) => e.preventDefault()}
+                              style={{
+                                padding: "8px 12px",
+                                cursor: "pointer",
+                                backgroundColor:
+                                  selectedCategory === category.code
+                                    ? "#f0f0f0"
+                                    : "white",
+                                outline: "none",
+                              }}
+                            >
+                              {category.name}
+                            </div>
+                          ))}
+                          {/* MODIFICATION END */}
+                        </div>
+                      )}
+                    </div>
                   </div>
                 </div>
-              </div>
 
-              {/* Separator line between title and table */}
-              <div
-                style={{
-                  height: "1px",
-                  backgroundColor: "#e0e0e0",
-                  marginBottom: "20px",
-                }}
-              ></div>
-
-              {/* Expenses Table - KEEPING ORIGINAL SIZING */}
-              <div
-                style={{
-                  flex: 1,
-                  overflow: "auto",
-                  border: "1px solid #e0e0e0",
-                  borderRadius: "4px",
-                  position: "relative",
-                  marginLeft: "20px",
-                  marginRight: "20px",
-                }}
-              >
-                {/* Custom scrollbar styling */}
-                <style>
-                  {`
-                    div::-webkit-scrollbar {
-                      width: 8px;
-                    }
-                    div::-webkit-scrollbar-track {
-                      background: #f1f1f1;
-                      border-radius: 4px;
-                    }
-                    div::-webkit-scrollbar-thumb {
-                      background: #c1c1c1;
-                      border-radius: 4px;
-                    }
-                    div::-webkit-scrollbar-thumb:hover {
-                      background: #a8a8a8;
-                    }
-                  `}
-                </style>
+                {/* Separator line between title and table */}
                 <div
-                  className="table-scroll-container"
                   style={{
-                    height: "100%",
+                    height: "1px",
+                    backgroundColor: "#e0e0e0",
+                    marginBottom: "20px",
+                  }}
+                ></div>
+
+                {/* Expenses Table - KEEPING ORIGINAL SIZING */}
+                <div
+                  style={{
+                    flex: 1,
                     overflow: "auto",
+                    border: "1px solid #e0e0e0",
+                    borderRadius: "4px",
+                    position: "relative",
+                    marginLeft: "20px",
+                    marginRight: "20px",
                   }}
                 >
-                  <table
-                    className="ledger-table"
+                  {/* Custom scrollbar styling */}
+                  <style>
+                    {`
+                      div::-webkit-scrollbar {
+                        width: 8px;
+                      }
+                      div::-webkit-scrollbar-track {
+                        background: #f1f1f1;
+                        border-radius: 4px;
+                      }
+                      div::-webkit-scrollbar-thumb {
+                        background: #c1c1c1;
+                        border-radius: 4px;
+                      }
+                      div::-webkit-scrollbar-thumb:hover {
+                        background: #a8a8a8;
+                      }
+                    `}
+                  </style>
+                  <div
+                    className="table-scroll-container"
                     style={{
-                      width: "100%",
-                      borderCollapse: "collapse",
-                      tableLayout: "fixed",
-                      minWidth: "800px",
+                      height: "100%",
+                      overflow: "auto",
                     }}
                   >
-                    <thead>
-                      <tr
-                        style={{
-                          backgroundColor: "#f8f9fa",
-                          position: "sticky",
-                          top: 0,
-                          zIndex: 10,
-                        }}
-                      >
-                        <th
+                    <table
+                      className="ledger-table"
+                      style={{
+                        width: "100%",
+                        borderCollapse: "collapse",
+                        tableLayout: "fixed",
+                        minWidth: "800px",
+                      }}
+                    >
+                      <thead>
+                        <tr
                           style={{
-                            width: "20%",
-                            padding: "0.75rem",
-                            textAlign: "center",
-                            borderBottom: "2px solid #dee2e6",
-                            height: "50px",
-                            verticalAlign: "middle",
                             backgroundColor: "#f8f9fa",
-                            fontWeight: "600",
-                            fontSize: "0.9rem",
+                            position: "sticky",
+                            top: 0,
+                            zIndex: 10,
                           }}
                         >
-                          DATE
-                        </th>
-                        <th
-                          style={{
-                            width: "35%",
-                            padding: "0.75rem",
-                            textAlign: "center",
-                            borderBottom: "2px solid #dee2e6",
-                            height: "50px",
-                            verticalAlign: "middle",
-                            backgroundColor: "#f8f9fa",
-                            fontWeight: "600",
-                            fontSize: "0.9rem",
-                          }}
-                        >
-                          DESCRIPTION
-                        </th>
-                        <th
-                          style={{
-                            width: "20%",
-                            padding: "0.75rem",
-                            textAlign: "center",
-                            borderBottom: "2px solid #dee2e6",
-                            height: "50px",
-                            verticalAlign: "middle",
-                            backgroundColor: "#f8f9fa",
-                            fontWeight: "600",
-                            fontSize: "0.9rem",
-                          }}
-                        >
-                          CATEGORY
-                        </th>
-                        <th
-                          style={{
-                            width: "15%",
-                            padding: "0.75rem",
-                            textAlign: "center",
-                            borderBottom: "2px solid #dee2e6",
-                            height: "50px",
-                            verticalAlign: "middle",
-                            backgroundColor: "#f8f9fa",
-                            fontWeight: "600",
-                            fontSize: "0.9rem",
-                          }}
-                        >
-                          AMOUNT
-                        </th>
-                        <th
-                          style={{
-                            width: "10%",
-                            padding: "0.75rem",
-                            textAlign: "center",
-                            borderBottom: "2px solid #dee2e6",
-                            height: "50px",
-                            verticalAlign: "middle",
-                            backgroundColor: "#f8f9fa",
-                            fontWeight: "600",
-                            fontSize: "0.9rem",
-                          }}
-                        >
-                          ACTIONS
-                        </th>
-                      </tr>
-                    </thead>
-                    {/* MODIFICATION START */}
-                    <tbody>
-                      {loading ? (
-                        <tr>
-                          <td
-                            colSpan="5"
-                            style={{ textAlign: "center", padding: "20px" }}
-                          >
-                            Loading...
-                          </td>
-                        </tr>
-                      ) : expenses.length > 0 ? (
-                        expenses.map((expense, index) => (
-                          <tr
-                            key={expense.id}
-                            className={index % 2 === 1 ? "alternate-row" : ""}
+                          <th
                             style={{
-                              backgroundColor:
-                                index % 2 === 1 ? "#F8F8F8" : "#FFFFFF",
-                              color: "#0C0C0C",
-                              height: "50px",
-                              transition: "background-color 0.2s ease",
-                            }}
-                            onMouseEnter={(e) => {
-                              e.currentTarget.style.backgroundColor = "#fcfcfc";
-                            }}
-                            onMouseLeave={(e) => {
-                              e.currentTarget.style.backgroundColor =
-                                index % 2 === 1 ? "#F8F8F8" : "#FFFFFF";
-                            }}
-                          >
-                            <td
-                              style={{
-                                padding: "0.75rem",
-                                borderBottom: "1px solid #dee2e6",
-                                textAlign: "center",
-                                verticalAlign: "middle",
-                                wordWrap: "break-word",
-                                whiteSpace: "normal",
-                              }}
-                            >
-                              {expense.date}
-                            </td>
-                            <td
-                              style={{
-                                padding: "0.75rem",
-                                borderBottom: "1px solid #dee2e6",
-                                textAlign: "center",
-                                verticalAlign: "middle",
-                                wordWrap: "break-word",
-                                whiteSpace: "normal",
-                              }}
-                            >
-                              {expense.description}
-                            </td>
-                            <td
-                              style={{
-                                padding: "0.75rem",
-                                borderBottom: "1px solid #dee2e6",
-                                textAlign: "center",
-                                verticalAlign: "middle",
-                                wordWrap: "break-word",
-                                whiteSpace: "normal",
-                              }}
-                            >
-                              {expense.category_name}
-                            </td>
-                            <td
-                              style={{
-                                padding: "0.75rem",
-                                borderBottom: "1px solid #dee2e6",
-                                textAlign: "center",
-                                verticalAlign: "middle",
-                                wordWrap: "break-word",
-                                whiteSpace: "normal",
-                              }}
-                            >
-                              ₱
-                              {parseFloat(expense.amount).toLocaleString(
-                                "en-US",
-                                {
-                                  minimumFractionDigits: 2,
-                                  maximumFractionDigits: 2,
-                                }
-                              )}
-                            </td>
-                            <td
-                              style={{
-                                padding: "0.75rem",
-                                borderBottom: "1px solid #dee2e6",
-                                textAlign: "center",
-                                verticalAlign: "middle",
-                              }}
-                            >
-                              <button
-                                className="view-btn"
-                                onClick={() => handleViewExpense(expense)}
-                                onMouseDown={(e) => e.preventDefault()}
-                                style={{
-                                  padding: "5px 15px",
-                                  backgroundColor: "#007bff",
-                                  color: "white",
-                                  border: "none",
-                                  borderRadius: "4px",
-                                  cursor: "pointer",
-                                  outline: "none",
-                                }}
-                              >
-                                View
-                              </button>
-                            </td>
-                          </tr>
-                        ))
-                      ) : (
-                        <tr>
-                          <td
-                            colSpan="5"
-                            className="no-results"
-                            style={{
-                              padding: "20px",
+                              width: "20%",
+                              padding: "0.75rem",
                               textAlign: "center",
+                              borderBottom: "2px solid #dee2e6",
                               height: "50px",
                               verticalAlign: "middle",
+                              backgroundColor: "#f8f9fa",
+                              fontWeight: "600",
+                              fontSize: "0.9rem",
                             }}
                           >
-                            {searchTerm || selectedCategory !== ""
-                              ? "No expenses match your search criteria."
-                              : "No expenses found."}
-                          </td>
+                            DATE
+                          </th>
+                          <th
+                            style={{
+                              width: "35%",
+                              padding: "0.75rem",
+                              textAlign: "center",
+                              borderBottom: "2px solid #dee2e6",
+                              height: "50px",
+                              verticalAlign: "middle",
+                              backgroundColor: "#f8f9fa",
+                              fontWeight: "600",
+                              fontSize: "0.9rem",
+                            }}
+                          >
+                            DESCRIPTION
+                          </th>
+                          <th
+                            style={{
+                              width: "20%",
+                              padding: "0.75rem",
+                              textAlign: "center",
+                              borderBottom: "2px solid #dee2e6",
+                              height: "50px",
+                              verticalAlign: "middle",
+                              backgroundColor: "#f8f9fa",
+                              fontWeight: "600",
+                              fontSize: "0.9rem",
+                            }}
+                          >
+                            CATEGORY
+                          </th>
+                          <th
+                            style={{
+                              width: "15%",
+                              padding: "0.75rem",
+                              textAlign: "center",
+                              borderBottom: "2px solid #dee2e6",
+                              height: "50px",
+                              verticalAlign: "middle",
+                              backgroundColor: "#f8f9fa",
+                              fontWeight: "600",
+                              fontSize: "0.9rem",
+                            }}
+                          >
+                            AMOUNT
+                          </th>
+                          <th
+                            style={{
+                              width: "10%",
+                              padding: "0.75rem",
+                              textAlign: "center",
+                              borderBottom: "2px solid #dee2e6",
+                              height: "50px",
+                              verticalAlign: "middle",
+                              backgroundColor: "#f8f9fa",
+                              fontWeight: "600",
+                              fontSize: "0.9rem",
+                            }}
+                          >
+                            ACTIONS
+                          </th>
                         </tr>
-                      )}
-                    </tbody>
-                    {/* MODIFICATION END */}
-                  </table>
+                      </thead>
+                      {/* MODIFICATION START */}
+                      <tbody>
+                        {loading ? (
+                          <tr>
+                            <td
+                              colSpan="5"
+                              style={{ textAlign: "center", padding: "20px" }}
+                            >
+                              Loading...
+                            </td>
+                          </tr>
+                        ) : expenses.length > 0 ? (
+                          expenses.map((expense, index) => (
+                            <tr
+                              key={expense.id}
+                              className={index % 2 === 1 ? "alternate-row" : ""}
+                              style={{
+                                backgroundColor:
+                                  index % 2 === 1 ? "#F8F8F8" : "#FFFFFF",
+                                color: "#0C0C0C",
+                                height: "50px",
+                                transition: "background-color 0.2s ease",
+                              }}
+                              onMouseEnter={(e) => {
+                                e.currentTarget.style.backgroundColor = "#fcfcfc";
+                              }}
+                              onMouseLeave={(e) => {
+                                e.currentTarget.style.backgroundColor =
+                                  index % 2 === 1 ? "#F8F8F8" : "#FFFFFF";
+                              }}
+                            >
+                              <td
+                                style={{
+                                  padding: "0.75rem",
+                                  borderBottom: "1px solid #dee2e6",
+                                  textAlign: "center",
+                                  verticalAlign: "middle",
+                                  wordWrap: "break-word",
+                                  whiteSpace: "normal",
+                                }}
+                              >
+                                {expense.date}
+                              </td>
+                              <td
+                                style={{
+                                  padding: "0.75rem",
+                                  borderBottom: "1px solid #dee2e6",
+                                  textAlign: "center",
+                                  verticalAlign: "middle",
+                                  wordWrap: "break-word",
+                                  whiteSpace: "normal",
+                                }}
+                              >
+                                {expense.description}
+                              </td>
+                              <td
+                                style={{
+                                  padding: "0.75rem",
+                                  borderBottom: "1px solid #dee2e6",
+                                  textAlign: "center",
+                                  verticalAlign: "middle",
+                                  wordWrap: "break-word",
+                                  whiteSpace: "normal",
+                                }}
+                              >
+                                {expense.category_name}
+                              </td>
+                              <td
+                                style={{
+                                  padding: "0.75rem",
+                                  borderBottom: "1px solid #dee2e6",
+                                  textAlign: "center",
+                                  verticalAlign: "middle",
+                                  wordWrap: "break-word",
+                                  whiteSpace: "normal",
+                                }}
+                              >
+                                ₱
+                                {parseFloat(expense.amount).toLocaleString(
+                                  "en-US",
+                                  {
+                                    minimumFractionDigits: 2,
+                                    maximumFractionDigits: 2,
+                                  }
+                                )}
+                              </td>
+                              <td
+                                style={{
+                                  padding: "0.75rem",
+                                  borderBottom: "1px solid #dee2e6",
+                                  textAlign: "center",
+                                  verticalAlign: "middle",
+                                }}
+                              >
+                                <button
+                                  className="view-btn"
+                                  onClick={() => handleViewExpense(expense)}
+                                  onMouseDown={(e) => e.preventDefault()}
+                                  style={{
+                                    padding: "5px 15px",
+                                    backgroundColor: "#007bff",
+                                    color: "white",
+                                    border: "none",
+                                    borderRadius: "4px",
+                                    cursor: "pointer",
+                                    outline: "none",
+                                  }}
+                                >
+                                  View
+                                </button>
+                              </td>
+                            </tr>
+                          ))
+                        ) : (
+                          <tr>
+                            <td
+                              colSpan="5"
+                              className="no-results"
+                              style={{
+                                padding: "20px",
+                                textAlign: "center",
+                                height: "50px",
+                                verticalAlign: "middle",
+                              }}
+                            >
+                              {searchTerm || selectedCategory !== ""
+                                ? "No expenses match your search criteria."
+                                : "No expenses found."}
+                            </td>
+                          </tr>
+                        )}
+                      </tbody>
+                      {/* MODIFICATION END */}
+                    </table>
+                  </div>
                 </div>
-              </div>
 
-              {/* MODIFICATION START */}
-              {pagination.count > 0 && !loading && (
-                <Pagination
-                  currentPage={currentPage}
-                  pageSize={pageSize}
-                  totalItems={pagination.count}
-                  onPageChange={setCurrentPage}
-                  onPageSizeChange={(newSize) => {
-                    setPageSize(newSize);
-                    setCurrentPage(1);
-                  }}
-                  pageSizeOptions={[5, 10, 20, 50]}
-                />
-              )}
-              {/* MODIFICATION END */}
-            </>
-          ) : (
-            <div
-              className="budget-proposal-view"
-              style={{
-                display: "flex",
-                flexDirection: "column",
-                height: "100%",
-                overflow: "hidden",
-              }}
-            >
-              <button
-                className="back-button"
-                onClick={handleBackToList}
+                {/* MODIFICATION START */}
+                {pagination.count > 0 && !loading && (
+                  <Pagination
+                    currentPage={currentPage}
+                    pageSize={pageSize}
+                    totalItems={pagination.count}
+                    onPageChange={setCurrentPage}
+                    onPageSizeChange={(newSize) => {
+                      setPageSize(newSize);
+                      setCurrentPage(1);
+                    }}
+                    pageSizeOptions={[5, 10, 20, 50]}
+                  />
+                )}
+                {/* MODIFICATION END */}
+              </>
+            ) : (
+              <div
+                className="budget-proposal-view"
                 style={{
                   display: "flex",
-                  alignItems: "center",
-                  gap: "5px",
-                  padding: "8px 12px",
-                  backgroundColor: "#f8f9fa",
-                  border: "1px solid #dee2e6",
-                  borderRadius: "4px",
-                  cursor: "pointer",
-                  marginBottom: "20px",
-                  alignSelf: "flex-start",
-                  outline: "none",
+                  flexDirection: "column",
+                  height: "100%",
+                  overflow: "hidden",
                 }}
               >
-                <ArrowLeft size={16} />
-                <span>Back to Expenses</span>
-              </button>
+                <button
+                  className="back-button"
+                  onClick={handleBackToList}
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: "5px",
+                    padding: "8px 12px",
+                    backgroundColor: "#f8f9fa",
+                    border: "1px solid #dee2e6",
+                    borderRadius: "4px",
+                    cursor: "pointer",
+                    marginBottom: "20px",
+                    alignSelf: "flex-start",
+                    outline: "none",
+                  }}
+                >
+                  <ArrowLeft size={16} />
+                  <span>Back to Expenses</span>
+                </button>
 
-              <div
-                style={{
-                  flex: 1,
-                  overflow: "auto",
-                  paddingRight: "10px",
-                }}
-              >
-                {viewModalLoading ? (
-                  <div>Loading details...</div>
-                ) : selectedProposalDetails ? (
-                  <>
-                    <div
-                      className="proposal-header"
-                      style={{ marginBottom: "20px" }}
-                    >
-                      <h3
-                        className="proposal-title"
-                        style={{ margin: "0 0 5px 0", fontSize: "1.5rem" }}
-                      >
-                        {selectedProposalDetails.title}
-                      </h3>
+                <div
+                  style={{
+                    flex: 1,
+                    overflow: "auto",
+                    paddingRight: "10px",
+                  }}
+                >
+                  {viewModalLoading ? (
+                    <div>Loading details...</div>
+                  ) : selectedProposalDetails ? (
+                    <>
                       <div
-                        className="proposal-date"
-                        style={{ color: "#6c757d" }}
+                        className="proposal-header"
+                        style={{ marginBottom: "20px" }}
                       >
-                        Performance End Date:{" "}
-                        {selectedProposalDetails.performance_end_date}
-                      </div>
-                    </div>
-
-                    <div
-                      className="proposal-section"
-                      style={{ marginBottom: "20px" }}
-                    >
-                      <h4
-                        className="section-label"
-                        style={{
-                          margin: "0 0 10px 0",
-                          fontSize: "0.9rem",
-                          color: "#6c757d",
-                          textTransform: "uppercase",
-                          fontWeight: "600",
-                        }}
-                      >
-                        PROJECT SUMMARY
-                      </h4>
-                      <p
-                        className="section-content"
-                        style={{ margin: 0, lineHeight: "1.5" }}
-                      >
-                        {selectedProposalDetails.project_summary}
-                      </p>
-                    </div>
-
-                    <div
-                      className="proposal-section"
-                      style={{ marginBottom: "20px" }}
-                    >
-                      <h4
-                        className="section-label"
-                        style={{
-                          margin: "0 0 10px 0",
-                          fontSize: "0.9rem",
-                          color: "#6c757d",
-                          textTransform: "uppercase",
-                          fontWeight: "600",
-                        }}
-                      >
-                        PROJECT DESCRIPTION
-                      </h4>
-                      <p
-                        className="section-content"
-                        style={{ margin: 0, lineHeight: "1.5" }}
-                      >
-                        {selectedProposalDetails.project_description}
-                      </p>
-                    </div>
-
-                    <div className="proposal-section">
-                      <h4
-                        className="section-label"
-                        style={{
-                          margin: "0 0 10px 0",
-                          fontSize: "0.9rem",
-                          color: "#6c757d",
-                          textTransform: "uppercase",
-                          fontWeight: "600",
-                        }}
-                      >
-                        COST ELEMENTS
-                      </h4>
-                      <div
-                        className="cost-table"
-                        style={{
-                          border: "1px solid #dee2e6",
-                          borderRadius: "4px",
-                          overflow: "hidden",
-                        }}
-                      >
+                        <h3
+                          className="proposal-title"
+                          style={{ margin: "0 0 5px 0", fontSize: "1.5rem" }}
+                        >
+                          {selectedProposalDetails.title}
+                        </h3>
                         <div
-                          className="cost-header"
+                          className="proposal-date"
+                          style={{ color: "#6c757d" }}
+                        >
+                          Performance End Date:{" "}
+                          {selectedProposalDetails.performance_end_date}
+                        </div>
+                      </div>
+
+                      <div
+                        className="proposal-section"
+                        style={{ marginBottom: "20px" }}
+                      >
+                        <h4
+                          className="section-label"
                           style={{
-                            display: "flex",
-                            backgroundColor: "#f8f9fa",
-                            padding: "10px 15px",
+                            margin: "0 0 10px 0",
+                            fontSize: "0.9rem",
+                            color: "#6c757d",
+                            textTransform: "uppercase",
                             fontWeight: "600",
-                            borderBottom: "1px solid #dee2e6",
+                          }}
+                        >
+                          PROJECT SUMMARY
+                        </h4>
+                        <p
+                          className="section-content"
+                          style={{ margin: 0, lineHeight: "1.5" }}
+                        >
+                          {selectedProposalDetails.project_summary}
+                        </p>
+                      </div>
+
+                      <div
+                        className="proposal-section"
+                        style={{ marginBottom: "20px" }}
+                      >
+                        <h4
+                          className="section-label"
+                          style={{
+                            margin: "0 0 10px 0",
+                            fontSize: "0.9rem",
+                            color: "#6c757d",
+                            textTransform: "uppercase",
+                            fontWeight: "600",
+                          }}
+                        >
+                          PROJECT DESCRIPTION
+                        </h4>
+                        <p
+                          className="section-content"
+                          style={{ margin: 0, lineHeight: "1.5" }}
+                        >
+                          {selectedProposalDetails.project_description}
+                        </p>
+                      </div>
+
+                      <div className="proposal-section">
+                        <h4
+                          className="section-label"
+                          style={{
+                            margin: "0 0 10px 0",
+                            fontSize: "0.9rem",
+                            color: "#6c757d",
+                            textTransform: "uppercase",
+                            fontWeight: "600",
+                          }}
+                        >
+                          COST ELEMENTS
+                        </h4>
+                        <div
+                          className="cost-table"
+                          style={{
+                            border: "1px solid #dee2e6",
+                            borderRadius: "4px",
+                            overflow: "hidden",
                           }}
                         >
                           <div
-                            className="cost-type-header"
-                            style={{ flex: "1" }}
+                            className="cost-header"
+                            style={{
+                              display: "flex",
+                              backgroundColor: "#f8f9fa",
+                              padding: "10px 15px",
+                              fontWeight: "600",
+                              borderBottom: "1px solid #dee2e6",
+                            }}
                           >
-                            TYPE
+                            <div
+                              className="cost-type-header"
+                              style={{ flex: "1" }}
+                            >
+                              TYPE
+                            </div>
+                            <div
+                              className="cost-desc-header"
+                              style={{ flex: "2" }}
+                            >
+                              DESCRIPTION
+                            </div>
+                            <div
+                              className="cost-amount-header"
+                              style={{ flex: "1", textAlign: "right" }}
+                            >
+                              ESTIMATED COST
+                            </div>
                           </div>
+                          {selectedProposalDetails.items.map((item, idx) => (
+                            <div
+                              className="cost-row"
+                              key={idx}
+                              style={{
+                                display: "flex",
+                                padding: "10px 15px",
+                                borderBottom:
+                                  idx < selectedProposalDetails.items.length - 1
+                                    ? "1px solid #dee2e6"
+                                    : "none",
+                              }}
+                            >
+                              <div
+                                className="cost-type"
+                                style={{
+                                  flex: "1",
+                                  display: "flex",
+                                  alignItems: "center",
+                                }}
+                              >
+                                <span
+                                  className="cost-bullet"
+                                  style={{
+                                    width: "8px",
+                                    height: "8px",
+                                    backgroundColor: "#007bff",
+                                    borderRadius: "50%",
+                                    marginRight: "10px",
+                                  }}
+                                ></span>
+                                {item.cost_element}
+                              </div>
+                              <div
+                                className="cost-description"
+                                style={{ flex: "2" }}
+                              >
+                                {item.description}
+                              </div>
+                              <div
+                                className="cost-amount"
+                                style={{ flex: "1", textAlign: "right" }}
+                              >
+                                ₱
+                                {parseFloat(item.estimated_cost).toLocaleString(
+                                  "en-US",
+                                  {
+                                    minimumFractionDigits: 2,
+                                    maximumFractionDigits: 2,
+                                  }
+                                )}
+                              </div>
+                            </div>
+                          ))}
                           <div
-                            className="cost-desc-header"
-                            style={{ flex: "2" }}
-                          >
-                            DESCRIPTION
-                          </div>
-                          <div
-                            className="cost-amount-header"
-                            style={{ flex: "1", textAlign: "right" }}
-                          >
-                            ESTIMATED COST
-                          </div>
-                        </div>
-                        {selectedProposalDetails.items.map((item, idx) => (
-                          <div
-                            className="cost-row"
-                            key={idx}
+                            className="cost-row total"
                             style={{
                               display: "flex",
                               padding: "10px 15px",
-                              borderBottom:
-                                idx < selectedProposalDetails.items.length - 1
-                                  ? "1px solid #dee2e6"
-                                  : "none",
+                              backgroundColor: "#f8f9fa",
+                              fontWeight: "600",
                             }}
                           >
                             <div
                               className="cost-type"
-                              style={{
-                                flex: "1",
-                                display: "flex",
-                                alignItems: "center",
-                              }}
-                            >
-                              <span
-                                className="cost-bullet"
-                                style={{
-                                  width: "8px",
-                                  height: "8px",
-                                  backgroundColor: "#007bff",
-                                  borderRadius: "50%",
-                                  marginRight: "10px",
-                                }}
-                              ></span>
-                              {item.cost_element}
-                            </div>
+                              style={{ flex: "1" }}
+                            ></div>
                             <div
                               className="cost-description"
-                              style={{ flex: "2" }}
+                              style={{ flex: "2", fontWeight: "bold" }}
                             >
-                              {item.description}
+                              TOTAL
                             </div>
                             <div
                               className="cost-amount"
-                              style={{ flex: "1", textAlign: "right" }}
+                              style={{
+                                flex: "1",
+                                textAlign: "right",
+                                fontWeight: "bold",
+                              }}
                             >
                               ₱
-                              {parseFloat(item.estimated_cost).toLocaleString(
-                                "en-US",
-                                {
+                              {selectedProposalDetails.items
+                                .reduce(
+                                  (acc, item) =>
+                                    acc + parseFloat(item.estimated_cost),
+                                  0
+                                )
+                                .toLocaleString("en-US", {
                                   minimumFractionDigits: 2,
                                   maximumFractionDigits: 2,
-                                }
-                              )}
+                                })}
                             </div>
-                          </div>
-                        ))}
-                        <div
-                          className="cost-row total"
-                          style={{
-                            display: "flex",
-                            padding: "10px 15px",
-                            backgroundColor: "#f8f9fa",
-                            fontWeight: "600",
-                          }}
-                        >
-                          <div
-                            className="cost-type"
-                            style={{ flex: "1" }}
-                          ></div>
-                          <div
-                            className="cost-description"
-                            style={{ flex: "2", fontWeight: "bold" }}
-                          >
-                            TOTAL
-                          </div>
-                          <div
-                            className="cost-amount"
-                            style={{
-                              flex: "1",
-                              textAlign: "right",
-                              fontWeight: "bold",
-                            }}
-                          >
-                            ₱
-                            {selectedProposalDetails.items
-                              .reduce(
-                                (acc, item) =>
-                                  acc + parseFloat(item.estimated_cost),
-                                0
-                              )
-                              .toLocaleString("en-US", {
-                                minimumFractionDigits: 2,
-                                maximumFractionDigits: 2,
-                              })}
                           </div>
                         </div>
                       </div>
-                    </div>
-                  </>
-                ) : (
-                  <div>No proposal details found for this expense.</div>
-                )}
+                    </>
+                  ) : (
+                    <div>No proposal details found for this expense.</div>
+                  )}
+                </div>
               </div>
-            </div>
-          )}
-        </div>
+            )}
+          </div>
+        )}
       </div>
     </div>
   );

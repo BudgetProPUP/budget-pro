@@ -4,6 +4,9 @@ import { Link, useNavigate } from 'react-router-dom';
 import LOGOMAP from '../../assets/MAP.jpg';
 import './BudgetVarianceReport.css';
 
+// Import ManageProfile component
+import ManageProfile from './ManageProfile';
+
 const BudgetVarianceReport = () => {
   const [showBudgetDropdown, setShowBudgetDropdown] = useState(false);
   const [showExpenseDropdown, setShowExpenseDropdown] = useState(false);
@@ -12,6 +15,7 @@ const BudgetVarianceReport = () => {
   const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
   const [showNotifications, setShowNotifications] = useState(false);
   const [showProfileDropdown, setShowProfileDropdown] = useState(false);
+  const [showManageProfile, setShowManageProfile] = useState(false); // New state for ManageProfile
   const navigate = useNavigate();
 
   // User profile data
@@ -257,6 +261,17 @@ const BudgetVarianceReport = () => {
     if (showExpenseDropdown) setShowExpenseDropdown(false);
     if (showProfilePopup) setShowProfilePopup(false);
     if (showNotifications) setShowNotifications(false);
+  };
+
+  // New function to handle Manage Profile click
+  const handleManageProfile = () => {
+    setShowManageProfile(true);
+    setShowProfileDropdown(false);
+  };
+
+  // New function to close Manage Profile
+  const handleCloseManageProfile = () => {
+    setShowManageProfile(false);
   };
 
   const handleNavigate = (path) => {
@@ -543,6 +558,7 @@ const BudgetVarianceReport = () => {
                   <div className="dropdown-divider" style={{ height: '1px', backgroundColor: '#eee', margin: '10px 0' }}></div>
                   <div 
                     className="dropdown-item" 
+                    onClick={handleManageProfile} // Updated to use new function
                     style={{ display: 'flex', alignItems: 'center', padding: '8px 0', cursor: 'pointer', outline: 'none' }}
                     onMouseDown={(e) => e.preventDefault()}
                   >
@@ -578,268 +594,276 @@ const BudgetVarianceReport = () => {
 
       {/* Main Content - Preserved original BudgetVarianceReport layout with LedgerView container styling */}
       <div className="content-container" style={{ padding: '20px', maxWidth: '1200px', margin: '0 auto' }}>
-        {/* Page Container using LedgerView's styling */}
-        <div className="ledger-container" style={{ 
-          backgroundColor: 'white', 
-          borderRadius: '8px', 
-          boxShadow: '0 2px 4px rgba(0,0,0,0.1)',
-          padding: '20px',
-          overflow: 'hidden',
-          display: 'flex',
-          flexDirection: 'column',
-          height: 'calc(100vh - 100px)'
-        }}>
-          {/* Header Section with Title and Controls - Using LedgerView's layout structure */}
-          <div className="top" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
-            <h2 className="page-title">
-              Budget Variance Report
-            </h2>
-            
-            <div className="controls-container" style={{ display: 'flex', gap: '15px', alignItems: 'center' }}>
-              <div className="date-selection" style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
-                {/* Month Select with ChevronDown icon on the right */}
-                <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
-                  <select 
-                    className="month-select"
-                    value={selectedMonth}
-                    onChange={(e) => setSelectedMonth(parseInt(e.target.value))}
-                    style={{ 
-                      padding: '8px 32px 8px 12px', 
-                      border: '1px solid #ccc', 
-                      borderRadius: '4px',
-                      minWidth: '120px',
-                      appearance: 'none',
-                      backgroundColor: 'white'
-                    }}
-                  >
-                    {months.map(month => (
-                      <option key={month.value} value={month.value}>{month.label}</option>
-                    ))}
-                  </select>
-                  <ChevronDown 
-                    size={16} 
-                    style={{ 
-                      position: 'absolute', 
-                      right: '10px', 
-                      zIndex: 1,
-                      color: '#666',
-                      pointerEvents: 'none'
-                    }} 
-                  />
-                </div>
-                
-                {/* Year Select with ChevronDown icon on the right */}
-                <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
-                  <select 
-                    className="year-select"
-                    value={selectedYear}
-                    onChange={(e) => setSelectedYear(parseInt(e.target.value))}
-                    style={{ 
-                      padding: '8px 32px 8px 12px', 
-                      border: '1px solid #ccc', 
-                      borderRadius: '4px',
-                      minWidth: '100px',
-                      appearance: 'none',
-                      backgroundColor: 'white'
-                    }}
-                  >
-                    {years.map(year => (
-                      <option key={year} value={year}>{year}</option>
-                    ))}
-                  </select>
-                  <ChevronDown 
-                    size={16} 
-                    style={{ 
-                      position: 'absolute', 
-                      right: '10px', 
-                      zIndex: 1,
-                      color: '#666',
-                      pointerEvents: 'none'
-                    }} 
-                  />
-                </div>
-              </div>
-              
-              {/* Export Button - Styled like LedgerView buttons */}
-              <button 
-                className="export-button" 
-                onClick={handleExport}
-                onMouseDown={(e) => e.preventDefault()}
-                style={{ 
-                  padding: '8px 16px', 
-                  border: '1px solid #007bff', 
-                  borderRadius: '4px', 
-                  backgroundColor: '#007bff',
-                  color: '#ffffff',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '8px',
-                  cursor: 'pointer',
-                  marginLeft: '10px',
-                  fontWeight: '500',
-                  fontSize: '14px',
-                  outline: 'none'
-                }}
-              >
-                <span style={{ color: 'white' }}>Export Report</span>
-                <Download size={16} style={{ color: 'white' }} />
-              </button>
-            </div>
-          </div>
-
-          {/* Separator line between title and table - Matching LedgerView */}
-          <div style={{
-            height: '1px',
-            backgroundColor: '#e0e0e0',
-            marginBottom: '20px'
-          }}></div>
-
-          {/* Report Table Container - Made scrollable like LedgerView */}
-          <div style={{ 
-            flex: 1,
-            overflow: 'auto',
-            border: '1px solid #e0e0e0',
-            borderRadius: '4px',
-            position: 'relative'
+        {/* Conditionally render either BudgetVarianceReport content or ManageProfile */}
+        {showManageProfile ? (
+          <ManageProfile 
+            onClose={handleCloseManageProfile} 
+            userProfile={userProfile}
+          />
+        ) : (
+          /* Page Container using LedgerView's styling */
+          <div className="ledger-container" style={{ 
+            backgroundColor: 'white', 
+            borderRadius: '8px', 
+            boxShadow: '0 2px 4px rgba(0,0,0,0.1)',
+            padding: '20px',
+            overflow: 'hidden',
+            display: 'flex',
+            flexDirection: 'column',
+            height: 'calc(100vh - 100px)'
           }}>
-            {/* Custom scrollbar styling from LedgerView */}
-            <style>
-              {`
-                .table-scroll-container::-webkit-scrollbar {
-                  width: 8px;
-                  height: 8px;
-                }
-                .table-scroll-container::-webkit-scrollbar-track {
-                  background: #f1f1f1;
-                  border-radius: 4px;
-                }
-                .table-scroll-container::-webkit-scrollbar-thumb {
-                  background: #c1c1c1;
-                  border-radius: 4px;
-                }
-                .table-scroll-container::-webkit-scrollbar-thumb:hover {
-                  background: #a8a8a8;
-                }
-              `}
-            </style>
-            
-            <div className="table-scroll-container" style={{
-              height: '100%',
-              overflow: 'auto'
-            }}>
-              <table className="report-table" style={{ 
-                width: '100%', 
-                borderCollapse: 'collapse',
-                tableLayout: 'fixed'
-              }}>
-                <thead>
-                  <tr style={{ backgroundColor: '#f8f9fa', position: 'sticky', top: 0, zIndex: 10 }}>
-                    <th style={{ 
-                      width: '40%', 
-                      padding: '0.75rem', 
-                      textAlign: 'left', 
-                      borderBottom: '2px solid #dee2e6',
-                      height: '50px',
-                      verticalAlign: 'middle',
-                      backgroundColor: '#f8f9fa'
-                    }}>CATEGORY</th>
-                    <th style={{ 
-                      width: '20%', 
-                      padding: '0.75rem', 
-                      textAlign: 'left', 
-                      borderBottom: '2px solid #dee2e6',
-                      height: '50px',
-                      verticalAlign: 'middle',
-                      backgroundColor: '#f8f9fa'
-                    }}>BUDGET</th>
-                    <th style={{ 
-                      width: '20%', 
-                      padding: '0.75rem', 
-                      textAlign: 'left', 
-                      borderBottom: '2px solid #dee2e6',
-                      height: '50px',
-                      verticalAlign: 'middle',
-                      backgroundColor: '#f8f9fa'
-                    }}>ACTUAL</th>
-                    <th style={{ 
-                      width: '20%', 
-                      padding: '0.75rem', 
-                      textAlign: 'left', 
-                      borderBottom: '2px solid #dee2e6',
-                      height: '50px',
-                      verticalAlign: 'middle',
-                      backgroundColor: '#f8f9fa'
-                    }}>AVAILABLE</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {budgetData.map((item, index) => (
-                    <tr 
-                      key={item.id} 
-                      className={index % 2 === 1 ? 'alternate-row' : ''} 
+            {/* Header Section with Title and Controls - Using LedgerView's layout structure */}
+            <div className="top" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
+              <h2 className="page-title">
+                Budget Variance Report
+              </h2>
+              
+              <div className="controls-container" style={{ display: 'flex', gap: '15px', alignItems: 'center' }}>
+                <div className="date-selection" style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
+                  {/* Month Select with ChevronDown icon on the right */}
+                  <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
+                    <select 
+                      className="month-select"
+                      value={selectedMonth}
+                      onChange={(e) => setSelectedMonth(parseInt(e.target.value))}
                       style={{ 
-                        backgroundColor: index % 2 === 1 ? '#F8F8F8' : '#FFFFFF', 
-                        color: '#0C0C0C',
-                        height: '50px',
-                        transition: 'background-color 0.2s ease'
-                      }}
-                      onMouseEnter={(e) => {
-                        e.currentTarget.style.backgroundColor = '#fcfcfc';
-                      }}
-                      onMouseLeave={(e) => {
-                        e.currentTarget.style.backgroundColor = index % 2 === 1 ? '#F8F8F8' : '#FFFFFF';
+                        padding: '8px 32px 8px 12px', 
+                        border: '1px solid #ccc', 
+                        borderRadius: '4px',
+                        minWidth: '120px',
+                        appearance: 'none',
+                        backgroundColor: 'white'
                       }}
                     >
-                      <td style={{ 
+                      {months.map(month => (
+                        <option key={month.value} value={month.value}>{month.label}</option>
+                      ))}
+                    </select>
+                    <ChevronDown 
+                      size={16} 
+                      style={{ 
+                        position: 'absolute', 
+                        right: '10px', 
+                        zIndex: 1,
+                        color: '#666',
+                        pointerEvents: 'none'
+                      }} 
+                    />
+                  </div>
+                  
+                  {/* Year Select with ChevronDown icon on the right */}
+                  <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
+                    <select 
+                      className="year-select"
+                      value={selectedYear}
+                      onChange={(e) => setSelectedYear(parseInt(e.target.value))}
+                      style={{ 
+                        padding: '8px 32px 8px 12px', 
+                        border: '1px solid #ccc', 
+                        borderRadius: '4px',
+                        minWidth: '100px',
+                        appearance: 'none',
+                        backgroundColor: 'white'
+                      }}
+                    >
+                      {years.map(year => (
+                        <option key={year} value={year}>{year}</option>
+                      ))}
+                    </select>
+                    <ChevronDown 
+                      size={16} 
+                      style={{ 
+                        position: 'absolute', 
+                        right: '10px', 
+                        zIndex: 1,
+                        color: '#666',
+                        pointerEvents: 'none'
+                      }} 
+                    />
+                  </div>
+                </div>
+                
+                {/* Export Button - Styled like LedgerView buttons */}
+                <button 
+                  className="export-button" 
+                  onClick={handleExport}
+                  onMouseDown={(e) => e.preventDefault()}
+                  style={{ 
+                    padding: '8px 16px', 
+                    border: '1px solid #007bff', 
+                    borderRadius: '4px', 
+                    backgroundColor: '#007bff',
+                    color: '#ffffff',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '8px',
+                    cursor: 'pointer',
+                    marginLeft: '10px',
+                    fontWeight: '500',
+                    fontSize: '14px',
+                    outline: 'none'
+                  }}
+                >
+                  <span style={{ color: 'white' }}>Export Report</span>
+                  <Download size={16} style={{ color: 'white' }} />
+                </button>
+              </div>
+            </div>
+
+            {/* Separator line between title and table - Matching LedgerView */}
+            <div style={{
+              height: '1px',
+              backgroundColor: '#e0e0e0',
+              marginBottom: '20px'
+            }}></div>
+
+            {/* Report Table Container - Made scrollable like LedgerView */}
+            <div style={{ 
+              flex: 1,
+              overflow: 'auto',
+              border: '1px solid #e0e0e0',
+              borderRadius: '4px',
+              position: 'relative'
+            }}>
+              {/* Custom scrollbar styling from LedgerView */}
+              <style>
+                {`
+                  .table-scroll-container::-webkit-scrollbar {
+                    width: 8px;
+                    height: 8px;
+                  }
+                  .table-scroll-container::-webkit-scrollbar-track {
+                    background: #f1f1f1;
+                    border-radius: 4px;
+                  }
+                  .table-scroll-container::-webkit-scrollbar-thumb {
+                    background: #c1c1c1;
+                    border-radius: 4px;
+                  }
+                  .table-scroll-container::-webkit-scrollbar-thumb:hover {
+                    background: #a8a8a8;
+                  }
+                `}
+              </style>
+              
+              <div className="table-scroll-container" style={{
+                height: '100%',
+                overflow: 'auto'
+              }}>
+                <table className="report-table" style={{ 
+                  width: '100%', 
+                  borderCollapse: 'collapse',
+                  tableLayout: 'fixed'
+                }}>
+                  <thead>
+                    <tr style={{ backgroundColor: '#f8f9fa', position: 'sticky', top: 0, zIndex: 10 }}>
+                      <th style={{ 
+                        width: '40%', 
                         padding: '0.75rem', 
-                        borderBottom: '1px solid #dee2e6',
+                        textAlign: 'left', 
+                        borderBottom: '2px solid #dee2e6',
+                        height: '50px',
                         verticalAlign: 'middle',
-                        paddingLeft: item.indent ? '2rem' : '0.75rem'
-                      }}>
-                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                          <span style={{ 
-                            fontWeight: item.isHeader ? 'bold' : 'normal',
-                            fontSize: item.isHeader ? '1.1em' : '1em'
-                          }}>
-                            {item.category}
-                          </span>
-                          {item.percentage && (
-                            <span style={{ 
-                              fontSize: '0.8em', 
-                              color: '#666',
-                              backgroundColor: '#f0f0f0',
-                              padding: '2px 8px',
-                              borderRadius: '4px'
-                            }}>
-                              {item.percentage}
-                            </span>
-                          )}
-                        </div>
-                      </td>
-                      <td style={{ 
+                        backgroundColor: '#f8f9fa'
+                      }}>CATEGORY</th>
+                      <th style={{ 
+                        width: '20%', 
                         padding: '0.75rem', 
-                        borderBottom: '1px solid #dee2e6',
-                        verticalAlign: 'middle'
-                      }}>{item.budget}</td>
-                      <td style={{ 
-                        padding: '0.75rem', 
-                        borderBottom: '1px solid #dee2e6',
-                        verticalAlign: 'middle'
-                      }}>{item.actual}</td>
-                      <td style={{ 
-                        padding: '0.75rem', 
-                        borderBottom: '1px solid #dee2e6',
+                        textAlign: 'left', 
+                        borderBottom: '2px solid #dee2e6',
+                        height: '50px',
                         verticalAlign: 'middle',
-                        color: item.isPositive ? '#10b981' : '#ef4444',
-                        fontWeight: 'bold'
-                      }}>{item.available}</td>
+                        backgroundColor: '#f8f9fa'
+                      }}>BUDGET</th>
+                      <th style={{ 
+                        width: '20%', 
+                        padding: '0.75rem', 
+                        textAlign: 'left', 
+                        borderBottom: '2px solid #dee2e6',
+                        height: '50px',
+                        verticalAlign: 'middle',
+                        backgroundColor: '#f8f9fa'
+                      }}>ACTUAL</th>
+                      <th style={{ 
+                        width: '20%', 
+                        padding: '0.75rem', 
+                        textAlign: 'left', 
+                        borderBottom: '2px solid #dee2e6',
+                        height: '50px',
+                        verticalAlign: 'middle',
+                        backgroundColor: '#f8f9fa'
+                      }}>AVAILABLE</th>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
+                  </thead>
+                  <tbody>
+                    {budgetData.map((item, index) => (
+                      <tr 
+                        key={item.id} 
+                        className={index % 2 === 1 ? 'alternate-row' : ''} 
+                        style={{ 
+                          backgroundColor: index % 2 === 1 ? '#F8F8F8' : '#FFFFFF', 
+                          color: '#0C0C0C',
+                          height: '50px',
+                          transition: 'background-color 0.2s ease'
+                        }}
+                        onMouseEnter={(e) => {
+                          e.currentTarget.style.backgroundColor = '#fcfcfc';
+                        }}
+                        onMouseLeave={(e) => {
+                          e.currentTarget.style.backgroundColor = index % 2 === 1 ? '#F8F8F8' : '#FFFFFF';
+                        }}
+                      >
+                        <td style={{ 
+                          padding: '0.75rem', 
+                          borderBottom: '1px solid #dee2e6',
+                          verticalAlign: 'middle',
+                          paddingLeft: item.indent ? '2rem' : '0.75rem'
+                        }}>
+                          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                            <span style={{ 
+                              fontWeight: item.isHeader ? 'bold' : 'normal',
+                              fontSize: item.isHeader ? '1.1em' : '1em'
+                            }}>
+                              {item.category}
+                            </span>
+                            {item.percentage && (
+                              <span style={{ 
+                                fontSize: '0.8em', 
+                                color: '#666',
+                                backgroundColor: '#f0f0f0',
+                                padding: '2px 8px',
+                                borderRadius: '4px'
+                              }}>
+                                {item.percentage}
+                              </span>
+                            )}
+                          </div>
+                        </td>
+                        <td style={{ 
+                          padding: '0.75rem', 
+                          borderBottom: '1px solid #dee2e6',
+                          verticalAlign: 'middle'
+                        }}>{item.budget}</td>
+                        <td style={{ 
+                          padding: '0.75rem', 
+                          borderBottom: '1px solid #dee2e6',
+                          verticalAlign: 'middle'
+                        }}>{item.actual}</td>
+                        <td style={{ 
+                          padding: '0.75rem', 
+                          borderBottom: '1px solid #dee2e6',
+                          verticalAlign: 'middle',
+                          color: item.isPositive ? '#10b981' : '#ef4444',
+                          fontWeight: 'bold'
+                        }}>{item.available}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
             </div>
           </div>
-        </div>
+        )}
       </div>
     </div>
   );

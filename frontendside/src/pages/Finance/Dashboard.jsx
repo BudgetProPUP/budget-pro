@@ -1,3 +1,5 @@
+// TODO: Important, need massive changes and additional logic for new modals
+
 import React, { useState, useEffect } from "react";
 import { Line, Pie } from "react-chartjs-2";
 import {
@@ -396,12 +398,6 @@ function BudgetDashboard() {
         ? [
             {
               label: "Forecast",
-              data: (moneyFlowData?.map((d) => d.month_name) || []).map(
-                (monthName, index) => {
-                  const currentMonthIndex = new Date().getMonth(); // 0-11
-                  const forecastPoint = usingExampleData 
-                    ? exampleForecastData.find(f => f.month_name === monthName)
-                    : forecastData.find(f => f.month_name === monthName);
               data: (() => {
                 const combinedData = [];
                 const allMonths = moneyFlowData.map((d) => d.month_name);
@@ -410,9 +406,9 @@ function BudgetDashboard() {
                   .findLastIndex((d) => d > 0);
 
                 allMonths.forEach((monthName, index) => {
-                  const forecastPoint = forecastData.find(
-                    (f) => f.month_name === monthName
-                  );
+                  const forecastPoint = usingExampleData
+                    ? exampleForecastData.find(f => f.month_name === monthName)
+                    : forecastData.find(f => f.month_name === monthName);
 
                   if (index < lastActualExpenseIndex) {
                     // For months before the last expense, don't draw anything

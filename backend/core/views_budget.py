@@ -166,32 +166,41 @@ class BudgetProposalSummaryView(generics.GenericAPIView):
 class ProposalHistoryView(generics.ListAPIView):
     serializer_class = ProposalHistorySerializer
     permission_classes = [IsAuthenticated]
-    # MODIFIED: Use new pagination class for 6 items per page
     pagination_class = SixResultsSetPagination
 
     def get_queryset(self):
-        # This should query ProposalHistory model
         qs = ProposalHistory.objects.select_related(
-            'proposal__department').all()
+            'proposal__department'
+        ).prefetch_related(
+            'proposal__items__account__account_type'  # Add prefetch for better performance
+        ).all()
 
+        # Search by ticket ID or proposal title
         search = self.request.query_params.get('search')
-        department_id = self.request.query_params.get(
-            'department')  # Department of the proposal
-        # Status of the history action or proposal?
-        status_filter = self.request.query_params.get('status')
-        # account_type filter was on BudgetProposal, not directly on ProposalHistory
-
         if search:
-            qs = qs.filter(Q(proposal__title__icontains=search) | Q(
-                proposal__external_system_id__icontains=search))
+            qs = qs.filter(
+                Q(proposal__title__icontains=search) | 
+                Q(proposal__external_system_id__icontains=search)
+            )
+
+        # Filter by department
+        department_id = self.request.query_params.get('department')
         if department_id:
             qs = qs.filter(proposal__department_id=department_id)
-        if status_filter:  # Assuming this filters by the 'action' field of ProposalHistory
-            qs = qs.filter(action__iexact=status_filter)
-        # if account_type: # This filter doesn't directly apply to ProposalHistory model easily
-            # qs = qs.filter(proposal__items__account__account_type__name__iexact=account_type).distinct()
 
-        # Order by when the history event occurred
+        # Filter by action/status (APPROVED, REJECTED, SUBMITTED, etc.)
+        action_filter = self.request.query_params.get('action')  # Changed from 'status' to 'action'
+        if action_filter:
+            qs = qs.filter(action__iexact=action_filter)
+
+        # Filter by category (AccountType: Asset, Expense, Liability, etc.)
+        category = self.request.query_params.get('category')
+        if category and category != "All Categories":
+            # Filter proposals that have items with accounts of this type
+            qs = qs.filter(
+                proposal__items__account__account_type__name__iexact=category
+            ).distinct()
+
         return qs.order_by('-action_at')
 
 # --- Account Setup Page View ---

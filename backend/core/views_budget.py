@@ -113,7 +113,8 @@ class BudgetProposalSummaryView(generics.GenericAPIView):
         if bms_role == 'FINANCE_HEAD':
             department_id = getattr(user, 'department_id', None)
             if department_id:
-                active_proposals = active_proposals.filter(department_id=department_id)
+                active_proposals = active_proposals.filter(
+                    department_id=department_id)
             else:
                 active_proposals = BudgetProposal.objects.none()
         # Admins will see all proposals by default
@@ -133,7 +134,7 @@ class BudgetProposalSummaryView(generics.GenericAPIView):
         return Response(serializer.data)
 
 
-# class BudgetProposalDetailView(generics.RetrieveAPIView):  
+# class BudgetProposalDetailView(generics.RetrieveAPIView):
 #     queryset = BudgetProposal.objects.filter(is_deleted=False).prefetch_related('items__account', 'comments')
 #     serializer_class = BudgetProposalDetailSerializer
 #     permission_classes = [IsBMSUser] # JWT permission
@@ -179,7 +180,7 @@ class ProposalHistoryView(generics.ListAPIView):
         search = self.request.query_params.get('search')
         if search:
             qs = qs.filter(
-                Q(proposal__title__icontains=search) | 
+                Q(proposal__title__icontains=search) |
                 Q(proposal__external_system_id__icontains=search)
             )
 
@@ -189,7 +190,8 @@ class ProposalHistoryView(generics.ListAPIView):
             qs = qs.filter(proposal__department_id=department_id)
 
         # Filter by action/status (APPROVED, REJECTED, SUBMITTED, etc.)
-        action_filter = self.request.query_params.get('action')  # Changed from 'status' to 'action'
+        action_filter = self.request.query_params.get(
+            'action')  # Changed from 'status' to 'action'
         if action_filter:
             qs = qs.filter(action__iexact=action_filter)
 
@@ -299,12 +301,13 @@ class LedgerViewList(generics.ListAPIView):
         if search:
             # MODIFICATION START: Add entry_id (Ticket ID) and date to the search fields
             queryset = queryset.filter(
-                Q(journal_entry__entry_id__icontains=search) | # Search by Ticket ID
+                # Search by Ticket ID
+                Q(journal_entry__entry_id__icontains=search) |
                 Q(journal_entry__date__icontains=search) |       # Search by Date
-                Q(journal_entry__description__icontains=search) | 
+                Q(journal_entry__description__icontains=search) |
                 Q(description__icontains=search) |
-                Q(journal_entry__category__icontains=search) | 
-                Q(account__name__icontains=search) | 
+                Q(journal_entry__category__icontains=search) |
+                Q(account__name__icontains=search) |
                 Q(account__code__icontains=search)
             )
             # MODIFICATION END
@@ -370,11 +373,13 @@ class LedgerExportView(APIView):
 
 
 @extend_schema(
-    tags=['Journal Entry Page', 'Budget Adjustment Page'], # MODIFICATION: Add tag
-    summary="List Journal Entries (used for Budget Adjustment page)", # MODIFICATION: Update summary
+    # MODIFICATION: Add tag
+    tags=['Journal Entry Page', 'Budget Adjustment Page'],
+    # MODIFICATION: Update summary
+    summary="List Journal Entries (used for Budget Adjustment page)",
     parameters=[
             OpenApiParameter(
-               "search", str, description="Search by description, Entry ID, or Account Name"), 
+                "search", str, description="Search by description, Entry ID, or Account Name"),
             OpenApiParameter(
                 "category", str, description="Filter by category (e.g., EXPENSES, ASSETS)")
     ],
@@ -383,7 +388,7 @@ class LedgerExportView(APIView):
 class JournalEntryListView(generics.ListAPIView):
     serializer_class = JournalEntryListSerializer
     # MODIFICATION START: Change pagination class to match UI requirement
-    pagination_class = FiveResultsSetPagination 
+    pagination_class = FiveResultsSetPagination
     # MODIFICATION END
     permission_classes = [IsAuthenticated]
     # MODIFICATION START: Add more search fields and prefetch for performance
@@ -401,7 +406,8 @@ class JournalEntryListView(generics.ListAPIView):
                            # MODIFICATION START: Add search by account name
                            | Q(lines__account__name__icontains=search)
                            # MODIFICATION END
-                           ).distinct() # Use distinct because of the join on lines
+                           # Use distinct because of the join on lines
+                           ).distinct()
         if category:
             qs = qs.filter(category__iexact=category)
         return qs.order_by('-date', '-entry_id')
@@ -509,7 +515,7 @@ class ExternalBudgetProposalViewSet(viewsets.ModelViewSet):
     """
     queryset = BudgetProposal.objects.filter(is_deleted=False)
     serializer_class = BudgetProposalMessageSerializer
-    permission_classes = [IsTrustedService] # Enforces API Key for all actions
+    permission_classes = [IsTrustedService]  # Enforces API Key for all actions
 
     # This ViewSet uses the default create(), update(), partial_update(), and destroy()
     # methods from ModelViewSet, which are now correctly protected.
@@ -545,7 +551,7 @@ class BudgetProposalUIViewSet(viewsets.ReadOnlyModelViewSet):
 
         user_roles = getattr(user, 'roles', {})
         bms_role = user_roles.get('bms')
-        
+
         status_filter = self.request.query_params.get('status')
         department_filter = self.request.query_params.get('department')
 
@@ -563,7 +569,7 @@ class BudgetProposalUIViewSet(viewsets.ReadOnlyModelViewSet):
 
         if status_filter:
             queryset = queryset.filter(status=status_filter)
-            
+
         return queryset.order_by('-created_at')
 
     def get_serializer_class(self):
@@ -585,8 +591,9 @@ class BudgetProposalUIViewSet(viewsets.ReadOnlyModelViewSet):
         review_input_serializer.is_valid(raise_exception=True)
 
         new_status = review_input_serializer.validated_data['status']
-        comment_text = review_input_serializer.validated_data.get('comment', '')
-        
+        comment_text = review_input_serializer.validated_data.get(
+            'comment', '')
+
         reviewer_user_id = request.user.id
         # Use get_full_name() for consistency
         reviewer_name = request.user.get_full_name() or request.user.username
@@ -634,7 +641,8 @@ class BudgetProposalUIViewSet(viewsets.ReadOnlyModelViewSet):
                 comments=comment_text or f"Status changed to {new_status}."
             )
 
-        output_serializer = BudgetProposalDetailSerializer(proposal, context={'request': request})
+        output_serializer = BudgetProposalDetailSerializer(
+            proposal, context={'request': request})
         return Response(output_serializer.data, status=status.HTTP_200_OK)
 
     @extend_schema(
@@ -650,8 +658,9 @@ class BudgetProposalUIViewSet(viewsets.ReadOnlyModelViewSet):
         comment_serializer.is_valid(raise_exception=True)
         comment_text = comment_serializer.validated_data['comment']
 
-        commenter_name = f"{request.user.first_name} {request.user.last_name}".strip() or request.user.username
-        
+        commenter_name = f"{request.user.first_name} {request.user.last_name}".strip(
+        ) or request.user.username
+
         comment_obj = ProposalComment.objects.create(
             proposal=proposal,
             user_id=request.user.id,
@@ -663,7 +672,8 @@ class BudgetProposalUIViewSet(viewsets.ReadOnlyModelViewSet):
             comments=f"Comment added: '{comment_text}'"
         )
         return Response(ProposalCommentSerializer(comment_obj).data, status=status.HTTP_201_CREATED)
-    
+
+
 '''
 Function that exports the budget proposal to an Excel File
 
@@ -800,7 +810,49 @@ def export_budget_proposal_excel(request, proposal_id):
 
     return response
 
+# MODIFICATION START
+'''
+Business Logic Explanation for BudgetVarianceReportView:
 
+This view generates a hierarchical budget variance report, for tracking performance
+It compares planned financial outflows (Budget) against actual financial outflows (Actual)
+
+Implemantation:
+-   Structure: The report's nested structure is built recursively based on the parent-child relationships 
+    defined in the `ExpenseCategory` model. The process starts with top-level categories (e.g., 'INCOME', 'EXPENSE')
+
+-   'Budget' Calculation: For each category, the `Budget` is the sum of all `BudgetAllocation` amounts linked to 
+    that specific category (and its sub-categories) for the selected `fiscal_year`.  This represents the total 
+    planned allocation.
+
+-   'Actual' Calculation: The `Actual` is the sum of all `APPROVED` `Expense` amounts linked to that category
+    If a `month` parameter is provided in the request, this calculation is filtered to only include expenses 
+    from that specific month. This represents the total recorded spending.
+
+-   'Available' Calculation: The `Available` amount is a simple calculation: `Budget - Actual`. A positive 
+    value indicates underspending, while a negative value (shown in red on the UI) indicates overspending
+
+
+Business Logic Consideration for ASSET, LIABILITY, and EXPENSE categories:
+
+This view uses a unified calculation (`Budget - Actual`) across all top-level categories, which is a logical 
+simplification for this application's purpose. Here is how to interpret the results for each type:
+
+-   For 'EXPENSE' categories (e.g., Operations, Marketing): This is a standard budget variance calculation. It shows 
+    how much of the operational budget has been spent and how much remains.
+
+-   For 'ASSET' categories (e.g., Equipment): This represents a capital expenditure (CapEx) budget. The `Budget` is 
+    the total allocated for purchasing assets, `Actual` is the value of assets already purchased against that budget, 
+    and `Available` correctly shows the remaining funds for future asset acquisition.
+
+-   For 'LIABILITY' categories (e.g., Payables and Loans): This can be interpreted as tracking the budget allocated 
+    for debt servicing. The `Budget` is the amount the company has set aside to make payments on its obligations, 
+    `Actual` represents the payments that have been made, and `Available` shows the remaining funds allocated for 
+    this purpose within the period.
+
+this unified approach is effective and consistent 
+for this application's goal: tracking planned financial outflows against actual outflows across all defined categories
+'''
 class BudgetVarianceReportView(APIView):
     permission_classes = [IsAuthenticated]
     '''
@@ -811,7 +863,11 @@ class BudgetVarianceReportView(APIView):
         summary="Budget Variance Report",
         description="The Budget Variance Report shows how budget allocations are utilized across hierarchical categories such as Income and Expense. For each category, it displays: Budget (total allocated from BudgetAllocation objects), Actual (total approved Expense entries), and Available (Budget minus Actual). A negative Available value indicates overspending. Categories are organized into levels: Level 1 (top-level like INCOME or EXPENSE), Level 2 (groups like DISCRETIONARY or OPERATIONS), and Level 3 (specific items like Cloud Hosting or Utilities). This report helps departments track financial performance and identify areas of over- or under-spending.",
         parameters=[
-            OpenApiParameter(name="fiscal_year_id", required=True, type=int)
+            OpenApiParameter(name="fiscal_year_id", required=True, type=int),
+            # MODIFICATION START: Add month parameter to Swagger documentation
+            OpenApiParameter(
+                name="month", description="Filter actuals by a specific month (1-12). If omitted, aggregates for the whole year.", type=int)
+            # MODIFICATION END
         ],
         responses={200: ExpenseCategoryVarianceSerializer(many=True)}
     )
@@ -820,12 +876,21 @@ class BudgetVarianceReportView(APIView):
         if not fiscal_year_id:
             return Response({"error": "fiscal_year_id is required"}, status=status.HTTP_400_BAD_REQUEST)
 
+        # MODIFICATION START: Get the optional month parameter
+        try:
+            month = int(request.query_params.get('month')) if request.query_params.get('month') else None
+            if month and (month < 1 or month > 12):
+                raise ValueError()
+        except (ValueError, TypeError):
+            return Response({"error": "Invalid month provided. Must be an integer between 1 and 12."}, status=status.HTTP_400_BAD_REQUEST)
+        # MODIFICATION END
+
         try:
             fiscal_year = FiscalYear.objects.get(id=fiscal_year_id)
         except FiscalYear.DoesNotExist:
             return Response({"error": "Fiscal Year not found"}, status=status.HTTP_404_NOT_FOUND)
-
         # --- START: Optional User Activity Logging ---
+       
         try:
             UserActivityLog.objects.create(
                 user_id=request.user.id,  # From JWT
@@ -848,17 +913,23 @@ class BudgetVarianceReportView(APIView):
             level=1, is_active=True)
 
         def aggregate_node(category):
-            # Direct values
+            # Budget is typically for the whole year, so it's not filtered by month.
             budget = BudgetAllocation.objects.filter(
                 category=category, fiscal_year=fiscal_year, is_active=True
             ).aggregate(total=Coalesce(Sum('amount'), 0, output_field=DecimalField()))['total']
 
-            actual = Expense.objects.filter(
+            # MODIFICATION START: Filter 'Actual' spending by the selected month if provided
+            actual_qs = Expense.objects.filter(
                 category=category,
                 budget_allocation__fiscal_year=fiscal_year,
                 status='APPROVED'
-            ).aggregate(total=Coalesce(Sum('amount'), 0, output_field=DecimalField()))['total']
-
+            )
+            if month:
+                actual_qs = actual_qs.filter(date__month=month)
+            
+            actual = actual_qs.aggregate(total=Coalesce(Sum('amount'), 0, output_field=DecimalField()))['total']
+            # MODIFICATION END
+            
             available = budget - actual
             children = []
 

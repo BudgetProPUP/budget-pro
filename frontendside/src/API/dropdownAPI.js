@@ -10,3 +10,8 @@ export const getAccountTypes = () => {
 export const getJournalChoices = () => {
     return budgetApi.get('/dropdowns/journal-choices/');
 };
+
+
+export const getAccounts = () => {
+    return budgetApi.get('/dropdowns/accounts/');
+};

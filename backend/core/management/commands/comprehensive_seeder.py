@@ -509,20 +509,23 @@ class Command(BaseCommand):
             f'Created {len(transfers)} budget transfers'))
         return transfers
 
-    def create_journal_entries(self):  # IDEMPOTENT
+    def create_journal_entries(self):
         self.stdout.write('Creating journal entries...')
         entries = []
         for i in range(10):
             sim_creator = random.choice(SIMULATED_USERS)
-            # IDEMPOTENCY: Create a stable key.
             deterministic_desc = f"JE for {sim_creator['department_code']} - Seeded Entry #{i+1}"
-            entry, _ = JournalEntry.objects.get_or_create(
-                # IDEMPOTENCY: Use the stable key.
+            
+            # Generate a unique entry_id
+            entry_id = f"JE-{sim_creator['department_code']}-{datetime.now().year}-{i+1:04d}"
+            
+            entry, created = JournalEntry.objects.get_or_create(
                 description=deterministic_desc,
                 defaults={
+                    'entry_id': entry_id,  # ADD THIS LINE
                     'category': random.choice(['EXPENSES', 'ASSETS']),
                     'date': timezone.now() - timedelta(days=random.randint(1, 90)),
-                    'total_amount': Decimal(0),  # Will be updated by lines
+                    'total_amount': Decimal('1000.00'),  # Set initial amount, will be updated by lines
                     'status': 'POSTED',
                     'created_by_user_id': sim_creator['id'],
                     'created_by_username': sim_creator['username']
@@ -533,7 +536,7 @@ class Command(BaseCommand):
             f'Created/Updated {len(entries)} journal entries'))
         return entries
 
-    def create_journal_entry_lines(self, journal_entries, accounts):  # IDEMPOTENT
+    def create_journal_entry_lines(self, journal_entries, accounts):
         self.stdout.write('Creating journal entry lines...')
         if not accounts:
             return
@@ -545,17 +548,19 @@ class Command(BaseCommand):
             debit_total = Decimal(0)
             credit_total = Decimal(0)
             num_lines = random.randint(2, 4)
+            
             for i in range(num_lines):
                 amount = Decimal(random.randint(100, 10000))
-                if i == num_lines - 1:  # last line
+                if i == num_lines - 1:  # last line - balance it
                     if debit_total > credit_total:
                         tran_type = 'CREDIT'
                         amount = debit_total - credit_total
                     elif credit_total > debit_total:
                         tran_type = 'DEBIT'
                         amount = credit_total - debit_total
-                    else:  # amounts are equal, make one more random line
+                    else:
                         tran_type = random.choice(['DEBIT', 'CREDIT'])
+                        amount = Decimal(random.randint(100, 1000))
                 else:
                     tran_type = random.choice(['DEBIT', 'CREDIT'])
 
@@ -563,18 +568,24 @@ class Command(BaseCommand):
                     amount = Decimal(random.randint(100, 1000))
 
                 JournalEntryLine.objects.create(
-                    journal_entry=entry, account=random.choice(accounts),
+                    journal_entry=entry, 
+                    account=random.choice(accounts),
                     transaction_type=tran_type,
                     journal_transaction_type=random.choice(
                         ['OPERATIONAL_EXPENDITURE', 'CAPITAL_EXPENDITURE']),
-                    amount=amount, description=entry.description
+                    amount=amount, 
+                    description=entry.description
                 )
+                
                 if tran_type == 'DEBIT':
                     debit_total += amount
                 else:
                     credit_total += amount
-            entry.total_amount = debit_total
-            entry.save()
+            
+            # Update the entry's total_amount to the debit total (or max of debit/credit)
+            entry.total_amount = max(debit_total, credit_total)
+            entry.save(update_fields=['total_amount'])
+            
         self.stdout.write(self.style.SUCCESS(
             f'Added lines to {len(journal_entries)} journal entries'))
 

@@ -370,31 +370,41 @@ class LedgerExportView(APIView):
 
 
 @extend_schema(
-    tags=['Journal Entry Page'],
-    summary="List Journal Entries",
+    tags=['Journal Entry Page', 'Budget Adjustment Page'], # MODIFICATION: Add tag
+    summary="List Journal Entries (used for Budget Adjustment page)", # MODIFICATION: Update summary
     parameters=[
             OpenApiParameter(
-                "search", str, description="Search by description or reference"),
+               "search", str, description="Search by description, Entry ID, or Account Name"), 
             OpenApiParameter(
                 "category", str, description="Filter by category (e.g., EXPENSES, ASSETS)")
     ],
     responses={200: JournalEntryListSerializer(many=True)}
 )
-class JournalEntryListView(generics.ListAPIView):  # Logic seems fine
+class JournalEntryListView(generics.ListAPIView):
     serializer_class = JournalEntryListSerializer
-    pagination_class = StandardResultsSetPagination
+    # MODIFICATION START: Change pagination class to match UI requirement
+    pagination_class = FiveResultsSetPagination 
+    # MODIFICATION END
     permission_classes = [IsAuthenticated]
+    # MODIFICATION START: Add more search fields and prefetch for performance
+    search_fields = ['entry_id', 'description', 'lines__account__name']
 
-    def get_queryset(self):  # Logic seems fine
-        qs = JournalEntry.objects.all()
+    def get_queryset(self):
+        # Prefetch related lines and accounts to prevent N+1 queries
+        qs = JournalEntry.objects.prefetch_related('lines__account').all()
+    # MODIFICATION END
         search = self.request.query_params.get('search')
         category = self.request.query_params.get('category')
         if search:
             qs = qs.filter(Q(description__icontains=search)
-                           | Q(entry_id__icontains=search))
+                           | Q(entry_id__icontains=search)
+                           # MODIFICATION START: Add search by account name
+                           | Q(lines__account__name__icontains=search)
+                           # MODIFICATION END
+                           ).distinct() # Use distinct because of the join on lines
         if category:
             qs = qs.filter(category__iexact=category)
-        return qs.order_by('-date', '-entry_id')  # Added secondary sort
+        return qs.order_by('-date', '-entry_id')
 
     def get(self, *args, **kwargs):
         return super().get(*args, **kwargs)

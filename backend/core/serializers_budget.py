@@ -215,14 +215,39 @@ class LedgerViewSerializer(serializers.ModelSerializer):
 
 class JournalEntryListSerializer(serializers.ModelSerializer):
     """
-    Serializer for Journal Entry Page listing view
+    Serializer for Journal Entry Page listing view. NOW USED FOR BUDGET ADJUSTMENT PAGE.
     """
     created_by_username = serializers.CharField(read_only=True)
+    ticket_id = serializers.CharField(source='entry_id', read_only=True)
+    amount = serializers.DecimalField(source='total_amount', max_digits=15, decimal_places=2, read_only=True)
+    account = serializers.SerializerMethodField()
 
     class Meta:
         model = JournalEntry
-        fields = ['entry_id', 'date', 'category', 'description',
-                  'total_amount', 'created_by_username']
+        fields = ['id', 'ticket_id', 'date', 'category', 'account', 'description', 
+                  'amount', 'created_by_username']
+        
+    def get_account(self, obj):
+        """
+        Display the account from the first debit line for simplicity.
+        Falls back to first credit line, then any line.
+        """
+        # Try debit line first
+        first_debit_line = obj.lines.filter(transaction_type='DEBIT').first()
+        if first_debit_line and first_debit_line.account:
+            return first_debit_line.account.name
+        
+        # Fallback to credit line
+        first_credit_line = obj.lines.filter(transaction_type='CREDIT').first()
+        if first_credit_line and first_credit_line.account:
+            return first_credit_line.account.name
+        
+        # Final fallback to any line
+        first_line = obj.lines.first()
+        if first_line and first_line.account:
+            return first_line.account.name
+        
+        return "No Account"
 
 
 class JournalEntryLineInputSerializer(serializers.Serializer):

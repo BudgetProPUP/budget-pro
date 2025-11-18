@@ -15,3 +15,10 @@ export const getJournalChoices = () => {
 export const getAccounts = () => {
     return budgetApi.get('/dropdowns/accounts/');
 };
+
+/**
+ * Fetches the list of available fiscal years for dropdowns.
+ */
+export const getFiscalYears = () => {
+    return budgetApi.get('/dropdowns/fiscal-years/');
+};

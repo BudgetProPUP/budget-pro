@@ -115,25 +115,44 @@ class BudgetProposalDetailSerializer(serializers.ModelSerializer):
 
 
 class ProposalHistorySerializer(serializers.ModelSerializer):
-    # ADDED: Proposal ID (external) for the history table
     proposal_id = serializers.CharField(
         source='proposal.external_system_id', read_only=True)
-    # RENAMED: from proposal_title to proposal to match UI
     proposal = serializers.CharField(
         source='proposal.title', read_only=True)
-    # RENAMED: from action_by_name to match UI
     last_modified_by = serializers.CharField(
         source='action_by_name', read_only=True)
-    # RENAMED: from action_at to match UI
     last_modified = serializers.DateTimeField(
         source='action_at', read_only=True)
-    # RENAMED: from new_status to match UI
     status = serializers.CharField(source='new_status', read_only=True)
+    category = serializers.SerializerMethodField()
+    subcategory = serializers.SerializerMethodField()
 
     class Meta:
         model = ProposalHistory
-        fields = ['id', 'proposal_id', 'proposal',
+        fields = ['id', 'proposal_id', 'proposal', 'category', 'subcategory',
                   'last_modified', 'last_modified_by', 'status']
+        
+    def get_category(self, obj):
+        """Get the category from the first item of the related proposal"""
+        try:
+            first_item = obj.proposal.items.first()
+            if first_item and first_item.account and first_item.account.account_type:
+                return first_item.account.account_type.name
+            return "N/A"
+        except Exception as e:
+            print(f"Error getting category: {e}")  # Debug log
+            return "N/A"
+    
+    def get_subcategory(self, obj):
+        """Use the cost_element of the first item as the subcategory"""
+        try:
+            first_item = obj.proposal.items.first()
+            if first_item and first_item.cost_element:
+                return first_item.cost_element
+            return "N/A"
+        except Exception as e:
+            print(f"Error getting subcategory: {e}")  # Debug log
+            return "N/A"
 
 
 class AccountSetupSerializer(serializers.ModelSerializer):

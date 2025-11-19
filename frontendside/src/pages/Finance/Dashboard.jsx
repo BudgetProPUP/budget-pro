@@ -40,10 +40,8 @@ import {
  getBudgetSummary,
   getMoneyFlowData,
   getForecastData,
-  // --- MODIFICATION START ---
-  getTopCategoryAllocations, // Correct API function for the pie chart
-  getDepartmentBudgetData, // API for the "View Details" section
-  // --- MODIFICATION END ---
+  getTopCategoryAllocations,
+  getDepartmentBudgetData,
 } from "../../API/dashboardAPI";
 
 // Import ManageProfile component
@@ -154,17 +152,14 @@ function BudgetDashboard() {
   const [showForecastComparison, setShowForecastComparison] = useState(false);
   const [usingExampleData, setUsingExampleData] = useState(false);
   const [exampleForecastData, setExampleForecastData] = useState([]);
-  const [exampleAccuracyHistory, setExampleAccuracyHistory] = useState([]);
   const navigate = useNavigate();
 
-  // --- NEW STATE FOR API DATA ---
+  // Existing state variables
   const [summaryData, setSummaryData] = useState(null);
   const [moneyFlowData, setMoneyFlowData] = useState(null);
   const [forecastData, setForecastData] = useState([]);
-  // --- MODIFICATION START ---
-  const [pieChartApiData, setPieChartApiData] = useState(null); // For Pie Chart
-  const [departmentDetailsData, setDepartmentDetailsData] = useState(null); // For "View Details"
-  // --- MODIFICATION END ---
+  const [pieChartApiData, setPieChartApiData] = useState(null);
+  const [departmentDetailsData, setDepartmentDetailsData] = useState(null);
 
   // New state for forecast analysis
   const [accuracyMetrics, setAccuracyMetrics] = useState(null);
@@ -186,20 +181,17 @@ function BudgetDashboard() {
         setLoading(true);
         const fiscalYearId = 2;
 
-        // --- MODIFICATION START ---
-        // Updated to fetch all necessary data points for the dashboard
         const [summaryRes, moneyFlowRes, pieChartRes, departmentDetailsRes] = await Promise.all([
           getBudgetSummary(),
           getMoneyFlowData(fiscalYearId),
-          getTopCategoryAllocations(), // Fetches data for the pie chart
-          getDepartmentBudgetData(),     // Fetches data for the "View Details" section
+          getTopCategoryAllocations(),
+          getDepartmentBudgetData(),
         ]);
 
         setSummaryData(summaryRes.data);
         setMoneyFlowData(moneyFlowRes.data);
         setPieChartApiData(pieChartRes.data);
         setDepartmentDetailsData(departmentDetailsRes.data);
-        // --- MODIFICATION END ---
 
       } catch (error) {
         console.error("Failed to fetch dashboard data:", error);
@@ -242,7 +234,6 @@ function BudgetDashboard() {
             
             // Generate example accuracy history
             const history = generateExampleAccuracyHistory();
-            setExampleAccuracyHistory(history);
             setAccuracyHistory(history);
           } else if (moneyFlowData && res.data) {
             // Use real data
@@ -270,7 +261,6 @@ function BudgetDashboard() {
             setAccuracyMetrics(metrics);
             
             const history = generateExampleAccuracyHistory();
-            setExampleAccuracyHistory(history);
             setAccuracyHistory(history);
           }
         }
@@ -547,7 +537,7 @@ function BudgetDashboard() {
     },
   };
 
-  // Export Accuracy Report
+  // Export Accuracy Report - Updated with BudgetVarianceReport styling
   const exportAccuracyReport = () => {
     const reportData = {
       title: "Forecast Accuracy Report",
@@ -555,7 +545,7 @@ function BudgetDashboard() {
       dataSource: usingExampleData ? "Example Data" : "Real Data",
       accuracyMetrics,
       performanceTrend,
-      monthlyData: moneyFlowData?.map((month, index) => {
+      monthlyData: moneyFlowData?.map((month) => {
         const forecastPoint = usingExampleData 
           ? exampleForecastData.find(f => f.month_name === month.month_name)
           : forecastData.find(f => f.month_name === month.month_name);
@@ -595,7 +585,6 @@ function BudgetDashboard() {
       setAccuracyMetrics(metrics);
       
       const newHistory = generateExampleAccuracyHistory();
-      setExampleAccuracyHistory(newHistory);
       setAccuracyHistory(newHistory);
     }
   };
@@ -642,13 +631,11 @@ function BudgetDashboard() {
     setShowProfileDropdown(false);
   };
 
-  // New function to handle Manage Profile click
   const handleManageProfile = () => {
     setShowManageProfile(true);
     setShowProfileDropdown(false);
   };
 
-  // New function to close Manage Profile
   const handleCloseManageProfile = () => {
     setShowManageProfile(false);
   };
@@ -1516,7 +1503,7 @@ function BudgetDashboard() {
               </div>
             </div>
 
-            {/* Forecast Analysis Section - NEW */}
+            {/* Forecast Analysis Section - UPDATED with BudgetVarianceReport table layout and blue export button */}
             {showForecastComparison && accuracyMetrics && (
               <div className="card" style={{ marginBottom: "30px" }}>
                 <div
@@ -1531,24 +1518,32 @@ function BudgetDashboard() {
                   <button
                     onClick={exportAccuracyReport}
                     style={{
-                      display: "flex",
-                      alignItems: "center",
-                      gap: "6px",
-                      padding: "6px 12px",
-                      backgroundColor: "#28a745",
-                      color: "white",
-                      border: "none",
-                      borderRadius: "4px",
-                      cursor: "pointer",
-                      outline: "none",
-                      fontSize: "14px",
-                      fontWeight: "500",
+                      padding: '8px 16px', 
+                      border: '1px solid #007bff', 
+                      borderRadius: '4px', 
+                      backgroundColor: '#007bff',
+                      color: '#ffffff',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '8px',
+                      cursor: 'pointer',
+                      marginLeft: '10px',
+                      fontWeight: '500',
+                      fontSize: '14px',
+                      outline: 'none'
                     }}
                   >
-                    <Download size={16} />
-                    Export Report
+                    <span style={{ color: 'white' }}>Export Report</span>
+                    <Download size={16} style={{ color: 'white' }} />
                   </button>
                 </div>
+
+                {/* Separator line between title and table - Matching BudgetVarianceReport */}
+                <div style={{
+                  height: '1px',
+                  backgroundColor: '#e0e0e0',
+                  marginBottom: '20px'
+                }}></div>
 
                 <div className="stats-grid" style={{ marginBottom: "20px" }}>
                   {/* Accuracy Score */}
@@ -1621,57 +1616,165 @@ function BudgetDashboard() {
                   </div>
                 </div>
 
-                {/* Detailed Metrics Table */}
+                {/* Detailed Metrics Table - UPDATED with BudgetVarianceReport table layout */}
                 <div style={{ marginTop: '20px' }}>
                   <h4 style={{ marginBottom: '15px', color: '#374151' }}>Monthly Forecast vs Actual</h4>
-                  <div style={{ overflowX: 'auto' }}>
-                    <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-                      <thead>
-                        <tr style={{ backgroundColor: '#f8f9fa' }}>
-                          <th style={{ padding: '12px', textAlign: 'left', borderBottom: '2px solid #e9ecef' }}>Month</th>
-                          <th style={{ padding: '12px', textAlign: 'right', borderBottom: '2px solid #e9ecef' }}>Actual</th>
-                          <th style={{ padding: '12px', textAlign: 'right', borderBottom: '2px solid #e9ecef' }}>Forecast</th>
-                          <th style={{ padding: '12px', textAlign: 'right', borderBottom: '2px solid #e9ecef' }}>Variance</th>
-                          <th style={{ padding: '12px', textAlign: 'right', borderBottom: '2px solid #e9ecef' }}>Accuracy</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {moneyFlowData?.map((month, index) => {
-                          const forecastPoint = usingExampleData 
-                            ? exampleForecastData.find(f => f.month_name === month.month_name)
-                            : forecastData.find(f => f.month_name === month.month_name);
-                          const forecastValue = forecastPoint?.forecast || 0;
-                          const variance = month.actual - forecastValue;
-                          const accuracy = forecastPoint ? (100 - Math.abs((variance / month.actual) * 100)).toFixed(1) : 'N/A';
-                          
-                          return (
-                            <tr key={index} style={{ borderBottom: '1px solid #e9ecef' }}>
-                              <td style={{ padding: '12px' }}>{month.month_name}</td>
-                              <td style={{ padding: '12px', textAlign: 'right' }}>₱{month.actual.toLocaleString()}</td>
-                              <td style={{ padding: '12px', textAlign: 'right' }}>
-                                {forecastPoint ? `₱${forecastValue.toLocaleString()}` : 'N/A'}
-                              </td>
-                              <td style={{ 
-                                padding: '12px', 
-                                textAlign: 'right',
-                                color: variance >= 0 ? '#28a745' : '#dc3545'
-                              }}>
-                                {variance !== 0 ? `₱${Math.abs(variance).toLocaleString()} ${variance >= 0 ? 'Over' : 'Under'}` : 'Exact'}
-                              </td>
-                              <td style={{ 
-                                padding: '12px', 
-                                textAlign: 'right',
-                                color: accuracy !== 'N/A' && accuracy >= 90 ? '#28a745' : 
-                                      accuracy !== 'N/A' && accuracy >= 80 ? '#007bff' : 
-                                      accuracy !== 'N/A' && accuracy >= 70 ? '#ffc107' : '#dc3545'
-                              }}>
-                                {accuracy !== 'N/A' ? `${accuracy}%` : 'N/A'}
-                              </td>
-                            </tr>
-                          );
-                        })}
-                      </tbody>
-                    </table>
+                  <div style={{ 
+                    overflow: 'auto',
+                    border: '1px solid #e0e0e0',
+                    borderRadius: '4px',
+                    position: 'relative'
+                  }}>
+                    {/* Custom scrollbar styling from BudgetVarianceReport */}
+                    <style>
+                      {`
+                        .table-scroll-container::-webkit-scrollbar {
+                          width: 8px;
+                          height: 8px;
+                        }
+                        .table-scroll-container::-webkit-scrollbar-track {
+                          background: #f1f1f1;
+                          border-radius: 4px;
+                        }
+                        .table-scroll-container::-webkit-scrollbar-thumb {
+                          background: #c1c1c1;
+                          border-radius: 4px;
+                        }
+                        .table-scroll-container::-webkit-scrollbar-thumb:hover {
+                          background: #a8a8a8;
+                        }
+                      `}
+                    </style>
+                    
+                    <div className="table-scroll-container" style={{
+                      height: '100%',
+                      overflow: 'auto'
+                    }}>
+                      <table style={{ 
+                        width: '100%', 
+                        borderCollapse: 'collapse',
+                        tableLayout: 'fixed'
+                      }}>
+                        <thead>
+                          <tr style={{ backgroundColor: '#f8f9fa', position: 'sticky', top: 0, zIndex: 10 }}>
+                            <th style={{ 
+                              width: '25%', 
+                              padding: '0.75rem', 
+                              textAlign: 'left', 
+                              borderBottom: '2px solid #dee2e6',
+                              height: '50px',
+                              verticalAlign: 'middle',
+                              backgroundColor: '#f8f9fa'
+                            }}>Month</th>
+                            <th style={{ 
+                              width: '25%', 
+                              padding: '0.75rem', 
+                              textAlign: 'right', 
+                              borderBottom: '2px solid #dee2e6',
+                              height: '50px',
+                              verticalAlign: 'middle',
+                              backgroundColor: '#f8f9fa'
+                            }}>Actual</th>
+                            <th style={{ 
+                              width: '25%', 
+                              padding: '0.75rem', 
+                              textAlign: 'right', 
+                              borderBottom: '2px solid #dee2e6',
+                              height: '50px',
+                              verticalAlign: 'middle',
+                              backgroundColor: '#f8f9fa'
+                            }}>Forecast</th>
+                            <th style={{ 
+                              width: '12.5%', 
+                              padding: '0.75rem', 
+                              textAlign: 'right', 
+                              borderBottom: '2px solid #dee2e6',
+                              height: '50px',
+                              verticalAlign: 'middle',
+                              backgroundColor: '#f8f9fa'
+                            }}>Variance</th>
+                            <th style={{ 
+                              width: '12.5%', 
+                              padding: '0.75rem', 
+                              textAlign: 'right', 
+                              borderBottom: '2px solid #dee2e6',
+                              height: '50px',
+                              verticalAlign: 'middle',
+                              backgroundColor: '#f8f9fa'
+                            }}>Accuracy</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {moneyFlowData?.map((month, index) => {
+                            const forecastPoint = usingExampleData 
+                              ? exampleForecastData.find(f => f.month_name === month.month_name)
+                              : forecastData.find(f => f.month_name === month.month_name);
+                            const forecastValue = forecastPoint?.forecast || 0;
+                            const variance = month.actual - forecastValue;
+                            const accuracy = forecastPoint ? (100 - Math.abs((variance / month.actual) * 100)).toFixed(1) : 'N/A';
+                            
+                            return (
+                              <tr 
+                                key={month.month_name} 
+                                className={index % 2 === 1 ? 'alternate-row' : ''} 
+                                style={{ 
+                                  backgroundColor: index % 2 === 1 ? '#F8F8F8' : '#FFFFFF', 
+                                  color: '#0C0C0C',
+                                  height: '50px',
+                                  transition: 'background-color 0.2s ease'
+                                }}
+                                onMouseEnter={(e) => {
+                                  e.currentTarget.style.backgroundColor = '#fcfcfc';
+                                }}
+                                onMouseLeave={(e) => {
+                                  e.currentTarget.style.backgroundColor = index % 2 === 1 ? '#F8F8F8' : '#FFFFFF';
+                                }}
+                              >
+                                <td style={{ 
+                                  padding: '0.75rem', 
+                                  borderBottom: '1px solid #dee2e6',
+                                  verticalAlign: 'middle'
+                                }}>{month.month_name}</td>
+                                <td style={{ 
+                                  padding: '0.75rem', 
+                                  textAlign: 'right',
+                                  borderBottom: '1px solid #dee2e6',
+                                  verticalAlign: 'middle'
+                                }}>₱{month.actual.toLocaleString()}</td>
+                                <td style={{ 
+                                  padding: '0.75rem', 
+                                  textAlign: 'right',
+                                  borderBottom: '1px solid #dee2e6',
+                                  verticalAlign: 'middle'
+                                }}>
+                                  {forecastPoint ? `₱${forecastValue.toLocaleString()}` : 'N/A'}
+                                </td>
+                                <td style={{ 
+                                  padding: '0.75rem', 
+                                  textAlign: 'right',
+                                  borderBottom: '1px solid #dee2e6',
+                                  verticalAlign: 'middle',
+                                  color: variance >= 0 ? '#28a745' : '#dc3545'
+                                }}>
+                                  {variance !== 0 ? `₱${Math.abs(variance).toLocaleString()} ${variance >= 0 ? 'Over' : 'Under'}` : 'Exact'}
+                                </td>
+                                <td style={{ 
+                                  padding: '0.75rem', 
+                                  textAlign: 'right',
+                                  borderBottom: '1px solid #dee2e6',
+                                  verticalAlign: 'middle',
+                                  color: accuracy !== 'N/A' && accuracy >= 90 ? '#28a745' : 
+                                        accuracy !== 'N/A' && accuracy >= 80 ? '#007bff' : 
+                                        accuracy !== 'N/A' && accuracy >= 70 ? '#ffc107' : '#dc3545'
+                                }}>
+                                  {accuracy !== 'N/A' ? `${accuracy}%` : 'N/A'}
+                                </td>
+                              </tr>
+                            );
+                          })}
+                        </tbody>
+                      </table>
+                    </div>
                   </div>
                 </div>
               </div>
@@ -1741,7 +1844,7 @@ function BudgetDashboard() {
                     ).toFixed(1);
                     return (
                       <div
-                        key={index}
+                        key={label}
                         style={{
                           display: "flex",
                           alignItems: "center",
@@ -1812,38 +1915,36 @@ function BudgetDashboard() {
               </div>
 
               {/* Department list is now DYNAMIC and shown when clicking the eye icon */}
-              {showBudgetDetails && (
+              {showBudgetDetails && departmentDetailsData && (
                 <div className="dept-budget-list">
-                  {/* Use the 'categoryData' from the API call */}
-                  {categoryData &&
-                    categoryData.map((cat, index) => (
-                      <div
-                        key={index}
-                        className={`dept-budget-item ${
-                          index < categoryData.length - 1 ? "with-border" : ""
-                        }`}
-                      >
-                        <div className="dept-budget-header">
-                          <h4 className="dept-budget-title">{cat.category_name}</h4>
-                          <p className="dept-budget-percentage">
-                            {cat.percentage_used}% of budget used
-                          </p>
-                        </div>
-                        <div className="progress-container">
-                          <div
-                            className="progress-bar"
-                            style={{
-                              width: `${cat.percentage_used}%`,
-                              backgroundColor: "#007bff",
-                            }}
-                          ></div>
-                        </div>
-                        <div className="dept-budget-details">
-                          <p>Budget: ₱{Number(cat.budget).toLocaleString()}</p>
-                          <p>Spent: ₱{Number(cat.spent).toLocaleString()}</p>
-                        </div>
+                  {departmentDetailsData.map((dept, index) => (
+                    <div
+                      key={dept.id || index}
+                      className={`dept-budget-item ${
+                        index < departmentDetailsData.length - 1 ? "with-border" : ""
+                      }`}
+                    >
+                      <div className="dept-budget-header">
+                        <h4 className="dept-budget-title">{dept.department_name || dept.name}</h4>
+                        <p className="dept-budget-percentage">
+                          {dept.percentage_used || 0}% of budget used
+                        </p>
                       </div>
-                    ))}
+                      <div className="progress-container">
+                        <div
+                          className="progress-bar"
+                          style={{
+                            width: `${dept.percentage_used || 0}%`,
+                            backgroundColor: "#007bff",
+                          }}
+                        ></div>
+                      </div>
+                      <div className="dept-budget-details">
+                        <p>Budget: ₱{Number(dept.budget || 0).toLocaleString()}</p>
+                        <p>Spent: ₱{Number(dept.spent || 0).toLocaleString()}</p>
+                      </div>
+                    </div>
+                  ))}
                 </div>
               )}
             </div>

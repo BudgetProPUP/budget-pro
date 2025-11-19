@@ -1278,3 +1278,61 @@ body::-webkit-scrollbar {
     padding: 0.4rem 0.8rem;
   }
 }
+
+/* MODIFICATION START: Add the styles for the status badges to this file */
+.status-approved,
+.status-rejected,
+.status-pending,
+.status-submitted { /* Add submitted for API consistency */
+  display: inline-flex;
+  align-items: center;
+  padding: 4px 12px;
+  border-radius: 40px;
+  font-size: 0.75rem;
+  font-weight: 500;
+}
+
+.status-approved .circle,
+.status-rejected .circle,
+.status-pending .circle,
+.status-submitted .circle {
+  height: 6px;
+  width: 6px;
+  border-radius: 50%;
+  margin-right: 5px;
+}
+
+.status-approved {
+  background-color: #e8f5e8;
+  color: #2e7d32;
+}
+.status-approved .circle {
+  background-color: #2e7d32;
+}
+
+.status-rejected {
+  background-color: #ffebee;
+  color: #c62828;
+}
+.status-rejected .circle {
+  background-color: #c62828;
+}
+
+/* For 'SUBMITTED' status from API */
+.status-submitted {
+  background-color: #e3f2fd;
+  color: #0d47a1;
+}
+.status-submitted .circle {
+  background-color: #0d47a1;
+}
+
+/* Fallback for 'pending' if it's still used */
+.status-pending {
+  background-color: #fff3e0;
+  color: #ef6c00;
+}
+.status-pending .circle {
+  background-color: #ef6c00;
+}
+/* MODIFICATION END */

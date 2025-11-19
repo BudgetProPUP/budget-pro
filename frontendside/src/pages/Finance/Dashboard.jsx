@@ -1,3 +1,5 @@
+// TODO: Important, need massive changes and additional logic for new modals
+// TODO: Add logic to monthly, quarterly, and yearly filters if possible
 import React, { useState, useEffect } from "react";
 import { Line, Pie } from "react-chartjs-2";
 import {
@@ -37,7 +39,7 @@ import { Link, useNavigate } from "react-router-dom";
 import LOGOMAP from "../../assets/MAP.jpg";
 import "./Dashboard.css";
 import {
- getBudgetSummary,
+  getBudgetSummary,
   getMoneyFlowData,
   getForecastData,
   getTopCategoryAllocations,
@@ -187,12 +189,22 @@ function BudgetDashboard() {
           getTopCategoryAllocations(),
           getDepartmentBudgetData(),
         ]);
+        // --- MODIFICATION START ---
+        // Updated to fetch all necessary data points for the dashboard
+        const [summaryRes, moneyFlowRes, pieChartRes, departmentDetailsRes] =
+          await Promise.all([
+            getBudgetSummary(),
+            getMoneyFlowData(fiscalYearId),
+            getTopCategoryAllocations(), // Fetches data for the pie chart
+            getDepartmentBudgetData(), // Fetches data for the "View Details" section
+          ]);
 
         setSummaryData(summaryRes.data);
         setMoneyFlowData(moneyFlowRes.data);
         setPieChartApiData(pieChartRes.data);
         setDepartmentDetailsData(departmentDetailsRes.data);
 
+        // --- MODIFICATION END ---
       } catch (error) {
         console.error("Failed to fetch dashboard data:", error);
       } finally {
@@ -247,6 +259,18 @@ function BudgetDashboard() {
             setAccuracyMetrics(metrics);
             setUsingExampleData(false);
           }
+          // MODIFICATION START: Check if the response data is an array
+          if (Array.isArray(res.data)) {
+            setForecastData(res.data);
+          } else {
+            // If it's not an array (e.g., it's the 'detail' object), keep it as an empty array
+            console.log(
+              "No forecast data available from API:",
+              res.data.detail
+            );
+            setForecastData([]);
+          }
+          // MODIFICATION END
         } catch (error) {
           console.error("Failed to fetch forecast data:", error);
           // If API fails, generate example data
@@ -263,6 +287,7 @@ function BudgetDashboard() {
             const history = generateExampleAccuracyHistory();
             setAccuracyHistory(history);
           }
+          setForecastData([]); // Also reset on error
         }
       }
     };
@@ -352,6 +377,7 @@ function BudgetDashboard() {
         pointBorderWidth: 2,
         pointRadius: 5,
         pointHoverRadius: 7,
+        order: 2,
       },
       {
         label: "Expense",
@@ -365,26 +391,41 @@ function BudgetDashboard() {
         pointBorderWidth: 2,
         pointRadius: 5,
         pointHoverRadius: 7,
+        order: 1,
       },
       // Forecast data - only shown when toggled
-      ...(showForecasting
+      ...(showForecasting && moneyFlowData && forecastData.length > 0
         ? [
             {
               label: "Forecast",
-              data: (moneyFlowData?.map((d) => d.month_name) || []).map(
-                (monthName, index) => {
-                  const currentMonthIndex = new Date().getMonth(); // 0-11
-                  const forecastPoint = usingExampleData 
+              data: (() => {
+                const combinedData = [];
+                const allMonths = moneyFlowData.map((d) => d.month_name);
+                const lastActualExpenseIndex = moneyFlowData
+                  .map((d) => d.actual)
+                  .findLastIndex((d) => d > 0);
+
+                allMonths.forEach((monthName, index) => {
+                  const forecastPoint = usingExampleData
                     ? exampleForecastData.find(f => f.month_name === monthName)
                     : forecastData.find(f => f.month_name === monthName);
 
-                  // Only show forecast for current and future months
-                  if (index >= currentMonthIndex && forecastPoint) {
-                    return forecastPoint.forecast;
+                  if (index < lastActualExpenseIndex) {
+                    // For months before the last expense, don't draw anything
+                    combinedData.push(null);
+                  } else if (index === lastActualExpenseIndex) {
+                    // Start the forecast line from the last known expense point
+                    combinedData.push(moneyFlowData[index].actual);
+                  } else if (forecastPoint) {
+                    // For future months, use the forecast data
+                    combinedData.push(forecastPoint.forecast);
+                  } else {
+                    // If there's no forecast for a future month, don't draw anything
+                    combinedData.push(null);
                   }
-                  return null; // Don't draw a line for past months
-                }
-              ),
+                });
+                return combinedData;
+              })(),
               borderColor: "#ff6b35",
               backgroundColor: "rgba(255, 107, 53, 0.1)",
               borderDash: [5, 5],
@@ -395,6 +436,7 @@ function BudgetDashboard() {
               pointBorderWidth: 2,
               pointRadius: 5,
               pointHoverRadius: 7,
+              order: 0,
             },
           ]
         : []),
@@ -491,9 +533,11 @@ function BudgetDashboard() {
     ],
   };
 
-  const totalPieValue = pieChartApiData?.reduce(
-    (sum, item) => sum + parseFloat(item.total_allocated), 0
-  ) || 0;
+  const totalPieValue =
+    pieChartApiData?.reduce(
+      (sum, item) => sum + parseFloat(item.total_allocated),
+      0
+    ) || 0;
 
   // Fixed the duplicate 'plugins' key issue
   const pieChartOptions = {
@@ -1349,6 +1393,51 @@ function BudgetDashboard() {
                   />
                 </div>
               </div>
+          {/* Total Budget */}
+          <div
+            className="card compact-budget-card"
+            style={{
+              flex: "1 1 33%",
+              transition: "all 0.2s ease",
+              cursor: "pointer",
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.boxShadow =
+                "0 4px 8px rgba(0, 123, 255, 0.3)";
+              e.currentTarget.style.border = "1px solid #007bff";
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.boxShadow = "";
+              e.currentTarget.style.border = "1px solid #e0e0e0";
+            }}
+          >
+            <h3 className="compact-card-title">Total Budget</h3>
+            <div
+              style={{
+                fontSize: "12px",
+                color: "#007bff",
+                marginBottom: "8px",
+                fontStyle: "poppins",
+              }}
+            >
+              As of now {currentMonth} {currentYear}
+            </div>
+            <p className="compact-stat-value">
+              ₱{Number(summaryData?.total_budget || 0).toLocaleString()}
+            </p>
+            <p className="compact-card-subtext">
+              {summaryData?.percentage_used || 0}% allocated
+            </p>
+            <div className="compact-progress-container">
+              <div
+                className="compact-progress-bar"
+                style={{
+                  width: `${summaryData?.allocated_percentage || 0}%`,
+                  backgroundColor: "#007bff",
+                }}
+              />
+            </div>
+          </div>
 
               {/* Remaining Budget */}
               <div

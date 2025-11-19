@@ -2,7 +2,7 @@
 import axios from 'axios';
 
 const budgetApi = axios.create({ 
-  baseURL: 'http://localhost:8000/api' 
+  baseURL: import.meta.env.VITE_BUDGET_API_URL || 'http://localhost:8000/api',
 });
 
 // Add interceptor to include JWT token in requests

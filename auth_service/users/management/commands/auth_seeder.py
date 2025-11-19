@@ -90,14 +90,17 @@ class Command(BaseCommand):
                     defaults=defaults
                 )
 
+                # ALWAYS set the password to ensure the seeder file is the source of truth
+                user.set_password(item_data['password'])
+                user.save()
+
                 if created:
-                    user.set_password(item_data['password'])
-                    user.save()
                     created_count += 1
-                    self.stdout.write(f"Created user: {user.email} (Username: {user.username})")
+                    self.stdout.write(self.style.SUCCESS(f"Created user: {user.email} (Username: {user.username})"))
                 else:
                     updated_count += 1
-                    self.stdout.write(f"User already exists, verified/updated: {user.email} (Username: {user.username})")
+                    # Add a note that the password was updated
+                    self.stdout.write(f"User already exists, verified/updated (and password reset): {user.email} (Username: {user.username})")
 
             except IntegrityError as e:
                 self.stdout.write(self.style.ERROR(f"IntegrityError for email '{email_val}' (target username '{username_val}'): {e}. Check if username is already taken by another email."))

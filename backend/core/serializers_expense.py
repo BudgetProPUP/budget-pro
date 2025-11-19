@@ -4,6 +4,61 @@ from rest_framework import serializers
 from django.db.models import Sum
 from django.utils import timezone
 
+# MODIFICATION START
+class ExpenseMessageSerializer(serializers.ModelSerializer):
+    """
+    Serializer for incoming expense creation requests from other services (AMS, HDS).
+    """
+    # Write-only fields that the external service will provide
+    ticket_id = serializers.CharField(write_only=True, source='transaction_id', required=True)
+    project_id = serializers.IntegerField(write_only=True, required=True)
+    account_code = serializers.CharField(write_only=True, required=True)
+    category_code = serializers.CharField(write_only=True, required=True)
+    submitted_by_name = serializers.CharField(write_only=True, required=True)
+
+    class Meta:
+        model = Expense
+        fields = [
+            'ticket_id', 'project_id', 'account_code', 'category_code', 'submitted_by_name',
+            'amount', 'date', 'description', 'vendor', 'notes'
+        ]
+
+    def create(self, validated_data):
+        try:
+            project = Project.objects.get(id=validated_data['project_id'])
+            account = Account.objects.get(code=validated_data['account_code'])
+            category = ExpenseCategory.objects.get(code=validated_data['category_code'])
+        except Project.DoesNotExist:
+            raise serializers.ValidationError({'project_id': 'Project not found.'})
+        except Account.DoesNotExist:
+            raise serializers.ValidationError({'account_code': 'Account not found.'})
+        except ExpenseCategory.DoesNotExist:
+            raise serializers.ValidationError({'category_code': 'Expense category not found.'})
+
+        # Find a valid budget allocation for this project
+        allocation = BudgetAllocation.objects.filter(project=project, is_active=True).first()
+        if not allocation:
+            raise serializers.ValidationError(f'No active budget allocation found for project "{project.name}".')
+
+        expense = Expense.objects.create(
+            transaction_id=validated_data['transaction_id'],
+            project=project,
+            account=account,
+            category=category,
+            department=project.department,
+            budget_allocation=allocation,
+            amount=validated_data['amount'],
+            date=validated_data['date'],
+            description=validated_data['description'],
+            vendor=validated_data['vendor'],
+            notes=validated_data.get('notes', ''),
+            submitted_by_username=validated_data['submitted_by_name'],
+            status='SUBMITTED' # Expenses from external systems come in as submitted
+        )
+        return expense
+# MODIFICATION END
+
+
 class ExpenseHistorySerializer(serializers.ModelSerializer):
     category_name = serializers.CharField(source='category.name', read_only=True)
 

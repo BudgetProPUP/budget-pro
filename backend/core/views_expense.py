@@ -1,12 +1,12 @@
 from datetime import datetime, timedelta
 from decimal import Decimal
 from django.utils import timezone
-from rest_framework import generics, filters
+from rest_framework import generics, filters, viewsets
 from django_filters.rest_framework import DjangoFilterBackend
 from drf_spectacular.utils import extend_schema, OpenApiParameter, OpenApiExample
-from core.permissions import IsBMSUser
+from core.permissions import IsBMSUser, IsTrustedService
 from core.models import BudgetAllocation, Department, Expense, ExpenseCategory, FiscalYear
-from .serializers_expense import BudgetAllocationCreateSerializer, ExpenseCategoryDropdownSerializer, ExpenseCreateSerializer, ExpenseDetailForModalSerializer, ExpenseDetailSerializer, ExpenseHistorySerializer, ExpenseTrackingSerializer, ExpenseTrackingSummarySerializer
+from .serializers_expense import BudgetAllocationCreateSerializer, ExpenseCategoryDropdownSerializer, ExpenseCreateSerializer, ExpenseDetailForModalSerializer, ExpenseDetailSerializer, ExpenseHistorySerializer, ExpenseTrackingSerializer, ExpenseTrackingSummarySerializer, ExpenseMessageSerializer
 from core.pagination import FiveResultsSetPagination, StandardResultsSetPagination
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.views import APIView
@@ -15,6 +15,8 @@ from rest_framework.response import Response
 from rest_framework import status
 from django.db.models import Sum, Q
 from django.db.models.functions import Coalesce
+from core.service_authentication import APIKeyAuthentication
+
 
 def get_date_range_from_filter(filter_value):
     today = timezone.now().date()
@@ -34,7 +36,7 @@ def get_date_range_from_filter(filter_value):
 class ExpenseHistoryView(generics.ListAPIView):
     serializer_class = ExpenseHistorySerializer
     permission_classes = [IsBMSUser]
-    pagination_class = FiveResultsSetPagination 
+    pagination_class = FiveResultsSetPagination
     filter_backends = [DjangoFilterBackend, filters.SearchFilter]
     # MODIFICATION START: Add category__name and date to the search fields
     search_fields = ['description', 'vendor', 'category__name']
@@ -56,7 +58,7 @@ class ExpenseHistoryView(generics.ListAPIView):
                 queryset = base_queryset.filter(department_id=department_id)
             else:
                 queryset = Expense.objects.none()
-        
+
         # MODIFICATION START: Add custom search logic for dates
         search_term = self.request.query_params.get('search', None)
         if search_term:
@@ -68,7 +70,7 @@ class ExpenseHistoryView(generics.ListAPIView):
                 queryset = queryset.filter(date=search_date)
             except ValueError:
                 # If it's not a date, proceed with the regular text search on other fields
-                pass # The SearchFilter will handle this
+                pass  # The SearchFilter will handle this
         # MODIFICATION END
 
         return queryset.order_by('-date')
@@ -98,15 +100,15 @@ class ExpenseTrackingView(generics.ListAPIView):
     # --- MODIFICATION END ---
     pagination_class = FiveResultsSetPagination
     filter_backends = [filters.SearchFilter]
-    
+
     # MODIFIED: Expanded the search fields to include reference number and type
     search_fields = [
-        'description', 
-        'vendor', 
+        'description',
+        'vendor',
         'transaction_id',  # For "REF NO." column
-        'account__account_type__name', # For "TYPE" column
-        'status', # For "STATUS" column
-        'date', # MODIFICATION: Added date field for exact string matching
+        'account__account_type__name',  # For "TYPE" column
+        'status',  # For "STATUS" column
+        'date',  # MODIFICATION: Added date field for exact string matching
     ]
 
     def get_queryset(self):
@@ -122,7 +124,7 @@ class ExpenseTrackingView(generics.ListAPIView):
         if bms_role == 'ADMIN':
             # Admins see all expenses from all departments.
             queryset = base_queryset
-        else: # For any other valid BMS user (e.g., FINANCE_HEAD)
+        else:  # For any other valid BMS user (e.g., FINANCE_HEAD)
             # Users are restricted to their department's expenses.
             department_id = getattr(user, 'department_id', None)
             if department_id:
@@ -145,10 +147,11 @@ class ExpenseTrackingView(generics.ListAPIView):
     @extend_schema(
         tags=['Expense Tracking Page'],
         summary="Get expense tracking data",
-        description="Paginated list of expenses with filters for category and date range. The search parameter now looks in the 'REF NO.', 'TYPE', 'DESCRIPTION', and vendor fields.", # MODIFIED: Updated description
+        description="Paginated list of expenses with filters for category and date range. The search parameter now looks in the 'REF NO.', 'TYPE', 'DESCRIPTION', and vendor fields.",  # MODIFIED: Updated description
         parameters=[
             OpenApiParameter(
-                name="search", description="Search by Ref No, Type, Description, or Vendor", required=False, type=str), # MODIFIED: Updated description
+                # MODIFIED: Updated description
+                name="search", description="Search by Ref No, Type, Description, or Vendor", required=False, type=str),
             OpenApiParameter(
                 name="category__code", description="Filter by category code", required=False, type=str),
             OpenApiParameter(
@@ -173,25 +176,26 @@ class ExpenseTrackingSummaryView(APIView):
         user = request.user
         if not hasattr(user, 'department_id'):
             return Response({"error": "User has no associated department."}, status=status.HTTP_400_BAD_REQUEST)
-        
+
         try:
             department = Department.objects.get(id=user.department_id)
         except Department.DoesNotExist:
             return Response({"error": "Department not found."}, status=status.HTTP_404_NOT_FOUND)
 
         today = timezone.now().date()
-        active_fiscal_year = FiscalYear.objects.filter(start_date__lte=today, end_date__gte=today, is_active=True).first()
+        active_fiscal_year = FiscalYear.objects.filter(
+            start_date__lte=today, end_date__gte=today, is_active=True).first()
         if not active_fiscal_year:
             return Response({"error": "No active fiscal year found."}, status=status.HTTP_404_NOT_FOUND)
 
         # NOTE: The summary calculations (budget remaining, expenses this month) are based on 'APPROVED'
         # expenses only. Newly submitted expenses will not affect these totals until they are approved.
-        
+
         # 1. Calculate Budget Remaining for the department
         total_budget = BudgetAllocation.objects.filter(
             department=department, fiscal_year=active_fiscal_year, is_active=True
         ).aggregate(total=Coalesce(Sum('amount'), Decimal('0.0')))['total']
-        
+
         total_spent = Expense.objects.filter(
             department=department, budget_allocation__fiscal_year=active_fiscal_year, status='APPROVED'
         ).aggregate(total=Coalesce(Sum('amount'), Decimal('0.0')))['total']
@@ -228,6 +232,8 @@ class BudgetAllocationCreateView(generics.CreateAPIView):
     def perform_create(self, serializer):
         # The serializer's create method handles the logic
         serializer.save(context={'request': self.request})
+
+
 class ExpenseCreateView(APIView):
     permission_classes = [IsAuthenticated]
 
@@ -254,11 +260,14 @@ class ExpenseCreateView(APIView):
         responses={201: serializers.SerializerMethodField()}
     )
     def post(self, request):
-        serializer = ExpenseCreateSerializer(data=request.data, context={'request': request})
+        serializer = ExpenseCreateSerializer(
+            data=request.data, context={'request': request})
         if serializer.is_valid():
             expense = serializer.save()
             return Response({'success': 'Expense submitted', 'id': expense.id}, status=201)
         return Response(serializer.errors, status=400)
+
+
 @extend_schema(
     tags=['Expense Category Dropdowns'],
     summary="List Expense Categories",
@@ -268,25 +277,28 @@ class ExpenseCreateView(APIView):
 class ExpenseCategoryDropdownView(generics.ListAPIView):
     serializer_class = ExpenseCategoryDropdownSerializer
     permission_classes = [IsAuthenticated]
-    
+
     def get_queryset(self):
         return ExpenseCategory.objects.filter(is_active=True).order_by('code')
 
     @extend_schema(parameters=[])
     def get(self, request, *args, **kwargs):
         return super().get(request, *args, **kwargs)
-    
+
+
 @extend_schema(
     tags=['Expense History Page'],
     # MODIFIED: Updated summary and description for clarity
     summary="Get the parent proposal ID for a single expense",
     description="Returns the project and budget_proposal ID for a given expense ID. This is used by the frontend to fetch the full proposal details for the 'View' modal.",
-    responses={200: ExpenseDetailForModalSerializer} # MODIFIED: Response schema is now correct
+    # MODIFIED: Response schema is now correct
+    responses={200: ExpenseDetailForModalSerializer}
 )
 class ExpenseDetailView(generics.RetrieveAPIView):
     # --- MODIFICATION START ---
     permission_classes = [IsBMSUser]
-    serializer_class = ExpenseDetailForModalSerializer # This serializer is fine for its purpose
+    # This serializer is fine for its purpose
+    serializer_class = ExpenseDetailForModalSerializer
 
     def get_queryset(self):
         """
@@ -298,17 +310,33 @@ class ExpenseDetailView(generics.RetrieveAPIView):
         user_roles = getattr(user, 'roles', {})
         bms_role = user_roles.get('bms')
 
-        base_queryset = Expense.objects.select_related('project__budget_proposal')
+        base_queryset = Expense.objects.select_related(
+            'project__budget_proposal')
 
         if bms_role == 'ADMIN':
             return base_queryset.all()
-        
+
         department_id = getattr(user, 'department_id', None)
         if department_id:
             return base_queryset.filter(department_id=department_id)
-        
+
         return Expense.objects.none()
     # --- MODIFICATION END ---
-    
+
+    # MODIFICATION START
+
+
+class ExternalExpenseViewSet(viewsets.ModelViewSet):
+    """
+    ViewSet for EXTERNAL services (e.g., AMS, HDS) to create Expense records.
+    This endpoint is protected by API Key Authentication.
+    """
+    queryset = Expense.objects.all()
+    serializer_class = ExpenseMessageSerializer
+    authentication_classes = [APIKeyAuthentication]
+    permission_classes = [IsTrustedService]
+    http_method_names = ['post']  # Only allow creation via this endpoint
+# MODIFICATION END
+
     # TODO: Improve search function, could include only description for filtering. DATE not working at the moment for search
     # TODO: Implement actual user information in the user modal, fix also name used in the UI

@@ -1,5 +1,6 @@
 // TODO: Important, need massive changes and additional logic for new modals
 // TODO: Add logic to monthly, quarterly, and yearly filters if possible
+// TODO: Call generate_forecasts in page, currently uses manual in cmd
 import React, { useState, useEffect } from "react";
 import { Line, Pie } from "react-chartjs-2";
 import {

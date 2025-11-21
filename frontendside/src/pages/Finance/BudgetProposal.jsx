@@ -292,7 +292,7 @@ const BudgetProposal = () => {
   const [showStatusDropdown, setShowStatusDropdown] = useState(false);
 
   const navigate = useNavigate();
-  const { user } = useAuth();
+  const { user, logout } = useAuth();
 
   // --- MODIFICATION START: API Data State Management ---
   const [loading, setLoading] = useState(true);
@@ -313,6 +313,7 @@ const BudgetProposal = () => {
   // Pagination State
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize, setPageSize] = useState(5);
+
 
   // User profile data
   const userProfile = {
@@ -539,19 +540,8 @@ const BudgetProposal = () => {
   };
 
   // Updated logout function
-  const handleLogout = () => {
-    try {
-      localStorage.removeItem("authToken");
-      localStorage.removeItem("userSession");
-      localStorage.removeItem("userProfile");
-      sessionStorage.clear();
-      setShowProfileDropdown(false);
-      navigate("/login", { replace: true });
-      console.log("User logged out successfully");
-    } catch (error) {
-      console.error("Error during logout:", error);
-      navigate("/login", { replace: true });
-    }
+  const handleLogout = async () => {
+    await logout();
   };
 
   // Proposal review functions

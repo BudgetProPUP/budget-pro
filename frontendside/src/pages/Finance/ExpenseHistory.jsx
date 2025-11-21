@@ -291,11 +291,10 @@ const ExpenseHistory = () => {
   const [debouncedSearchTerm, setDebouncedSearchTerm] = useState(searchTerm);
   // MODIFICATION END
 
-  // User profile data (now uses context)
+  // User profile data
   const userProfile = {
     name: user ? `${user.first_name} ${user.last_name}` : "User",
-    email: user ? user.email : "user@example.com",
-    role: user?.roles?.bms || "User", // Get BMS role from JWT
+    role: user?.roles?.bms || "User",
     avatar:
       "https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?ixlib=rb-1.2.1&ixid=eyJhcHBfaWQiOjEyMDd9&auto=format&fit=facearea&facepad=2&w=256&h=256&q=80",
   };

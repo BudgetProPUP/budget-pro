@@ -1076,7 +1076,6 @@ function BudgetAllocation() {
         {showManageProfile ? (
           <ManageProfile
             onClose={handleCloseManageProfile}
-            userProfile={userProfile}
           />
         ) : (
           /* Page Container for everything - Updated with LedgerView styling */

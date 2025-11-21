@@ -39,8 +39,6 @@ const Status = ({ type, name, personName = null, location = null }) => {
   );
 };
 
-
-
 // Pagination Component - Copied from LedgerView
 const Pagination = ({
   currentPage,
@@ -289,7 +287,7 @@ const ProposalHistory = () => {
   const [showCategoryDropdown, setShowCategoryDropdown] = useState(false);
   const [showManageProfile, setShowManageProfile] = useState(false);
   const navigate = useNavigate();
-    const { user, logout } = useAuth();
+  const { user, logout } = useAuth();
 
   const handleManageProfile = () => {
     setShowManageProfile(true);
@@ -327,12 +325,12 @@ const ProposalHistory = () => {
 
   // Fixed status options
   const statusOptions = [
-  "APPROVED",
-  "REJECTED", 
-  "SUBMITTED",
-  "UPDATED",
-  "REVIEWED",
-];
+    "APPROVED",
+    "REJECTED",
+    "SUBMITTED",
+    "UPDATED",
+    "REVIEWED",
+  ];
 
   // Debounce search term
   useEffect(() => {
@@ -1429,10 +1427,7 @@ const ProposalHistory = () => {
       </div>
       {/* Add ManageProfile Modal */}
       {showManageProfile && (
-        <ManageProfile
-          isOpen={showManageProfile}
-          onClose={handleCloseManageProfile}
-        />
+        <ManageProfile onClose={handleCloseManageProfile} />
       )}
     </div>
   );

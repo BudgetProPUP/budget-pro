@@ -99,11 +99,14 @@ class UserProfileUpdateSerializer(serializers.ModelSerializer): # Was UserUpdate
     """
     class Meta:
         model = User
+        # MODIFICATION START
+        # Allow updating first name, last name, and phone number.
         fields = ['first_name', 'last_name', 'phone_number']
+        # MODIFICATION END
         extra_kwargs = {
             'phone_number': {'required': False, 'allow_blank': True, 'allow_null': True},
-            'first_name': {'required': False, 'allow_blank': True},
-            'last_name': {'required': False, 'allow_blank': True},
+            'first_name': {'required': True, 'allow_blank': False},
+            'last_name': {'required': True, 'allow_blank': False},
         }
 
 # --- Login Serializers ---

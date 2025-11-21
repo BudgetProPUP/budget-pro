@@ -48,6 +48,7 @@ import {
   getDepartmentBudgetData, // API for the "View Details" section
   // --- MODIFICATION END ---
 } from "../../API/dashboardAPI";
+
 import { useAuth } from "../../context/AuthContext";
 // Import ManageProfile component
 import ManageProfile from "./ManageProfile";
@@ -153,12 +154,13 @@ function BudgetDashboard() {
   const [timeFilter, setTimeFilter] = useState("monthly");
   const [showBudgetDetails, setShowBudgetDetails] = useState(false);
   const [showForecasting, setShowForecasting] = useState(false);
-  const [showManageProfile, setShowManageProfile] = useState(false);
   const [showForecastComparison, setShowForecastComparison] = useState(false);
   const [usingExampleData, setUsingExampleData] = useState(false);
   const [exampleForecastData, setExampleForecastData] = useState([]);
   const [exampleAccuracyHistory, setExampleAccuracyHistory] = useState([]);
   const navigate = useNavigate();
+
+  const [showManageProfile, setShowManageProfile] = useState(false);
 
   // --- NEW STATE FOR API DATA ---
   const [summaryData, setSummaryData] = useState(null);
@@ -1246,8 +1248,8 @@ function BudgetDashboard() {
         {showManageProfile ? (
           <ManageProfile 
             onClose={handleCloseManageProfile} 
-            userProfile={userProfile}
           />
+          // MODIFICATION END
         ) : (
           <>
             {/* Time period filter - Updated with blue focus border */}

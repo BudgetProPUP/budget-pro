@@ -1220,7 +1220,6 @@ const ExpenseTracking = () => {
         {showManageProfile ? (
           <ManageProfile 
             onClose={handleCloseManageProfile} 
-            userProfile={userProfile}
           />
         ) : (
           <>

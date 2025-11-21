@@ -42,7 +42,19 @@ export const confirmPasswordReset = async (uid, token, password) => {
     return response.data;
 };
 
-
+// MODIFICATION START
+/**
+ * Updates the authenticated user's profile
+ * Only sends fields that the user is allowed to change
+ * @param {object} profileData - An object containing fields like first_name, last_name, phone_number
+ * @returns {Promise<object>} - The updated user object from the API
+ */
+export const updateProfile = async (profileData) => {
+    
+    const response = await api.patch('/profile/', profileData);
+    return response.data;
+};
+// MODIFICATION END
 /**
  * Logs out the user by telling the auth_service to blacklist the refresh token.
  * @param {string} refreshToken - The user's refresh token.

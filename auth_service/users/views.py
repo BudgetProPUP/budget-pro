@@ -373,16 +373,28 @@ class UserProfileView(generics.RetrieveUpdateAPIView):
         )
         return super().get(request, *args, **kwargs)
 
-    # update, put, patch methods are fine as previously, ensuring UserProfileUpdateSerializer is used.
+    # MODIFICATION START
+    # Override the update method to return the full user object
     def update(self, request, *args, **kwargs):
-        log_action = f'User {request.user.username} attempted profile update.'
-        response = super().update(request, *args, **kwargs)
-        log_status = 'SUCCESS' if response.status_code < 400 else 'FAILED'
+        partial = kwargs.pop('partial', False)
+        instance = self.get_object()
+        
+        # Use the update serializer to validate and save
+        update_serializer = self.get_serializer(instance, data=request.data, partial=partial)
+        update_serializer.is_valid(raise_exception=True)
+        self.perform_update(update_serializer)
+
+        # Log the activity
+        log_action = f'User {request.user.username} updated profile.'
         UserActivityLog.objects.create(
-            user=request.user, log_type='PROFILE_UPDATE', action=log_action, status=log_status,
-            details={'ip_address': get_client_ip(request), 'data_sent': request.data, 'response_status': response.status_code}
+            user=request.user, log_type='PROFILE_UPDATE', action=log_action, status='SUCCESS',
+            details={'ip_address': get_client_ip(request), 'data_sent': request.data}
         )
-        return response
+        
+        # Use the full UserSerializer for the response
+        response_serializer = UserSerializer(instance, context=self.get_serializer_context())
+        return Response(response_serializer.data)
+    # MODIFICATION END
 
     @extend_schema(tags=['User Profile'], description='Fully update user profile (fields in UserProfileUpdateSerializer).', request=UserProfileUpdateSerializer)
     def put(self, request, *args, **kwargs):

@@ -62,7 +62,7 @@ const BudgetVarianceReport = () => {
   const [showNotifications, setShowNotifications] = useState(false);
   const [showManageProfile, setShowManageProfile] = useState(false); // Fixed: Added missing state
   const navigate = useNavigate();
-  const { user } = useAuth();
+  const { user, logout } = useAuth();
 
   // User profile data
   const userProfile = {
@@ -70,6 +70,17 @@ const BudgetVarianceReport = () => {
     role: user?.roles?.bms || "User",
     avatar:
       "https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?ixlib=rb-1.2.1&ixid=eyJhcHBfaWQiOjEyMDd9&auto=format&fit=facearea&facepad=2&w=256&h=256&q=80",
+  };
+
+  //New function to handle Manage Profile click
+  const handleManageProfile = () => {
+    setShowManageProfile(true);
+    setShowProfileDropdown(false);
+  };
+
+  // New function to close Manage Profile
+  const handleCloseManageProfile = () => {
+    setShowManageProfile(false);
   };
 
   // API Data State
@@ -229,17 +240,6 @@ const BudgetVarianceReport = () => {
     if (showNotifications) setShowNotifications(false);
   };
 
-  // New function to handle Manage Profile click
-  const handleManageProfile = () => {
-    setShowManageProfile(true);
-    setShowProfileDropdown(false);
-  };
-
-  // New function to close Manage Profile
-  const handleCloseManageProfile = () => {
-    setShowManageProfile(false);
-  };
-
   const handleNavigate = (path) => {
     navigate(path);
     setShowBudgetDropdown(false);
@@ -249,16 +249,8 @@ const BudgetVarianceReport = () => {
     setShowNotifications(false);
   };
 
-  const handleLogout = () => {
-    try {
-      setShowManageProfile(false);
-      setShowProfileDropdown(false);
-      navigate("/login", { replace: true });
-      console.log("User logged out successfully");
-    } catch (error) {
-      console.error("Error during logout:", error);
-      navigate("/login", { replace: true });
-    }
+  const handleLogout = async () => {
+    await logout();
   };
 
   // Recursive function to flatten the nested data for rendering

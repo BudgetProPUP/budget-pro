@@ -13,7 +13,6 @@ import {
 import { Link, useNavigate } from "react-router-dom";
 import LOGOMAP from "../../assets/MAP.jpg";
 import "./BudgetProposal.css";
-import { useAuth } from "../../context/AuthContext"; // Import useAuth
 import {
   getProposals,
   getProposalSummary,
@@ -21,6 +20,10 @@ import {
   reviewProposal,
 } from "../../API/proposalAPI";
 import { getAccountTypes } from "../../API/dropdownAPI"; // Assuming you create this
+
+import { useAuth } from "../../context/AuthContext"; // Import useAuth
+import ManageProfile from "./ManageProfile";
+
 // Status Component - Copied from ProposalHistory
 const Status = ({ type, name, personName = null, location = null }) => {
   return (
@@ -291,8 +294,21 @@ const BudgetProposal = () => {
   const [showCategoryDropdown, setShowCategoryDropdown] = useState(false);
   const [showStatusDropdown, setShowStatusDropdown] = useState(false);
 
+  const [showManageProfile, setShowManageProfile] = useState(false);
+  
+  // New function to handle Manage Profile click
+  const handleManageProfile = () => {
+    setShowManageProfile(true);
+    setShowProfileDropdown(false);
+  };
+
+  // New function to close Manage Profile
+  const handleCloseManageProfile = () => {
+    setShowManageProfile(false);
+  };
+  
   const navigate = useNavigate();
-  const { user } = useAuth();
+  const { user, logout } = useAuth();
 
   // --- MODIFICATION START: API Data State Management ---
   const [loading, setLoading] = useState(true);
@@ -313,6 +329,7 @@ const BudgetProposal = () => {
   // Pagination State
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize, setPageSize] = useState(5);
+
 
   // User profile data
   const userProfile = {
@@ -539,19 +556,8 @@ const BudgetProposal = () => {
   };
 
   // Updated logout function
-  const handleLogout = () => {
-    try {
-      localStorage.removeItem("authToken");
-      localStorage.removeItem("userSession");
-      localStorage.removeItem("userProfile");
-      sessionStorage.clear();
-      setShowProfileDropdown(false);
-      navigate("/login", { replace: true });
-      console.log("User logged out successfully");
-    } catch (error) {
-      console.error("Error during logout:", error);
-      navigate("/login", { replace: true });
-    }
+  const handleLogout = async () => {
+    await logout();
   };
 
   // Proposal review functions
@@ -1069,6 +1075,7 @@ const BudgetProposal = () => {
                   ></div>
                   <div
                     className="dropdown-item"
+                    onClick={handleManageProfile}
                     style={{
                       display: "flex",
                       alignItems: "center",
@@ -1131,632 +1138,639 @@ const BudgetProposal = () => {
         className="content-container"
         style={{ padding: "20px", maxWidth: "1200px", margin: "0 auto" }}
       >
-        {/* Budget Summary Cards - Updated with new totals */}
-        <div
-          className="budget-summary"
-          style={{
-            display: "flex",
-            gap: "1rem",
-            justifyContent: "space-between",
-            marginBottom: "20px",
-          }}
-        >
-          <div
-            className="budget-card"
-            style={{
-              flex: "1",
-              minWidth: "200px",
-              maxWidth: "300px",
-              height: "100px",
-              display: "flex",
-              flexDirection: "column",
-              justifyContent: "center",
-              alignItems: "center",
-              padding: "15px",
-              boxSizing: "border-box",
-              backgroundColor: "white",
-              borderRadius: "8px",
-              boxShadow: "0 2px 4px rgba(0,0,0,0.1)",
-            }}
-          >
-            <div className="budget-card-label" style={{ marginBottom: "10px" }}>
-              <p style={{ margin: 0, fontSize: "14px", color: "#666" }}>
-                Total Proposals
-              </p>
-            </div>
+        {/* Conditionally render ManageProfile or the main content */}
+        {showManageProfile ? (
+          <ManageProfile onClose={handleCloseManageProfile} />
+        ) : (
+          <>
+            {/* Budget Summary Cards - Updated with new totals */}
             <div
-              className="budget-card-amount"
-              style={{ fontSize: "24px", fontWeight: "bold" }}
-            >
-              {summaryData.total_proposals}
-            </div>
-          </div>
-
-          <div
-            className="budget-card"
-            style={{
-              flex: "1",
-              minWidth: "200px",
-              maxWidth: "300px",
-              height: "100px",
-              display: "flex",
-              flexDirection: "column",
-              justifyContent: "center",
-              alignItems: "center",
-              padding: "15px",
-              boxSizing: "border-box",
-              backgroundColor: "white",
-              borderRadius: "8px",
-              boxShadow: "0 2px 4px rgba(0,0,0,0.1)",
-            }}
-          >
-            <div className="budget-card-label" style={{ marginBottom: "10px" }}>
-              <p style={{ margin: 0, fontSize: "14px", color: "#666" }}>
-                Pending Approval
-              </p>
-            </div>
-            <div
-              className="budget-card-amount"
-              style={{ fontSize: "24px", fontWeight: "bold" }}
-            >
-              {summaryData.pending_approvals}
-            </div>
-          </div>
-
-          <div
-            className="budget-card"
-            style={{
-              flex: "1",
-              minWidth: "200px",
-              maxWidth: "300px",
-              height: "100px",
-              display: "flex",
-              flexDirection: "column",
-              justifyContent: "center",
-              alignItems: "center",
-              padding: "15px",
-              boxSizing: "border-box",
-              backgroundColor: "white",
-              borderRadius: "8px",
-              boxShadow: "0 2px 4px rgba(0,0,0,0.1)",
-            }}
-          >
-            <div className="budget-card-label" style={{ marginBottom: "10px" }}>
-              <p style={{ margin: 0, fontSize: "14px", color: "#666" }}>
-                Budget Total
-              </p>
-            </div>
-            <div
-              className="budget-card-amount"
-              style={{ fontSize: "24px", fontWeight: "bold" }}
-            >{`₱${parseFloat(summaryData.total_budget).toLocaleString("en-US", {
-              minimumFractionDigits: 2,
-              maximumFractionDigits: 2,
-            })}`}</div>
-          </div>
-        </div>
-
-        {/* Main Content - Updated with LedgerView Layout */}
-        <div
-          className="proposal-history"
-          style={{
-            backgroundColor: "white",
-            borderRadius: "8px",
-            boxShadow: "0 2px 4px rgba(0,0,0,0.1)",
-            padding: "20px",
-            overflow: "hidden",
-            display: "flex",
-            flexDirection: "column",
-            minHeight: "calc(100vh - 240px)",
-          }}
-        >
-          {/* Header Section with Title and Controls - Updated with LedgerView styling */}
-          <div
-            className="top"
-            style={{
-              display: "flex",
-              justifyContent: "space-between",
-              alignItems: "center",
-              marginBottom: "20px",
-            }}
-          >
-            <h2
-              className="page-title"
+              className="budget-summary"
               style={{
-                margin: 0,
-                fontSize: "29px",
-                fontWeight: "bold",
-                color: "#0C0C0C",
+                display: "flex",
+                gap: "1rem",
+                justifyContent: "space-between",
+                marginBottom: "20px",
               }}
             >
-              Budget Proposal
-            </h2>
-
-            <div
-              className="controls-container"
-              style={{ display: "flex", gap: "10px" }}
-            >
-              {/* Search Bar - Updated with LedgerView styling */}
-              <div style={{ position: "relative" }}>
-                <input
-                  type="text"
-                  placeholder="Search"
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  className="search-account-input"
-                  style={{
-                    padding: "8px 12px",
-                    border: "1px solid #ccc",
-                    borderRadius: "4px",
-                    outline: "none",
-                  }}
-                />
+              <div
+                className="budget-card"
+                style={{
+                  flex: "1",
+                  minWidth: "200px",
+                  maxWidth: "300px",
+                  height: "100px",
+                  display: "flex",
+                  flexDirection: "column",
+                  justifyContent: "center",
+                  alignItems: "center",
+                  padding: "15px",
+                  boxSizing: "border-box",
+                  backgroundColor: "white",
+                  borderRadius: "8px",
+                  boxShadow: "0 2px 4px rgba(0,0,0,0.1)",
+                }}
+              >
+                <div className="budget-card-label" style={{ marginBottom: "10px" }}>
+                  <p style={{ margin: 0, fontSize: "14px", color: "#666" }}>
+                    Total Proposals
+                  </p>
+                </div>
+                <div
+                  className="budget-card-amount"
+                  style={{ fontSize: "24px", fontWeight: "bold" }}
+                >
+                  {summaryData.total_proposals}
+                </div>
               </div>
 
-              {/* Category Filter - Updated with LedgerView styling */}
-              <div className="filter-dropdown" style={{ position: "relative" }}>
-                <button
-                  className={`filter-dropdown-btn ${
-                    showCategoryDropdown ? "active" : ""
-                  }`}
-                  onClick={toggleCategoryDropdown}
-                  onMouseDown={(e) => e.preventDefault()}
-                  style={{
-                    padding: "8px 12px",
-                    border: "1px solid #ccc",
-                    borderRadius: "4px",
-                    backgroundColor: "white",
-                    display: "flex",
-                    alignItems: "center",
-                    gap: "5px",
-                    outline: "none",
-                  }}
+              <div
+                className="budget-card"
+                style={{
+                  flex: "1",
+                  minWidth: "200px",
+                  maxWidth: "300px",
+                  height: "100px",
+                  display: "flex",
+                  flexDirection: "column",
+                  justifyContent: "center",
+                  alignItems: "center",
+                  padding: "15px",
+                  boxSizing: "border-box",
+                  backgroundColor: "white",
+                  borderRadius: "8px",
+                  boxShadow: "0 2px 4px rgba(0,0,0,0.1)",
+                }}
+              >
+                <div className="budget-card-label" style={{ marginBottom: "10px" }}>
+                  <p style={{ margin: 0, fontSize: "14px", color: "#666" }}>
+                    Pending Approval
+                  </p>
+                </div>
+                <div
+                  className="budget-card-amount"
+                  style={{ fontSize: "24px", fontWeight: "bold" }}
                 >
-                  <span>
-                    {
-                      (
-                        categories.find((c) => c.id === selectedCategory) || {
-                          name: "All Categories",
-                        }
-                      ).name
-                    }
-                  </span>
-                  <ChevronDown size={14} />
-                </button>
-                {showCategoryDropdown && (
-                  <div
-                    className="category-dropdown-menu"
-                    style={{
-                      position: "absolute",
-                      top: "100%",
-                      left: 0,
-                      backgroundColor: "white",
-                      border: "1px solid #ccc",
-                      borderRadius: "4px",
-                      width: "100%",
-                      zIndex: 1000,
-                      maxHeight: "200px", // Add max height for scrolling
-                      overflowY: "auto", // Add overflow for scrolling
-                    }}
-                  >
-                    {categories.map((category) => (
-                      <div
-                        key={category.id}
-                        className={`category-dropdown-item ${
-                          selectedCategory === category.id ? "active" : ""
-                        }`}
-                        onClick={() => handleCategorySelect(category.id)}
-                        onMouseDown={(e) => e.preventDefault()}
-                        style={{
-                          padding: "8px 12px",
-                          cursor: "pointer",
-                          backgroundColor:
-                            selectedCategory === category.id
-                              ? "#f0f0f0"
-                              : "white",
-                          outline: "none",
-                        }}
-                      >
-                        {category.name}
-                      </div>
-                    ))}
-                  </div>
-                )}
+                  {summaryData.pending_approvals}
+                </div>
               </div>
 
-              {/* Status Filter - Updated with LedgerView styling */}
-              <div className="filter-dropdown" style={{ position: "relative" }}>
-                <button
-                  className={`filter-dropdown-btn ${
-                    showStatusDropdown ? "active" : ""
-                  }`}
-                  onClick={toggleStatusDropdown}
-                  onMouseDown={(e) => e.preventDefault()}
-                  style={{
-                    padding: "8px 12px",
-                    border: "1px solid #ccc",
-                    borderRadius: "4px",
-                    backgroundColor: "white",
-                    display: "flex",
-                    alignItems: "center",
-                    gap: "5px",
-                    outline: "none",
-                  }}
-                >
-                  <span>
-                    Status:{" "}
-                    {
-                      (
-                        statusOptions.find(
-                          (s) => s.value === selectedStatus
-                        ) || { label: "All Status" }
-                      ).label
-                    }
-                  </span>
-                  <ChevronDown size={14} />
-                </button>
-                {showStatusDropdown && (
-                  <div
-                    className="category-dropdown-menu"
-                    style={{
-                      position: "absolute",
-                      top: "100%",
-                      left: 0,
-                      backgroundColor: "white",
-                      border: "1px solid #ccc",
-                      borderRadius: "4px",
-                      width: "100%",
-                      zIndex: 1000,
-                    }}
-                  >
-                    {statusOptions.map((status) => (
-                      <div
-                        key={status.value}
-                        className={`category-dropdown-item ${
-                          selectedStatus === status.value ? "active" : ""
-                        }`}
-                        onClick={() => handleStatusSelect(status.value)}
-                        onMouseDown={(e) => e.preventDefault()}
-                        style={{
-                          padding: "8px 12px",
-                          cursor: "pointer",
-                          backgroundColor:
-                            selectedStatus === status.value
-                              ? "#f0f0f0"
-                              : "white",
-                          outline: "none",
-                        }}
-                      >
-                        {/* MODIFICATION: Use the label property from the object */}
-                        {status.label}
-                      </div>
-                    ))}
-                  </div>
-                )}
+              <div
+                className="budget-card"
+                style={{
+                  flex: "1",
+                  minWidth: "200px",
+                  maxWidth: "300px",
+                  height: "100px",
+                  display: "flex",
+                  flexDirection: "column",
+                  justifyContent: "center",
+                  alignItems: "center",
+                  padding: "15px",
+                  boxSizing: "border-box",
+                  backgroundColor: "white",
+                  borderRadius: "8px",
+                  boxShadow: "0 2px 4px rgba(0,0,0,0.1)",
+                }}
+              >
+                <div className="budget-card-label" style={{ marginBottom: "10px" }}>
+                  <p style={{ margin: 0, fontSize: "14px", color: "#666" }}>
+                    Budget Total
+                  </p>
+                </div>
+                <div
+                  className="budget-card-amount"
+                  style={{ fontSize: "24px", fontWeight: "bold" }}
+                >{`₱${parseFloat(summaryData.total_budget).toLocaleString("en-US", {
+                  minimumFractionDigits: 2,
+                  maximumFractionDigits: 2,
+                })}`}</div>
               </div>
             </div>
-          </div>
 
-          {/* Separator line between title and table */}
-          <div
-            style={{
-              height: "1px",
-              backgroundColor: "#e0e0e0",
-              marginBottom: "20px",
-            }}
-          ></div>
-
-          {/* Proposals Table - Updated with LedgerView table layout */}
-          <div
-            style={{
-              flex: "1 1 auto", // Allow this container to grow and fill space
-              overflowY: "auto", // Make this container scrollable
-              border: "1px solid #e0e0e0",
-              borderRadius: "4px",
-            }}
-          >
-            <table
-              className="ledger-table"
+            {/* Main Content - Updated with LedgerView Layout */}
+            <div
+              className="proposal-history"
               style={{
-                width: "100%",
-                borderCollapse: "collapse",
-                tableLayout: "fixed",
+                backgroundColor: "white",
+                borderRadius: "8px",
+                boxShadow: "0 2px 4px rgba(0,0,0,0.1)",
+                padding: "20px",
+                overflow: "hidden",
+                display: "flex",
+                flexDirection: "column",
+                minHeight: "calc(100vh - 240px)",
               }}
             >
-              <thead>
-                <tr style={{ backgroundColor: "#f8f9fa" }}>
-                  <th
-                    style={{
-                      position: "sticky", // Make header sticky
-                      top: 0, // Stick to the top of the scrollable container
-                      width: "14%",
-                      padding: "0.75rem",
-                      textAlign: "left",
-                      borderBottom: "2px solid #dee2e6",
-                      height: "50px",
-                      verticalAlign: "middle",
-                      wordWrap: "break-word",
-                      overflowWrap: "break-word",
-                      zIndex: 1,
-                    }}
-                  >
-                    TICKET ID
-                  </th>
-                  <th
-                    style={{
-                      width: "22%",
-                      padding: "0.75rem",
-                      textAlign: "left",
-                      borderBottom: "2px solid #dee2e6",
-                      height: "50px",
-                      verticalAlign: "middle",
-                      wordWrap: "break-word",
-                      overflowWrap: "break-word",
-                    }}
-                  >
-                    DESCRIPTION
-                  </th>
-                  <th
-                    style={{
-                      width: "20%",
-                      padding: "0.75rem",
-                      textAlign: "left",
-                      borderBottom: "2px solid #dee2e6",
-                      height: "50px",
-                      verticalAlign: "middle",
-                      wordWrap: "break-word",
-                      overflowWrap: "break-word",
-                    }}
-                  >
-                    CATEGORY
-                  </th>
-                  <th
-                    style={{
-                      width: "14%",
-                      padding: "0.75rem",
-                      textAlign: "left",
-                      borderBottom: "2px solid #dee2e6",
-                      height: "50px",
-                      verticalAlign: "middle",
-                      wordWrap: "break-word",
-                      overflowWrap: "break-word",
-                    }}
-                  >
-                    SUBMITTED BY
-                  </th>
-                  <th
-                    style={{
-                      width: "12%",
-                      padding: "0.75rem",
-                      textAlign: "left",
-                      borderBottom: "2px solid #dee2e6",
-                      height: "50px",
-                      verticalAlign: "middle",
-                      wordWrap: "break-word",
-                      overflowWrap: "break-word",
-                    }}
-                  >
-                    AMOUNT
-                  </th>
-                  <th
-                    style={{
-                      width: "14%",
-                      padding: "0.75rem",
-                      textAlign: "middle",
-                      borderBottom: "2px solid #dee2e6",
-                      height: "50px",
-                      verticalAlign: "middle",
-                      wordWrap: "break-word",
-                      overflowWrap: "break-word",
-                    }}
-                  >
-                    STATUS
-                  </th>
-                  <th
-                    style={{
-                      width: "12%",
-                      padding: "0.75rem",
-                      textAlign: "left",
-                      borderBottom: "2px solid #dee2e6",
-                      height: "50px",
-                      verticalAlign: "middle",
-                      wordWrap: "break-word",
-                      overflowWrap: "break-word",
-                    }}
-                  >
-                    ACTIONS
-                  </th>
-                </tr>
-              </thead>
-              <tbody>
-                {/* MODIFICATION: Render proposals from API state */}
-                {loading ? (
-                  <tr>
-                    <td
-                      colSpan="7"
-                      style={{ textAlign: "center", padding: "20px" }}
-                    >
-                      Loading...
-                    </td>
-                  </tr>
-                ) : proposals.length > 0 ? (
-                  proposals.map((proposal, index) => (
-                    <tr
-                      key={proposal.id}
-                      className={index % 2 === 1 ? "alternate-row" : ""}
+              {/* Header Section with Title and Controls - Updated with LedgerView styling */}
+              <div
+                className="top"
+                style={{
+                  display: "flex",
+                  justifyContent: "space-between",
+                  alignItems: "center",
+                  marginBottom: "20px",
+                }}
+              >
+                <h2
+                  className="page-title"
+                  style={{
+                    margin: 0,
+                    fontSize: "29px",
+                    fontWeight: "bold",
+                    color: "#0C0C0C",
+                  }}
+                >
+                  Budget Proposal
+                </h2>
+
+                <div
+                  className="controls-container"
+                  style={{ display: "flex", gap: "10px" }}
+                >
+                  {/* Search Bar - Updated with LedgerView styling */}
+                  <div style={{ position: "relative" }}>
+                    <input
+                      type="text"
+                      placeholder="Search"
+                      value={searchTerm}
+                      onChange={(e) => setSearchTerm(e.target.value)}
+                      className="search-account-input"
                       style={{
-                        backgroundColor:
-                          index % 2 === 1 ? "#F8F8F8" : "#FFFFFF",
-                        color: "#0C0C0C",
-                        height: "50px",
-                        transition: "background-color 0.2s ease",
-                        cursor: "pointer",
+                        padding: "8px 12px",
+                        border: "1px solid #ccc",
+                        borderRadius: "4px",
+                        outline: "none",
                       }}
-                      onMouseEnter={(e) => {
-                        e.currentTarget.style.backgroundColor = "#fcfcfc";
+                    />
+                  </div>
+
+                  {/* Category Filter - Updated with LedgerView styling */}
+                  <div className="filter-dropdown" style={{ position: "relative" }}>
+                    <button
+                      className={`filter-dropdown-btn ${
+                        showCategoryDropdown ? "active" : ""
+                      }`}
+                      onClick={toggleCategoryDropdown}
+                      onMouseDown={(e) => e.preventDefault()}
+                      style={{
+                        padding: "8px 12px",
+                        border: "1px solid #ccc",
+                        borderRadius: "4px",
+                        backgroundColor: "white",
+                        display: "flex",
+                        alignItems: "center",
+                        gap: "5px",
+                        outline: "none",
                       }}
-                      onMouseLeave={(e) => {
-                        e.currentTarget.style.backgroundColor =
-                          index % 2 === 1 ? "#F8F8F8" : "#FFFFFF";
-                      }}
-                      onClick={() => handleReviewClick(proposal)}
                     >
-                      <td
+                      <span>
+                        {
+                          (
+                            categories.find((c) => c.id === selectedCategory) || {
+                              name: "All Categories",
+                            }
+                          ).name
+                        }
+                      </span>
+                      <ChevronDown size={14} />
+                    </button>
+                    {showCategoryDropdown && (
+                      <div
+                        className="category-dropdown-menu"
                         style={{
+                          position: "absolute",
+                          top: "100%",
+                          left: 0,
+                          backgroundColor: "white",
+                          border: "1px solid #ccc",
+                          borderRadius: "4px",
+                          width: "100%",
+                          zIndex: 1000,
+                          maxHeight: "200px", // Add max height for scrolling
+                          overflowY: "auto", // Add overflow for scrolling
+                        }}
+                      >
+                        {categories.map((category) => (
+                          <div
+                            key={category.id}
+                            className={`category-dropdown-item ${
+                              selectedCategory === category.id ? "active" : ""
+                            }`}
+                            onClick={() => handleCategorySelect(category.id)}
+                            onMouseDown={(e) => e.preventDefault()}
+                            style={{
+                              padding: "8px 12px",
+                              cursor: "pointer",
+                              backgroundColor:
+                                selectedCategory === category.id
+                                  ? "#f0f0f0"
+                                  : "white",
+                              outline: "none",
+                            }}
+                          >
+                            {category.name}
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Status Filter - Updated with LedgerView styling */}
+                  <div className="filter-dropdown" style={{ position: "relative" }}>
+                    <button
+                      className={`filter-dropdown-btn ${
+                        showStatusDropdown ? "active" : ""
+                      }`}
+                      onClick={toggleStatusDropdown}
+                      onMouseDown={(e) => e.preventDefault()}
+                      style={{
+                        padding: "8px 12px",
+                        border: "1px solid #ccc",
+                        borderRadius: "4px",
+                        backgroundColor: "white",
+                        display: "flex",
+                        alignItems: "center",
+                        gap: "5px",
+                        outline: "none",
+                      }}
+                    >
+                      <span>
+                        Status:{" "}
+                        {
+                          (
+                            statusOptions.find(
+                              (s) => s.value === selectedStatus
+                            ) || { label: "All Status" }
+                          ).label
+                        }
+                      </span>
+                      <ChevronDown size={14} />
+                    </button>
+                    {showStatusDropdown && (
+                      <div
+                        className="category-dropdown-menu"
+                        style={{
+                          position: "absolute",
+                          top: "100%",
+                          left: 0,
+                          backgroundColor: "white",
+                          border: "1px solid #ccc",
+                          borderRadius: "4px",
+                          width: "100%",
+                          zIndex: 1000,
+                        }}
+                      >
+                        {statusOptions.map((status) => (
+                          <div
+                            key={status.value}
+                            className={`category-dropdown-item ${
+                              selectedStatus === status.value ? "active" : ""
+                            }`}
+                            onClick={() => handleStatusSelect(status.value)}
+                            onMouseDown={(e) => e.preventDefault()}
+                            style={{
+                              padding: "8px 12px",
+                              cursor: "pointer",
+                              backgroundColor:
+                                selectedStatus === status.value
+                                  ? "#f0f0f0"
+                                  : "white",
+                              outline: "none",
+                            }}
+                          >
+                            {/* MODIFICATION: Use the label property from the object */}
+                            {status.label}
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+
+              {/* Separator line between title and table */}
+              <div
+                style={{
+                  height: "1px",
+                  backgroundColor: "#e0e0e0",
+                  marginBottom: "20px",
+                }}
+              ></div>
+
+              {/* Proposals Table - Updated with LedgerView table layout */}
+              <div
+                style={{
+                  flex: "1 1 auto", // Allow this container to grow and fill space
+                  overflowY: "auto", // Make this container scrollable
+                  border: "1px solid #e0e0e0",
+                  borderRadius: "4px",
+                }}
+              >
+                <table
+                  className="ledger-table"
+                  style={{
+                    width: "100%",
+                    borderCollapse: "collapse",
+                    tableLayout: "fixed",
+                  }}
+                >
+                  <thead>
+                    <tr style={{ backgroundColor: "#f8f9fa" }}>
+                      <th
+                        style={{
+                          position: "sticky", // Make header sticky
+                          top: 0, // Stick to the top of the scrollable container
+                          width: "14%",
                           padding: "0.75rem",
-                          borderBottom: "1px solid #dee2e6",
+                          textAlign: "left",
+                          borderBottom: "2px solid #dee2e6",
+                          height: "50px",
                           verticalAlign: "middle",
                           wordWrap: "break-word",
                           overflowWrap: "break-word",
-                          whiteSpace: "normal",
+                          zIndex: 1,
                         }}
                       >
-                        {proposal.reference}
-                      </td>
-                      <td
+                        TICKET ID
+                      </th>
+                      <th
                         style={{
+                          width: "22%",
                           padding: "0.75rem",
-                          borderBottom: "1px solid #dee2e6",
+                          textAlign: "left",
+                          borderBottom: "2px solid #dee2e6",
+                          height: "50px",
                           verticalAlign: "middle",
                           wordWrap: "break-word",
                           overflowWrap: "break-word",
-                          whiteSpace: "normal",
                         }}
                       >
-                        {proposal.subject}
-                      </td>
-                      <td
+                        DESCRIPTION
+                      </th>
+                      <th
                         style={{
+                          width: "20%",
                           padding: "0.75rem",
-                          borderBottom: "1px solid #dee2e6",
+                          textAlign: "left",
+                          borderBottom: "2px solid #dee2e6",
+                          height: "50px",
                           verticalAlign: "middle",
                           wordWrap: "break-word",
                           overflowWrap: "break-word",
-                          whiteSpace: "normal",
                         }}
                       >
-                        {proposal.category}
-                      </td>
-                      <td
+                        CATEGORY
+                      </th>
+                      <th
                         style={{
+                          width: "14%",
                           padding: "0.75rem",
-                          borderBottom: "1px solid #dee2e6",
+                          textAlign: "left",
+                          borderBottom: "2px solid #dee2e6",
+                          height: "50px",
                           verticalAlign: "middle",
                           wordWrap: "break-word",
                           overflowWrap: "break-word",
-                          whiteSpace: "normal",
                         }}
                       >
-                        {proposal.submitted_by}
-                      </td>
-                      <td
+                        SUBMITTED BY
+                      </th>
+                      <th
                         style={{
+                          width: "12%",
                           padding: "0.75rem",
-                          borderBottom: "1px solid #dee2e6",
+                          textAlign: "left",
+                          borderBottom: "2px solid #dee2e6",
+                          height: "50px",
                           verticalAlign: "middle",
                           wordWrap: "break-word",
                           overflowWrap: "break-word",
-                          whiteSpace: "normal",
                         }}
                       >
-                        {`₱${parseFloat(proposal.amount).toLocaleString(
-                          "en-US",
-                          { minimumFractionDigits: 2, maximumFractionDigits: 2 }
-                        )}`}
-                      </td>
-                      <td
+                        AMOUNT
+                      </th>
+                      <th
                         style={{
+                          width: "14%",
                           padding: "0.75rem",
-                          borderBottom: "1px solid #dee2e6",
+                          textAlign: "middle",
+                          borderBottom: "2px solid #dee2e6",
+                          height: "50px",
                           verticalAlign: "middle",
                           wordWrap: "break-word",
                           overflowWrap: "break-word",
-                          whiteSpace: "normal",
                         }}
                       >
-                        <Status
-                          type={
-                            proposal.status ? proposal.status.toLowerCase() : ""
-                          }
-                          name={
-                            proposal.status
-                              ? proposal.status.charAt(0) +
-                                proposal.status.slice(1).toLowerCase()
-                              : ""
-                          }
-                        />
-                      </td>
-                      <td
+                        STATUS
+                      </th>
+                      <th
                         style={{
+                          width: "12%",
                           padding: "0.75rem",
-                          borderBottom: "1px solid #dee2e6",
+                          textAlign: "left",
+                          borderBottom: "2px solid #dee2e6",
+                          height: "50px",
                           verticalAlign: "middle",
                           wordWrap: "break-word",
                           overflowWrap: "break-word",
-                          whiteSpace: "normal",
                         }}
                       >
-                        <button
-                          className="blue-button action-btn"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            handleReviewClick(proposal);
-                          }}
+                        ACTIONS
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {/* MODIFICATION: Render proposals from API state */}
+                    {loading ? (
+                      <tr>
+                        <td
+                          colSpan="7"
+                          style={{ textAlign: "center", padding: "20px" }}
+                        >
+                          Loading...
+                        </td>
+                      </tr>
+                    ) : proposals.length > 0 ? (
+                      proposals.map((proposal, index) => (
+                        <tr
+                          key={proposal.id}
+                          className={index % 2 === 1 ? "alternate-row" : ""}
                           style={{
-                            padding: "6px 12px",
-                            backgroundColor: "#007bff",
-                            color: "white",
-                            border: "none",
-                            borderRadius: "4px",
+                            backgroundColor:
+                              index % 2 === 1 ? "#F8F8F8" : "#FFFFFF",
+                            color: "#0C0C0C",
+                            height: "50px",
+                            transition: "background-color 0.2s ease",
                             cursor: "pointer",
-                            fontSize: "12px",
-                            minWidth: "70px",
-                            outline: "none",
+                          }}
+                          onMouseEnter={(e) => {
+                            e.currentTarget.style.backgroundColor = "#fcfcfc";
+                          }}
+                          onMouseLeave={(e) => {
+                            e.currentTarget.style.backgroundColor =
+                              index % 2 === 1 ? "#F8F8F8" : "#FFFFFF";
+                          }}
+                          onClick={() => handleReviewClick(proposal)}
+                        >
+                          <td
+                            style={{
+                              padding: "0.75rem",
+                              borderBottom: "1px solid #dee2e6",
+                              verticalAlign: "middle",
+                              wordWrap: "break-word",
+                              overflowWrap: "break-word",
+                              whiteSpace: "normal",
+                            }}
+                          >
+                            {proposal.reference}
+                          </td>
+                          <td
+                            style={{
+                              padding: "0.75rem",
+                              borderBottom: "1px solid #dee2e6",
+                              verticalAlign: "middle",
+                              wordWrap: "break-word",
+                              overflowWrap: "break-word",
+                              whiteSpace: "normal",
+                            }}
+                          >
+                            {proposal.subject}
+                          </td>
+                          <td
+                            style={{
+                              padding: "0.75rem",
+                              borderBottom: "1px solid #dee2e6",
+                              verticalAlign: "middle",
+                              wordWrap: "break-word",
+                              overflowWrap: "break-word",
+                              whiteSpace: "normal",
+                            }}
+                          >
+                            {proposal.category}
+                          </td>
+                          <td
+                            style={{
+                              padding: "0.75rem",
+                              borderBottom: "1px solid #dee2e6",
+                              verticalAlign: "middle",
+                              wordWrap: "break-word",
+                              overflowWrap: "break-word",
+                              whiteSpace: "normal",
+                            }}
+                          >
+                            {proposal.submitted_by}
+                          </td>
+                          <td
+                            style={{
+                              padding: "0.75rem",
+                              borderBottom: "1px solid #dee2e6",
+                              verticalAlign: "middle",
+                              wordWrap: "break-word",
+                              overflowWrap: "break-word",
+                              whiteSpace: "normal",
+                            }}
+                          >
+                            {`₱${parseFloat(proposal.amount).toLocaleString(
+                              "en-US",
+                              { minimumFractionDigits: 2, maximumFractionDigits: 2 }
+                            )}`}
+                          </td>
+                          <td
+                            style={{
+                              padding: "0.75rem",
+                              borderBottom: "1px solid #dee2e6",
+                              verticalAlign: "middle",
+                              wordWrap: "break-word",
+                              overflowWrap: "break-word",
+                              whiteSpace: "normal",
+                            }}
+                          >
+                            <Status
+                              type={
+                                proposal.status ? proposal.status.toLowerCase() : ""
+                              }
+                              name={
+                                proposal.status
+                                  ? proposal.status.charAt(0) +
+                                    proposal.status.slice(1).toLowerCase()
+                                  : ""
+                              }
+                            />
+                          </td>
+                          <td
+                            style={{
+                              padding: "0.75rem",
+                              borderBottom: "1px solid #dee2e6",
+                              verticalAlign: "middle",
+                              wordWrap: "break-word",
+                              overflowWrap: "break-word",
+                              whiteSpace: "normal",
+                            }}
+                          >
+                            <button
+                              className="blue-button action-btn"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleReviewClick(proposal);
+                              }}
+                              style={{
+                                padding: "6px 12px",
+                                backgroundColor: "#007bff",
+                                color: "white",
+                                border: "none",
+                                borderRadius: "4px",
+                                cursor: "pointer",
+                                fontSize: "12px",
+                                minWidth: "70px",
+                                outline: "none",
+                              }}
+                            >
+                              {proposal.status === "APPROVED" ||
+                              proposal.status === "REJECTED"
+                                ? "View"
+                                : "Review"}
+                            </button>
+                          </td>
+                        </tr>
+                      ))
+                    ) : (
+                      <tr>
+                        <td
+                          colSpan="7"
+                          className="no-results"
+                          style={{
+                            padding: "20px",
+                            textAlign: "center",
+                            height: "50px",
+                            verticalAlign: "middle",
                           }}
                         >
-                          {proposal.status === "APPROVED" ||
-                          proposal.status === "REJECTED"
-                            ? "View"
-                            : "Review"}
-                        </button>
-                      </td>
-                    </tr>
-                  ))
-                ) : (
-                  <tr>
-                    <td
-                      colSpan="7"
-                      className="no-results"
-                      style={{
-                        padding: "20px",
-                        textAlign: "center",
-                        height: "50px",
-                        verticalAlign: "middle",
-                      }}
-                    >
-                      No proposals match your search criteria.
-                    </td>
-                  </tr>
-                )}
-              </tbody>
-            </table>
-          </div>
+                          No proposals match your search criteria.
+                        </td>
+                      </tr>
+                    )}
+                  </tbody>
+                </table>
+              </div>
 
-          {/* MODIFICATION: Use pagination info from API */}
-          {pagination.count > 0 && !loading && (
-            <Pagination
-              currentPage={currentPage}
-              pageSize={pageSize}
-              totalItems={pagination.count}
-              onPageChange={setCurrentPage}
-              onPageSizeChange={(newSize) => {
-                setPageSize(newSize);
-                setCurrentPage(1);
-              }}
-              pageSizeOptions={[5, 10, 20, 50]}
-            />
-          )}
-        </div>
+              {/* MODIFICATION: Use pagination info from API */}
+              {pagination.count > 0 && !loading && (
+                <Pagination
+                  currentPage={currentPage}
+                  pageSize={pageSize}
+                  totalItems={pagination.count}
+                  onPageChange={setCurrentPage}
+                  onPageSizeChange={(newSize) => {
+                    setPageSize(newSize);
+                    setCurrentPage(1);
+                  }}
+                  pageSizeOptions={[5, 10, 20, 50]}
+                />
+              )}
+            </div>
+          </>
+        )}
       </div>
 
       {/* All popup components remain unchanged */}

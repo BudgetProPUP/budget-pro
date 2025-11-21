@@ -39,8 +39,6 @@ const Status = ({ type, name, personName = null, location = null }) => {
   );
 };
 
-
-
 // Pagination Component - Copied from LedgerView
 const Pagination = ({
   currentPage,
@@ -289,7 +287,7 @@ const ProposalHistory = () => {
   const [showCategoryDropdown, setShowCategoryDropdown] = useState(false);
   const [showManageProfile, setShowManageProfile] = useState(false);
   const navigate = useNavigate();
-  const { user } = useAuth();
+  const { user, logout } = useAuth();
 
   const handleManageProfile = () => {
     setShowManageProfile(true);
@@ -327,12 +325,12 @@ const ProposalHistory = () => {
 
   // Fixed status options
   const statusOptions = [
-  "APPROVED",
-  "REJECTED", 
-  "SUBMITTED",
-  "UPDATED",
-  "REVIEWED",
-];
+    "APPROVED",
+    "REJECTED",
+    "SUBMITTED",
+    "UPDATED",
+    "REVIEWED",
+  ];
 
   // Debounce search term
   useEffect(() => {
@@ -484,16 +482,9 @@ const ProposalHistory = () => {
     navigate(path);
   };
 
-  const handleLogout = () => {
-    try {
-      localStorage.removeItem("authToken");
-      localStorage.removeItem("userSession");
-      sessionStorage.clear();
-      navigate("/login", { replace: true });
-    } catch (error) {
-      console.error("Error during logout:", error);
-      navigate("/login", { replace: true });
-    }
+  // Updated logout function
+  const handleLogout = async () => {
+    await logout();
   };
 
   // Format date/time for display
@@ -1436,10 +1427,7 @@ const ProposalHistory = () => {
       </div>
       {/* Add ManageProfile Modal */}
       {showManageProfile && (
-        <ManageProfile
-          isOpen={showManageProfile}
-          onClose={handleCloseManageProfile}
-        />
+        <ManageProfile onClose={handleCloseManageProfile} />
       )}
     </div>
   );

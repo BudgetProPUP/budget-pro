@@ -251,7 +251,7 @@ function BudgetAllocation() {
   const [showProfileDropdown, setShowProfileDropdown] = useState(false);
   const [showManageProfile, setShowManageProfile] = useState(false); // New state for ManageProfile
   const navigate = useNavigate();
-  const { user } = useAuth();
+  const { user, logout } = useAuth();
 
   // User Profile
   const userProfile = {
@@ -445,19 +445,8 @@ function BudgetAllocation() {
   };
 
   // Updated logout function with navigation to login screen
-  const handleLogout = () => {
-    try {
-      localStorage.removeItem("authToken");
-      localStorage.removeItem("userSession");
-      localStorage.removeItem("userProfile");
-      sessionStorage.clear();
-      setShowProfileDropdown(false);
-      navigate("/login", { replace: true });
-      console.log("User logged out successfully");
-    } catch (error) {
-      console.error("Error during logout:", error);
-      navigate("/login", { replace: true });
-    }
+  const handleLogout = async () => {
+    await logout();
   };
 
   // Modal Handlers
@@ -1087,7 +1076,6 @@ function BudgetAllocation() {
         {showManageProfile ? (
           <ManageProfile
             onClose={handleCloseManageProfile}
-            userProfile={userProfile}
           />
         ) : (
           /* Page Container for everything - Updated with LedgerView styling */

@@ -640,6 +640,36 @@ class BudgetProposalUIViewSet(viewsets.ReadOnlyModelViewSet):
                 new_status=proposal.status,
                 comments=comment_text or f"Status changed to {new_status}."
             )
+            
+        # MODIFICATION START: outbound notification logic
+            try:
+                dts_callback_url = settings.DTS_STATUS_UPDATE_URL
+                if dts_callback_url:
+                    payload = {
+                        'ticket_id': proposal.external_system_id,
+                        'status': new_status,  # 'APPROVED' or 'REJECTED'
+                        'comment': comment_text,
+                        'reviewed_by': reviewer_name,
+                        'reviewed_at': timezone.now().isoformat()
+                    }
+                    headers = {
+                        'Content-Type': 'application/json',
+                        'X-API-Key': settings.BMS_AUTH_KEY_FOR_DTS
+                    }
+                    response = requests.post(dts_callback_url, json=payload, headers=headers, timeout=5)
+                    response.raise_for_status()
+                    
+                    proposal.sync_status = 'SYNCED'
+                    proposal.last_sync_timestamp = timezone.now()
+                    proposal.save(update_fields=['sync_status', 'last_sync_timestamp'])
+                else:
+                    print(f"Warning: DTS_STATUS_UPDATE_URL not configured. Skipping notification for proposal {proposal.id}.")
+
+            except requests.RequestException as e:
+                print(f"Error notifying DTS for proposal {proposal.id}: {e}")
+                proposal.sync_status = 'FAILED'
+                proposal.save(update_fields=['sync_status'])
+            # MODIFICATION END
 
         output_serializer = BudgetProposalDetailSerializer(
             proposal, context={'request': request})

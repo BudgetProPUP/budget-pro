@@ -16,7 +16,7 @@ from .views import (
 from .views_expense import (
     ExpenseDetailView, ExpenseHistoryView, ExpenseTrackingView, ExpenseCreateView,
     ExpenseCategoryDropdownView, ExpenseTrackingSummaryView,
-    BudgetAllocationCreateView
+    BudgetAllocationCreateView, ExternalExpenseViewSet
 )
 from core import views_budget
 
@@ -29,7 +29,7 @@ user_management_router.register(
 router = DefaultRouter()
 router.register(r'external-budget-proposals',
                 views_budget.ExternalBudgetProposalViewSet, basename='external-budget-proposals')
-
+router.register(r'external-expenses', ExternalExpenseViewSet, basename='external-expenses')
 # Router for UI calls from authenticated users (JWT protected)
 ui_router = DefaultRouter()
 ui_router.register(r'budget-proposals', views_budget.BudgetProposalUIViewSet, basename='budget-proposals')

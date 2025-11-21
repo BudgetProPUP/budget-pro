@@ -41,6 +41,14 @@ export const getForecastData = (fiscalYearId) => {
     });
 };
 
+// MODIFICATION START
+/**
+ * Fetches the forecast accuracy metrics for the last completed month.
+ */
+export const getForecastAccuracy = () => {
+    return budgetApi.get('/dashboard/forecast-accuracy/');
+};
+
 /**
  * Fetches data for the Budget per Category pie chart.
  */
@@ -76,3 +84,4 @@ export const getProjectDetails = (projectId) => {
     // Use 'budgetApi'
     return budgetApi.get(`/dashboard/projects/${projectId}/`);
 };
+

@@ -17,6 +17,7 @@ import { getJournalChoices } from "../../API/dropdownAPI";
 // Import ManageProfile component
 import ManageProfile from "./ManageProfile"; // currently unreferenced
 
+
 // Pagination Component
 const Pagination = ({
   currentPage,
@@ -437,6 +438,7 @@ const LedgerView = () => {
   const handleCloseManageProfile = () => {
     setShowManageProfile(false);
   };
+
 
   // Format date and time for display
   const formattedDay = currentDate.toLocaleDateString("en-US", {

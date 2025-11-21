@@ -1,4 +1,5 @@
 from decimal import Decimal
+import math
 from django.db.models import Sum, F, DecimalField, Q
 from django.db.models.functions import Coalesce
 from rest_framework import viewsets, views, status, generics
@@ -118,7 +119,18 @@ class DepartmentBudgetView(views.APIView):
 @extend_schema(
     tags=["Dashboard"],
     summary="Get dashboard budget summary",
-    description="Returns total, spent, and remaining budget for the active fiscal year.",
+    description="Returns total, spent, and remaining budget. Can be filtered by period.",
+    # MODIFICATION START: Add the period parameter to the schema
+    parameters=[
+        OpenApiParameter(
+            name="period",
+            description="Filter the summary by a time period. Defaults to 'yearly'.",
+            required=False,
+            type=str,
+            enum=['monthly', 'quarterly', 'yearly']
+        )
+    ],
+    #MODIFICATION END
     responses={200: DashboardBudgetSummarySerializer},
     examples=[
         OpenApiExample(
@@ -138,13 +150,13 @@ class DepartmentBudgetView(views.APIView):
     ]
 )
 @api_view(['GET'])
-@permission_classes([IsBMSUser]) # MODIFIED: Use specific BMS permission
+@permission_classes([IsBMSUser])
 def get_dashboard_budget_summary(request):
-     # --- MODIFICATION START ---
+    # MODIFICATION START
     user = request.user
     user_roles = getattr(user, 'roles', {})
     bms_role = user_roles.get('bms')
-    # --- MODIFICATION END ---
+    
     today = timezone.now().date()
     fiscal_year = FiscalYear.objects.filter(
         start_date__lte=today,
@@ -155,8 +167,27 @@ def get_dashboard_budget_summary(request):
     if not fiscal_year:
         return Response({"detail": "No active fiscal year found."}, status=404)
 
-    # --- MODIFICATION START ---
-    # Base querysets for data isolation
+    # Logic to handle period-based filterin 
+    period = request.query_params.get('period', 'yearly')
+    start_date_filter = fiscal_year.start_date
+    end_date_filter = fiscal_year.end_date
+    budget_divisor = 1
+
+    if period == 'monthly':
+        start_date_filter = today.replace(day=1)
+        # Correctly find the last day of the current month
+        end_date_filter = (start_date_filter + relativedelta(months=1)) - relativedelta(days=1)
+        budget_divisor = 12
+    elif period == 'quarterly':
+        # Determine the current quarter
+        current_quarter = (today.month - 1) // 3 + 1
+        start_month = (current_quarter - 1) * 3 + 1
+        start_date_filter = date(today.year, start_month, 1)
+        # Correctly find the end of the quarter
+        end_date_filter = (start_date_filter + relativedelta(months=3)) - relativedelta(days=1)
+        budget_divisor = 4
+    
+    # Base queryset for allocations with data isolation
     allocations_qs = BudgetAllocation.objects.filter(
         is_active=True,
         fiscal_year=fiscal_year
@@ -168,34 +199,35 @@ def get_dashboard_budget_summary(request):
             allocations_qs = allocations_qs.filter(department_id=department_id)
         else:
             allocations_qs = BudgetAllocation.objects.none()
-    # ADMIN role sees all allocations by default
-
-    total_budget = allocations_qs.aggregate(total=Sum('amount'))['total'] or 0
-
-    # Filter expenses based on the isolated allocations
-    total_spent = Expense.objects.filter(
-        budget_allocation__in=allocations_qs,
-        status='APPROVED'
-    ).aggregate(total=Sum('amount'))['total'] or 0
-    # --- MODIFICATION END ---
     
-    remaining_budget = total_budget - total_spent
-    remaining_percentage = (
-        remaining_budget / total_budget * 100) if total_budget > 0 else 0
-    percentage_used = Decimal('100.00') - remaining_percentage
+    # Calculate the total budget for the ENTIRE year first
+    total_yearly_budget = allocations_qs.aggregate(total=Sum('amount'))['total'] or Decimal('0.00')
+    
+    # Prorate the budget for the selected period
+    total_budget_for_period = total_yearly_budget / Decimal(budget_divisor)
 
-    # Serializer
+    # Filter expenses within the calculated date range
+    total_spent_for_period = Expense.objects.filter(
+        budget_allocation__in=allocations_qs,
+        status='APPROVED',
+        date__range=[start_date_filter, end_date_filter]
+    ).aggregate(total=Sum('amount'))['total'] or Decimal('0.00')
+    
+    remaining_budget = total_budget_for_period - total_spent_for_period
+    percentage_used = (total_spent_for_period / total_budget_for_period * 100) if total_budget_for_period > 0 else Decimal('0.00')
+    
     serializer = DashboardBudgetSummarySerializer({
         "fiscal_year": fiscal_year.name,
-        "total_budget": total_budget,
-        "total_spent": total_spent,
+        "total_budget": total_budget_for_period,
+        "total_spent": total_spent_for_period,
         "remaining_budget": remaining_budget,
-        "remaining_percentage": round(remaining_percentage, 2),
         "percentage_used": round(percentage_used, 2),
-        "available_for_allocation": True  # placeholder — can be made dynamic later
+        "remaining_percentage": round(100 - percentage_used, 2),
+        "available_for_allocation": True
     })
 
     return Response(serializer.data)
+    # --- MODIFICATION END ---
 
 
 class MonthlyBudgetActualViewSet(viewsets.ViewSet):

@@ -3,11 +3,15 @@ import budgetApi from './budgetAPI';
 
 /**
  * Fetches the main budget summary cards data.
+ * @param {string} period - The time filter ('monthly', 'quarterly', 'yearly').
  */
-export const getBudgetSummary = () => {
-    // 2. Use 'budgetApi' for all calls
-    return budgetApi.get('/dashboard/budget-summary/');
+// MODIFICATION START
+export const getBudgetSummary = (period = 'yearly') => {
+    return budgetApi.get('/dashboard/budget-summary/', {
+        params: { period }
+    });
 };
+// MODIFICATION END
 
 /**
  * Fetches the data for the Money Flow chart (Budget vs Actual).

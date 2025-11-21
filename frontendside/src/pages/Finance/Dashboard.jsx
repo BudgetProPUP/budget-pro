@@ -1,6 +1,7 @@
 // TODO: Important, need massive changes and additional logic for new modals
 // TODO: Add logic to monthly, quarterly, and yearly filters if possible
 // TODO: Call generate_forecasts in page, currently uses manual in cmd
+// TODO: Fiscal Year is still not fully realized, fiscal year may not start even from the month of January.
 import React, { useState, useEffect } from "react";
 import { Line, Pie } from "react-chartjs-2";
 import {
@@ -187,35 +188,31 @@ function BudgetDashboard() {
   };
   // MODIFICATION END
 
+  // This useEffect fetches data that does NOT change with the time filter. It runs once.
   useEffect(() => {
-    const fetchDashboardData = async () => {
+    const fetchStaticData = async () => {
       try {
-        setLoading(true);
-        const fiscalYearId = 2;
+        setLoading(true); // This controls the main page loader
+        const fiscalYearId = 2; // This should ideally be dynamic
 
-        // --- MODIFICATION START ---
-        // Updated to fetch all necessary data points for the dashboard
-        const [summaryRes, moneyFlowRes, pieChartRes, departmentDetailsRes] =
+        const [moneyFlowRes, pieChartRes, departmentDetailsRes] =
           await Promise.all([
-            getBudgetSummary(),
             getMoneyFlowData(fiscalYearId),
-            getTopCategoryAllocations(), // Fetches data for the pie chart
-            getDepartmentBudgetData(), // Fetches data for the "View Details" section
+            getTopCategoryAllocations(),
+            getDepartmentBudgetData(),
           ]);
 
-        setSummaryData(summaryRes.data);
         setMoneyFlowData(moneyFlowRes.data);
         setPieChartApiData(pieChartRes.data);
         setDepartmentDetailsData(departmentDetailsRes.data);
-        // --- MODIFICATION END ---
       } catch (error) {
-        console.error("Failed to fetch dashboard data:", error);
+        console.error("Failed to fetch static dashboard data:", error);
       } finally {
-        setLoading(false);
+        setLoading(false); // Hide main page loader once static data is loaded
       }
     };
 
-    fetchDashboardData();
+    fetchStaticData();
 
     const interval = setInterval(() => {
       setCurrentDate(new Date());
@@ -225,6 +222,21 @@ function BudgetDashboard() {
       clearInterval(interval);
     };
   }, []);
+
+  // This new useEffect ONLY fetches the summary data and re-runs when `timeFilter` changes.
+  useEffect(() => {
+    const fetchSummaryData = async () => {
+      try {
+        const summaryRes = await getBudgetSummary(timeFilter);
+        setSummaryData(summaryRes.data);
+      } catch (error) {
+        console.error("Failed to fetch budget summary data:", error);
+      }
+    };
+
+    fetchSummaryData();
+  }, [timeFilter]); // Dependency array ensures this runs when the filter button is clicked
+  // MODIFICATION END
 
   // Fetch forecast data only when the button is clicked
   useEffect(() => {
@@ -1840,42 +1852,45 @@ function BudgetDashboard() {
                 </div>
               </div>
 
+              {/* MODIFICATION START */}
               {/* Department list is now DYNAMIC and shown when clicking the eye icon */}
               {showBudgetDetails && (
                 <div className="dept-budget-list">
-                  {/* Use the 'categoryData' from the API call */}
-                  {categoryData &&
-                    categoryData.map((cat, index) => (
+                  {/* Use the 'departmentDetailsData' from the API call, not 'categoryData' */}
+                  {departmentDetailsData &&
+                    departmentDetailsData.map((dept, index) => (
                       <div
-                        key={index}
+                        key={dept.department_id} // Use a stable key like the ID
                         className={`dept-budget-item ${
-                          index < categoryData.length - 1 ? "with-border" : ""
+                          index < departmentDetailsData.length - 1 ? "with-border" : ""
                         }`}
                       >
                         <div className="dept-budget-header">
-                          <h4 className="dept-budget-title">{cat.category_name}</h4>
+                          {/* Use the correct property name: department_name */}
+                          <h4 className="dept-budget-title">{dept.department_name}</h4>
                           <p className="dept-budget-percentage">
-                            {cat.percentage_used}% of budget used
+                            {dept.percentage_used}% of budget used
                           </p>
                         </div>
                         <div className="progress-container">
                           <div
                             className="progress-bar"
                             style={{
-                              width: `${cat.percentage_used}%`,
+                              width: `${dept.percentage_used}%`,
                               backgroundColor: "#007bff",
                             }}
                           ></div>
                         </div>
                         <div className="dept-budget-details">
-                          <p>Budget: ₱{Number(cat.budget).toLocaleString()}</p>
-                          <p>Spent: ₱{Number(cat.spent).toLocaleString()}</p>
+                          <p>Budget: ₱{Number(dept.budget).toLocaleString()}</p>
+                          <p>Spent: ₱{Number(dept.spent).toLocaleString()}</p>
                         </div>
                       </div>
                     ))}
                 </div>
               )}
             </div>
+            {/* --- MODIFICATION END --- */}
           </>
         )}
       </div>

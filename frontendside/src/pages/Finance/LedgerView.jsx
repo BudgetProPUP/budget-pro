@@ -280,6 +280,8 @@ const LedgerView = () => {
   const [loading, setLoading] = useState(true);
   const [categoryOptions, setCategoryOptions] = useState([]);
 
+  const [showManageProfile, setShowManageProfile] = useState(false);
+
   // Filter and Pagination State
   const [searchTerm, setSearchTerm] = useState("");
   const [debouncedSearchTerm, setDebouncedSearchTerm] = useState("");
@@ -424,6 +426,17 @@ const LedgerView = () => {
   // Updated logout function
   const handleLogout = async () => {
     await logout();
+  };
+
+  // New function to handle Manage Profile click
+  const handleManageProfile = () => {
+    setShowManageProfile(true);
+    setShowProfileDropdown(false);
+  };
+
+  // New function to close Manage Profile
+  const handleCloseManageProfile = () => {
+    setShowManageProfile(false);
   };
 
 
@@ -777,14 +790,17 @@ const LedgerView = () => {
                   ></div>
                   <div
                     className="dropdown-item"
+                    onClick={handleManageProfile} // Updated to use new function
                     style={{
                       display: "flex",
                       alignItems: "center",
                       padding: "8px 0",
                       cursor: "pointer",
+                      outline: "none",
                     }}
+                    onMouseDown={(e) => e.preventDefault()}
                   >
-                    <User size={16} style={{ marginRight: "8px" }} /> Manage
+                    <User size={16} style={{ marginRight: "8px" }} />Manage
                     Profile
                   </div>
                   {userProfile.role === "ADMIN" && (
@@ -833,330 +849,340 @@ const LedgerView = () => {
         className="content-container"
         style={{ padding: "20px", maxWidth: "1200px", margin: "0 auto" }}
       >
-        <div
-          className="ledger-container"
-          style={{
-            backgroundColor: "white",
-            borderRadius: "8px",
-            boxShadow: "0 2px 4px rgba(0,0,0,0.1)",
-            padding: "20px",
-            overflow: "hidden",
-            display: "flex",
-            flexDirection: "column",
-            minHeight: "calc(80vh - 100px)",
-          }}
-        >
-          {/* Header Section */}
+        {/* Conditionally render either Dashboard content or ManageProfile */}
+        {showManageProfile ? (
+          <ManageProfile onClose={handleCloseManageProfile} />
+        ) : (
           <div
-            className="top"
+            className="ledger-container"
             style={{
+              backgroundColor: "white",
+              borderRadius: "8px",
+              boxShadow: "0 2px 4px rgba(0,0,0,0.1)",
+              padding: "20px",
+              overflow: "hidden",
               display: "flex",
-              justifyContent: "space-between",
-              alignItems: "center",
-              marginBottom: "20px",
+              flexDirection: "column",
+              minHeight: "calc(80vh - 100px)",
             }}
           >
-            <h2 className="page-title">Ledger View</h2>
+            {/* Header Section */}
             <div
-              className="controls-container"
-              style={{ display: "flex", gap: "10px" }}
+              className="top"
+              style={{
+                display: "flex",
+                justifyContent: "space-between",
+                alignItems: "center",
+                marginBottom: "20px",
+              }}
             >
-              {/* MODIFICATION START: Add accessibility attributes to search input */}
-              <div style={{ position: "relative" }}>
-                <label
-                  htmlFor="ledger-search"
-                  style={{
-                    border: "0",
-                    clip: "rect(0 0 0 0)",
-                    height: "1px",
-                    margin: "-1px",
-                    overflow: "hidden",
-                    padding: "0",
-                    position: "absolute",
-                    width: "1px",
-                  }}
-                >
-                  Search
-                </label>
-                <input
-                  type="text"
-                  id="ledger-search"
-                  name="search"
-                  autoComplete="off"
-                  placeholder="Search"
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  className="search-account-input"
-                  style={{
-                    padding: "8px 12px",
-                    border: "1px solid #ccc",
-                    borderRadius: "4px",
-                    outline: "none",
-                  }}
-                />
-              </div>
-              {/* MODIFICATION END */}
-              <div className="filter-dropdown" style={{ position: "relative" }}>
-                <button
-                  className={`filter-dropdown-btn ${
-                    showCategoryDropdown ? "active" : ""
-                  }`}
-                  onClick={toggleCategoryDropdown}
-                  onMouseDown={(e) => e.preventDefault()}
-                  style={{
-                    padding: "8px 12px",
-                    border: "1px solid #ccc",
-                    borderRadius: "4px",
-                    backgroundColor: "white",
-                    display: "flex",
-                    alignItems: "center",
-                    gap: "5px",
-                    outline: "none",
-                  }}
-                >
-                  <span>{selectedCategory || "All Categories"}</span>
-                  <ChevronDown size={14} />
-                </button>
-                {showCategoryDropdown && (
-                  <div
-                    className="category-dropdown-menu"
+              <h2 className="page-title">Ledger View</h2>
+              <div
+                className="controls-container"
+                style={{ display: "flex", gap: "10px" }}
+              >
+                {/* MODIFICATION START: Add accessibility attributes to search input */}
+                <div style={{ position: "relative" }}>
+                  <label
+                    htmlFor="ledger-search"
                     style={{
+                      border: "0",
+                      clip: "rect(0 0 0 0)",
+                      height: "1px",
+                      margin: "-1px",
+                      overflow: "hidden",
+                      padding: "0",
                       position: "absolute",
-                      top: "100%",
-                      left: 0,
-                      backgroundColor: "white",
+                      width: "1px",
+                    }}
+                  >
+                    Search
+                  </label>
+                  <input
+                    type="text"
+                    id="ledger-search"
+                    name="search"
+                    autoComplete="off"
+                    placeholder="Search"
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                    className="search-account-input"
+                    style={{
+                      padding: "8px 12px",
                       border: "1px solid #ccc",
                       borderRadius: "4px",
-                      width: "100%",
-                      zIndex: 1000,
-                      maxHeight: "200px",
-                      overflowY: "auto",
+                      outline: "none",
                     }}
-                  >
-                    {categoryOptions.map((category) => (
-                      <div
-                        key={category}
-                        className={`category-dropdown-item ${
-                          selectedCategory === category ? "active" : ""
-                        }`}
-                        onClick={() => handleCategorySelect(category)}
-                        onMouseDown={(e) => e.preventDefault()}
-                        style={{
-                          padding: "8px 12px",
-                          cursor: "pointer",
-                          backgroundColor:
-                            selectedCategory === category ? "#f0f0f0" : "white",
-                        }}
-                      >
-                        {category}
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
-            </div>
-          </div>
-
-          <div
-            style={{
-              height: "1px",
-              backgroundColor: "#e0e0e0",
-              marginBottom: "20px",
-            }}
-          ></div>
-
-          {/* Table Container */}
-          <div
-            style={{
-              flex: "1 1 auto",
-              overflowY: "auto",
-              border: "1px solid #e0e0e0",
-              borderRadius: "4px",
-            }}
-          >
-            <table
-              className="ledger-table"
-              style={{
-                width: "100%",
-                borderCollapse: "collapse",
-                tableLayout: "fixed",
-              }}
-            >
-              <thead>
-                {/* MODIFICATION START: Make table header sticky */}
-                <tr
-                  style={{
-                    backgroundColor: "#f8f9fa",
-                    position: "sticky",
-                    top: 0,
-                    zIndex: 1,
-                  }}
+                  />
+                </div>
+                {/* MODIFICATION END */}
+                <div
+                  className="filter-dropdown"
+                  style={{ position: "relative" }}
                 >
-                  {/* MODIFICATION END */}
-                  <th
+                  <button
+                    className={`filter-dropdown-btn ${
+                      showCategoryDropdown ? "active" : ""
+                    }`}
+                    onClick={toggleCategoryDropdown}
+                    onMouseDown={(e) => e.preventDefault()}
                     style={{
-                      width: "12%",
-                      padding: "0.75rem",
-                      textAlign: "left",
-                      borderBottom: "2px solid #dee2e6",
+                      padding: "8px 12px",
+                      border: "1px solid #ccc",
+                      borderRadius: "4px",
+                      backgroundColor: "white",
+                      display: "flex",
+                      alignItems: "center",
+                      gap: "5px",
+                      outline: "none",
                     }}
                   >
-                    TICKET ID
-                  </th>
-                  <th
-                    style={{
-                      width: "15%",
-                      padding: "0.75rem",
-                      textAlign: "left",
-                      borderBottom: "2px solid #dee2e6",
-                    }}
-                  >
-                    DATE
-                  </th>
-                  <th
-                    style={{
-                      width: "19%",
-                      padding: "0.75rem",
-                      textAlign: "left",
-                      borderBottom: "2px solid #dee2e6",
-                    }}
-                  >
-                    CATEGORY
-                  </th>
-                  <th
-                    style={{
-                      width: "17%",
-                      padding: "0.75rem",
-                      textAlign: "left",
-                      borderBottom: "2px solid #dee2e6",
-                    }}
-                  >
-                    DESCRIPTION
-                  </th>
-                  <th
-                    style={{
-                      width: "17%",
-                      padding: "0.75rem",
-                      textAlign: "left",
-                      borderBottom: "2px solid #dee2e6",
-                    }}
-                  >
-                    ACCOUNT
-                  </th>
-                  <th
-                    style={{
-                      width: "10%",
-                      padding: "0.75rem",
-                      textAlign: "left",
-                      borderBottom: "2px solid #dee2e6",
-                    }}
-                  >
-                    AMOUNT
-                  </th>
-                </tr>
-              </thead>
-              <tbody>
-                {loading ? (
-                  <tr>
-                    <td
-                      colSpan="6"
-                      style={{ textAlign: "center", padding: "20px" }}
-                    >
-                      Loading...
-                    </td>
-                  </tr>
-                ) : ledgerEntries.length > 0 ? (
-                  ledgerEntries.map((entry, index) => (
-                    <tr
-                      key={index}
-                      className={index % 2 === 1 ? "alternate-row" : ""}
+                    <span>{selectedCategory || "All Categories"}</span>
+                    <ChevronDown size={14} />
+                  </button>
+                  {showCategoryDropdown && (
+                    <div
+                      className="category-dropdown-menu"
                       style={{
-                        backgroundColor:
-                          index % 2 === 1 ? "#F8F8F8" : "#FFFFFF",
-                        height: "50px",
+                        position: "absolute",
+                        top: "100%",
+                        left: 0,
+                        backgroundColor: "white",
+                        border: "1px solid #ccc",
+                        borderRadius: "4px",
+                        width: "100%",
+                        zIndex: 1000,
+                        maxHeight: "200px",
+                        overflowY: "auto",
                       }}
                     >
-                      <td
-                        style={{
-                          padding: "0.75rem",
-                          borderBottom: "1px solid #dee2e6",
-                        }}
-                      >
-                        {entry.reference_id}
-                      </td>
-                      <td
-                        style={{
-                          padding: "0.75rem",
-                          borderBottom: "1px solid #dee2e6",
-                        }}
-                      >
-                        {entry.date}
-                      </td>
-                      <td
-                        style={{
-                          padding: "0.75rem",
-                          borderBottom: "1px solid #dee2e6",
-                        }}
-                      >
-                        {entry.category}
-                      </td>
-                      <td
-                        style={{
-                          padding: "0.75rem",
-                          borderBottom: "1px solid #dee2e6",
-                        }}
-                      >
-                        {entry.description}
-                      </td>
-                      <td
-                        style={{
-                          padding: "0.75rem",
-                          borderBottom: "1px solid #dee2e6",
-                        }}
-                      >
-                        {entry.account}
-                      </td>
-                      <td
-                        style={{
-                          padding: "0.75rem",
-                          borderBottom: "1px solid #dee2e6",
-                        }}
-                      >{`₱${parseFloat(entry.amount).toLocaleString("en-US", {
-                        minimumFractionDigits: 2,
-                        maximumFractionDigits: 2,
-                      })}`}</td>
-                    </tr>
-                  ))
-                ) : (
-                  <tr>
-                    <td
-                      colSpan="6"
-                      className="no-results"
-                      style={{ padding: "20px", textAlign: "center" }}
-                    >
-                      No transactions match your search criteria.
-                    </td>
-                  </tr>
-                )}
-              </tbody>
-            </table>
-          </div>
+                      {categoryOptions.map((category) => (
+                        <div
+                          key={category}
+                          className={`category-dropdown-item ${
+                            selectedCategory === category ? "active" : ""
+                          }`}
+                          onClick={() => handleCategorySelect(category)}
+                          onMouseDown={(e) => e.preventDefault()}
+                          style={{
+                            padding: "8px 12px",
+                            cursor: "pointer",
+                            backgroundColor:
+                              selectedCategory === category
+                                ? "#f0f0f0"
+                                : "white",
+                          }}
+                        >
+                          {category}
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
 
-          {/* Pagination */}
-          {pagination.count > 0 && !loading && (
-            <Pagination
-              currentPage={currentPage}
-              pageSize={pageSize}
-              totalItems={pagination.count}
-              onPageChange={setCurrentPage}
-              onPageSizeChange={(newSize) => {
-                setPageSize(newSize);
-                setCurrentPage(1);
+            <div
+              style={{
+                height: "1px",
+                backgroundColor: "#e0e0e0",
+                marginBottom: "20px",
               }}
-              pageSizeOptions={[5, 10, 20, 50]}
-            />
-          )}
-        </div>
+            ></div>
+
+            {/* Table Container */}
+            <div
+              style={{
+                flex: "1 1 auto",
+                overflowY: "auto",
+                border: "1px solid #e0e0e0",
+                borderRadius: "4px",
+              }}
+            >
+              <table
+                className="ledger-table"
+                style={{
+                  width: "100%",
+                  borderCollapse: "collapse",
+                  tableLayout: "fixed",
+                }}
+              >
+                <thead>
+                  {/* MODIFICATION START: Make table header sticky */}
+                  <tr
+                    style={{
+                      backgroundColor: "#f8f9fa",
+                      position: "sticky",
+                      top: 0,
+                      zIndex: 1,
+                    }}
+                  >
+                    {/* MODIFICATION END */}
+                    <th
+                      style={{
+                        width: "12%",
+                        padding: "0.75rem",
+                        textAlign: "left",
+                        borderBottom: "2px solid #dee2e6",
+                      }}
+                    >
+                      TICKET ID
+                    </th>
+                    <th
+                      style={{
+                        width: "15%",
+                        padding: "0.75rem",
+                        textAlign: "left",
+                        borderBottom: "2px solid #dee2e6",
+                      }}
+                    >
+                      DATE
+                    </th>
+                    <th
+                      style={{
+                        width: "19%",
+                        padding: "0.75rem",
+                        textAlign: "left",
+                        borderBottom: "2px solid #dee2e6",
+                      }}
+                    >
+                      CATEGORY
+                    </th>
+                    <th
+                      style={{
+                        width: "17%",
+                        padding: "0.75rem",
+                        textAlign: "left",
+                        borderBottom: "2px solid #dee2e6",
+                      }}
+                    >
+                      DESCRIPTION
+                    </th>
+                    <th
+                      style={{
+                        width: "17%",
+                        padding: "0.75rem",
+                        textAlign: "left",
+                        borderBottom: "2px solid #dee2e6",
+                      }}
+                    >
+                      ACCOUNT
+                    </th>
+                    <th
+                      style={{
+                        width: "10%",
+                        padding: "0.75rem",
+                        textAlign: "left",
+                        borderBottom: "2px solid #dee2e6",
+                      }}
+                    >
+                      AMOUNT
+                    </th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {loading ? (
+                    <tr>
+                      <td
+                        colSpan="6"
+                        style={{ textAlign: "center", padding: "20px" }}
+                      >
+                        Loading...
+                      </td>
+                    </tr>
+                  ) : ledgerEntries.length > 0 ? (
+                    ledgerEntries.map((entry, index) => (
+                      <tr
+                        key={index}
+                        className={index % 2 === 1 ? "alternate-row" : ""}
+                        style={{
+                          backgroundColor:
+                            index % 2 === 1 ? "#F8F8F8" : "#FFFFFF",
+                          height: "50px",
+                        }}
+                      >
+                        <td
+                          style={{
+                            padding: "0.75rem",
+                            borderBottom: "1px solid #dee2e6",
+                          }}
+                        >
+                          {entry.reference_id}
+                        </td>
+                        <td
+                          style={{
+                            padding: "0.75rem",
+                            borderBottom: "1px solid #dee2e6",
+                          }}
+                        >
+                          {entry.date}
+                        </td>
+                        <td
+                          style={{
+                            padding: "0.75rem",
+                            borderBottom: "1px solid #dee2e6",
+                          }}
+                        >
+                          {entry.category}
+                        </td>
+                        <td
+                          style={{
+                            padding: "0.75rem",
+                            borderBottom: "1px solid #dee2e6",
+                          }}
+                        >
+                          {entry.description}
+                        </td>
+                        <td
+                          style={{
+                            padding: "0.75rem",
+                            borderBottom: "1px solid #dee2e6",
+                          }}
+                        >
+                          {entry.account}
+                        </td>
+                        <td
+                          style={{
+                            padding: "0.75rem",
+                            borderBottom: "1px solid #dee2e6",
+                          }}
+                        >{`₱${parseFloat(entry.amount).toLocaleString("en-US", {
+                          minimumFractionDigits: 2,
+                          maximumFractionDigits: 2,
+                        })}`}</td>
+                      </tr>
+                    ))
+                  ) : (
+                    <tr>
+                      <td
+                        colSpan="6"
+                        className="no-results"
+                        style={{ padding: "20px", textAlign: "center" }}
+                      >
+                        No transactions match your search criteria.
+                      </td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
+
+            {/* Pagination */}
+            {pagination.count > 0 && !loading && (
+              <Pagination
+                currentPage={currentPage}
+                pageSize={pageSize}
+                totalItems={pagination.count}
+                onPageChange={setCurrentPage}
+                onPageSizeChange={(newSize) => {
+                  setPageSize(newSize);
+                  setCurrentPage(1);
+                }}
+                pageSizeOptions={[5, 10, 20, 50]}
+              />
+            )}
+          </div>
+        )}
       </div>
     </div>
   );

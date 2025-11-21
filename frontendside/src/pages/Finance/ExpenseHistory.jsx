@@ -1022,7 +1022,6 @@ const ExpenseHistory = () => {
         {showManageProfile ? (
           <ManageProfile 
             onClose={handleCloseManageProfile} 
-            userProfile={userProfile}
           />
         ) : (
           /* Page Container for everything */

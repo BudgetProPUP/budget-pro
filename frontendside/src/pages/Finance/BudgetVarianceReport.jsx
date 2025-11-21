@@ -72,6 +72,17 @@ const BudgetVarianceReport = () => {
       "https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?ixlib=rb-1.2.1&ixid=eyJhcHBfaWQiOjEyMDd9&auto=format&fit=facearea&facepad=2&w=256&h=256&q=80",
   };
 
+  //New function to handle Manage Profile click
+  const handleManageProfile = () => {
+    setShowManageProfile(true);
+    setShowProfileDropdown(false);
+  };
+
+  // New function to close Manage Profile
+  const handleCloseManageProfile = () => {
+    setShowManageProfile(false);
+  };
+
   // API Data State
   const [reportData, setReportData] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -227,17 +238,6 @@ const BudgetVarianceReport = () => {
     if (showExpenseDropdown) setShowExpenseDropdown(false);
     if (showManageProfile) setShowManageProfile(false);
     if (showNotifications) setShowNotifications(false);
-  };
-
-  // New function to handle Manage Profile click
-  const handleManageProfile = () => {
-    setShowManageProfile(true);
-    setShowProfileDropdown(false);
-  };
-
-  // New function to close Manage Profile
-  const handleCloseManageProfile = () => {
-    setShowManageProfile(false);
   };
 
   const handleNavigate = (path) => {

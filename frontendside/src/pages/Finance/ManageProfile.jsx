@@ -1,49 +1,72 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import "./ManageProfile.css";
+import { updateProfile } from "../../API/authAPI";
+import { useAuth } from "../../context/AuthContext";
 
 export default function ManageProfile({ onClose }) {
-  // Mock user data for UI demonstration
-  const [user, setUser] = useState({
-    first_name: "John",
-    last_name: "Doe",
-    middle_name: "Michael",
-    company_id: "EMP-123-456",
-    department: "Information Technology",
-    suffix: "Jr.",
-    email: "john.doe@company.com",
-    profile_picture: "https://i.pinimg.com/736x/19/de/17/19de17c09737a59c5684e14cbaccdfc1.jpg"
+  const { user, updateUserContext } = useAuth(); // Get user and the function to update the context
+
+  const [formData, setFormData] = useState({
+    first_name: "",
+    last_name: "",
+    phone_number: "",
+    // Read-only fields for display
+    email: "",
+    department_name: "",
+    role: "",
   });
 
-  const [formData, setFormData] = useState({ ...user });
+  const [isSubmitting, setSubmitting] = useState(false);
+  const [apiError, setApiError] = useState(null);
+  const [apiSuccess, setApiSuccess] = useState(null);
+
+  // Pre-fill the form with user data when the component loads
+  useEffect(() => {
+    if (user) {
+      setFormData({
+        first_name: user.first_name || "",
+        last_name: user.last_name || "",
+        phone_number: user.phone_number || "",
+        email: user.email || "",
+        department_name: user.department_name || "",
+        role: user.roles?.bms || "User", // Safely access role
+      });
+    }
+  }, [user]);
 
   const handleInputChange = (e) => {
     const { name, value } = e.target;
-    setFormData(prev => ({
+    setFormData((prev) => ({
       ...prev,
-      [name]: value
+      [name]: value,
     }));
   };
 
-  const handleImageChange = (e) => {
-    const file = e.target.files[0];
-    if (file) {
-      const reader = new FileReader();
-      reader.onload = (e) => {
-        setFormData(prev => ({
-          ...prev,
-          profile_picture: e.target.result
-        }));
-      };
-      reader.readAsDataURL(file);
-    }
-  };
-
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    // For UI demonstration - in real app, you would call an API here
-    console.log("Form data:", formData);
-    alert("Profile updated successfully! (This is a UI demonstration)");
-    setUser({ ...formData });
+    setSubmitting(true);
+    setApiError(null);
+    setApiSuccess(null);
+
+    // Only send the fields that are allowed to be updated
+    const dataToSubmit = {
+      first_name: formData.first_name,
+      last_name: formData.last_name,
+      phone_number: formData.phone_number,
+    };
+
+    try {
+      const updatedUserData = await updateProfile(dataToSubmit);
+      // Update the global context so the whole app sees the change
+      updateUserContext(updatedUserData);
+      setApiSuccess("Profile updated successfully!");
+    } catch (error) {
+      const errorMessage =
+        error.response?.data?.detail || "An error occurred. Please try again.";
+      setApiError(errorMessage);
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   const handleBackClick = () => {
@@ -61,51 +84,51 @@ export default function ManageProfile({ onClose }) {
               <div className="profileHeaderSection">
                 <div className="manageProfileHeader">
                   <button className="backButton" onClick={handleBackClick}>
-                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                      <path d="M15 18L9 12L15 6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                    <svg
+                      width="20"
+                      height="20"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      xmlns="http://www.w3.org/2000/svg"
+                    >
+                      <path
+                        d="M15 18L9 12L15 6"
+                        stroke="currentColor"
+                        strokeWidth="2"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                      />
                     </svg>
                   </button>
                   <h1>Manage Profile</h1>
                 </div>
               </div>
-              
+
               <div className="profileCard">
                 <div className="profileImageSection">
                   <div className="profileImageContainer">
                     <img
-                      src={formData.profile_picture}
+                      src="https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?ixlib=rb-1.2.1&ixid=eyJhcHBfaWQiOjEyMDd9&auto=format&fit=facearea&facepad=2&w=256&h=256&q=80"
                       alt="Profile"
                       className="profileImage"
                     />
                   </div>
-                  <input
-                    type="file"
-                    id="profile-image-input"
-                    accept="image/*"
-                    onChange={handleImageChange}
-                    style={{ display: "none" }}
-                  />
-                  <label
-                    htmlFor="profile-image-input"
-                    className="changeImageBtn"
-                  >
-                    Change Photo
-                  </label>
+                  {/* Image change functionality can be added later */}
                 </div>
 
                 <div className="profileInfo">
                   <h3>
-                    {user.first_name} {user.last_name}
+                    {user?.first_name} {user?.last_name}
                   </h3>
                   <div className="profileDetails">
                     <p>
                       <strong>Position:</strong>
                     </p>
-                    <p>{user.department}</p>
+                    <p>{formData.role}</p>
                     <p>
                       <strong>Department:</strong>
                     </p>
-                    <p>{user.department}</p>
+                    <p>{formData.department_name}</p>
                   </div>
                 </div>
               </div>
@@ -116,6 +139,14 @@ export default function ManageProfile({ onClose }) {
                 <div className="profileSettingsCard">
                   <h2>Profile Settings</h2>
 
+                  {/* API Messages */}
+                  {apiError && (
+                    <div className="api-error-message">{apiError}</div>
+                  )}
+                  {apiSuccess && (
+                    <div className="api-success-message">{apiSuccess}</div>
+                  )}
+
                   <div className="formGrid">
                     <div className="formGroup">
                       <label>First Name</label>
@@ -125,39 +156,7 @@ export default function ManageProfile({ onClose }) {
                         value={formData.first_name}
                         onChange={handleInputChange}
                         placeholder="Enter first name"
-                      />
-                    </div>
-
-                    <div className="formGroup">
-                      <label>Company ID</label>
-                      <input
-                        type="text"
-                        name="company_id"
-                        value={formData.company_id}
-                        onChange={handleInputChange}
-                        placeholder="XXX-XXX-XXX"
-                      />
-                    </div>
-
-                    <div className="formGroup">
-                      <label>Middle Name</label>
-                      <input
-                        type="text"
-                        name="middle_name"
-                        value={formData.middle_name}
-                        onChange={handleInputChange}
-                        placeholder="Enter middle name (if applicable)"
-                      />
-                    </div>
-
-                    <div className="formGroup">
-                      <label>Department</label>
-                      <input
-                        type="text"
-                        name="department"
-                        value={formData.department}
-                        onChange={handleInputChange}
-                        placeholder="XXXXXXXXX"
+                        required
                       />
                     </div>
 
@@ -169,23 +168,39 @@ export default function ManageProfile({ onClose }) {
                         value={formData.last_name}
                         onChange={handleInputChange}
                         placeholder="Enter last name"
+                        required
                       />
                     </div>
 
                     <div className="formGroup">
-                      <label>Suffix</label>
+                      <label>Phone Number</label>
                       <input
                         type="text"
-                        name="suffix"
-                        value={formData.suffix}
+                        name="phone_number"
+                        value={formData.phone_number}
                         onChange={handleInputChange}
-                        placeholder="Enter suffix (if applicable)"
+                        placeholder="e.g., +639123456789"
+                      />
+                    </div>
+
+                    <div className="formGroup">
+                      <label>Department</label>
+                      <input
+                        type="text"
+                        name="department_name"
+                        value={formData.department_name}
+                        readOnly
+                        className="read-only-input"
                       />
                     </div>
                   </div>
 
-                  <button type="submit" className="saveChangesBtn">
-                    SAVE CHANGES
+                  <button
+                    type="submit"
+                    className="saveChangesBtn"
+                    disabled={isSubmitting}
+                  >
+                    {isSubmitting ? "SAVING..." : "SAVE CHANGES"}
                   </button>
                 </div>
 
@@ -198,8 +213,8 @@ export default function ManageProfile({ onClose }) {
                       type="email"
                       name="email"
                       value={formData.email}
-                      onChange={handleInputChange}
-                      placeholder="Email@gmail.com"
+                      readOnly
+                      className="read-only-input"
                     />
                   </div>
 
@@ -207,13 +222,19 @@ export default function ManageProfile({ onClose }) {
                     <label>Password</label>
                     <input
                       type="password"
-                      name="password"
                       placeholder="••••••••"
                       value="password123" // Demo value
                       readOnly
+                      className="read-only-input"
                     />
-                    <small style={{color: '#666', fontSize: '12px', marginTop: '5px'}}>
-                      Password cannot be changed from this page
+                    <small
+                      style={{
+                        color: "#666",
+                        fontSize: "12px",
+                        marginTop: "5px",
+                      }}
+                    >
+                      Password cannot be changed from this page.
                     </small>
                   </div>
                 </div>

@@ -289,7 +289,7 @@ const ProposalHistory = () => {
   const [showCategoryDropdown, setShowCategoryDropdown] = useState(false);
   const [showManageProfile, setShowManageProfile] = useState(false);
   const navigate = useNavigate();
-  const { user } = useAuth();
+    const { user, logout } = useAuth();
 
   const handleManageProfile = () => {
     setShowManageProfile(true);
@@ -484,16 +484,9 @@ const ProposalHistory = () => {
     navigate(path);
   };
 
-  const handleLogout = () => {
-    try {
-      localStorage.removeItem("authToken");
-      localStorage.removeItem("userSession");
-      sessionStorage.clear();
-      navigate("/login", { replace: true });
-    } catch (error) {
-      console.error("Error during logout:", error);
-      navigate("/login", { replace: true });
-    }
+  // Updated logout function
+  const handleLogout = async () => {
+    await logout();
   };
 
   // Format date/time for display

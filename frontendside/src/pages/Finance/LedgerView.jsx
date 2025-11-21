@@ -15,7 +15,8 @@ import { getLedgerEntries } from "../../API/ledgerAPI";
 import { getJournalChoices } from "../../API/dropdownAPI";
 
 // Import ManageProfile component
-import ManageProfile from "./ManageProfile";
+import ManageProfile from "./ManageProfile"; // currently unreferenced
+
 
 // Pagination Component
 const Pagination = ({
@@ -263,7 +264,7 @@ const LedgerView = () => {
   const [showProfileDropdown, setShowProfileDropdown] = useState(false);
   const [showNotifications, setShowNotifications] = useState(false);
   const navigate = useNavigate();
-  const { user } = useAuth();
+  const { user, logout } = useAuth();
 
   // User profile data
   const userProfile = {
@@ -420,19 +421,11 @@ const LedgerView = () => {
     navigate(path);
   };
 
-  const handleLogout = () => {
-    try {
-      // Clear tokens and user data
-      localStorage.removeItem("authToken");
-      localStorage.removeItem("userSession");
-      sessionStorage.clear();
-      // Navigate to login
-      navigate("/login", { replace: true });
-    } catch (error) {
-      console.error("Error during logout:", error);
-      navigate("/login", { replace: true });
-    }
+  // Updated logout function
+  const handleLogout = async () => {
+    await logout();
   };
+
 
   // Format date and time for display
   const formattedDay = currentDate.toLocaleDateString("en-US", {

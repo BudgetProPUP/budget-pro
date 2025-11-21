@@ -62,7 +62,7 @@ const BudgetVarianceReport = () => {
   const [showNotifications, setShowNotifications] = useState(false);
   const [showManageProfile, setShowManageProfile] = useState(false); // Fixed: Added missing state
   const navigate = useNavigate();
-  const { user } = useAuth();
+  const { user, logout } = useAuth();
 
   // User profile data
   const userProfile = {
@@ -249,16 +249,8 @@ const BudgetVarianceReport = () => {
     setShowNotifications(false);
   };
 
-  const handleLogout = () => {
-    try {
-      setShowManageProfile(false);
-      setShowProfileDropdown(false);
-      navigate("/login", { replace: true });
-      console.log("User logged out successfully");
-    } catch (error) {
-      console.error("Error during logout:", error);
-      navigate("/login", { replace: true });
-    }
+  const handleLogout = async () => {
+    await logout();
   };
 
   // Recursive function to flatten the nested data for rendering

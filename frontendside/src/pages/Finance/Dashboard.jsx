@@ -48,7 +48,7 @@ import {
   getDepartmentBudgetData, // API for the "View Details" section
   // --- MODIFICATION END ---
 } from "../../API/dashboardAPI";
-
+import { useAuth } from "../../context/AuthContext";
 // Import ManageProfile component
 import ManageProfile from "./ManageProfile";
 
@@ -174,14 +174,17 @@ function BudgetDashboard() {
   const [performanceTrend, setPerformanceTrend] = useState('stable');
   const [accuracyHistory, setAccuracyHistory] = useState([85, 82, 88, 90, 87]);
 
-  // User profile data
+  const { user, logout } = useAuth(); // Get user and logout function from context
+
+// MODIFICATION START
+  // User profile data is now dynamic from the authentication context
   const userProfile = {
-    name: "John Doe",
-    email: "Johndoe@gmail.com",
-    role: "Finance Head",
+    name: user ? `${user.first_name} ${user.last_name}` : "User",
+    role: user?.roles?.bms || "User",
     avatar:
       "https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?ixlib=rb-1.2.1&ixid=eyJhcHBfaWQiOjEyMDd9&auto=format&fit=facearea&facepad=2&w=256&h=256&q=80",
   };
+  // MODIFICATION END
 
   useEffect(() => {
     const fetchDashboardData = async () => {
@@ -688,19 +691,8 @@ function BudgetDashboard() {
     setShowManageProfile(false);
   };
 
-  const handleLogout = () => {
-    try {
-      localStorage.removeItem("authToken");
-      localStorage.removeItem("userSession");
-      localStorage.removeItem("userProfile");
-      sessionStorage.clear();
-      setShowProfileDropdown(false);
-      navigate("/login", { replace: true });
-      console.log("User logged out successfully");
-    } catch (error) {
-      console.error("Error during logout:", error);
-      navigate("/login", { replace: true });
-    }
+  const handleLogout = async () => {
+    await logout();
   };
 
   const toggleBudgetDetails = () => {

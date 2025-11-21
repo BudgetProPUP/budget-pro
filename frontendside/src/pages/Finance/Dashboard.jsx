@@ -44,6 +44,7 @@ import {
   getBudgetSummary,
   getMoneyFlowData,
   getForecastData,
+  getForecastAccuracy,
   // --- MODIFICATION START ---
   getTopCategoryAllocations, // Correct API function for the pie chart
   getDepartmentBudgetData, // API for the "View Details" section
@@ -166,15 +167,21 @@ function BudgetDashboard() {
   const [summaryData, setSummaryData] = useState(null);
   const [moneyFlowData, setMoneyFlowData] = useState(null);
   const [forecastData, setForecastData] = useState([]);
-  // --- MODIFICATION START ---
   const [pieChartApiData, setPieChartApiData] = useState(null); // For Pie Chart
   const [departmentDetailsData, setDepartmentDetailsData] = useState(null); // For "View Details"
-  // --- MODIFICATION END ---
+
+
+
+  // MODIFICATION START
+  // New state for the forecast accuracy data from the API
+  const [forecastAccuracyData, setForecastAccuracyData] = useState(null);
+  // MODIFICATION END
 
   // New state for forecast analysis
-  const [accuracyMetrics, setAccuracyMetrics] = useState(null);
+  // const [accuracyMetrics, setAccuracyMetrics] = useState(null); // This will be replaced
   const [performanceTrend, setPerformanceTrend] = useState('stable');
-  const [accuracyHistory, setAccuracyHistory] = useState([85, 82, 88, 90, 87]);
+  const [accuracyHistory, setAccuracyHistory] = useState([85, 82, 88, 90, 87]); // This remains placeholder for now
+
 
   const { user, logout } = useAuth(); // Get user and logout function from context
 
@@ -237,87 +244,49 @@ function BudgetDashboard() {
     fetchSummaryData();
   }, [timeFilter]); // Dependency array ensures this runs when the filter button is clicked
   // MODIFICATION END
-
-  // Fetch forecast data only when the button is clicked
+// This new useEffect fetches forecast and accuracy data when the comparison view is toggled
   useEffect(() => {
-    const fetchForecast = async () => {
-      if (showForecasting || showForecastComparison) {
+    const fetchAnalysisData = async () => {
+      // Only fetch if the comparison view is active and we don't have the data yet
+      if (showForecastComparison && !forecastAccuracyData) {
         try {
-          const fiscalYearId = 2;
-          const res = await getForecastData(fiscalYearId);
-          setForecastData(res.data);
-          
-          // If no real forecast data exists, generate example data
-          if ((!res.data || res.data.length === 0) && moneyFlowData) {
-            const exampleData = generateExampleForecastData(moneyFlowData);
-            setExampleForecastData(exampleData);
-            setUsingExampleData(true);
-            
-            // Calculate accuracy metrics with example data
-            const actualValues = moneyFlowData.map(d => d.actual);
-            const forecastValues = exampleData.map(d => d.forecast);
-            const metrics = calculateAccuracyMetrics(actualValues, forecastValues);
-            setAccuracyMetrics(metrics);
-            
-            // Generate example accuracy history
-            const history = generateExampleAccuracyHistory();
-            setExampleAccuracyHistory(history);
-            setAccuracyHistory(history);
-          } else if (moneyFlowData && res.data) {
-            // Use real data
-            const actualValues = moneyFlowData.map(d => d.actual);
-            const forecastValues = moneyFlowData.map((d, index) => {
-              const forecastPoint = res.data.find(f => f.month_name === d.month_name);
-              return forecastPoint ? forecastPoint.forecast : null;
-            }).filter(val => val !== null);
-            
-            const metrics = calculateAccuracyMetrics(actualValues, forecastValues);
-            setAccuracyMetrics(metrics);
-            setUsingExampleData(false);
-          }
-          // MODIFICATION START: Check if the response data is an array
-          if (Array.isArray(res.data)) {
-            setForecastData(res.data);
+          const [forecastRes, accuracyRes] = await Promise.all([
+            getForecastData(2), // Assuming fiscal year 2 for now
+            getForecastAccuracy(),
+          ]);
+
+          // Handle forecast data
+          if (Array.isArray(forecastRes.data)) {
+            setForecastData(forecastRes.data);
           } else {
-            // If it's not an array (e.g., it's the 'detail' object), keep it as an empty array
-            console.log(
-              "No forecast data available from API:",
-              res.data.detail
-            );
+            console.log("No forecast data available from API:", forecastRes.data.detail);
             setForecastData([]);
           }
-          // MODIFICATION END
+
+          // Handle accuracy data
+          setForecastAccuracyData(accuracyRes.data);
+
         } catch (error) {
-          console.error("Failed to fetch forecast data:", error);
-          // If API fails, generate example data
-          if (moneyFlowData) {
-            const exampleData = generateExampleForecastData(moneyFlowData);
-            setExampleForecastData(exampleData);
-            setUsingExampleData(true);
-            
-            const actualValues = moneyFlowData.map(d => d.actual);
-            const forecastValues = exampleData.map(d => d.forecast);
-            const metrics = calculateAccuracyMetrics(actualValues, forecastValues);
-            setAccuracyMetrics(metrics);
-            
-            const history = generateExampleAccuracyHistory();
-            setExampleAccuracyHistory(history);
-            setAccuracyHistory(history);
-          }
-          setForecastData([]); // Also reset on error
+          console.error("Failed to fetch forecast analysis data:", error);
+          setForecastData([]);
+          setForecastAccuracyData(null);
         }
       }
     };
-    fetchForecast();
-  }, [showForecasting, showForecastComparison, moneyFlowData]);
 
-  // Calculate performance trend when accuracy metrics change
+    fetchAnalysisData();
+  }, [showForecastComparison]); 
+
+  // MODIFICATION START
+  // Update the dependency for calculating performance trend
   useEffect(() => {
-    if (accuracyMetrics) {
+    // This is still using placeholder history, but now triggers with real data
+    if (forecastAccuracyData) {
       const trend = calculatePerformanceTrend(accuracyHistory);
       setPerformanceTrend(trend);
     }
-  }, [accuracyMetrics, accuracyHistory]);
+  }, [forecastAccuracyData, accuracyHistory]);
+  // MODIFICATION END
 
   // Close dropdowns when clicking outside
   useEffect(() => {
@@ -598,41 +567,69 @@ function BudgetDashboard() {
     },
   };
 
-  // Export Accuracy Report
+  // MODIFICATION START
+  // Re-implemented export function to use live data
   const exportAccuracyReport = () => {
+    // Guard clause to prevent exporting if data isn't ready
+    if (!forecastAccuracyData || !moneyFlowData || !forecastData) {
+      alert("Accuracy data is not available to export.");
+      return;
+    }
+
+    // Build the detailed monthly comparison data for the report
+    const monthlyComparisonData = moneyFlowData.map((month) => {
+      const actualValue = Number(month.actual) || 0;
+      
+      const forecastPoint = forecastData.find(f => f.month_name === month.month_name);
+      const forecastValue = forecastPoint ? Number(forecastPoint.forecast) : 0;
+      
+      const variance = actualValue - forecastValue;
+      
+      let accuracy = 'N/A';
+      if (actualValue > 0) {
+        accuracy = (100 * (1 - Math.abs(variance) / actualValue)).toFixed(1) + '%';
+      } else if (forecastValue === 0) {
+        accuracy = '100.0%'; // Perfect forecast if both are zero
+      } else {
+        accuracy = '0.0%';
+      }
+
+      return {
+        month: month.month_name,
+        actual: actualValue,
+        forecast: forecastValue,
+        variance: variance,
+        accuracy: accuracy
+      };
+    });
+
+    // Construct the final report object
     const reportData = {
       title: "Forecast Accuracy Report",
       generatedAt: new Date().toLocaleString(),
-      dataSource: usingExampleData ? "Example Data" : "Real Data",
-      accuracyMetrics,
-      performanceTrend,
-      monthlyData: moneyFlowData?.map((month, index) => {
-        const forecastPoint = usingExampleData 
-          ? exampleForecastData.find(f => f.month_name === month.month_name)
-          : forecastData.find(f => f.month_name === month.month_name);
-        const forecastValue = forecastPoint?.forecast || 0;
-        const variance = month.actual - forecastValue;
-        
-        return {
-          month: month.month_name,
-          actual: month.actual,
-          forecast: forecastValue,
-          variance: variance,
-          accuracy: forecastPoint ? (100 - Math.abs((variance / month.actual) * 100)).toFixed(1) : 'N/A'
-        };
-      })
+      dataSource: "Real Data",
+      summaryMetrics: {
+        analyzedMonth: `${forecastAccuracyData.month_name} ${forecastAccuracyData.year}`,
+        accuracyPercentage: forecastAccuracyData.accuracy_percentage,
+        variance: forecastAccuracyData.variance,
+        actualSpend: forecastAccuracyData.actual_spend,
+        forecastedSpend: forecastAccuracyData.forecasted_spend,
+      },
+      performanceTrend: performanceTrend, // Still based on placeholder history
+      monthlyBreakdown: monthlyComparisonData
     };
 
     const blob = new Blob([JSON.stringify(reportData, null, 2)], { type: 'application/json' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = `accuracy-report-${new Date().toISOString().split('T')[0]}.json`;
+    a.download = `forecast-accuracy-report-${new Date().toISOString().split('T')[0]}.json`;
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);
     URL.revokeObjectURL(url);
   };
+  // MODIFICATION END
 
   // Generate new example data
   const generateNewExampleData = () => {
@@ -1557,8 +1554,9 @@ function BudgetDashboard() {
               </div>
             </div>
 
-            {/* Forecast Analysis Section - NEW */}
-            {showForecastComparison && accuracyMetrics && (
+            {/* --- MODIFICATION START --- */}
+            {/* Replace the entire "Forecast Analysis Section" with this connected version */}
+            {showForecastComparison && (
               <div className="card" style={{ marginBottom: "30px" }}>
                 <div
                   style={{
@@ -1591,132 +1589,125 @@ function BudgetDashboard() {
                   </button>
                 </div>
 
-                <div className="stats-grid" style={{ marginBottom: "20px" }}>
-                  {/* Accuracy Score */}
-                  <div
-                    className="card compact-budget-card"
-                    style={{
-                      flex: "1 1 25%",
-                      textAlign: "center",
-                      background: accuracyMetrics.grade === 'Excellent' ? '#e7f6ec' : 
-                                 accuracyMetrics.grade === 'Good' ? '#e7f3ff' : 
-                                 accuracyMetrics.grade === 'Fair' ? '#fff3cd' : '#f8d7da'
-                    }}
-                  >
-                    <Target size={24} style={{ margin: '0 auto 10px', color: '#007bff' }} />
-                    <h3 className="compact-card-title">Accuracy Score</h3>
-                    <p className="compact-stat-value" style={{ 
-                      color: accuracyMetrics.grade === 'Excellent' ? '#28a745' : 
-                            accuracyMetrics.grade === 'Good' ? '#007bff' : 
-                            accuracyMetrics.grade === 'Fair' ? '#ffc107' : '#dc3545'
-                    }}>
-                      {accuracyMetrics.accuracyScore}%
-                    </p>
-                    <span className="compact-badge" style={{ 
-                      backgroundColor: accuracyMetrics.grade === 'Excellent' ? '#28a745' : 
-                                     accuracyMetrics.grade === 'Good' ? '#007bff' : 
-                                     accuracyMetrics.grade === 'Fair' ? '#ffc107' : '#dc3545',
-                      color: 'white'
-                    }}>
-                      {accuracyMetrics.grade}
-                    </span>
-                  </div>
+                {/* Check if data has been loaded */}
+                {!forecastAccuracyData ? (
+                  <div>Loading accuracy data...</div>
+                ) : (
+                  <>
+                    <div className="stats-grid" style={{ marginBottom: "20px" }}>
+                      {/* Accuracy Score Card */}
+                      <div
+                        className="card compact-budget-card"
+                        style={{ flex: "1 1 25%", textAlign: "center" }}
+                      >
+                        <Target size={24} style={{ margin: '0 auto 10px', color: '#007bff' }} />
+                        <h3 className="compact-card-title">Accuracy Score</h3>
+                        <p className="compact-stat-value" style={{ 
+                          color: forecastAccuracyData.accuracy_percentage >= 90 ? '#28a745' :
+                                 forecastAccuracyData.accuracy_percentage >= 75 ? '#007bff' :
+                                 forecastAccuracyData.accuracy_percentage >= 50 ? '#ffc107' : '#dc3545'
+                        }}>
+                          {forecastAccuracyData.accuracy_percentage}%
+                        </p>
+                        <span className="compact-badge" style={{ 
+                          backgroundColor: forecastAccuracyData.accuracy_percentage >= 90 ? '#28a745' :
+                                           forecastAccuracyData.accuracy_percentage >= 75 ? '#007bff' :
+                                           forecastAccuracyData.accuracy_percentage >= 50 ? '#ffc107' : '#dc3545',
+                          color: 'white'
+                        }}>
+                          {forecastAccuracyData.accuracy_percentage >= 90 ? 'Excellent' : 
+                           forecastAccuracyData.accuracy_percentage >= 75 ? 'Good' : 
+                           forecastAccuracyData.accuracy_percentage >= 50 ? 'Fair' : 'Poor'}
+                        </span>
+                      </div>
 
-                  {/* MAPE */}
-                  <div className="card compact-budget-card" style={{ flex: "1 1 25%" }}>
-                    <h3 className="compact-card-title">MAPE</h3>
-                    <p className="compact-stat-value" style={{ color: '#dc3545' }}>
-                      {accuracyMetrics.mape}%
-                    </p>
-                    <p className="compact-card-subtext">Mean Absolute Percentage Error</p>
-                  </div>
+                      {/* Variance Card */}
+                      <div className="card compact-budget-card" style={{ flex: "1 1 25%" }}>
+                        <h3 className="compact-card-title">Variance</h3>
+                        <p className="compact-stat-value" style={{ color: Number(forecastAccuracyData.variance) >= 0 ? '#dc3545' : '#28a745' }}>
+                          ₱{Math.abs(Number(forecastAccuracyData.variance)).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                        </p>
+                        <p className="compact-card-subtext">
+                          {Number(forecastAccuracyData.variance) >= 0 ? 'Over Forecast' : 'Under Forecast'}
+                        </p>
+                      </div>
 
-                  {/* RMSE */}
-                  <div className="card compact-budget-card" style={{ flex: "1 1 25%" }}>
-                    <h3 className="compact-card-title">RMSE</h3>
-                    <p className="compact-stat-value" style={{ color: '#ff6b35' }}>
-                      ₱{accuracyMetrics.rmse}
-                    </p>
-                    <p className="compact-card-subtext">Root Mean Square Error</p>
-                  </div>
+                      {/* Actual Spend Card */}
+                      <div className="card compact-budget-card" style={{ flex: "1 1 25%" }}>
+                        <h3 className="compact-card-title">Actual Spend ({forecastAccuracyData.month_name})</h3>
+                        <p className="compact-stat-value" style={{ color: '#28a745' }}>
+                          ₱{Number(forecastAccuracyData.actual_spend).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                        </p>
+                        <p className="compact-card-subtext">Last Completed Month</p>
+                      </div>
 
-                  {/* Performance Trend */}
-                  <div className="card compact-budget-card" style={{ flex: "1 1 25%" }}>
-                    <h3 className="compact-card-title">Performance Trend</h3>
-                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}>
-                      {performanceTrend === 'improving' ? (
-                        <TrendingUp size={24} color="#28a745" />
-                      ) : performanceTrend === 'declining' ? (
-                        <TrendingDown size={24} color="#dc3545" />
-                      ) : (
-                        <BarChart3 size={24} color="#ffc107" />
-                      )}
-                      <p className="compact-stat-value" style={{ 
-                        color: performanceTrend === 'improving' ? '#28a745' : 
-                              performanceTrend === 'declining' ? '#dc3545' : '#ffc107'
-                      }}>
-                        {performanceTrend.charAt(0).toUpperCase() + performanceTrend.slice(1)}
-                      </p>
+                      {/* Forecasted Spend Card */}
+                      <div className="card compact-budget-card" style={{ flex: "1 1 25%" }}>
+                        <h3 className="compact-card-title">Forecasted Spend ({forecastAccuracyData.month_name})</h3>
+                        <p className="compact-stat-value" style={{ color: '#ff6b35' }}>
+                          ₱{Number(forecastAccuracyData.forecasted_spend).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                        </p>
+                        <p className="compact-card-subtext">Last Completed Month</p>
+                      </div>
                     </div>
-                    <p className="compact-card-subtext">Forecast Performance</p>
-                  </div>
-                </div>
 
-                {/* Detailed Metrics Table */}
-                <div style={{ marginTop: '20px' }}>
-                  <h4 style={{ marginBottom: '15px', color: '#374151' }}>Monthly Forecast vs Actual</h4>
-                  <div style={{ overflowX: 'auto' }}>
-                    <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-                      <thead>
-                        <tr style={{ backgroundColor: '#f8f9fa' }}>
-                          <th style={{ padding: '12px', textAlign: 'left', borderBottom: '2px solid #e9ecef' }}>Month</th>
-                          <th style={{ padding: '12px', textAlign: 'right', borderBottom: '2px solid #e9ecef' }}>Actual</th>
-                          <th style={{ padding: '12px', textAlign: 'right', borderBottom: '2px solid #e9ecef' }}>Forecast</th>
-                          <th style={{ padding: '12px', textAlign: 'right', borderBottom: '2px solid #e9ecef' }}>Variance</th>
-                          <th style={{ padding: '12px', textAlign: 'right', borderBottom: '2px solid #e9ecef' }}>Accuracy</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {moneyFlowData?.map((month, index) => {
-                          const forecastPoint = usingExampleData 
-                            ? exampleForecastData.find(f => f.month_name === month.month_name)
-                            : forecastData.find(f => f.month_name === month.month_name);
-                          const forecastValue = forecastPoint?.forecast || 0;
-                          const variance = month.actual - forecastValue;
-                          const accuracy = forecastPoint ? (100 - Math.abs((variance / month.actual) * 100)).toFixed(1) : 'N/A';
-                          
-                          return (
-                            <tr key={index} style={{ borderBottom: '1px solid #e9ecef' }}>
-                              <td style={{ padding: '12px' }}>{month.month_name}</td>
-                              <td style={{ padding: '12px', textAlign: 'right' }}>₱{month.actual.toLocaleString()}</td>
-                              <td style={{ padding: '12px', textAlign: 'right' }}>
-                                {forecastPoint ? `₱${forecastValue.toLocaleString()}` : 'N/A'}
-                              </td>
-                              <td style={{ 
-                                padding: '12px', 
-                                textAlign: 'right',
-                                color: variance >= 0 ? '#28a745' : '#dc3545'
-                              }}>
-                                {variance !== 0 ? `₱${Math.abs(variance).toLocaleString()} ${variance >= 0 ? 'Over' : 'Under'}` : 'Exact'}
-                              </td>
-                              <td style={{ 
-                                padding: '12px', 
-                                textAlign: 'right',
-                                color: accuracy !== 'N/A' && accuracy >= 90 ? '#28a745' : 
-                                      accuracy !== 'N/A' && accuracy >= 80 ? '#007bff' : 
-                                      accuracy !== 'N/A' && accuracy >= 70 ? '#ffc107' : '#dc3545'
-                              }}>
-                                {accuracy !== 'N/A' ? `${accuracy}%` : 'N/A'}
-                              </td>
+                    {/* Detailed Metrics Table (This still uses example data from moneyFlowData as a placeholder) */}
+                    <div style={{ marginTop: '20px' }}>
+                      <h4 style={{ marginBottom: '15px', color: '#374151' }}>Monthly Forecast vs Actual</h4>
+                      <div style={{ overflowX: 'auto' }}>
+                        <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+                          <thead>
+                            <tr style={{ backgroundColor: '#f8f9fa' }}>
+                              <th style={{ padding: '12px', textAlign: 'left', borderBottom: '2px solid #e9ecef' }}>Month</th>
+                              <th style={{ padding: '12px', textAlign: 'right', borderBottom: '2px solid #e9ecef' }}>Actual</th>
+                              <th style={{ padding: '12px', textAlign: 'right', borderBottom: '2px solid #e9ecef' }}>Forecast</th>
+                              <th style={{ padding: '12px', textAlign: 'right', borderBottom: '2px solid #e9ecef' }}>Variance</th>
+                              <th style={{ padding: '12px', textAlign: 'right', borderBottom: '2px solid #e9ecef' }}>Accuracy</th>
                             </tr>
-                          );
-                        })}
-                      </tbody>
-                    </table>
-                  </div>
-                </div>
+                          </thead>
+                          <tbody>
+                            {moneyFlowData?.map((month, index) => {
+                              const forecastPoint = forecastData.find(f => f.month_name === month.month_name);
+                              const forecastValue = forecastPoint ? Number(forecastPoint.forecast) : 0;
+                              const actualValue = Number(month.actual);
+                              const variance = actualValue - forecastValue;
+                              const accuracy = actualValue > 0 ? (100 - Math.abs((variance / actualValue) * 100)).toFixed(1) : (forecastValue === 0 ? '100.0' : '0.0');
+                              
+                              return (
+                                <tr key={index} style={{ borderBottom: '1px solid #e9ecef' }}>
+                                  <td style={{ padding: '12px' }}>{month.month_name}</td>
+                                  <td style={{ padding: '12px', textAlign: 'right' }}>₱{actualValue.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+                                  <td style={{ padding: '12px', textAlign: 'right' }}>
+                                    {forecastPoint ? `₱${forecastValue.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : 'N/A'}
+                                  </td>
+                                  <td style={{ 
+                                    padding: '12px', 
+                                    textAlign: 'right',
+                                    color: variance > 0 ? '#28a745' : '#dc3545'
+                                  }}>
+                                    {variance !== 0 ? `₱${Math.abs(variance).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ${variance > 0 ? 'Under' : 'Over'}` : 'Exact'}
+                                  </td>
+                                  <td style={{ 
+                                    padding: '12px', 
+                                    textAlign: 'right',
+                                    color: accuracy !== 'N/A' && accuracy >= 90 ? '#28a745' : 
+                                          accuracy !== 'N/A' && accuracy >= 80 ? '#007bff' : 
+                                          accuracy !== 'N/A' && accuracy >= 70 ? '#ffc107' : '#dc3545'
+                                  }}>
+                                    {accuracy !== 'N/A' ? `${accuracy}%` : 'N/A'}
+                                  </td>
+                                </tr>
+                              );
+                            })}
+                          </tbody>
+                        </table>
+                      </div>
+                    </div>
+                  </>
+                )}
               </div>
             )}
+            {/* --- MODIFICATION END --- */}
 
             {/* Budget per category with Pie Chart - Updated with single "View Details" button */}
             <div className="card">

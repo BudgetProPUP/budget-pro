@@ -11,6 +11,12 @@ python manage.py migrate --noinput
 echo "Running budget_service seeder..."
 python manage.py comprehensive_seeder
 
+# --- MODIFICATION START ---
+# Generate the initial forecast data after seeding
+echo "Generating budget_service forecast data..."
+python manage.py generate_forecasts
+# --- MODIFICATION END ---
+
 # Collect static files
 echo "Collecting static files for budget_service..."
 python manage.py collectstatic --no-input --clear

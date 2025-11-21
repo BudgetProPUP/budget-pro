@@ -1088,7 +1088,7 @@ def get_budget_forecast(request):
     serializer = ForecastSerializer(data_points, many=True)
     return Response(serializer.data)
 
-# MODIFICATION START: Add new view for US-028
+# MODIFICATION START
 @extend_schema(
     tags=["Dashboard", "Forecasting"],
     summary="Get Forecast Accuracy Metric (US-028)",

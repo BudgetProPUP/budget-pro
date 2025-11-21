@@ -1317,161 +1317,117 @@ function BudgetDashboard() {
             </div>
 
             {/* Stats Grid - Updated with blue hover effect */}
-            <div className="stats-grid" style={{ marginBottom: "30px" }}>
-              {/* Budget Completion */}
-              <div
-                className="card compact-budget-card"
-                style={{
-                  flex: "1 1 33%",
-                  transition: "all 0.2s ease",
-                  cursor: "pointer",
-                }}
-                onMouseEnter={(e) => {
-                  e.currentTarget.style.boxShadow =
-                    "0 4px 8px rgba(0, 123, 255, 0.3)";
-                  e.currentTarget.style.border = "1px solid #007bff";
-                }}
-                onMouseLeave={(e) => {
-                  e.currentTarget.style.boxShadow = "";
-                  e.currentTarget.style.border = "1px solid #e0e0e0";
-                }}
-              >
-                <h3 className="compact-card-title">Budget Completion</h3>
-                <p className="compact-stat-value">
-                  {summaryData?.percentage_used || 0}%
-                </p>
-                <p className="compact-card-subtext">
-                  Overall Status of Budget Plan
-                </p>
-                <div className="compact-progress-container">
-                  <div
-                    className="compact-progress-bar"
-                    style={{
-                      width: `${summaryData?.percentage_used || 0}%`,
-                      backgroundColor: "#007bff",
-                    }}
-                  />
-                </div>
-              </div>
+<div className="stats-grid" style={{ marginBottom: "30px" }}>
+  {/* Budget Completion */}
+  <div
+    className="card compact-budget-card"
+    style={{
+      flex: "1 1 33%",
+      transition: "all 0.2s ease",
+      cursor: "pointer",
+    }}
+    onMouseEnter={(e) => {
+      e.currentTarget.style.boxShadow =
+        "0 4px 8px rgba(0, 123, 255, 0.3)";
+      e.currentTarget.style.border = "1px solid #007bff";
+    }}
+    onMouseLeave={(e) => {
+      e.currentTarget.style.boxShadow = "";
+      e.currentTarget.style.border = "1px solid #e0e0e0";
+    }}
+  >
+    <h3 className="compact-card-title">Budget Completion</h3>
+    <p className="compact-stat-value">
+      {summaryData?.percentage_used || 0}%
+    </p>
+    <p className="compact-card-subtext">
+      Overall Status of Budget Plan
+    </p>
+    <div className="compact-progress-container">
+      <div
+        className="compact-progress-bar"
+        style={{
+          width: `${summaryData?.percentage_used || 0}%`,
+          backgroundColor: "#007bff",
+        }}
+      />
+    </div>
+  </div>
 
-              {/* Total Budget */}
-              <div
-                className="card compact-budget-card"
-                style={{
-                  flex: "1 1 33%",
-                  transition: "all 0.2s ease",
-                  cursor: "pointer",
-                }}
-                onMouseEnter={(e) => {
-                  e.currentTarget.style.boxShadow =
-                    "0 4px 8px rgba(0, 123, 255, 0.3)";
-                  e.currentTarget.style.border = "1px solid #007bff";
-                }}
-                onMouseLeave={(e) => {
-                  e.currentTarget.style.boxShadow = "";
-                  e.currentTarget.style.border = "1px solid #e0e0e0";
-                }}
-              >
-                <h3 className="compact-card-title">Total Budget</h3>
-                <div
-                  style={{
-                    fontSize: "12px",
-                    color: "#007bff",
-                    marginBottom: "8px",
-                    fontStyle: "poppins",
-                  }}
-                >
-                  As of now {currentMonth} {currentYear}
-                </div>
-                <p className="compact-stat-value">
-                  ₱{Number(summaryData?.total_budget || 0).toLocaleString()}
-                </p>
-                <p className="compact-card-subtext">{summaryData?.percentage_used || 0}% allocated</p>
-                <div className="compact-progress-container">
-                  <div
-                    className="compact-progress-bar"
-                    style={{
-                      width: `${summaryData?.allocated_percentage || 0}%`,
-                      backgroundColor: "#007bff",
-                    }}
-                  />
-                </div>
-              </div>
-          {/* Total Budget */}
-          <div
-            className="card compact-budget-card"
-            style={{
-              flex: "1 1 33%",
-              transition: "all 0.2s ease",
-              cursor: "pointer",
-            }}
-            onMouseEnter={(e) => {
-              e.currentTarget.style.boxShadow =
-                "0 4px 8px rgba(0, 123, 255, 0.3)";
-              e.currentTarget.style.border = "1px solid #007bff";
-            }}
-            onMouseLeave={(e) => {
-              e.currentTarget.style.boxShadow = "";
-              e.currentTarget.style.border = "1px solid #e0e0e0";
-            }}
-          >
-            <h3 className="compact-card-title">Total Budget</h3>
-            <div
-              style={{
-                fontSize: "12px",
-                color: "#007bff",
-                marginBottom: "8px",
-                fontStyle: "poppins",
-              }}
-            >
-              As of now {currentMonth} {currentYear}
-            </div>
-            <p className="compact-stat-value">
-              ₱{Number(summaryData?.total_budget || 0).toLocaleString()}
-            </p>
-            <p className="compact-card-subtext">
-              {summaryData?.percentage_used || 0}% allocated
-            </p>
-            <div className="compact-progress-container">
-              <div
-                className="compact-progress-bar"
-                style={{
-                  width: `${summaryData?.allocated_percentage || 0}%`,
-                  backgroundColor: "#007bff",
-                }}
-              />
-            </div>
-          </div>
+  {/* Total Budget */}
+  <div
+    className="card compact-budget-card"
+    style={{
+      flex: "1 1 33%",
+      transition: "all 0.2s ease",
+      cursor: "pointer",
+    }}
+    onMouseEnter={(e) => {
+      e.currentTarget.style.boxShadow =
+        "0 4px 8px rgba(0, 123, 255, 0.3)";
+      e.currentTarget.style.border = "1px solid #007bff";
+    }}
+    onMouseLeave={(e) => {
+      e.currentTarget.style.boxShadow = "";
+      e.currentTarget.style.border = "1px solid #e0e0e0";
+    }}
+  >
+    <h3 className="compact-card-title">Total Budget</h3>
+    <div
+      style={{
+        fontSize: "12px",
+        color: "#007bff",
+        marginBottom: "8px",
+        fontFamily: "Poppins, sans-serif",
+      }}
+    >
+      As of {currentMonth} {currentYear}
+    </div>
+    <p className="compact-stat-value">
+      ₱{Number(summaryData?.total_budget || 0).toLocaleString()}
+    </p>
+    <p className="compact-card-subtext">
+      {summaryData?.percentage_used || 0}% allocated
+    </p>
+    <div className="compact-progress-container">
+      <div
+        className="compact-progress-bar"
+        style={{
+          width: `${summaryData?.allocated_percentage || summaryData?.percentage_used || 0}%`,
+          backgroundColor: "#007bff",
+        }}
+      />
+    </div>
+  </div>
 
-              {/* Remaining Budget */}
-              <div
-                className="card compact-budget-card"
-                style={{
-                  flex: "1 1 33%",
-                  transition: "all 0.2s ease",
-                  cursor: "pointer",
-                }}
-                onMouseEnter={(e) => {
-                  e.currentTarget.style.boxShadow =
-                    "0 4px 8px rgba(0, 123, 255, 0.3)";
-                  e.currentTarget.style.border = "1px solid #007bff";
-                }}
-                onMouseLeave={(e) => {
-                  e.currentTarget.style.boxShadow = "";
-                  e.currentTarget.style.border = "1px solid #e0e0e0";
-                }}
-              >
-                <h3 className="compact-card-title">Remaining Budget</h3>
-                <p className="compact-stat-value">
-                  ₱{Number(summaryData?.remaining_budget || 0).toLocaleString()}
-                </p>
-                <p className="compact-card-subtext">
-                  {(100 - (summaryData?.percentage_used || 0)).toFixed(1)}% of Total
-                  Budget{" "}
-                </p>
-                <span className="compact-badge">Available for Allocation</span>
-              </div>
-            </div>
+  {/* Remaining Budget */}
+  <div
+    className="card compact-budget-card"
+    style={{
+      flex: "1 1 33%",
+      transition: "all 0.2s ease",
+      cursor: "pointer",
+    }}
+    onMouseEnter={(e) => {
+      e.currentTarget.style.boxShadow =
+        "0 4px 8px rgba(0, 123, 255, 0.3)";
+      e.currentTarget.style.border = "1px solid #007bff";
+    }}
+    onMouseLeave={(e) => {
+      e.currentTarget.style.boxShadow = "";
+      e.currentTarget.style.border = "1px solid #e0e0e0";
+    }}
+  >
+    <h3 className="compact-card-title">Remaining Budget</h3>
+    <p className="compact-stat-value">
+      ₱{Number(summaryData?.remaining_budget || 0).toLocaleString()}
+    </p>
+    <p className="compact-card-subtext">
+      {(100 - (summaryData?.percentage_used || 0)).toFixed(1)}% of Total Budget
+    </p>
+    <span className="compact-badge">Available for Allocation</span>
+  </div>
+</div>
 
             {/* Money Flow Chart - Expanded with improved month spacing */}
             <div

@@ -15,6 +15,7 @@ import {
   Bell,
   Settings,
   X,
+  Paperclip,
 } from "lucide-react";
 import { Link, useNavigate } from "react-router-dom";
 import LOGOMAP from "../../assets/MAP.jpg";
@@ -282,17 +283,19 @@ const Pagination = ({
 };
 
 const ExpenseTracking = () => {
-   const { user, logout } = useAuth();
+  const { user, logout } = useAuth();
   const [showBudgetDropdown, setShowBudgetDropdown] = useState(false);
   const [showExpenseDropdown, setShowExpenseDropdown] = useState(false);
   const [showProfileDropdown, setShowProfileDropdown] = useState(false);
   const [showNotifications, setShowNotifications] = useState(false);
   const [showCategoryDropdown, setShowCategoryDropdown] = useState(false);
+  const [showDepartmentDropdown, setShowDepartmentDropdown] = useState(false);
   const [showDateDropdown, setShowDateDropdown] = useState(false);
   const [selectedCategory, setSelectedCategory] = useState(""); // Default to empty for "All Categories"
+  const [selectedDepartment, setSelectedDepartment] = useState(""); // New department filter state
   const [_selectedDate, setSelectedDate] = useState("All Time");
   const [showAddExpenseModal, setShowAddExpenseModal] = useState(false);
-  const [showManageProfile, setShowManageProfile] = useState(false); // NEW: State for ManageProfile
+  const [showManageProfile, setShowManageProfile] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize, setPageSize] = useState(5);
   const [searchTerm, setSearchTerm] = useState("");
@@ -300,7 +303,76 @@ const ExpenseTracking = () => {
     budget_remaining: "0.00",
     total_expenses_this_month: "0.00",
   });
-  const [expenses, setExpenses] = useState([]);
+  
+  // Sample data for UI
+  const [expenses, setExpenses] = useState([
+    {
+      id: 1,
+      reference_no: "EXP-2024-001",
+      date: "2024-01-15",
+      department: "Marketing",
+      category: "OpEx",
+      vendor: "Tech Training Inc.",
+      amount: "₱12,500.00",
+      status: "Submitted",
+      accomplished: "No",
+      attachment: "receipt.pdf",
+      sub_category: "Digital Ads"
+    },
+    {
+      id: 2,
+      reference_no: "EXP-2024-002",
+      date: "2024-01-18",
+      department: "Store Operations",
+      category: "CapEx",
+      vendor: "Software Solutions Ltd.",
+      amount: "₱45,000.00",
+      status: "Submitted",
+      accomplished: "Yes",
+      attachment: "invoice.jpg",
+      sub_category: "POS Maintenance"
+    },
+    {
+      id: 3,
+      reference_no: "EXP-2024-003",
+      date: "2024-01-20",
+      department: "IT",
+      category: "OpEx",
+      vendor: "Cloud Hosting Co.",
+      amount: "₱8,750.00",
+      status: "Submitted",
+      accomplished: "No",
+      attachment: "contract.pdf",
+      sub_category: "Software Licenses"
+    },
+    {
+      id: 4,
+      reference_no: "EXP-2024-004",
+      date: "2024-01-22",
+      department: "Human Resources",
+      category: "OpEx",
+      vendor: "Office Supplies Pro",
+      amount: "₱5,200.00",
+      status: "Submitted",
+      accomplished: "Yes",
+      attachment: "receipt.png",
+      sub_category: "Training & Workshops"
+    },
+    {
+      id: 5,
+      reference_no: "EXP-2024-005",
+      date: "2024-01-25",
+      department: "Logistics Management",
+      category: "CapEx",
+      vendor: "Computer World",
+      amount: "₱32,000.00",
+      status: "Submitted",
+      accomplished: "No",
+      attachment: "quote.pdf",
+      sub_category: "Warehouse Equipment"
+    }
+  ]);
+  
   const [categories, setCategories] = useState([]);
   const [pagination, setPagination] = useState({
     count: 0,
@@ -309,15 +381,132 @@ const ExpenseTracking = () => {
   });
   const [loading, setLoading] = useState(true);
   const [newExpense, setNewExpense] = useState({
-    ticketId: "", // This field is not used by the API, can be removed later
-    category: "", // This will store the category NAME for the dropdown
-    description: "", // Added field for the form
+    ticketId: `EXP-${new Date().getFullYear()}-${String(Math.floor(Math.random() * 1000)).padStart(3, '0')}`,
+    department: "",
+    category: "",
+    sub_category: "",
     vendor: "",
-    employee: "", // This field is not used by the API, can be removed later
     amount: "",
     date: new Date().toISOString().split("T")[0],
+    attachment: null,
   });
   const navigate = useNavigate();
+
+  // Departments data - UPDATED to match LedgerView department options
+  const departments = [
+    "Merchandise Planning",
+    "Store Operations",
+    "Marketing",
+    "Operations",
+    "IT",
+    "Logistics",
+    "Human Resources"
+  ];
+
+  // Department options matching LedgerView format
+  const departmentOptions = [
+    { value: "", label: "All Departments" },
+    { value: "Merchandise Planning", label: "Merchandise Planning" },
+    { value: "Store Operations", label: "Store Operations" },
+    { value: "Marketing", label: "Marketing" },
+    { value: "Operations", label: "Operations" },
+    { value: "IT", label: "IT" },
+    { value: "Logistics", label: "Logistics" },
+    { value: "Human Resources", label: "Human Resources" },
+  ];
+
+  // Sub-categories data based on department
+  const subCategoriesByDepartment = {
+    "Merchandise Planning": [
+      "Product Range Planning",
+      "Buying Costs",
+      "Market Research",
+      "Inventory Handling Fees",
+      "Supplier Coordination",
+      "Seasonal Planning Tools",
+      "Training",
+      "Travel",
+      "Software Subscription"
+    ],
+    "Store Operations": [
+      "Store Consumables",
+      "POS Maintenance",
+      "Store Repairs",
+      "Sales Incentives",
+      "Uniforms",
+      "Store Opening Expenses",
+      "Store Supplies",
+      "Training",
+      "Travel",
+      "Utilities"
+    ],
+    "Marketing": [
+      "Campaign Budget",
+      "Branding Materials",
+      "Digital Ads",
+      "Social Media Management",
+      "Events Budget",
+      "Influencer Fees",
+      "Photography/Videography",
+      "Software Subscription",
+      "Training",
+      "Travel"
+    ],
+    "Operations": [
+      "Equipment Maintenance",
+      "Fleet/Vehicle Expenses",
+      "Operational Supplies",
+      "Business Permits",
+      "Facility Utilities",
+      "Compliance Costs",
+      "Training",
+      "Office Supplies"
+    ],
+    "IT": [
+      "Server Hosting",
+      "Software Licenses",
+      "Cloud Subscriptions",
+      "Hardware Purchases",
+      "Data Tools",
+      "Cybersecurity Costs",
+      "API Subscription Fees",
+      "Domain Renewals",
+      "Training",
+      "Office Supplies"
+    ],
+    "Logistics": [
+      "Shipping Costs",
+      "Warehouse Equipment",
+      "Transport & Fuel",
+      "Freight Fees",
+      "Vendor Delivery Charges",
+      "Storage Fees",
+      "Packaging Materials",
+      "Safety Gear",
+      "Training"
+    ],
+    "Human Resources": [
+      "Recruitment Expenses",
+      "Job Posting Fees",
+      "Employee Engagement Activities",
+      "Training & Workshops",
+      "Medical & Wellness Programs",
+      "Background Checks",
+      "HR Systems/Payroll Software",
+      "Office Supplies",
+      "Travel"
+    ]
+  };
+
+  // Main categories (only CapEx and OpEx)
+  const mainCategories = ["CapEx", "OpEx"];
+
+  // Category options - only CapEx and OpEx (matching LedgerView)
+  const categoryOptions = [
+    { value: "", label: "All Categories" },
+    { value: "CapEx", label: "CapEx" },
+    { value: "OpEx", label: "OpEx" },
+  ];
 
   useEffect(() => {
     const fetchData = async () => {
@@ -329,12 +518,10 @@ const ExpenseTracking = () => {
           search: searchTerm,
         };
 
-        // FIXED: Only add category filter if a category is actually selected
         if (selectedCategory && selectedCategory !== "") {
           params.category__code = selectedCategory;
         }
 
-        // Fetch summary, expense list, and categories in parallel
         const [summaryRes, expensesRes, categoriesRes] = await Promise.all([
           getExpenseSummary(),
           getExpenseTrackingList(params),
@@ -359,7 +546,7 @@ const ExpenseTracking = () => {
       }
     };
     fetchData();
-  }, [currentPage, pageSize, searchTerm, selectedCategory]); // Dependencies array
+  }, [currentPage, pageSize, searchTerm, selectedCategory]);
 
   // User profile data
   const userProfile = {
@@ -383,7 +570,7 @@ const ExpenseTracking = () => {
     };
   }, []);
 
-  // Format date and time for display - Updated to include day of week
+  // Format date and time for display
   const formattedDay = currentDate.toLocaleDateString("en-US", {
     weekday: "long",
   });
@@ -414,6 +601,7 @@ const ExpenseTracking = () => {
         setShowProfileDropdown(false);
         setShowNotifications(false);
         setShowCategoryDropdown(false);
+        setShowDepartmentDropdown(false);
         setShowDateDropdown(false);
       }
     };
@@ -424,19 +612,7 @@ const ExpenseTracking = () => {
     };
   }, []);
 
-  // Subcategories for each category - Added back
-  const subcategories = {
-    Travel: ["Airfare", "Hotel", "Meals", "Transportation"],
-    "Office Supplies": ["Stationery", "Furniture", "Electronics"],
-    Utilities: ["Electricity", "Internet", "Water"],
-    Marketing: ["Advertising", "Events", "Promotional Materials"],
-    "Professional Services": ["Consulting", "Software", "Hosting"],
-    "Training & Development": ["Workshop", "Seminar", "Course"],
-    "Equipment & Maintenance": ["Hardware", "Software", "Office Equipment"],
-    Miscellaneous: ["Other"],
-  };
-
-  // Sample vendors and employees
+  // Sample vendors
   const vendors = [
     "Tech Training Inc.",
     "Software Solutions Ltd.",
@@ -444,14 +620,6 @@ const ExpenseTracking = () => {
     "Computer World",
     "Office Supplies Pro",
     "AI Learning Center",
-  ];
-  const employees = [
-    "John Smith",
-    "Maria Garcia",
-    "Robert Johnson",
-    "Sarah Wilson",
-    "Michael Brown",
-    "Jennifer Lee",
   ];
 
   // Date filter options
@@ -463,21 +631,14 @@ const ExpenseTracking = () => {
     "This Year",
   ];
 
-  // REMOVED: Frontend filtering is no longer needed as the backend handles it.
-  // const filteredExpenses = useMemo(() => { ... });
-
-  // REMOVED: Frontend pagination logic is no longer needed.
-  // const indexOfLastItem = currentPage * pageSize;
-  // const indexOfFirstItem = indexOfLastItem - pageSize;
-  // const currentExpenses = filteredExpenses.slice(indexOfFirstItem, indexOfLastItem);
-
-  // Navigation functions - Updated with BudgetProposal functionality
+  // Navigation functions
   const toggleBudgetDropdown = () => {
     setShowBudgetDropdown(!showBudgetDropdown);
     if (showExpenseDropdown) setShowExpenseDropdown(false);
     if (showProfileDropdown) setShowProfileDropdown(false);
     if (showNotifications) setShowNotifications(false);
     if (showCategoryDropdown) setShowCategoryDropdown(false);
+    if (showDepartmentDropdown) setShowDepartmentDropdown(false);
   };
 
   const toggleExpenseDropdown = () => {
@@ -486,6 +647,7 @@ const ExpenseTracking = () => {
     if (showProfileDropdown) setShowProfileDropdown(false);
     if (showNotifications) setShowNotifications(false);
     if (showCategoryDropdown) setShowCategoryDropdown(false);
+    if (showDepartmentDropdown) setShowDepartmentDropdown(false);
   };
 
   const toggleProfileDropdown = () => {
@@ -494,6 +656,7 @@ const ExpenseTracking = () => {
     if (showExpenseDropdown) setShowExpenseDropdown(false);
     if (showNotifications) setShowNotifications(false);
     if (showCategoryDropdown) setShowCategoryDropdown(false);
+    if (showDepartmentDropdown) setShowDepartmentDropdown(false);
   };
 
   const toggleNotifications = () => {
@@ -502,33 +665,47 @@ const ExpenseTracking = () => {
     if (showExpenseDropdown) setShowExpenseDropdown(false);
     if (showProfileDropdown) setShowProfileDropdown(false);
     if (showCategoryDropdown) setShowCategoryDropdown(false);
+    if (showDepartmentDropdown) setShowDepartmentDropdown(false);
   };
 
   const toggleCategoryDropdown = () => {
     setShowCategoryDropdown(!showCategoryDropdown);
     if (showDateDropdown) setShowDateDropdown(false);
+    if (showDepartmentDropdown) setShowDepartmentDropdown(false);
+  };
+
+  const toggleDepartmentDropdown = () => {
+    setShowDepartmentDropdown(!showDepartmentDropdown);
+    if (showDateDropdown) setShowDateDropdown(false);
+    if (showCategoryDropdown) setShowCategoryDropdown(false);
   };
 
   const _toggleDateDropdown = () => {
     setShowDateDropdown(!showDateDropdown);
     if (showCategoryDropdown) setShowCategoryDropdown(false);
+    if (showDepartmentDropdown) setShowDepartmentDropdown(false);
   };
 
-  // NEW: Function to handle Manage Profile click
+  // Handle Manage Profile
   const handleManageProfile = () => {
     setShowManageProfile(true);
     setShowProfileDropdown(false);
   };
 
-  // NEW: Function to close Manage Profile
   const handleCloseManageProfile = () => {
     setShowManageProfile(false);
   };
 
-  const handleCategorySelect = (categoryCode) => {
-    setSelectedCategory(categoryCode);
-    setCurrentPage(1); // Reset to first page on filter change
+  const handleCategorySelect = (category) => {
+    setSelectedCategory(category);
+    setCurrentPage(1);
     setShowCategoryDropdown(false);
+  };
+
+  const handleDepartmentSelect = (deptValue) => {
+    setSelectedDepartment(deptValue);
+    setCurrentPage(1);
+    setShowDepartmentDropdown(false);
   };
 
   const _handleDateSelect = (date) => {
@@ -544,6 +721,7 @@ const ExpenseTracking = () => {
     setShowProfileDropdown(false);
     setShowNotifications(false);
     setShowCategoryDropdown(false);
+    setShowDepartmentDropdown(false);
   };
 
   // Updated logout function
@@ -558,36 +736,29 @@ const ExpenseTracking = () => {
   const handleCloseModal = () => {
     setShowAddExpenseModal(false);
     setNewExpense({
-      ticketId: "",
+      ticketId: `EXP-${new Date().getFullYear()}-${String(Math.floor(Math.random() * 1000)).padStart(3, '0')}`,
+      department: "",
       category: "",
-      subcategory: "", // This field is not used, can be removed
-      description: "", // Reset description
+      sub_category: "",
       vendor: "",
-      employee: "",
       amount: "",
       date: new Date().toISOString().split("T")[0],
+      attachment: null,
     });
   };
 
-  // UPDATED: handleInputChange with BudgetAllocation's amount formatting
   const handleInputChange = (e) => {
     const { name, value } = e.target;
 
     if (name === "amount") {
-      // Allow typing any amount and format as peso (from BudgetAllocation)
       if (value === "") {
         setNewExpense((prev) => ({
           ...prev,
           [name]: "",
         }));
       } else {
-        // Remove any existing peso symbol and format properly
         const cleanValue = value.replace("₱", "").replace(/,/g, "");
-
-        // Only allow numbers and decimal point
         const numericValue = cleanValue.replace(/[^\d.]/g, "");
-
-        // Format as peso currency with comma separators
         const formattedValue = `₱${numericValue.replace(
           /\B(?=(\d{3})+(?!\d))/g,
           ","
@@ -605,16 +776,32 @@ const ExpenseTracking = () => {
       }));
     }
 
-    // Reset subcategory when category changes
-    if (name === "category") {
+    // Reset sub_category when department changes
+    if (name === "department") {
       setNewExpense((prev) => ({
         ...prev,
-        subcategory: "",
+        sub_category: "",
       }));
     }
   };
 
-  // UPDATED: clearAmount function from BudgetAllocation
+  // Handle file attachment
+  const handleFileChange = (e) => {
+    const file = e.target.files[0];
+    if (file) {
+      const allowedTypes = ['image/jpeg', 'image/png', 'application/pdf'];
+      if (!allowedTypes.includes(file.type)) {
+        alert('Only JPG, PNG, and PDF files are allowed.');
+        return;
+      }
+      setNewExpense((prev) => ({
+        ...prev,
+        attachment: file,
+      }));
+    }
+  };
+
+  // Clear amount function
   const clearAmount = () => {
     setNewExpense((prev) => ({
       ...prev,
@@ -625,36 +812,27 @@ const ExpenseTracking = () => {
   const handleSubmitExpense = async (e) => {
     e.preventDefault();
 
-    // Find the category code from the selected category name
-    const categoryObject = categories.find(
-      (cat) => cat.name === newExpense.category
-    );
-    if (!newExpense.category || !categoryObject) {
-      alert("Please select a valid category.");
-      return;
-    }
-
     // Clean amount value by removing '₱' and ','
     const cleanAmount = newExpense.amount.replace(/[₱,]/g, "");
 
     const payload = {
-      // Hardcoded for now, as these fields are not in the current modal form.
-      // These should be replaced with state values from new form inputs (e.g., dropdowns).
-      project_id: 1, // Placeholder
-      account_code: "5100", // Placeholder for an expense account
-
-      category_code: categoryObject.code,
+      project_id: 1,
+      account_code: "5100",
+      department: newExpense.department,
+      category: newExpense.category,
+      sub_category: newExpense.sub_category,
       amount: cleanAmount,
       date: newExpense.date,
-      description: newExpense.description,
       vendor: newExpense.vendor,
+      reference_no: newExpense.ticketId,
+      attachment: newExpense.attachment,
     };
 
     try {
       await createExpense(payload);
       alert("Expense submitted successfully!");
       handleCloseModal();
-      // Refetch data to show the new expense
+      // Refetch data
       const summaryRes = await getExpenseSummary();
       setSummaryData(summaryRes.data);
       const expensesRes = await getExpenseTrackingList({
@@ -678,7 +856,7 @@ const ExpenseTracking = () => {
     }
   };
 
-  // Function to format date as YYYY-MM-DD for input type="date"
+  // Format date as YYYY-MM-DD for input type="date"
   const formatDateForInput = (date) => {
     const year = date.getFullYear();
     const month = String(date.getMonth() + 1).padStart(2, "0");
@@ -686,19 +864,44 @@ const ExpenseTracking = () => {
     return `${year}-${month}-${day}`;
   };
 
-  useEffect(() => {
-    setNewExpense((prev) => ({
-      ...prev,
-      date: formatDateForInput(new Date()),
-    }));
-  }, []);
+  // Get display label for department filter
+  const getDepartmentDisplay = () => {
+    const option = departmentOptions.find(opt => opt.value === selectedDepartment);
+    return option ? option.label : "All Departments";
+  };
+
+  // Get display label for category filter
+  const getCategoryDisplay = () => {
+    const option = categoryOptions.find(opt => opt.value === selectedCategory);
+    return option ? option.label : "All Categories";
+  };
+
+  // Filter expenses based on selected department and category
+  const filteredExpenses = useMemo(() => {
+    return expenses.filter(expense => {
+      const matchesDepartment = !selectedDepartment || expense.department === selectedDepartment;
+      const matchesCategory = !selectedCategory || expense.category === selectedCategory;
+      const matchesSearch = !searchTerm || 
+        expense.reference_no.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        (expense.vendor && expense.vendor.toLowerCase().includes(searchTerm.toLowerCase())) ||
+        (expense.sub_category && expense.sub_category.toLowerCase().includes(searchTerm.toLowerCase()));
+      
+      return matchesDepartment && matchesCategory && matchesSearch;
+    });
+  }, [expenses, selectedDepartment, selectedCategory, searchTerm]);
+
+  // Calculate pagination for filtered expenses
+  const indexOfLastItem = currentPage * pageSize;
+  const indexOfFirstItem = indexOfLastItem - pageSize;
+  const currentExpenses = filteredExpenses.slice(indexOfFirstItem, indexOfLastItem);
+  const totalItems = filteredExpenses.length;
 
   return (
     <div
       className="app-container"
       style={{ minWidth: "1200px", overflowY: "auto", height: "100vh" }}
     >
-      {/* Navigation Bar */}
+      {/* Navigation Bar (unchanged) */}
       <nav
         className="navbar"
         style={{ position: "static", marginBottom: "20px" }}
@@ -1066,7 +1269,7 @@ const ExpenseTracking = () => {
               )}
             </div>
 
-            {/* Profile Dropdown (no arrow) */}
+            {/* Profile Dropdown */}
             <div className="profile-container" style={{ position: "relative" }}>
               <div
                 className="profile-trigger"
@@ -1156,7 +1359,7 @@ const ExpenseTracking = () => {
                   ></div>
                   <div
                     className="dropdown-item"
-                    onClick={handleManageProfile} // UPDATED: Now calls handleManageProfile
+                    onClick={handleManageProfile}
                     style={{
                       display: "flex",
                       alignItems: "center",
@@ -1223,7 +1426,7 @@ const ExpenseTracking = () => {
           />
         ) : (
           <>
-            {/* Budget Summary Cards - UPDATED */}
+            {/* Budget Summary Cards */}
             <div
               className="budget-summary"
               style={{
@@ -1238,7 +1441,7 @@ const ExpenseTracking = () => {
                 style={{
                   flex: "1",
                   minWidth: "200px",
-                  maxWidth: "400px", // Adjusted width
+                  maxWidth: "400px",
                   height: "100px",
                   display: "flex",
                   flexDirection: "column",
@@ -1276,7 +1479,7 @@ const ExpenseTracking = () => {
                 style={{
                   flex: "1",
                   minWidth: "200px",
-                  maxWidth: "400px", // Adjusted width
+                  maxWidth: "400px",
                   height: "100px",
                   display: "flex",
                   flexDirection: "column",
@@ -1310,7 +1513,7 @@ const ExpenseTracking = () => {
               </div>
             </div>
 
-            {/* Main Content - Updated with LedgerView Layout */}
+            {/* Main Content */}
             <div
               className="expense-tracking"
               style={{
@@ -1324,7 +1527,7 @@ const ExpenseTracking = () => {
                 minHeight: "calc(80vh - 100px)",
               }}
             >
-              {/* Header Section with Title and Controls - Updated with LedgerView styling */}
+              {/* Header Section with Title and Controls - UPDATED for better spacing */}
               <div
                 className="top"
                 style={{
@@ -1348,10 +1551,15 @@ const ExpenseTracking = () => {
 
                 <div
                   className="controls-container"
-                  style={{ display: "flex", gap: "10px" }}
+                  style={{ 
+                    display: "flex", 
+                    gap: "10px",
+                    alignItems: "center",
+                    flexWrap: "nowrap",
+                  }}
                 >
-                  {/* Search Bar - Updated with LedgerView styling */}
-                  <div style={{ position: "relative" }}>
+                  {/* Search Bar - REDUCED WIDTH */}
+                  <div style={{ position: "relative", width: "180px" }}>
                     <input
                       type="text"
                       placeholder="Search"
@@ -1359,16 +1567,89 @@ const ExpenseTracking = () => {
                       onChange={(e) => setSearchTerm(e.target.value)}
                       className="search-account-input"
                       style={{
+                        width: "90%",
                         padding: "8px 12px",
                         border: "1px solid #ccc",
                         borderRadius: "4px",
                         outline: "none",
+                        fontSize: "14px",
                       }}
                     />
                   </div>
 
-                  {/* Category Filter - Updated with LedgerView styling */}
-                  <div className="filter-dropdown" style={{ position: "relative" }}>
+                  {/* Department Filter - UPDATED to match LedgerView UI */}
+                  <div className="filter-dropdown" style={{ position: "relative", width: "180px" }}>
+                    <button
+                      className={`filter-dropdown-btn ${
+                        showDepartmentDropdown ? "active" : ""
+                      }`}
+                      onClick={toggleDepartmentDropdown}
+                      onMouseDown={(e) => e.preventDefault()}
+                      style={{
+                        padding: "8px 12px",
+                        border: "1px solid #ccc",
+                        borderRadius: "4px",
+                        backgroundColor: "white",
+                        display: "flex",
+                        alignItems: "center",
+                        gap: "5px",
+                        outline: "none",
+                        minWidth: "160px",
+                        width: "100%",
+                      }}
+                    >
+                      <span style={{ 
+                        overflow: "hidden",
+                        textOverflow: "ellipsis",
+                        whiteSpace: "nowrap" 
+                      }}>
+                        {getDepartmentDisplay()}
+                      </span>
+                      <ChevronDown size={14} />
+                    </button>
+                    {showDepartmentDropdown && (
+                      <div
+                        className="category-dropdown-menu"
+                        style={{
+                          position: "absolute",
+                          top: "100%",
+                          left: 0,
+                          backgroundColor: "white",
+                          border: "1px solid #ccc",
+                          borderRadius: "4px",
+                          width: "100%",
+                          zIndex: 1000,
+                          maxHeight: "300px",
+                          overflowY: "auto",
+                        }}
+                      >
+                        {departmentOptions.map((dept) => (
+                          <div
+                            key={dept.value}
+                            className={`category-dropdown-item ${
+                              selectedDepartment === dept.value ? "active" : ""
+                            }`}
+                            onClick={() => handleDepartmentSelect(dept.value)}
+                            onMouseDown={(e) => e.preventDefault()}
+                            style={{
+                              padding: "8px 12px",
+                              cursor: "pointer",
+                              backgroundColor:
+                                selectedDepartment === dept.value
+                                  ? "#f0f0f0"
+                                  : "white",
+                              outline: "none",
+                            }}
+                          >
+                            {dept.label}
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Category Filter - UPDATED to match LedgerView UI */}
+                  <div className="filter-dropdown" style={{ position: "relative", width: "150px" }}>
                     <button
                       className={`filter-dropdown-btn ${
                         showCategoryDropdown ? "active" : ""
@@ -1384,13 +1665,16 @@ const ExpenseTracking = () => {
                         alignItems: "center",
                         gap: "5px",
                         outline: "none",
+                        minWidth: "140px",
+                        width: "100%",
                       }}
                     >
-                      <span>
-                        {selectedCategory
-                          ? categories.find((c) => c.code === selectedCategory)
-                              ?.name
-                          : "All Categories"}
+                      <span style={{ 
+                        overflow: "hidden",
+                        textOverflow: "ellipsis",
+                        whiteSpace: "nowrap" 
+                      }}>
+                        {getCategoryDisplay()}
                       </span>
                       <ChevronDown size={14} />
                     </button>
@@ -1406,44 +1690,49 @@ const ExpenseTracking = () => {
                           borderRadius: "4px",
                           width: "100%",
                           zIndex: 1000,
+                          maxHeight: "200px",
+                          overflowY: "auto",
                         }}
                       >
-                        {categories.map((category) => (
+                        {categoryOptions.map((category) => (
                           <div
-                            key={category.code}
+                            key={category.value}
                             className={`category-dropdown-item ${
-                              selectedCategory === category.code ? "active" : ""
+                              selectedCategory === category.value ? "active" : ""
                             }`}
-                            onClick={() => handleCategorySelect(category.code)}
+                            onClick={() => handleCategorySelect(category.value)}
                             onMouseDown={(e) => e.preventDefault()}
                             style={{
                               padding: "8px 12px",
                               cursor: "pointer",
                               backgroundColor:
-                                selectedCategory === category.code
+                                selectedCategory === category.value
                                   ? "#f0f0f0"
                                   : "white",
                               outline: "none",
                             }}
                           >
-                            {category.name}
+                            {category.label}
                           </div>
                         ))}
                       </div>
                     )}
                   </div>
 
+                  {/* Add Expense Button */}
                   <button
                     className="add-journal-button"
                     onClick={handleAddExpense}
                     style={{
-                      padding: "8px 12px",
+                      padding: "8px 16px",
                       border: "1px solid #ccc",
                       borderRadius: "4px",
                       backgroundColor: "#007bff",
                       color: "white",
                       cursor: "pointer",
                       outline: "none",
+                      fontSize: "14px",
+                      whiteSpace: "nowrap",
                     }}
                   >
                     Add Expense
@@ -1451,7 +1740,7 @@ const ExpenseTracking = () => {
                 </div>
               </div>
 
-              {/* Separator line between title and table - From LedgerView */}
+              {/* Separator line */}
               <div
                 style={{
                   height: "1px",
@@ -1460,13 +1749,12 @@ const ExpenseTracking = () => {
                 }}
               ></div>
 
-              {/* Expenses Table - Updated to match LedgerView layout (no scroll, fixed height) */}
-              {/* MODIFICATION START */}
+              {/* Expenses Table - UPDATED: Removed Vendor column and adjusted column widths */}
               <div
                 style={{
                   border: "1px solid #e0e0e0",
                   borderRadius: "4px",
-                  height: "424px", // adjust height if needed
+                  height: "424px",
                   overflowY: "auto",
                   overflowX: "hidden",
                 }}
@@ -1488,11 +1776,10 @@ const ExpenseTracking = () => {
                         zIndex: 1,
                       }}
                     >
-                      {" "}
-                      {/* Added sticky header */}
+                      {/* Equal width columns - 12.5% each for 8 columns */}
                       <th
                         style={{
-                          width: "12%",
+                          width: "10%",
                           padding: "0.75rem",
                           textAlign: "left",
                           borderBottom: "2px solid #dee2e6",
@@ -1500,9 +1787,10 @@ const ExpenseTracking = () => {
                           verticalAlign: "middle",
                           wordWrap: "break-word",
                           overflowWrap: "break-word",
+                          fontSize: "14px",
                         }}
                       >
-                        REF NO.
+                        TICKET ID
                       </th>
                       <th
                         style={{
@@ -1514,13 +1802,14 @@ const ExpenseTracking = () => {
                           verticalAlign: "middle",
                           wordWrap: "break-word",
                           overflowWrap: "break-word",
+                          fontSize: "14px",
                         }}
                       >
                         DATE
                       </th>
                       <th
                         style={{
-                          width: "12%",
+                          width: "10%",
                           padding: "0.75rem",
                           textAlign: "left",
                           borderBottom: "2px solid #dee2e6",
@@ -1528,13 +1817,29 @@ const ExpenseTracking = () => {
                           verticalAlign: "middle",
                           wordWrap: "break-word",
                           overflowWrap: "break-word",
+                          fontSize: "14px",
                         }}
                       >
-                        TYPE
+                        DEPARTMENT
                       </th>
                       <th
                         style={{
-                          width: "28%",
+                          width: "10%",
+                          padding: "0.75rem",
+                          textAlign: "left",
+                          borderBottom: "2px solid #dee2e6",
+                          height: "50px",
+                          verticalAlign: "middle",
+                          wordWrap: "break-word",
+                          overflowWrap: "break-word",
+                          fontSize: "14px",
+                        }}
+                      >
+                        CATEGORY
+                      </th>
+                      <th
+                        style={{
+                          width: "10%",
                           padding: "0.75rem",
                           textAlign: "left",
                           borderBottom: "2px solid #dee2e6",
@@ -1543,13 +1848,14 @@ const ExpenseTracking = () => {
                           wordWrap: "break-word",
                           overflowWrap: "break-word",
                           whiteSpace: "normal",
+                          fontSize: "14px",
                         }}
                       >
-                        DESCRIPTION
+                        SUB-CATEGORY
                       </th>
                       <th
                         style={{
-                          width: "12%",
+                          width: "10%",
                           padding: "0.75rem",
                           textAlign: "left",
                           borderBottom: "2px solid #dee2e6",
@@ -1557,13 +1863,29 @@ const ExpenseTracking = () => {
                           verticalAlign: "middle",
                           wordWrap: "break-word",
                           overflowWrap: "break-word",
+                          fontSize: "14px",
+                        }}
+                      >
+                        AMOUNT
+                      </th>
+                      <th
+                        style={{
+                          width: "10%",
+                          padding: "0.75rem",
+                          textAlign: "left",
+                          borderBottom: "2px solid #dee2e6",
+                          height: "50px",
+                          verticalAlign: "middle",
+                          wordWrap: "break-word",
+                          overflowWrap: "break-word",
+                          fontSize: "14px",
                         }}
                       >
                         STATUS
                       </th>
                       <th
                         style={{
-                          width: "14%",
+                          width: "10%",
                           padding: "0.75rem",
                           textAlign: "left",
                           borderBottom: "2px solid #dee2e6",
@@ -1571,6 +1893,7 @@ const ExpenseTracking = () => {
                           verticalAlign: "middle",
                           wordWrap: "break-word",
                           overflowWrap: "break-word",
+                          fontSize: "14px",
                         }}
                       >
                         ACCOMPLISHED
@@ -1578,8 +1901,8 @@ const ExpenseTracking = () => {
                     </tr>
                   </thead>
                   <tbody>
-                    {expenses.length > 0 ? (
-                      expenses.map((expense, index) => (
+                    {currentExpenses.length > 0 ? (
+                      currentExpenses.map((expense, index) => (
                         <tr
                           key={expense.id}
                           className={index % 2 === 1 ? "alternate-row" : ""}
@@ -1606,9 +1929,16 @@ const ExpenseTracking = () => {
                               wordWrap: "break-word",
                               overflowWrap: "break-word",
                               whiteSpace: "normal",
+                              fontSize: "13px",
                             }}
                           >
-                            {expense.reference_no}
+                            <div style={{
+                              maxWidth: "100%",
+                              overflow: "hidden",
+                              textOverflow: "ellipsis"
+                            }}>
+                              {expense.reference_no}
+                            </div>
                           </td>
                           <td
                             style={{
@@ -1618,9 +1948,16 @@ const ExpenseTracking = () => {
                               wordWrap: "break-word",
                               overflowWrap: "break-word",
                               whiteSpace: "normal",
+                              fontSize: "13px",
                             }}
                           >
-                            {expense.date}
+                            <div style={{
+                              maxWidth: "100%",
+                              overflow: "hidden",
+                              textOverflow: "ellipsis"
+                            }}>
+                              {expense.date}
+                            </div>
                           </td>
                           <td
                             style={{
@@ -1630,9 +1967,16 @@ const ExpenseTracking = () => {
                               wordWrap: "break-word",
                               overflowWrap: "break-word",
                               whiteSpace: "normal",
+                              fontSize: "13px",
                             }}
                           >
-                            {expense.type}
+                            <div style={{
+                              maxWidth: "100%",
+                              overflow: "hidden",
+                              textOverflow: "ellipsis"
+                            }}>
+                              {expense.department}
+                            </div>
                           </td>
                           <td
                             style={{
@@ -1642,9 +1986,16 @@ const ExpenseTracking = () => {
                               wordWrap: "break-word",
                               overflowWrap: "break-word",
                               whiteSpace: "normal",
+                              fontSize: "13px",
                             }}
                           >
-                            {expense.description}
+                            <div style={{
+                              maxWidth: "100%",
+                              overflow: "hidden",
+                              textOverflow: "ellipsis"
+                            }}>
+                              {expense.category}
+                            </div>
                           </td>
                           <td
                             style={{
@@ -1654,12 +2005,16 @@ const ExpenseTracking = () => {
                               wordWrap: "break-word",
                               overflowWrap: "break-word",
                               whiteSpace: "normal",
+                              fontSize: "13px",
                             }}
                           >
-                            <Status
-                              type={expense.status.toLowerCase()}
-                              name={expense.status}
-                            />
+                            <div style={{
+                              maxWidth: "100%",
+                              overflow: "hidden",
+                              textOverflow: "ellipsis"
+                            }}>
+                              {expense.sub_category}
+                            </div>
                           </td>
                           <td
                             style={{
@@ -1669,25 +2024,77 @@ const ExpenseTracking = () => {
                               wordWrap: "break-word",
                               overflowWrap: "break-word",
                               whiteSpace: "normal",
+                              fontSize: "13px",
+                              fontWeight: "bold",
                             }}
                           >
-                            {expense.accomplished}
+                            <div style={{
+                              maxWidth: "100%",
+                              overflow: "hidden",
+                              textOverflow: "ellipsis"
+                            }}>
+                              {expense.amount}
+                            </div>
+                          </td>
+                          <td
+                            style={{
+                              padding: "0.75rem",
+                              borderBottom: "1px solid #dee2e6",
+                              verticalAlign: "middle",
+                              wordWrap: "break-word",
+                              overflowWrap: "break-word",
+                              whiteSpace: "normal",
+                              fontSize: "13px",
+                            }}
+                          >
+                            <div style={{
+                              maxWidth: "100%",
+                              overflow: "hidden",
+                              textOverflow: "ellipsis"
+                            }}>
+                              <Status
+                                type={expense.status.toLowerCase()}
+                                name={expense.status}
+                              />
+                            </div>
+                          </td>
+                          <td
+                            style={{
+                              padding: "0.75rem",
+                              borderBottom: "1px solid #dee2e6",
+                              verticalAlign: "middle",
+                              wordWrap: "break-word",
+                              overflowWrap: "break-word",
+                              whiteSpace: "normal",
+                              fontSize: "13px",
+                              color: expense.accomplished === "Yes" ? "#2e7d32" : "#c62828",
+                              fontWeight: expense.accomplished === "Yes" ? "bold" : "normal",
+                            }}
+                          >
+                            <div style={{
+                              maxWidth: "100%",
+                              overflow: "hidden",
+                              textOverflow: "ellipsis"
+                            }}>
+                              {expense.accomplished}
+                            </div>
                           </td>
                         </tr>
                       ))
                     ) : (
                       <tr>
                         <td
-                          colSpan="6"
+                          colSpan="8"
                           className="no-results"
                           style={{
                             padding: "20px",
                             textAlign: "center",
                             height: "50px",
                             verticalAlign: "middle",
+                            fontSize: "14px",
                           }}
                         >
-                          {searchTerm || selectedCategory !== ""
+                          {searchTerm || selectedDepartment || selectedCategory
                             ? "No expenses match your search criteria."
                             : "No expenses found."}
                         </td>
@@ -1697,16 +2104,16 @@ const ExpenseTracking = () => {
                 </table>
               </div>
 
-              {/* New Pagination Component from LedgerView */}
-              {expenses.length > 0 && (
+              {/* Pagination Component */}
+              {currentExpenses.length > 0 && (
                 <Pagination
                   currentPage={currentPage}
                   pageSize={pageSize}
-                  totalItems={pagination.count}
+                  totalItems={totalItems}
                   onPageChange={setCurrentPage}
                   onPageSizeChange={(newSize) => {
                     setPageSize(newSize);
-                    setCurrentPage(1); // Reset to first page when page size changes
+                    setCurrentPage(1);
                   }}
                   pageSizeOptions={[5, 10, 20, 50]}
                 />
@@ -1715,7 +2122,7 @@ const ExpenseTracking = () => {
           </>
         )}
 
-        {/* UPDATED: Add Expense Modal with BudgetAllocation's amount input format */}
+        {/* UPDATED: Add Expense Modal with smaller buttons */}
         {showAddExpenseModal && (
           <div
             className="modal-overlay"
@@ -1758,6 +2165,7 @@ const ExpenseTracking = () => {
                 </h3>
 
                 <form onSubmit={handleSubmitExpense} className="budget-form">
+                  {/* Ticket ID - Disabled (system generated) */}
                   <div className="form-group" style={{ marginBottom: "16px" }}>
                     <label
                       htmlFor="ticketId"
@@ -1765,6 +2173,7 @@ const ExpenseTracking = () => {
                         display: "block",
                         marginBottom: "8px",
                         fontWeight: "500",
+                        fontSize: "14px",
                       }}
                     >
                       Ticket ID
@@ -1774,15 +2183,18 @@ const ExpenseTracking = () => {
                       id="ticketId"
                       name="ticketId"
                       value={newExpense.ticketId}
-                      onChange={handleInputChange}
-                      placeholder="Enter ticket ID"
+                      readOnly
+                      disabled
                       className="form-control"
                       style={{
                         width: "100%",
                         padding: "8px 12px",
                         border: "1px solid #ccc",
                         borderRadius: "4px",
+                        backgroundColor: "#f5f5f5",
+                        cursor: "not-allowed",
                         outline: "none",
+                        fontSize: "14px",
                       }}
                     />
                     <span
@@ -1794,40 +2206,11 @@ const ExpenseTracking = () => {
                         display: "block",
                       }}
                     >
-                      Optional - system will generate if left blank
+                      System generated
                     </span>
                   </div>
 
-                  <div className="form-group" style={{ marginBottom: "16px" }}>
-                    <label
-                      htmlFor="description"
-                      style={{
-                        display: "block",
-                        marginBottom: "8px",
-                        fontWeight: "500",
-                      }}
-                    >
-                      Description <span style={{ color: "red" }}>*</span>
-                    </label>
-                    <input
-                      type="text"
-                      id="description"
-                      name="description"
-                      value={newExpense.description}
-                      onChange={handleInputChange}
-                      placeholder="Enter expense description"
-                      required
-                      className="form-control"
-                      style={{
-                        width: "100%",
-                        padding: "8px 12px",
-                        border: "1px solid #ccc",
-                        borderRadius: "4px",
-                        outline: "none",
-                      }}
-                    />
-                  </div>
-
+                  {/* Date - Auto-generated */}
                   <div className="form-group" style={{ marginBottom: "16px" }}>
                     <label
                       htmlFor="date"
@@ -1835,6 +2218,7 @@ const ExpenseTracking = () => {
                         display: "block",
                         marginBottom: "8px",
                         fontWeight: "500",
+                        fontSize: "14px",
                       }}
                     >
                       Date
@@ -1844,7 +2228,6 @@ const ExpenseTracking = () => {
                       id="date"
                       name="date"
                       value={newExpense.date}
-                      onChange={handleInputChange}
                       readOnly
                       className="form-control"
                       style={{
@@ -1855,21 +2238,67 @@ const ExpenseTracking = () => {
                         backgroundColor: "#f5f5f5",
                         cursor: "not-allowed",
                         outline: "none",
+                        fontSize: "14px",
                       }}
                     />
-                    <span
-                      className="helper-text"
-                      style={{
-                        fontSize: "12px",
-                        color: "#666",
-                        marginTop: "4px",
-                        display: "block",
-                      }}
-                    >
-                      Automatically generated
-                    </span>
                   </div>
 
+                  {/* Department - REQUIRED */}
+                  <div className="form-group" style={{ marginBottom: "16px" }}>
+                    <label
+                      htmlFor="department"
+                      style={{
+                        display: "block",
+                        marginBottom: "8px",
+                        fontWeight: "500",
+                        fontSize: "14px",
+                      }}
+                    >
+                      Department <span style={{ color: "red" }}>*</span>
+                    </label>
+                    <div
+                      className="select-wrapper"
+                      style={{ position: "relative" }}
+                    >
+                      <select
+                        id="department"
+                        name="department"
+                        value={newExpense.department}
+                        onChange={handleInputChange}
+                        required
+                        className="form-control"
+                        style={{
+                          width: "100%",
+                          padding: "8px 12px",
+                          border: "1px solid #ccc",
+                          borderRadius: "4px",
+                          backgroundColor: "white",
+                          appearance: "none",
+                          outline: "none",
+                          fontSize: "14px",
+                        }}
+                      >
+                        <option value="">Select a department</option>
+                        {departments.map((department) => (
+                          <option key={department} value={department}>
+                            {department}
+                          </option>
+                        ))}
+                      </select>
+                      <ChevronDown
+                        size={16}
+                        style={{
+                          position: "absolute",
+                          right: "12px",
+                          top: "50%",
+                          transform: "translateY(-50%)",
+                          pointerEvents: "none",
+                        }}
+                      />
+                    </div>
+                  </div>
+
+                  {/* Category - REQUIRED (only CapEx and OpEx) */}
                   <div className="form-group" style={{ marginBottom: "16px" }}>
                     <label
                       htmlFor="category"
@@ -1877,6 +2306,7 @@ const ExpenseTracking = () => {
                         display: "block",
                         marginBottom: "8px",
                         fontWeight: "500",
+                        fontSize: "14px",
                       }}
                     >
                       Category <span style={{ color: "red" }}>*</span>
@@ -1900,16 +2330,15 @@ const ExpenseTracking = () => {
                           backgroundColor: "white",
                           appearance: "none",
                           outline: "none",
+                          fontSize: "14px",
                         }}
                       >
                         <option value="">Select a category</option>
-                        {categories
-                          .filter((cat) => cat.code !== "") // Filter out "All Categories"
-                          .map((cat) => (
-                            <option key={cat.code} value={cat.name}>
-                              {cat.name}
-                            </option>
-                          ))}
+                        {mainCategories.map((category) => (
+                          <option key={category} value={category}>
+                            {category}
+                          </option>
+                        ))}
                       </select>
                       <ChevronDown
                         size={16}
@@ -1924,6 +2353,65 @@ const ExpenseTracking = () => {
                     </div>
                   </div>
 
+                  {/* Sub-Category - REQUIRED (dynamic based on department) */}
+                  <div className="form-group" style={{ marginBottom: "16px" }}>
+                    <label
+                      htmlFor="sub_category"
+                      style={{
+                        display: "block",
+                        marginBottom: "8px",
+                        fontWeight: "500",
+                        fontSize: "14px",
+                      }}
+                    >
+                      Sub-Category <span style={{ color: "red" }}>*</span>
+                    </label>
+                    <div
+                      className="select-wrapper"
+                      style={{ position: "relative" }}
+                    >
+                      <select
+                        id="sub_category"
+                        name="sub_category"
+                        value={newExpense.sub_category}
+                        onChange={handleInputChange}
+                        required
+                        disabled={!newExpense.department}
+                        className="form-control"
+                        style={{
+                          width: "100%",
+                          padding: "8px 12px",
+                          border: "1px solid #ccc",
+                          borderRadius: "4px",
+                          backgroundColor: newExpense.department ? "white" : "#f5f5f5",
+                          appearance: "none",
+                          outline: "none",
+                          fontSize: "14px",
+                        }}
+                      >
+                        <option value="">
+                          {newExpense.department ? "Select a sub-category" : "Select department first"}
+                        </option>
+                        {newExpense.department && subCategoriesByDepartment[newExpense.department]?.map((subCat) => (
+                          <option key={subCat} value={subCat}>
+                            {subCat}
+                          </option>
+                        ))}
+                      </select>
+                      <ChevronDown
+                        size={16}
+                        style={{
+                          position: "absolute",
+                          right: "12px",
+                          top: "50%",
+                          transform: "translateY(-50%)",
+                          pointerEvents: "none",
+                        }}
+                      />
+                    </div>
+                  </div>
+
+                  {/* Vendor - REQUIRED */}
                   <div className="form-group" style={{ marginBottom: "16px" }}>
                     <label
                       htmlFor="vendor"
@@ -1931,6 +2419,7 @@ const ExpenseTracking = () => {
                         display: "block",
                         marginBottom: "8px",
                         fontWeight: "500",
+                        fontSize: "14px",
                       }}
                     >
                       Vendor <span style={{ color: "red" }}>*</span>
@@ -1954,6 +2443,7 @@ const ExpenseTracking = () => {
                           backgroundColor: "white",
                           appearance: "none",
                           outline: "none",
+                          fontSize: "14px",
                         }}
                       >
                         <option value="">Select a vendor</option>
@@ -1976,7 +2466,7 @@ const ExpenseTracking = () => {
                     </div>
                   </div>
 
-                  {/* UPDATED: Amount Input with BudgetAllocation's format and Clear Button */}
+                  {/* Amount - REQUIRED */}
                   <div className="form-group" style={{ marginBottom: "16px" }}>
                     <label
                       htmlFor="amount"
@@ -1984,9 +2474,10 @@ const ExpenseTracking = () => {
                         display: "block",
                         marginBottom: "8px",
                         fontWeight: "500",
+                        fontSize: "14px",
                       }}
                     >
-                      Amount
+                      Amount <span style={{ color: "red" }}>*</span>
                     </label>
                     <div style={{ position: "relative" }}>
                       <input
@@ -1996,6 +2487,7 @@ const ExpenseTracking = () => {
                         placeholder="₱0.00"
                         value={newExpense.amount}
                         onChange={handleInputChange}
+                        required
                         className="form-control"
                         style={{
                           width: "100%",
@@ -2031,10 +2523,66 @@ const ExpenseTracking = () => {
                         </button>
                       )}
                     </div>
-                    {/* REMOVED: The helper text that was here to match BudgetAllocation */}
                   </div>
 
-                  {/* Modal Actions */}
+                  {/* Attachment - JPG, PDF, PNG */}
+                  <div className="form-group" style={{ marginBottom: "16px" }}>
+                    <label
+                      htmlFor="attachment"
+                      style={{
+                        display: "block",
+                        marginBottom: "8px",
+                        fontWeight: "500",
+                        fontSize: "14px",
+                      }}
+                    >
+                      Attachment
+                    </label>
+                    <div
+                      style={{
+                        border: "2px dashed #ccc",
+                        borderRadius: "4px",
+                        padding: "20px",
+                        textAlign: "center",
+                        cursor: "pointer",
+                        position: "relative",
+                      }}
+                      onClick={() => document.getElementById('file-input').click()}
+                    >
+                      <input
+                        type="file"
+                        id="file-input"
+                        accept=".jpg,.jpeg,.png,.pdf"
+                        onChange={handleFileChange}
+                        style={{
+                          display: "none",
+                        }}
+                      />
+                      {newExpense.attachment ? (
+                        <div>
+                          <Paperclip size={20} style={{ marginBottom: "8px" }} />
+                          <p style={{ margin: "4px 0", fontWeight: "500", fontSize: "14px" }}>
+                            {newExpense.attachment.name}
+                          </p>
+                          <p style={{ margin: "0", fontSize: "12px", color: "#666" }}>
+                            Click to change file (JPG, PNG, PDF only)
+                          </p>
+                        </div>
+                      ) : (
+                        <div>
+                          <Paperclip size={20} style={{ marginBottom: "8px" }} />
+                          <p style={{ margin: "4px 0", fontWeight: "500", fontSize: "14px" }}>
+                            Click to upload file
+                          </p>
+                          <p style={{ margin: "0", fontSize: "12px", color: "#666" }}>
+                            Supported formats: JPG, PNG, PDF
+                          </p>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Modal Actions with SMALLER BUTTONS */}
                   <div className="modal-actions" style={{ marginTop: "24px" }}>
                     <div
                       className="button-row"
@@ -2050,34 +2598,36 @@ const ExpenseTracking = () => {
                         onClick={handleCloseModal}
                         onMouseDown={(e) => e.preventDefault()}
                         style={{
-                          padding: "8px 16px",
+                          padding: "6px 14px",
                           border: "1px solid #ccc",
                           borderRadius: "4px",
                           backgroundColor: "#f8f9fa",
                           color: "#333",
                           cursor: "pointer",
-                          minWidth: "80px",
+                          minWidth: "70px",
                           outline: "none",
+                          fontSize: "13px",
                         }}
                       >
                         Cancel
                       </button>
                       <button
                         type="submit"
-                        className="btn-save"
+                        className="btn-submit"
                         onMouseDown={(e) => e.preventDefault()}
                         style={{
-                          padding: "8px 16px",
+                          padding: "6px 14px",
                           border: "1px solid #ccc",
                           borderRadius: "4px",
                           backgroundColor: "#007bff",
                           color: "white",
                           cursor: "pointer",
-                          minWidth: "80px",
+                          minWidth: "70px",
                           outline: "none",
+                          fontSize: "13px",
                         }}
                       >
-                        Save
+                        Submit
                       </button>
                     </div>
                   </div>

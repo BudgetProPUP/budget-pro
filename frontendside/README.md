@@ -1,57 +1,80 @@
--Dashboard
-Log in page stays as is ( no revisions)
-Forgot password now is aligned with the login UI
-Date and time in the dashboard is now on the top of the nav bar beside the user profile
-Sub tab (monthly, quarterly, yearly) stays as is, its responsive once you clicked it
-Budget cards (dashboards) no revisions but i add in Total Budget a “As of now”
-Graphs in the dashboard now use a line graph instead of a bar graph for better comparison.
-The budget forecasting module graph is now present the actual spending vs. the budget proposal
-The pie graph is moved to the budget per category card, and the full detailed information will show once the user clicks the view button 
+Dashboard - In the dashboard, I changed the Export Report Button, previously when you exported it, it was in .json, now it is in excel format .xlsx, and I also changed the sample data/structure in Budget per Department, which was previously per category.
 
---Budget proposals
-Rejection comments: Add a field to specify why a proposal was rejected (category-specific free-text).
-Approval metadata:
-Track who approved/rejected the proposal.
-Auto-generate timestamp (date + time with seconds).
-Search function: Improve implementation (avoid repeated API calls).
-Additional info: Include more details in proposals (e.g., vendor dropdowns/checkboxes if applicable).
-Subject will be removed
-The view/review buttons is now uniform in terms of size and font
-The approval status pop-up will be added to the “budget proposal” page, making it scrollable
-The reference number is now ticket ID
-Add sub category
 
--Proposal history
-Proposal ID to Ticket ID 
-Proposal row should be “category”
-Add subcategory row
+Budget proposals
+- Remove the description and status in the table and add a "Department", "Sub - category".
+- FOR ACTIONS Button it all now contains 'REVIEW' BUTTON ONLY.
+- Add a "Department" filter before category
+- In Submitted by Column, It must be a person who submit the proposal so i change it also.
+- In our Budget Proposal Form, Now the Print file has functionality where you can now print the our Ticket and some data there is revise now this is the sequence, Budget Proposals turns into (Ticket Review), Category, Sub category, Department, Budget amount and Submitted by: employee (department)
+- And also in lower Budget Form there is At the end of the ticket there is
 
--Ledger View
-Reference ID is now ticket ID
-The date shown in the ledger view is now the date of the approved proposal
-Remove description, change into sub-subcategory
-The account row will be changed once consulted with the thesis adviser
-The search bar is now show “search” only
-Remove the export button
+Finance Operator name:
+Signature:
+Date submitted:
 
--BudgetAllocation
-Fix table
-Add Pagination
-Fix all Layout
+The table sequence now is;
+- Ticket ID → Department → Category → sub - category → Submiited by → Amount  → Actions 
 
--Budget Variance Report
-Fix table
+Proposal history
+- Add a "Department" filter before category
+- Fix the content inside the category and the status, it must be a Approved and Rejected only.
+- Fix the content of sub-category
+- Fix the content of Modified by must be a FINANCE MANAGER or DEPARTMENT HEAD
 
--Expense Tracking (to be consulted)
-Auto-generate dates (make field read-only).
-Mandatory fields: Vendor, employee, and category must be included when adding expenses.
-Reference ID is now Ticket ID
-Type row to category
-Add subcategory row
-Remove description
-Remove accomplished row
+The sequence is;
+Ticket ID → Department → Category → sub - category → Last modified → Modified By → Status
 
--Expense History
-Fix table
-Add Pagination
-Fix all Layout
+Ledger View
+- Add "Department filter" 
+- Fix the content of categories
+- Change the "description" into a "Sub - category"
+The table sequence is;
+Ticket ID → Date → Department → Category → sub - category → Account → Amount 
+
+BudgetAllocation
+*Ticket ID - system generated
+
+*Date - Standardized date format (YYYY-MM-DD)
+↓
+Add *Department field
+↓
+*Category (per department)
+↓
+*Debit from Account (sub-category in each department)
+↓
+*Credit to the Account (sub-category each department)
+↓
+*Amount
+
+- Now the table is same format as the Modify budget form once you add a manual entry. 
+- Remove the description
+- Add some disabled 'MODIFY BUDGET' when a user didn't select a row from the table.
+
+Note: (I already add this)
+1. Field-level error messages
+2. Form-level validation summary
+3. Change "save" into "submit"
+4. Success confirmation upon submit (submit means the budget allocation has been forwarded to the finance manager)
+5. The amount field will atomatic turn into peso once you input a value
+6. Modify budget entry will only show in FINANCE MANAGER
+
+Budget Variance Report
+- Color Coding: Green (on budget), Yellow (warning), Red (over budget)
+- Icons: Warning symbols for critical variances
+- Trend Arrows: Indicators showing improvement/deterioration
+- Highlighting: Emphasis on main category totals
+- I alsoadd sample data here
+
+Expense Tracking
+- The ticket ID field is disabled (system generated)
+- Add a department filter
+- Remove the description
+- Add attachment file: JPG, PDF, and PNG
+- Now, "Submit" button instead save inAdd Expense Form.
+- The table is now the same format as the Add expense form except for "Status".
+- The "ACCOMPLISHED" will update 'yes' if the manual entry already checked by Finance Manager ( i Add conditions here already.)
+
+Expense History
+- I update here the Category filter button the data there to CapEx and OpEx data only
+- i also add sample data here to visualize it properly.

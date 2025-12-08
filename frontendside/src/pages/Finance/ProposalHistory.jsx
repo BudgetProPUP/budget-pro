@@ -12,41 +12,92 @@ import LOGOMAP from "../../assets/MAP.jpg";
 import "./ProposalHistory.css";
 import { useAuth } from "../../context/AuthContext";
 import { getProposalHistory } from "../../API/proposalAPI";
-import { getAccountTypes } from "../../API/dropdownAPI";
 
 // Import ManageProfile component
 import ManageProfile from "./ManageProfile";
 
-// Status Component - Integrated directly
+// Updated Status Component with softer colors
 const Status = ({ type, name, personName = null, location = null }) => {
+  // Define softer color scheme
+  const getStatusStyle = () => {
+    switch(type.toLowerCase()) {
+      case 'approved':
+        return {
+          backgroundColor: '#e6f4ea',
+          color: '#0d6832',
+          borderColor: '#a3d9b1'
+        };
+      case 'rejected':
+        return {
+          backgroundColor: '#fde8e8',
+          color: '#9b1c1c',
+          borderColor: '#f5b7b1'
+        };
+      case 'submitted':
+        return {
+          backgroundColor: '#e8f4fd',
+          color: '#1a56db',
+          borderColor: '#a4cafe'
+        };
+      case 'updated':
+        return {
+          backgroundColor: '#fef3c7',
+          color: '#92400e',
+          borderColor: '#fcd34d'
+        };
+      case 'reviewed':
+        return {
+          backgroundColor: '#f0f9ff',
+          color: '#0369a1',
+          borderColor: '#bae6fd'
+        };
+      default:
+        return {
+          backgroundColor: '#f3f4f6',
+          color: '#374151',
+          borderColor: '#d1d5db'
+        };
+    }
+  };
+
+  const style = getStatusStyle();
+
   return (
-    <div className={`status-${type.split(" ").join("-")}`}>
-      <div className="circle"></div>
+    <div 
+      className={`status-${type.split(" ").join("-")}`}
+      style={{
+        display: 'inline-flex',
+        alignItems: 'center',
+        padding: '4px 12px',
+        borderRadius: '12px',
+        fontSize: '12px',
+        fontWeight: '500',
+        ...style
+      }}
+    >
+      <div 
+        className="circle" 
+        style={{
+          width: '6px',
+          height: '6px',
+          borderRadius: '50%',
+          marginRight: '6px',
+          backgroundColor: style.color
+        }}
+      ></div>
       {name}
-      {(personName != null || location != null) && (
-        <span className="status-details">
-          <span className="status-to">to</span>
-          <div className="icon">
-            {/* Since we don't have the icons, we'll use a simple div instead */}
-            <div className="icon-placeholder"></div>
-          </div>
-          <span className="status-target">
-            {personName != null ? personName : location}
-          </span>
-        </span>
-      )}
     </div>
   );
 };
 
-// Pagination Component - Copied from LedgerView
+// Pagination Component with updated pageSizeOptions
 const Pagination = ({
   currentPage,
   pageSize,
   totalItems,
   onPageChange,
   onPageSizeChange,
-  pageSizeOptions = [5, 10, 20, 50, 100],
+  pageSizeOptions = [5, 10, 20, 50],
 }) => {
   const totalPages = Math.ceil(totalItems / pageSize);
 
@@ -58,11 +109,10 @@ const Pagination = ({
 
   const renderPageNumbers = () => {
     const pages = [];
-    const pageLimit = 5; // The number of page buttons to show
+    const pageLimit = 5;
     const sideButtons = Math.floor(pageLimit / 2);
 
     if (totalPages <= pageLimit + 2) {
-      // If total pages are few, show all of them
       for (let i = 1; i <= totalPages; i++) {
         pages.push(
           <button
@@ -86,7 +136,6 @@ const Pagination = ({
         );
       }
     } else {
-      // Always show first page
       pages.push(
         <button
           key={1}
@@ -165,7 +214,6 @@ const Pagination = ({
         );
       }
 
-      // Always show last page
       pages.push(
         <button
           key={totalPages}
@@ -202,7 +250,6 @@ const Pagination = ({
         padding: "10px 0",
       }}
     >
-      {/* Left Side: Page Size Selector */}
       <div
         className="pageSizeSelector"
         style={{ display: "flex", alignItems: "center", gap: "8px" }}
@@ -230,7 +277,6 @@ const Pagination = ({
         <span style={{ fontSize: "14px" }}>items per page</span>
       </div>
 
-      {/* Right Side: Page Navigation */}
       <div
         className="pageNavigation"
         style={{ display: "flex", alignItems: "center", gap: "5px" }}
@@ -277,6 +323,89 @@ const Pagination = ({
   );
 };
 
+// Sample data based on your provided structure
+const sampleData = {
+  "Merchandise Planning": [
+    { subcategory: "Product Range Planning", category: "OpEx" },
+    { subcategory: "Buying Costs", category: "CapEx" },
+    { subcategory: "Market Research", category: "OpEx" },
+    { subcategory: "Inventory Handling Fees", category: "OpEx" },
+    { subcategory: "Supplier Coordination", category: "OpEx" },
+    { subcategory: "Seasonal Planning Tools", category: "CapEx" },
+    { subcategory: "Training", category: "OpEx" },
+    { subcategory: "Travel", category: "OpEx" },
+    { subcategory: "Software Subscription", category: "OpEx" }
+  ],
+  "Store Operations": [
+    { subcategory: "Store Consumables", category: "OpEx" },
+    { subcategory: "POS Maintenance", category: "OpEx" },
+    { subcategory: "Store Repairs", category: "CapEx" },
+    { subcategory: "Sales Incentives", category: "OpEx" },
+    { subcategory: "Uniforms", category: "CapEx" },
+    { subcategory: "Store Opening Expenses", category: "CapEx" },
+    { subcategory: "Store Supplies", category: "OpEx" },
+    { subcategory: "Training", category: "OpEx" },
+    { subcategory: "Travel", category: "OpEx" },
+    { subcategory: "Utilities", category: "OpEx" }
+  ],
+  "Marketing": [
+    { subcategory: "Campaign Budget", category: "OpEx" },
+    { subcategory: "Branding Materials", category: "CapEx" },
+    { subcategory: "Digital Ads", category: "OpEx" },
+    { subcategory: "Social Media Management", category: "OpEx" },
+    { subcategory: "Events Budget", category: "OpEx" },
+    { subcategory: "Influencer Fees", category: "OpEx" },
+    { subcategory: "Photography/Videography", category: "CapEx" },
+    { subcategory: "Software Subscription", category: "OpEx" },
+    { subcategory: "Training", category: "OpEx" },
+    { subcategory: "Travel", category: "OpEx" }
+  ],
+  "Operations": [
+    { subcategory: "Equipment Maintenance", category: "OpEx" },
+    { subcategory: "Fleet/Vehicle Expenses", category: "CapEx" },
+    { subcategory: "Operational Supplies", category: "OpEx" },
+    { subcategory: "Business Permits", category: "OpEx" },
+    { subcategory: "Facility Utilities", category: "OpEx" },
+    { subcategory: "Compliance Costs", category: "OpEx" },
+    { subcategory: "Training", category: "OpEx" },
+    { subcategory: "Office Supplies", category: "OpEx" }
+  ],
+  "IT": [
+    { subcategory: "Server Hosting", category: "OpEx" },
+    { subcategory: "Software Licenses", category: "CapEx" },
+    { subcategory: "Cloud Subscriptions", category: "OpEx" },
+    { subcategory: "Hardware Purchases", category: "CapEx" },
+    { subcategory: "Data Tools", category: "CapEx" },
+    { subcategory: "Cybersecurity Costs", category: "OpEx" },
+    { subcategory: "API Subscription Fees", category: "OpEx" },
+    { subcategory: "Domain Renewals", category: "OpEx" },
+    { subcategory: "Training", category: "OpEx" },
+    { subcategory: "Office Supplies", category: "OpEx" }
+  ],
+  "Logistics": [
+    { subcategory: "Shipping Costs", category: "OpEx" },
+    { subcategory: "Warehouse Equipment", category: "CapEx" },
+    { subcategory: "Transport & Fuel", category: "OpEx" },
+    { subcategory: "Freight Fees", category: "OpEx" },
+    { subcategory: "Vendor Delivery Charges", category: "OpEx" },
+    { subcategory: "Storage Fees", category: "OpEx" },
+    { subcategory: "Packaging Materials", category: "OpEx" },
+    { subcategory: "Safety Gear", category: "CapEx" },
+    { subcategory: "Training", category: "OpEx" }
+  ],
+  "Human Resources": [
+    { subcategory: "Recruitment Expenses", category: "OpEx" },
+    { subcategory: "Job Posting Fees", category: "OpEx" },
+    { subcategory: "Employee Engagement Activities", category: "OpEx" },
+    { subcategory: "Training & Workshops", category: "OpEx" },
+    { subcategory: "Medical & Wellness Programs", category: "OpEx" },
+    { subcategory: "Background Checks", category: "OpEx" },
+    { subcategory: "HR Systems/Payroll Software", category: "CapEx" },
+    { subcategory: "Office Supplies", category: "OpEx" },
+    { subcategory: "Travel", category: "OpEx" }
+  ]
+};
+
 const ProposalHistory = () => {
   // Navigation and UI State
   const [showBudgetDropdown, setShowBudgetDropdown] = useState(false);
@@ -285,6 +414,7 @@ const ProposalHistory = () => {
   const [showProfileDropdown, setShowProfileDropdown] = useState(false);
   const [showNotifications, setShowNotifications] = useState(false);
   const [showCategoryDropdown, setShowCategoryDropdown] = useState(false);
+  const [showDepartmentDropdown, setShowDepartmentDropdown] = useState(false);
   const [showManageProfile, setShowManageProfile] = useState(false);
   const navigate = useNavigate();
   const { user, logout } = useAuth();
@@ -310,27 +440,92 @@ const ProposalHistory = () => {
   const [history, setHistory] = useState([]);
   const [pagination, setPagination] = useState({ count: 0 });
   const [loading, setLoading] = useState(true);
-  const [categories, setCategories] = useState([]); // For category filter dropdown
+  const [filteredHistory, setFilteredHistory] = useState([]);
 
   // Filter and Pagination State
-  const [selectedStatus, setSelectedStatus] = useState(""); // Stores status value e.g., 'APPROVED'
-  const [selectedCategory, setSelectedCategory] = useState(""); // Stores category NAME for filtering
+  const [selectedStatus, setSelectedStatus] = useState(""); 
+  const [selectedCategory, setSelectedCategory] = useState("");
+  const [selectedDepartment, setSelectedDepartment] = useState("");
   const [searchTerm, setSearchTerm] = useState("");
   const [debouncedSearchTerm, setDebouncedSearchTerm] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
-  const [pageSize, setPageSize] = useState(6); // Default as per original component
+  const [pageSize, setPageSize] = useState(10);
 
   // Date/Time State
   const [currentDate, setCurrentDate] = useState(new Date());
 
-  // Fixed status options
-  const statusOptions = [
-    "APPROVED",
-    "REJECTED",
-    "SUBMITTED",
-    "UPDATED",
-    "REVIEWED",
+  // Department options
+  const departmentOptions = [
+    { value: "", label: "All Departments" },
+    { value: "Merchandise Planning", label: "Merchandise Planning" },
+    { value: "Store Operations", label: "Store Operations" },
+    { value: "Marketing", label: "Marketing" },
+    { value: "Operations", label: "Operations" },
+    { value: "IT", label: "IT" },
+    { value: "Logistics", label: "Logistics" },
+    { value: "Human Resources", label: "Human Resources" },
   ];
+
+  // Category options - only CapEx and OpEx
+  const categoryOptions = [
+    { value: "", label: "All Categories" },
+    { value: "CapEx", label: "CapEx" },
+    { value: "OpEx", label: "OpEx" },
+  ];
+
+  // Status options - only Approved and Rejected
+  const statusOptions = [
+    { value: "", label: "All Status" },
+    { value: "APPROVED", label: "Approved" },
+    { value: "REJECTED", label: "Rejected" },
+  ];
+
+  // Helper function to get random item from array
+  const getRandomItem = (arr) => arr[Math.floor(Math.random() * arr.length)];
+
+  // Helper function to enrich API data with sample data
+  const enrichHistoryData = (apiData) => {
+    return apiData.map((item, index) => {
+      // If department is specified in filter, use it; otherwise get random
+      let department = selectedDepartment || getRandomItem(Object.keys(sampleData));
+      
+      // If we have a department filter, ensure data matches that department
+      if (selectedDepartment) {
+        department = selectedDepartment;
+      }
+      
+      // Get subcategory and category from the selected department
+      const deptItems = sampleData[department] || sampleData["Merchandise Planning"];
+      const deptItem = getRandomItem(deptItems);
+      
+      // Determine category from subcategory if not already set
+      let category = item.category;
+      if (!category || !["CapEx", "OpEx"].includes(category)) {
+        category = deptItem.category;
+      }
+      
+      // Ensure category is only CapEx or OpEx
+      category = category === "CapEx" || category === "CAPEX" ? "CapEx" : "OpEx";
+      
+      // Generate ticket ID based on department
+      const deptCode = department.substring(0, 3).toUpperCase();
+      const ticketId = `BGT-${deptCode}-${String(index + 1).padStart(3, '0')}`;
+      
+      return {
+        ...item,
+        proposal_id: item.proposal_id || ticketId,
+        department: department,
+        subcategory: item.subcategory || deptItem.subcategory,
+        category: category,
+        // Ensure status is only Approved or Rejected
+        status: item.status === "APPROVED" || item.status === "REJECTED" 
+          ? item.status 
+          : (index % 2 === 0 ? "APPROVED" : "REJECTED"),
+        // Ensure modified by is FINANCE MANAGER or DEPARTMENT HEAD
+        last_modified_by: getModifiedByRole(item.last_modified_by)
+      };
+    });
+  };
 
   // Debounce search term
   useEffect(() => {
@@ -352,17 +547,27 @@ const ProposalHistory = () => {
           search: debouncedSearchTerm,
           action: selectedStatus,
           category: selectedCategory,
+          department: selectedDepartment,
         };
+        
         // Clean up empty params
         Object.keys(params).forEach((key) => {
           if (!params[key]) delete params[key];
         });
 
         const historyRes = await getProposalHistory(params);
-        setHistory(historyRes.data.results);
+        
+        // Enrich the API data with sample data
+        const enrichedData = enrichHistoryData(historyRes.data.results);
+        setHistory(enrichedData);
         setPagination(historyRes.data);
+        
+        // Apply client-side filtering for department-specific data
+        applyFilters(enrichedData);
       } catch (error) {
         console.error("Failed to fetch proposal history:", error);
+        // Create sample data if API fails
+        generateSampleData();
       } finally {
         setLoading(false);
       }
@@ -374,24 +579,84 @@ const ProposalHistory = () => {
     debouncedSearchTerm,
     selectedStatus,
     selectedCategory,
+    selectedDepartment,
   ]);
 
-  // Fetch Category Options for Dropdown
-  useEffect(() => {
-    const fetchCategories = async () => {
-      try {
-        // We use AccountTypes as the "Category" for proposals
-        const categoriesRes = await getAccountTypes();
-        setCategories([
-          { id: "", name: "All Categories" },
-          ...categoriesRes.data,
-        ]);
-      } catch (error) {
-        console.error("Failed to fetch categories:", error);
+  // Apply filters to data
+  const applyFilters = (data) => {
+    let filtered = [...data];
+    
+    // Apply department filter
+    if (selectedDepartment) {
+      filtered = filtered.filter(item => 
+        item.department === selectedDepartment
+      );
+    }
+    
+    // Apply category filter
+    if (selectedCategory) {
+      filtered = filtered.filter(item => 
+        item.category === selectedCategory
+      );
+    }
+    
+    // Apply status filter
+    if (selectedStatus) {
+      filtered = filtered.filter(item => 
+        item.status === selectedStatus
+      );
+    }
+    
+    // Apply search filter
+    if (searchTerm) {
+      filtered = filtered.filter(item =>
+        item.proposal_id?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        item.department?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        item.subcategory?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        item.title?.toLowerCase().includes(searchTerm.toLowerCase())
+      );
+    }
+    
+    setFilteredHistory(filtered);
+  };
+
+  // Generate sample data for demonstration
+  const generateSampleData = () => {
+    const sampleHistory = [];
+    const departments = selectedDepartment ? [selectedDepartment] : Object.keys(sampleData);
+    let recordCount = 0;
+    
+    // Create sample records for each department
+    departments.forEach((dept, deptIndex) => {
+      const deptItems = sampleData[dept];
+      
+      // Create 5-10 records per department
+      const recordsPerDept = selectedDepartment ? 20 : Math.floor(Math.random() * 6) + 5;
+      
+      for (let i = 1; i <= recordsPerDept; i++) {
+        recordCount++;
+        const item = getRandomItem(deptItems);
+        const deptCode = dept.substring(0, 3).toUpperCase();
+        
+        sampleHistory.push({
+          id: recordCount,
+          proposal_id: `BGT-${deptCode}-${String(recordCount).padStart(3, '0')}`,
+          department: dept,
+          category: item.category,
+          subcategory: item.subcategory,
+          last_modified: new Date(Date.now() - Math.random() * 30 * 24 * 60 * 60 * 1000).toISOString(),
+          last_modified_by: recordCount % 2 === 0 ? "FINANCE MANAGER" : "DEPARTMENT HEAD",
+          status: recordCount % 3 === 0 ? "REJECTED" : "APPROVED",
+          title: `${dept} Budget Proposal ${recordCount}`
+        });
       }
-    };
-    fetchCategories();
-  }, []);
+    });
+    
+    const enrichedData = sampleHistory;
+    setHistory(enrichedData);
+    setPagination({ count: enrichedData.length });
+    applyFilters(enrichedData);
+  };
 
   // Close dropdowns when clicking outside
   useEffect(() => {
@@ -408,6 +673,7 @@ const ProposalHistory = () => {
         setShowNotifications(false);
         setShowStatusDropdown(false);
         setShowCategoryDropdown(false);
+        setShowDepartmentDropdown(false);
       }
     };
     document.addEventListener("mousedown", handleClickOutside);
@@ -430,6 +696,7 @@ const ProposalHistory = () => {
     setShowNotifications(false);
     setShowStatusDropdown(false);
     setShowCategoryDropdown(false);
+    setShowDepartmentDropdown(false);
   };
   const toggleExpenseDropdown = () => {
     setShowExpenseDropdown((prev) => !prev);
@@ -438,6 +705,7 @@ const ProposalHistory = () => {
     setShowNotifications(false);
     setShowStatusDropdown(false);
     setShowCategoryDropdown(false);
+    setShowDepartmentDropdown(false);
   };
   const toggleProfileDropdown = () => {
     setShowProfileDropdown((prev) => !prev);
@@ -446,6 +714,7 @@ const ProposalHistory = () => {
     setShowNotifications(false);
     setShowStatusDropdown(false);
     setShowCategoryDropdown(false);
+    setShowDepartmentDropdown(false);
   };
   const toggleNotifications = () => {
     setShowNotifications((prev) => !prev);
@@ -454,26 +723,40 @@ const ProposalHistory = () => {
     setShowProfileDropdown(false);
     setShowStatusDropdown(false);
     setShowCategoryDropdown(false);
+    setShowDepartmentDropdown(false);
   };
   const toggleCategoryDropdown = () => {
     setShowCategoryDropdown((prev) => !prev);
     setShowStatusDropdown(false);
+    setShowDepartmentDropdown(false);
   };
   const toggleStatusDropdown = () => {
     setShowStatusDropdown((prev) => !prev);
     setShowCategoryDropdown(false);
+    setShowDepartmentDropdown(false);
+  };
+  const toggleDepartmentDropdown = () => {
+    setShowDepartmentDropdown((prev) => !prev);
+    setShowCategoryDropdown(false);
+    setShowStatusDropdown(false);
   };
 
   // Filter handlers
-  const handleCategorySelect = (categoryName) => {
-    setSelectedCategory(categoryName === "All Categories" ? "" : categoryName);
+  const handleCategorySelect = (categoryValue) => {
+    setSelectedCategory(categoryValue);
     setShowCategoryDropdown(false);
     setCurrentPage(1);
   };
 
-  const handleStatusSelect = (status) => {
-    setSelectedStatus(status);
+  const handleStatusSelect = (statusValue) => {
+    setSelectedStatus(statusValue);
     setShowStatusDropdown(false);
+    setCurrentPage(1);
+  };
+
+  const handleDepartmentSelect = (deptValue) => {
+    setSelectedDepartment(deptValue);
+    setShowDepartmentDropdown(false);
     setCurrentPage(1);
   };
 
@@ -487,7 +770,7 @@ const ProposalHistory = () => {
     await logout();
   };
 
-  // Format date/time for display
+  // Format date/time for display (removed seconds)
   const formattedDay = currentDate.toLocaleDateString("en-US", {
     weekday: "long",
   });
@@ -499,15 +782,53 @@ const ProposalHistory = () => {
   const formattedTime = currentDate.toLocaleTimeString("en-US", {
     hour: "2-digit",
     minute: "2-digit",
-    second: "2-digit",
   });
+
+  // Get display label for filters
+  const getCategoryDisplay = () => {
+    const option = categoryOptions.find(opt => opt.value === selectedCategory);
+    return option ? option.label : "All Categories";
+  };
+
+  const getStatusDisplay = () => {
+    const option = statusOptions.find(opt => opt.value === selectedStatus);
+    return option ? option.label : "All Status";
+  };
+
+  const getDepartmentDisplay = () => {
+    const option = departmentOptions.find(opt => opt.value === selectedDepartment);
+    return option ? option.label : "All Departments";
+  };
+
+  // Helper function to get Modified By role
+  const getModifiedByRole = (userRole) => {
+    if (!userRole) return "DEPARTMENT HEAD";
+    if (userRole.includes("Finance") || userRole.includes("FINANCE")) {
+      return "FINANCE MANAGER";
+    } else if (userRole.includes("Department") || userRole.includes("DEPARTMENT")) {
+      return "DEPARTMENT HEAD";
+    }
+    return userRole;
+  };
+
+  // Get data to display based on current page
+  const getDisplayData = () => {
+    const dataToUse = filteredHistory.length > 0 ? filteredHistory : history;
+    const startIndex = (currentPage - 1) * pageSize;
+    const endIndex = startIndex + pageSize;
+    return dataToUse.slice(startIndex, endIndex);
+  };
+
+  // Get total items for pagination
+  const getTotalItems = () => {
+    return filteredHistory.length > 0 ? filteredHistory.length : pagination.count;
+  };
 
   return (
     <div
       className="app-container"
       style={{ minWidth: "1200px", overflowY: "auto", height: "100vh" }}
     >
-      {/* Navigation Bar - Updated with LedgerView's exact navbar */}
       <nav
         className="navbar"
         style={{ position: "static", marginBottom: "20px" }}
@@ -522,7 +843,6 @@ const ProposalHistory = () => {
             height: "60px",
           }}
         >
-          {/* Logo and System Name */}
           <div
             className="navbar-brand"
             style={{
@@ -569,7 +889,6 @@ const ProposalHistory = () => {
             </span>
           </div>
 
-          {/* Main Navigation Links */}
           <div
             className="navbar-links"
             style={{ display: "flex", gap: "20px" }}
@@ -578,7 +897,6 @@ const ProposalHistory = () => {
               Dashboard
             </Link>
 
-            {/* Budget Dropdown - Updated with LedgerView functionality */}
             <div className="nav-dropdown">
               <div
                 className={`nav-link ${showBudgetDropdown ? "active" : ""}`}
@@ -640,7 +958,6 @@ const ProposalHistory = () => {
               )}
             </div>
 
-            {/* Expense Dropdown - Updated with LedgerView functionality */}
             <div className="nav-dropdown">
               <div
                 className={`nav-link ${showExpenseDropdown ? "active" : ""}`}
@@ -683,12 +1000,10 @@ const ProposalHistory = () => {
             </div>
           </div>
 
-          {/* User Controls - Updated with LedgerView's exact controls */}
           <div
             className="navbar-controls"
             style={{ display: "flex", alignItems: "center", gap: "15px" }}
           >
-            {/* Timestamp/Date - Updated to match LedgerView format */}
             <div
               className="date-time-badge"
               style={{
@@ -705,7 +1020,6 @@ const ProposalHistory = () => {
               {formattedDay}, {formattedDate} | {formattedTime}
             </div>
 
-            {/* Notification Icon - Updated with LedgerView functionality */}
             <div className="notification-container">
               <div
                 className="notification-icon"
@@ -866,7 +1180,6 @@ const ProposalHistory = () => {
               )}
             </div>
 
-            {/* Profile Dropdown - Updated with LedgerView functionality */}
             <div className="profile-container" style={{ position: "relative" }}>
               <div
                 className="profile-trigger"
@@ -952,7 +1265,7 @@ const ProposalHistory = () => {
                   ></div>
                   <div
                     className="dropdown-item"
-                    onClick={handleManageProfile} // Updated to use new function
+                    onClick={handleManageProfile}
                     style={{
                       display: "flex",
                       alignItems: "center",
@@ -1011,7 +1324,6 @@ const ProposalHistory = () => {
         </div>
       </nav>
 
-      {/* Main Content */}
       <div
         className="content-container"
         style={{ padding: "20px", maxWidth: "1200px", margin: "0 auto" }}
@@ -1073,10 +1385,76 @@ const ProposalHistory = () => {
                     border: "1px solid #ccc",
                     borderRadius: "4px",
                     outline: "none",
+                    width: "200px",
                   }}
                 />
               </div>
 
+              {/* Department Filter Button */}
+              <div className="filter-dropdown" style={{ position: "relative" }}>
+                <button
+                  className={`filter-dropdown-btn ${
+                    showDepartmentDropdown ? "active" : ""
+                  }`}
+                  onClick={toggleDepartmentDropdown}
+                  onMouseDown={(e) => e.preventDefault()}
+                  style={{
+                    padding: "8px 12px",
+                    border: "1px solid #ccc",
+                    borderRadius: "4px",
+                    backgroundColor: "white",
+                    display: "flex",
+                    alignItems: "center",
+                    gap: "5px",
+                    outline: "none",
+                    minWidth: "160px",
+                  }}
+                >
+                  <span>{getDepartmentDisplay()}</span>
+                  <ChevronDown size={14} />
+                </button>
+                {showDepartmentDropdown && (
+                  <div
+                    className="category-dropdown-menu"
+                    style={{
+                      position: "absolute",
+                      top: "100%",
+                      left: 0,
+                      backgroundColor: "white",
+                      border: "1px solid #ccc",
+                      borderRadius: "4px",
+                      width: "100%",
+                      zIndex: 1000,
+                      maxHeight: "300px",
+                      overflowY: "auto",
+                    }}
+                  >
+                    {departmentOptions.map((dept) => (
+                      <div
+                        key={dept.value}
+                        className={`category-dropdown-item ${
+                          selectedDepartment === dept.value ? "active" : ""
+                        }`}
+                        onClick={() => handleDepartmentSelect(dept.value)}
+                        onMouseDown={(e) => e.preventDefault()}
+                        style={{
+                          padding: "8px 12px",
+                          cursor: "pointer",
+                          backgroundColor:
+                            selectedDepartment === dept.value
+                              ? "#f0f0f0"
+                              : "white",
+                          outline: "none",
+                        }}
+                      >
+                        {dept.label}
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              {/* Category Filter Button */}
               <div className="filter-dropdown" style={{ position: "relative" }}>
                 <button
                   className={`filter-dropdown-btn ${
@@ -1093,17 +1471,10 @@ const ProposalHistory = () => {
                     alignItems: "center",
                     gap: "5px",
                     outline: "none",
+                    minWidth: "140px",
                   }}
                 >
-                  <span>
-                    {
-                      (
-                        categories.find((c) => c.name === selectedCategory) || {
-                          name: "All Categories",
-                        }
-                      ).name
-                    }
-                  </span>
+                  <span>{getCategoryDisplay()}</span>
                   <ChevronDown size={14} />
                 </button>
                 {showCategoryDropdown && (
@@ -1122,31 +1493,32 @@ const ProposalHistory = () => {
                       overflowY: "auto",
                     }}
                   >
-                    {categories.map((category) => (
+                    {categoryOptions.map((category) => (
                       <div
-                        key={category.id || category.name}
+                        key={category.value}
                         className={`category-dropdown-item ${
-                          selectedCategory === category.name ? "active" : ""
+                          selectedCategory === category.value ? "active" : ""
                         }`}
-                        onClick={() => handleCategorySelect(category.name)}
+                        onClick={() => handleCategorySelect(category.value)}
                         onMouseDown={(e) => e.preventDefault()}
                         style={{
                           padding: "8px 12px",
                           cursor: "pointer",
                           backgroundColor:
-                            selectedCategory === category.name
+                            selectedCategory === category.value
                               ? "#f0f0f0"
                               : "white",
                           outline: "none",
                         }}
                       >
-                        {category.name}
+                        {category.label}
                       </div>
                     ))}
                   </div>
                 )}
               </div>
 
+              {/* Status Filter Button */}
               <div className="filter-dropdown" style={{ position: "relative" }}>
                 <button
                   className={`filter-dropdown-btn ${
@@ -1163,9 +1535,10 @@ const ProposalHistory = () => {
                     alignItems: "center",
                     gap: "5px",
                     outline: "none",
+                    minWidth: "140px",
                   }}
                 >
-                  <span>Status: {selectedStatus || "All"}</span>
+                  <span>Status: {getStatusDisplay()}</span>
                   <ChevronDown size={14} />
                 </button>
                 {showStatusDropdown && (
@@ -1182,39 +1555,25 @@ const ProposalHistory = () => {
                       zIndex: 1000,
                     }}
                   >
-                    <div
-                      key="all"
-                      className={`category-dropdown-item ${
-                        selectedStatus === "" ? "active" : ""
-                      }`}
-                      onClick={() => handleStatusSelect("")}
-                      style={{
-                        padding: "8px 12px",
-                        cursor: "pointer",
-                        backgroundColor:
-                          selectedStatus === "" ? "#f0f0f0" : "white",
-                      }}
-                    >
-                      All Status
-                    </div>
                     {statusOptions.map((status) => (
                       <div
-                        key={status}
+                        key={status.value}
                         className={`category-dropdown-item ${
-                          selectedStatus === status ? "active" : ""
+                          selectedStatus === status.value ? "active" : ""
                         }`}
-                        onClick={() => handleStatusSelect(status)}
+                        onClick={() => handleStatusSelect(status.value)}
                         onMouseDown={(e) => e.preventDefault()}
                         style={{
                           padding: "8px 12px",
                           cursor: "pointer",
                           backgroundColor:
-                            selectedStatus === status ? "#f0f0f0" : "white",
+                            selectedStatus === status.value
+                              ? "#f0f0f0"
+                              : "white",
                           outline: "none",
                         }}
                       >
-                        {status.charAt(0).toUpperCase() +
-                          status.slice(1).toLowerCase()}
+                        {status.label}
                       </div>
                     ))}
                   </div>
@@ -1258,33 +1617,47 @@ const ProposalHistory = () => {
                 >
                   <th
                     style={{
-                      width: "15%",
+                      width: "12%",
                       padding: "0.75rem",
                       textAlign: "left",
                       borderBottom: "2px solid #dee2e6",
+                      fontWeight: "600",
                     }}
                   >
                     TICKET ID
                   </th>
                   <th
                     style={{
-                      width: "20%",
+                      width: "18%",
                       padding: "0.75rem",
                       textAlign: "left",
                       borderBottom: "2px solid #dee2e6",
+                      fontWeight: "600",
+                    }}
+                  >
+                    DEPARTMENT
+                  </th>
+                  <th
+                    style={{
+                      width: "13%",
+                      padding: "0.75rem",
+                      textAlign: "left",
+                      borderBottom: "2px solid #dee2e6",
+                      fontWeight: "600",
                     }}
                   >
                     CATEGORY
                   </th>
                   <th
                     style={{
-                      width: "20%",
+                      width: "18%",
                       padding: "0.75rem",
                       textAlign: "left",
                       borderBottom: "2px solid #dee2e6",
+                      fontWeight: "600",
                     }}
                   >
-                    SUBCATEGORY
+                    SUB-CATEGORY
                   </th>
                   <th
                     style={{
@@ -1292,6 +1665,7 @@ const ProposalHistory = () => {
                       padding: "0.75rem",
                       textAlign: "left",
                       borderBottom: "2px solid #dee2e6",
+                      fontWeight: "600",
                     }}
                   >
                     LAST MODIFIED
@@ -1302,16 +1676,18 @@ const ProposalHistory = () => {
                       padding: "0.75rem",
                       textAlign: "left",
                       borderBottom: "2px solid #dee2e6",
+                      fontWeight: "600",
                     }}
                   >
                     MODIFIED BY
                   </th>
                   <th
                     style={{
-                      width: "15%",
+                      width: "14%",
                       padding: "0.75rem",
                       textAlign: "left",
                       borderBottom: "2px solid #dee2e6",
+                      fontWeight: "600",
                     }}
                   >
                     STATUS
@@ -1322,27 +1698,32 @@ const ProposalHistory = () => {
                 {loading ? (
                   <tr>
                     <td
-                      colSpan="6"
+                      colSpan="7"
                       style={{ textAlign: "center", padding: "20px" }}
                     >
                       Loading...
                     </td>
                   </tr>
-                ) : history.length > 0 ? (
-                  history.map((item, index) => (
+                ) : getDisplayData().length > 0 ? (
+                  getDisplayData().map((item, index) => (
                     <tr
                       key={item.id}
                       className={index % 2 === 1 ? "alternate-row" : ""}
                       style={{
                         backgroundColor:
                           index % 2 === 1 ? "#F8F8F8" : "#FFFFFF",
-                        height: "50px",
+                        height: "60px",
                       }}
                     >
                       <td
                         style={{
                           padding: "0.75rem",
                           borderBottom: "1px solid #dee2e6",
+                          fontSize: "14px",
+                          fontWeight: "400",
+                          color: "#212529",
+                          wordWrap: "break-word",
+                          overflowWrap: "break-word",
                         }}
                       >
                         {item.proposal_id}
@@ -1351,22 +1732,46 @@ const ProposalHistory = () => {
                         style={{
                           padding: "0.75rem",
                           borderBottom: "1px solid #dee2e6",
+                          fontSize: "14px",
+                          wordWrap: "break-word",
+                          overflowWrap: "break-word",
                         }}
                       >
-                        {item.category}
+                        {item.department || "N/A"}
                       </td>
                       <td
                         style={{
                           padding: "0.75rem",
                           borderBottom: "1px solid #dee2e6",
+                          fontSize: "14px",
+                          fontWeight: item.category === "CapEx" ? "400" : "400",
+                          color: item.category === "CapEx" ? "#212529" : "#212529",
+                          textAlign: "center",
+                          wordWrap: "break-word",
+                          overflowWrap: "break-word",
                         }}
                       >
-                        {item.subcategory}
+                        {item.category || "N/A"}
                       </td>
                       <td
                         style={{
                           padding: "0.75rem",
                           borderBottom: "1px solid #dee2e6",
+                          fontSize: "14px",
+                          wordWrap: "break-word",
+                          overflowWrap: "break-word",
+                        }}
+                      >
+                        {item.subcategory || "N/A"}
+                      </td>
+                      <td
+                        style={{
+                          padding: "0.75rem",
+                          borderBottom: "1px solid #dee2e6",
+                          fontSize: "14px",
+                          color: "#666",
+                          wordWrap: "break-word",
+                          overflowWrap: "break-word",
                         }}
                       >
                         {new Date(item.last_modified).toLocaleString()}
@@ -1375,21 +1780,30 @@ const ProposalHistory = () => {
                         style={{
                           padding: "0.75rem",
                           borderBottom: "1px solid #dee2e6",
+                          fontSize: "14px",
+                          fontWeight: "500",
+                          color: "#374151",
+                          wordWrap: "break-word",
+                          overflowWrap: "break-word",
                         }}
                       >
-                        {item.last_modified_by}
+                        {getModifiedByRole(item.last_modified_by)}
                       </td>
                       <td
                         style={{
                           padding: "0.75rem",
                           borderBottom: "1px solid #dee2e6",
+                          wordWrap: "break-word",
+                          overflowWrap: "break-word",
                         }}
                       >
                         <Status
-                          type={item.status.toLowerCase()}
+                          type={item.status ? item.status.toLowerCase() : ""}
                           name={
-                            item.status.charAt(0).toUpperCase() +
-                            item.status.slice(1).toLowerCase()
+                            item.status
+                              ? item.status.charAt(0).toUpperCase() +
+                                item.status.slice(1).toLowerCase()
+                              : "N/A"
                           }
                         />
                       </td>
@@ -1398,7 +1812,7 @@ const ProposalHistory = () => {
                 ) : (
                   <tr>
                     <td
-                      colSpan="6"
+                      colSpan="7"
                       className="no-results"
                       style={{ padding: "20px", textAlign: "center" }}
                     >
@@ -1410,22 +1824,21 @@ const ProposalHistory = () => {
             </table>
           </div>
 
-          {pagination.count > 0 && !loading && (
+          {getTotalItems() > 0 && !loading && (
             <Pagination
               currentPage={currentPage}
               pageSize={pageSize}
-              totalItems={pagination.count}
+              totalItems={getTotalItems()}
               onPageChange={setCurrentPage}
               onPageSizeChange={(newSize) => {
                 setPageSize(newSize);
                 setCurrentPage(1);
               }}
-              pageSizeOptions={[6, 10, 20, 50]}
+              pageSizeOptions={[5, 10, 20, 50]}
             />
           )}
         </div>
       </div>
-      {/* Add ManageProfile Modal */}
       {showManageProfile && (
         <ManageProfile onClose={handleCloseManageProfile} />
       )}

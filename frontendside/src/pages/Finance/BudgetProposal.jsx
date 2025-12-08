@@ -9,6 +9,9 @@ import {
   LogOut,
   ArrowLeft,
   Search,
+  Printer,
+  Upload,
+  X,
 } from "lucide-react";
 import { Link, useNavigate } from "react-router-dom";
 import LOGOMAP from "../../assets/MAP.jpg";
@@ -19,9 +22,9 @@ import {
   getProposalDetail,
   reviewProposal,
 } from "../../API/proposalAPI";
-import { getAccountTypes } from "../../API/dropdownAPI"; // Assuming you create this
+import { getAccountTypes } from "../../API/dropdownAPI";
 
-import { useAuth } from "../../context/AuthContext"; // Import useAuth
+import { useAuth } from "../../context/AuthContext";
 import ManageProfile from "./ManageProfile";
 
 // Status Component - Copied from ProposalHistory
@@ -68,7 +71,6 @@ const Pagination = ({
     const sideButtons = Math.floor(pageLimit / 2);
 
     if (totalPages <= pageLimit + 2) {
-      // Show all pages if few
       for (let i = 1; i <= totalPages; i++) {
         pages.push(
           <button
@@ -92,7 +94,6 @@ const Pagination = ({
         );
       }
     } else {
-      // Always show first page
       pages.push(
         <button
           key={1}
@@ -165,7 +166,6 @@ const Pagination = ({
         );
       }
 
-      // Always show last page
       pages.push(
         <button
           key={totalPages}
@@ -202,7 +202,6 @@ const Pagination = ({
         padding: "10px 0",
       }}
     >
-      {/* Left Side: Page Size Selector */}
       <div
         className="pageSizeSelector"
         style={{ display: "flex", alignItems: "center", gap: "8px" }}
@@ -230,7 +229,6 @@ const Pagination = ({
         <span style={{ fontSize: "14px" }}>items per page</span>
       </div>
 
-      {/* Right Side: Page Navigation */}
       <div
         className="pageNavigation"
         style={{ display: "flex", alignItems: "center", gap: "5px" }}
@@ -277,14 +275,247 @@ const Pagination = ({
   );
 };
 
+// Signature Upload Component - UPDATED with softer Remove button
+const SignatureUpload = ({ value, onChange }) => {
+  const [preview, setPreview] = useState(value || "");
+  const [file, setFile] = useState(null);
+
+  const handleFileChange = (e) => {
+    const file = e.target.files[0];
+    if (file) {
+      // Check file type
+      const validTypes = ['image/png', 'image/jpeg', 'image/jpg', 'image/svg+xml'];
+      if (!validTypes.includes(file.type)) {
+        alert('Please upload a valid image file (PNG, JPG, JPEG, SVG)');
+        return;
+      }
+
+      // Check file size (max 5MB)
+      if (file.size > 5 * 1024 * 1024) {
+        alert('File size should be less than 5MB');
+        return;
+      }
+
+      setFile(file);
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        const dataURL = e.target.result;
+        setPreview(dataURL);
+        if (onChange) onChange(dataURL);
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
+  const removeFile = () => {
+    setFile(null);
+    setPreview("");
+    if (onChange) onChange("");
+  };
+
+  return (
+    <div style={{ position: 'relative' }}>
+      {preview ? (
+        <div style={{ position: 'relative' }}>
+          <img
+            src={preview}
+            alt="Signature Preview"
+            style={{
+              maxWidth: '300px',
+              maxHeight: '100px',
+              border: '1px solid #ccc',
+              borderRadius: '4px',
+              padding: '5px',
+              backgroundColor: '#f8f9fa'
+            }}
+          />
+          <button
+            type="button"
+            onClick={removeFile}
+            style={{
+              marginTop: '8px',
+              padding: '4px 12px',
+              backgroundColor: '#adb5bd', // SOFTER COLOR
+              color: 'white',
+              border: 'none',
+              borderRadius: '4px',
+              cursor: 'pointer',
+              fontSize: '12px',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '4px',
+              transition: 'background-color 0.2s'
+            }}
+            onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#6c757d'}
+            onMouseLeave={(e) => e.currentTarget.style.backgroundColor = '#adb5bd'}
+          >
+            <X size={12} />
+            Remove
+          </button>
+        </div>
+      ) : (
+        <div
+          style={{
+            border: '2px dashed #ccc',
+            borderRadius: '4px',
+            padding: '20px',
+            textAlign: 'center',
+            cursor: 'pointer',
+            backgroundColor: '#f8f9fa',
+            minHeight: '100px',
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
+            justifyContent: 'center',
+          }}
+          onClick={() => document.getElementById('signature-upload').click()}
+        >
+          <Upload size={24} style={{ marginBottom: '8px', color: '#666' }} />
+          <div style={{ color: '#666', marginBottom: '4px' }}>
+            Click to upload signature file
+          </div>
+          <div style={{ fontSize: '12px', color: '#999' }}>
+            PNG, JPG, SVG up to 5MB
+          </div>
+        </div>
+      )}
+      
+      <input
+        id="signature-upload"
+        type="file"
+        accept=".png,.jpg,.jpeg,.svg"
+        onChange={handleFileChange}
+        style={{ display: 'none' }}
+      />
+      
+      {file && (
+        <div style={{ marginTop: '8px', fontSize: '12px', color: '#666' }}>
+          File: {file.name}
+        </div>
+      )}
+    </div>
+  );
+};
+
+// Updated Department data structure based on your requirements
+const departmentData = {
+  "Merchandise Planning": [
+    "Product Range Planning",
+    "Buying Costs",
+    "Market Research",
+    "Inventory Handling Fees",
+    "Supplier Coordination",
+    "Seasonal Planning Tools",
+    "Training",
+    "Travel",
+    "Software Subscription"
+  ],
+  "Store Operations": [
+    "Store Consumables",
+    "POS Maintenance",
+    "Store Repairs",
+    "Sales Incentives",
+    "Uniforms",
+    "Store Opening Expenses",
+    "Store Supplies",
+    "Training",
+    "Travel",
+    "Utilities"
+  ],
+  "Marketing": [
+    "Campaign Budget",
+    "Branding Materials",
+    "Digital Ads",
+    "Social Media Management",
+    "Events Budget",
+    "Influencer Fees",
+    "Photography/Videography",
+    "Software Subscription",
+    "Training",
+    "Travel"
+  ],
+  "Operations": [
+    "Equipment Maintenance",
+    "Fleet/Vehicle Expenses",
+    "Operational Supplies",
+    "Business Permits",
+    "Facility Utilities",
+    "Compliance Costs",
+    "Training",
+    "Office Supplies"
+  ],
+  "IT": [
+    "Server Hosting",
+    "Software Licenses",
+    "Cloud Subscriptions",
+    "Hardware Purchases",
+    "Data Tools",
+    "Cybersecurity Costs",
+    "API Subscription Fees",
+    "Domain Renewals",
+    "Training",
+    "Office Supplies"
+  ],
+  "Logistics": [
+    "Shipping Costs",
+    "Warehouse Equipment",
+    "Transport & Fuel",
+    "Freight Fees",
+    "Vendor Delivery Charges",
+    "Storage Fees",
+    "Packaging Materials",
+    "Safety Gear",
+    "Training"
+  ],
+  "Human Resources": [
+    "Recruitment Expenses",
+    "Job Posting Fees",
+    "Employee Engagement Activities",
+    "Training & Workshops",
+    "Medical & Wellness Programs",
+    "Background Checks",
+    "HR Systems/Payroll Software",
+    "Office Supplies",
+    "Travel"
+  ]
+};
+
+// Sample employee names for Submitted By column
+const employeeNames = [
+  "John Doe",
+  "Mary Collins",
+  "Robert Johnson",
+  "Sarah Williams",
+  "Michael Brown",
+  "Jennifer Davis",
+  "David Miller",
+  "Lisa Wilson",
+  "James Taylor",
+  "Patricia Anderson"
+];
+
+// Sample finance operator names for auto-generation
+const financeOperatorNames = [
+  "Alexander Thompson",
+  "Sophia Rodriguez",
+  "Benjamin Chen",
+  "Olivia Martinez",
+  "William Kim"
+];
+
+// Categories (CapEx and Opex)
+const categoriesData = [
+  { id: "capex", name: "CapEx" },
+  { id: "opex", name: "Opex" }
+];
+
 const BudgetProposal = () => {
-  // State management
   const [showBudgetDropdown, setShowBudgetDropdown] = useState(false);
   const [showExpenseDropdown, setShowExpenseDropdown] = useState(false);
   const [showProfileDropdown, setShowProfileDropdown] = useState(false);
   const [showNotifications, setShowNotifications] = useState(false);
   const [selectedProposal, setSelectedProposal] = useState(null);
-  const [showReviewPopup, setShowReviewPopup] = useState(false);
+  const [showReviewPopup, setShowReviewPopup] = useState({ visible: false, readOnly: false });
   const [showCommentPopup, setShowCommentPopup] = useState(false);
   const [showConfirmationPopup, setShowConfirmationPopup] = useState(false);
   const [reviewComment, setReviewComment] = useState("");
@@ -292,17 +523,20 @@ const BudgetProposal = () => {
   const [rejectionReason, setRejectionReason] = useState("");
   const [searchTerm, setSearchTerm] = useState("");
   const [showCategoryDropdown, setShowCategoryDropdown] = useState(false);
-  const [showStatusDropdown, setShowStatusDropdown] = useState(false);
-
+  const [showDepartmentDropdown, setShowDepartmentDropdown] = useState(false);
+  
   const [showManageProfile, setShowManageProfile] = useState(false);
   
-  // New function to handle Manage Profile click
+  // Finance operator signature state - UPDATED with auto-generated name
+  const [financeOperatorName, setFinanceOperatorName] = useState(financeOperatorNames[0]); // Auto-generated default
+  const [financeOperatorSignature, setFinanceOperatorSignature] = useState("");
+  const [dateSubmitted] = useState(new Date().toISOString().split('T')[0]);
+  
   const handleManageProfile = () => {
     setShowManageProfile(true);
     setShowProfileDropdown(false);
   };
 
-  // New function to close Manage Profile
   const handleCloseManageProfile = () => {
     setShowManageProfile(false);
   };
@@ -310,7 +544,6 @@ const BudgetProposal = () => {
   const navigate = useNavigate();
   const { user, logout } = useAuth();
 
-  // --- MODIFICATION START: API Data State Management ---
   const [loading, setLoading] = useState(true);
   const [proposals, setProposals] = useState([]);
   const [summaryData, setSummaryData] = useState({
@@ -321,17 +554,13 @@ const BudgetProposal = () => {
   const [categories, setCategories] = useState([]);
   const [pagination, setPagination] = useState({ count: 0 });
 
-  // Filters State
-  const [selectedCategory, setSelectedCategory] = useState(""); // Stores category ID
-  const [selectedStatus, setSelectedStatus] = useState(""); // Stores status value e.g., 'SUBMITTED'
+  const [selectedCategory, setSelectedCategory] = useState("");
+  const [selectedDepartment, setSelectedDepartment] = useState("");
   const [debouncedSearchTerm, setDebouncedSearchTerm] = useState("");
 
-  // Pagination State
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize, setPageSize] = useState(5);
 
-
-  // User profile data
   const userProfile = {
     name: user ? `${user.first_name} ${user.last_name}` : "User",
     role: user?.roles?.bms || "User",
@@ -339,18 +568,16 @@ const BudgetProposal = () => {
       "https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?ixlib=rb-1.2.1&ixid=eyJhcHBfaWQiOjEyMDd9&auto=format&fit=facearea&facepad=2&w=256&h=256&q=80",
   };
 
-  // Current date state
   const [currentDate, setCurrentDate] = useState(new Date());
 
-  // Debounce search term
   useEffect(() => {
     const timerId = setTimeout(() => {
       setDebouncedSearchTerm(searchTerm);
-      setCurrentPage(1); // Reset to page 1 on search
+      setCurrentPage(1);
     }, 500);
     return () => clearTimeout(timerId);
   }, [searchTerm]);
-  // Update current date/time
+
   useEffect(() => {
     const interval = setInterval(() => {
       setCurrentDate(new Date());
@@ -369,10 +596,9 @@ const BudgetProposal = () => {
           page: currentPage,
           page_size: pageSize,
           search: debouncedSearchTerm,
-          status: selectedStatus,
           items__account__account_type__id: selectedCategory,
         };
-        // Remove empty params
+        
         Object.keys(params).forEach((key) => {
           if (params[key] === "" || params[key] === null) {
             delete params[key];
@@ -380,8 +606,56 @@ const BudgetProposal = () => {
         });
 
         const res = await getProposals(params);
-        setProposals(res.data.results);
-        setPagination(res.data);
+        
+        // Filter proposals based on selected department
+        let filteredProposals = res.data.results;
+        
+        // Apply department filter if selected
+        if (selectedDepartment) {
+          filteredProposals = filteredProposals.filter(proposal => {
+            // Get a department for the proposal based on index or other logic
+            const proposalDept = Object.keys(departmentData)[
+              filteredProposals.indexOf(proposal) % Object.keys(departmentData).length
+            ];
+            return proposalDept === selectedDepartment;
+          });
+        }
+        
+        // Add mock data for UI demonstration with proper department assignment
+        const enhancedProposals = filteredProposals.map((proposal, index) => {
+          // Determine department based on selected filter or round robin
+          let department;
+          let subCategory;
+          
+          if (selectedDepartment) {
+            department = selectedDepartment;
+            subCategory = departmentData[selectedDepartment]?.[index % departmentData[selectedDepartment].length] || "General";
+          } else {
+            const deptKeys = Object.keys(departmentData);
+            department = deptKeys[index % deptKeys.length];
+            subCategory = departmentData[department]?.[index % departmentData[department].length] || "General";
+          }
+          
+          // Determine category (CapEx or Opex) based on index
+          const category = index % 2 === 0 ? "CapEx" : "Opex";
+          
+          return {
+            ...proposal,
+            department: department,
+            sub_category: subCategory,
+            category: category,
+            submitted_by_person: employeeNames[index % employeeNames.length]
+          };
+        });
+        
+        setProposals(enhancedProposals);
+        
+        // Update pagination count based on filtered results
+        setPagination({
+          ...res.data,
+          count: enhancedProposals.length,
+          results: enhancedProposals
+        });
       } catch (error) {
         console.error("Failed to fetch proposals:", error);
       } finally {
@@ -393,12 +667,10 @@ const BudgetProposal = () => {
     currentPage,
     pageSize,
     debouncedSearchTerm,
-    selectedStatus,
     selectedCategory,
+    selectedDepartment, // Added dependency for department filtering
   ]);
-  // --- MODIFICATION END ---
 
-  // Format date and time for display
   const formattedDay = currentDate.toLocaleDateString("en-US", {
     weekday: "long",
   });
@@ -415,18 +687,18 @@ const BudgetProposal = () => {
     })
     .toUpperCase();
 
-  // --- MODIFICATION START: Fetch initial dropdown and summary data ---
   useEffect(() => {
     const fetchInitialData = async () => {
       try {
-        const [summaryRes, categoriesRes] = await Promise.all([
+        const [summaryRes] = await Promise.all([
           getProposalSummary(),
-          getAccountTypes(), // Use the API for account types as categories
         ]);
         setSummaryData(summaryRes.data);
+        
+        // Set categories to only CapEx and Opex
         setCategories([
           { id: "", name: "All Categories" },
-          ...categoriesRes.data,
+          ...categoriesData,
         ]);
       } catch (error) {
         console.error("Failed to fetch initial data:", error);
@@ -435,9 +707,6 @@ const BudgetProposal = () => {
     fetchInitialData();
   }, []);
 
-  // --- MODIFICATION END -
-
-  // Close dropdowns when clicking outside
   useEffect(() => {
     const handleClickOutside = (event) => {
       if (
@@ -450,7 +719,7 @@ const BudgetProposal = () => {
         setShowExpenseDropdown(false);
         setShowProfileDropdown(false);
         setShowNotifications(false);
-        setShowStatusDropdown(false);
+        setShowDepartmentDropdown(false);
         setShowCategoryDropdown(false);
       }
     };
@@ -461,15 +730,17 @@ const BudgetProposal = () => {
     };
   }, []);
 
-  // Status options
-  const statusOptions = [
-    { value: "", label: "All Status" },
-    { value: "SUBMITTED", label: "Pending" },
-    { value: "APPROVED", label: "Approved" },
-    { value: "REJECTED", label: "Rejected" },
+  const departments = [
+    { value: "", label: "All Departments" },
+    { value: "Merchandise Planning", label: "Merchandise Planning" },
+    { value: "Store Operations", label: "Store Operations" },
+    { value: "Marketing", label: "Marketing" },
+    { value: "Operations", label: "Operations" },
+    { value: "IT", label: "IT" },
+    { value: "Logistics", label: "Logistics" },
+    { value: "Human Resources", label: "Human Resources" }
   ];
 
-  // Rejection reasons
   const rejectionReasons = [
     "Budget Constraints",
     "Insufficient Justification",
@@ -478,14 +749,13 @@ const BudgetProposal = () => {
     "Other (Please specify in comments)",
   ];
 
-  // Navigation functions - Updated with LedgerView functionality
   const toggleBudgetDropdown = () => {
     setShowBudgetDropdown(!showBudgetDropdown);
     if (showExpenseDropdown) setShowExpenseDropdown(false);
     if (showProfileDropdown) setShowProfileDropdown(false);
     if (showNotifications) setShowNotifications(false);
     if (showCategoryDropdown) setShowCategoryDropdown(false);
-    if (showStatusDropdown) setShowStatusDropdown(false);
+    if (showDepartmentDropdown) setShowDepartmentDropdown(false);
   };
 
   const toggleExpenseDropdown = () => {
@@ -494,7 +764,7 @@ const BudgetProposal = () => {
     if (showProfileDropdown) setShowProfileDropdown(false);
     if (showNotifications) setShowNotifications(false);
     if (showCategoryDropdown) setShowCategoryDropdown(false);
-    if (showStatusDropdown) setShowStatusDropdown(false);
+    if (showDepartmentDropdown) setShowDepartmentDropdown(false);
   };
 
   const toggleProfileDropdown = () => {
@@ -503,7 +773,7 @@ const BudgetProposal = () => {
     if (showExpenseDropdown) setShowExpenseDropdown(false);
     if (showNotifications) setShowNotifications(false);
     if (showCategoryDropdown) setShowCategoryDropdown(false);
-    if (showStatusDropdown) setShowStatusDropdown(false);
+    if (showDepartmentDropdown) setShowDepartmentDropdown(false);
   };
 
   const toggleNotifications = () => {
@@ -512,20 +782,11 @@ const BudgetProposal = () => {
     if (showExpenseDropdown) setShowExpenseDropdown(false);
     if (showProfileDropdown) setShowProfileDropdown(false);
     if (showCategoryDropdown) setShowCategoryDropdown(false);
-    if (showStatusDropdown) setShowStatusDropdown(false);
+    if (showDepartmentDropdown) setShowDepartmentDropdown(false);
   };
 
-  const toggleCategoryDropdown = () => {
-    setShowCategoryDropdown(!showCategoryDropdown);
-    if (showStatusDropdown) setShowStatusDropdown(false);
-    if (showBudgetDropdown) setShowBudgetDropdown(false);
-    if (showExpenseDropdown) setShowExpenseDropdown(false);
-    if (showProfileDropdown) setShowProfileDropdown(false);
-    if (showNotifications) setShowNotifications(false);
-  };
-
-  const toggleStatusDropdown = () => {
-    setShowStatusDropdown(!showStatusDropdown);
+  const toggleDepartmentDropdown = () => {
+    setShowDepartmentDropdown(!showDepartmentDropdown);
     if (showCategoryDropdown) setShowCategoryDropdown(false);
     if (showBudgetDropdown) setShowBudgetDropdown(false);
     if (showExpenseDropdown) setShowExpenseDropdown(false);
@@ -533,15 +794,24 @@ const BudgetProposal = () => {
     if (showNotifications) setShowNotifications(false);
   };
 
+  const toggleCategoryDropdown = () => {
+    setShowCategoryDropdown(!showCategoryDropdown);
+    if (showDepartmentDropdown) setShowDepartmentDropdown(false);
+    if (showBudgetDropdown) setShowBudgetDropdown(false);
+    if (showExpenseDropdown) setShowExpenseDropdown(false);
+    if (showProfileDropdown) setShowProfileDropdown(false);
+    if (showNotifications) setShowNotifications(false);
+  };
+
+  const handleDepartmentSelect = (department) => {
+    setSelectedDepartment(department);
+    setShowDepartmentDropdown(false);
+    setCurrentPage(1); // Reset to first page when filter changes
+  };
+
   const handleCategorySelect = (categoryId) => {
     setSelectedCategory(categoryId);
     setShowCategoryDropdown(false);
-    setCurrentPage(1);
-  };
-
-  const handleStatusSelect = (statusValue) => {
-    setSelectedStatus(statusValue);
-    setShowStatusDropdown(false);
     setCurrentPage(1);
   };
 
@@ -552,20 +822,24 @@ const BudgetProposal = () => {
     setShowProfileDropdown(false);
     setShowNotifications(false);
     setShowCategoryDropdown(false);
-    setShowStatusDropdown(false);
+    setShowDepartmentDropdown(false);
   };
 
-  // Updated logout function
   const handleLogout = async () => {
     await logout();
   };
 
-  // Proposal review functions
   const handleReviewClick = async (proposal) => {
     try {
       const res = await getProposalDetail(proposal.id);
-      setSelectedProposal(res.data);
-      // Determine if view is read-only
+      const enhancedProposal = {
+        ...res.data,
+        department: proposal.department || "Merchandise Planning",
+        sub_category: proposal.sub_category || "General",
+        category: proposal.category || "CapEx",
+        submitted_by_person: proposal.submitted_by_person || "John Doe"
+      };
+      setSelectedProposal(enhancedProposal);
       const isReadOnly =
         res.data.status === "APPROVED" || res.data.status === "REJECTED";
       setShowReviewPopup({ visible: true, readOnly: isReadOnly });
@@ -582,7 +856,7 @@ const BudgetProposal = () => {
   };
 
   const handleStatusChange = (status) => {
-    setReviewStatus(status); // 'APPROVED' or 'REJECTED'
+    setReviewStatus(status);
     setShowConfirmationPopup(true);
   };
 
@@ -613,16 +887,138 @@ const BudgetProposal = () => {
         comment: finalComment,
       });
 
-      // Success, close popups and refetch data to show update
       closeConfirmationPopup();
       closeReviewPopup();
-      // Refetch by slightly changing a dependency of the main useEffect
-      setCurrentPage(1); // Resetting page is a good way to trigger refetch
-      // A more robust way would be a dedicated "refetch" state trigger
+      setCurrentPage(1);
     } catch (error) {
       console.error("Failed to submit review:", error);
-      // You could show an error message to the user here
     }
+  };
+
+  // Print function for the review popup
+  const handlePrint = () => {
+    const printWindow = window.open('', '_blank');
+    printWindow.document.write(`
+      <html>
+        <head>
+          <title>Ticket Review - ${selectedProposal?.reference || 'Proposal'}</title>
+          <style>
+            body { font-family: Arial, sans-serif; margin: 40px; }
+            .print-header { text-align: center; margin-bottom: 30px; border-bottom: 2px solid #000; padding-bottom: 20px; }
+            .print-header h1 { margin: 0; font-size: 24px; }
+            .print-header .date { color: #666; margin-top: 5px; }
+            .section { margin-bottom: 25px; }
+            .section h2 { border-bottom: 1px solid #ccc; padding-bottom: 8px; margin-bottom: 15px; font-size: 18px; }
+            .details-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 15px; margin-bottom: 20px; }
+            .detail-item { margin-bottom: 10px; }
+            .detail-item strong { display: inline-block; width: 200px; }
+            table { width: 100%; border-collapse: collapse; margin: 20px 0; }
+            th, td { border: 1px solid #ddd; padding: 12px; text-align: left; }
+            th { background-color: #f2f2f2; font-weight: bold; }
+            .cost-table th { background-color: #e9ecef; }
+            .total-row { font-weight: bold; background-color: #f8f9fa; }
+            .signature-section { margin-top: 40px; padding-top: 20px; border-top: 2px solid #000; }
+            .signature-line { border-bottom: 1px solid #000; margin: 20px 0; padding: 20px 0; }
+            @media print {
+              body { margin: 0; }
+              .no-print { display: none; }
+            }
+          </style>
+        </head>
+        <body>
+          <div class="print-header">
+            <h1>TICKET REVIEW</h1>
+            <div class="date">Printed on: ${new Date().toLocaleDateString()} ${new Date().toLocaleTimeString()}</div>
+          </div>
+          
+          <div class="section">
+            <h2>Ticket Information</h2>
+            <div class="details-grid">
+              <div class="detail-item"><strong>Ticket ID:</strong> ${selectedProposal?.reference || 'N/A'}</div>
+              <div class="detail-item"><strong>Title:</strong> ${selectedProposal?.title || selectedProposal?.subject || 'N/A'}</div>
+              <div class="detail-item"><strong>Date Submitted:</strong> ${selectedProposal?.submitted_at ? new Date(selectedProposal.submitted_at).toLocaleDateString() : 'N/A'}</div>
+              <div class="detail-item"><strong>Category:</strong> ${selectedProposal?.category || 'N/A'}</div>
+              <div class="detail-item"><strong>Sub-Category:</strong> ${selectedProposal?.sub_category || 'N/A'}</div>
+              <div class="detail-item"><strong>Department:</strong> ${selectedProposal?.department || 'N/A'}</div>
+              <div class="detail-item"><strong>Budget Amount:</strong> ₱${parseFloat(selectedProposal?.total_cost || selectedProposal?.amount || 0).toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</div>
+              <div class="detail-item"><strong>Submitted by:</strong> ${selectedProposal?.submitted_by_person || selectedProposal?.submitted_by_name || selectedProposal?.submitted_by || 'N/A'}</div>
+            </div>
+          </div>
+          
+          <div class="section">
+            <h2>Project Summary</h2>
+            <p>${selectedProposal?.project_summary || 'No summary provided.'}</p>
+          </div>
+          
+          <div class="section">
+            <h2>Project Description</h2>
+            <p>${selectedProposal?.project_description || 'No description provided.'}</p>
+          </div>
+          
+          ${selectedProposal?.performance_start_date && selectedProposal?.performance_end_date ? `
+          <div class="section">
+            <h2>Period of Performance</h2>
+            <p>${new Date(selectedProposal.performance_start_date).toLocaleDateString()} to ${new Date(selectedProposal.performance_end_date).toLocaleDateString()}</p>
+          </div>
+          ` : ''}
+          
+          ${selectedProposal?.items && selectedProposal.items.length > 0 ? `
+          <div class="section">
+            <h2>Cost Breakdown</h2>
+            <table class="cost-table">
+              <thead>
+                <tr>
+                  <th>COST ELEMENTS</th>
+                  <th>DESCRIPTION</th>
+                  <th>ESTIMATED COST</th>
+                </tr>
+              </thead>
+              <tbody>
+                ${selectedProposal.items.map(item => `
+                  <tr>
+                    <td>${item.cost_element || 'N/A'}</td>
+                    <td>${item.description || 'N/A'}</td>
+                    <td>₱${parseFloat(item.estimated_cost || 0).toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</td>
+                  </tr>
+                `).join('')}
+              </tbody>
+              <tfoot>
+                <tr class="total-row">
+                  <td colspan="2" style="text-align: right;"><strong>TOTAL AMOUNT:</strong></td>
+                  <td><strong>₱${parseFloat(selectedProposal?.total_cost || selectedProposal?.amount || 0).toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</strong></td>
+                </tr>
+              </tfoot>
+            </table>
+          </div>
+          ` : ''}
+          
+          <div class="section signature-section">
+            <h2>Finance Department Approval</h2>
+            <div style="margin: 30px 0;">
+              <div><strong>Finance Operator name:</strong> ${financeOperatorName || financeOperatorNames[0]}</div>
+              <div class="signature-line"></div>
+              <div style="margin-top: 10px;"><strong>Signature:</strong></div>
+              ${financeOperatorSignature ? `<div style="margin: 20px 0;"><img src="${financeOperatorSignature}" alt="Signature" style="max-width: 300px; height: auto;" /></div>` : '<div class="signature-line"></div>'}
+              <div style="margin-top: 20px;"><strong>Date submitted:</strong> ${new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}</div>
+            </div>
+          </div>
+          
+          <div class="no-print" style="text-align: center; margin-top: 50px; color: #666; font-size: 12px;">
+            <p>This is a system-generated document from BudgetPro</p>
+          </div>
+          
+          <script>
+            window.onload = function() {
+              window.print();
+              setTimeout(function() {
+                window.close();
+              }, 100);
+            };
+          </script>
+        </body>
+      </html>
+    `);
+    printWindow.document.close();
   };
 
   return (
@@ -645,7 +1041,6 @@ const BudgetProposal = () => {
             height: "60px",
           }}
         >
-          {/* Logo and System Name */}
           <div
             className="navbar-brand"
             style={{
@@ -692,7 +1087,6 @@ const BudgetProposal = () => {
             </span>
           </div>
 
-          {/* Main Navigation Links */}
           <div
             className="navbar-links"
             style={{ display: "flex", gap: "20px" }}
@@ -701,7 +1095,6 @@ const BudgetProposal = () => {
               Dashboard
             </Link>
 
-            {/* Budget Dropdown */}
             <div className="nav-dropdown">
               <div
                 className={`nav-link ${showBudgetDropdown ? "active" : ""}`}
@@ -763,7 +1156,6 @@ const BudgetProposal = () => {
               )}
             </div>
 
-            {/* Expense Dropdown */}
             <div className="nav-dropdown">
               <div
                 className={`nav-link ${showExpenseDropdown ? "active" : ""}`}
@@ -806,12 +1198,10 @@ const BudgetProposal = () => {
             </div>
           </div>
 
-          {/* User Controls */}
           <div
             className="navbar-controls"
             style={{ display: "flex", alignItems: "center", gap: "15px" }}
           >
-            {/* Timestamp/Date */}
             <div
               className="date-time-badge"
               style={{
@@ -828,7 +1218,6 @@ const BudgetProposal = () => {
               {formattedDay}, {formattedDate} | {formattedTime}
             </div>
 
-            {/* Notification Icon */}
             <div className="notification-container">
               <div
                 className="notification-icon"
@@ -989,7 +1378,6 @@ const BudgetProposal = () => {
               )}
             </div>
 
-            {/* Profile Dropdown */}
             <div className="profile-container" style={{ position: "relative" }}>
               <div
                 className="profile-trigger"
@@ -1138,12 +1526,11 @@ const BudgetProposal = () => {
         className="content-container"
         style={{ padding: "20px", maxWidth: "1200px", margin: "0 auto" }}
       >
-        {/* Conditionally render ManageProfile or the main content */}
         {showManageProfile ? (
           <ManageProfile onClose={handleCloseManageProfile} />
         ) : (
           <>
-            {/* Budget Summary Cards - Updated with new totals */}
+            {/* Budget Summary Cards */}
             <div
               className="budget-summary"
               style={{
@@ -1248,7 +1635,7 @@ const BudgetProposal = () => {
               </div>
             </div>
 
-            {/* Main Content - Updated with LedgerView Layout */}
+            {/* Main Content */}
             <div
               className="proposal-history"
               style={{
@@ -1262,7 +1649,7 @@ const BudgetProposal = () => {
                 minHeight: "calc(100vh - 240px)",
               }}
             >
-              {/* Header Section with Title and Controls - Updated with LedgerView styling */}
+              {/* Header Section with Title and Controls */}
               <div
                 className="top"
                 style={{
@@ -1288,7 +1675,7 @@ const BudgetProposal = () => {
                   className="controls-container"
                   style={{ display: "flex", gap: "10px" }}
                 >
-                  {/* Search Bar - Updated with LedgerView styling */}
+                  {/* Search Bar */}
                   <div style={{ position: "relative" }}>
                     <input
                       type="text"
@@ -1305,7 +1692,72 @@ const BudgetProposal = () => {
                     />
                   </div>
 
-                  {/* Category Filter - Updated with LedgerView styling */}
+                  {/* Department Filter */}
+                  <div className="filter-dropdown" style={{ position: "relative" }}>
+                    <button
+                      className={`filter-dropdown-btn ${
+                        showDepartmentDropdown ? "active" : ""
+                      }`}
+                      onClick={toggleDepartmentDropdown}
+                      onMouseDown={(e) => e.preventDefault()}
+                      style={{
+                        padding: "8px 12px",
+                        border: "1px solid #ccc",
+                        borderRadius: "4px",
+                        backgroundColor: "white",
+                        display: "flex",
+                        alignItems: "center",
+                        gap: "5px",
+                        outline: "none",
+                      }}
+                    >
+                      <span>
+                        {selectedDepartment ? selectedDepartment : "All Departments"}
+                      </span>
+                      <ChevronDown size={14} />
+                    </button>
+                    {showDepartmentDropdown && (
+                      <div
+                        className="category-dropdown-menu"
+                        style={{
+                          position: "absolute",
+                          top: "100%",
+                          left: 0,
+                          backgroundColor: "white",
+                          border: "1px solid #ccc",
+                          borderRadius: "4px",
+                          width: "100%",
+                          zIndex: 1000,
+                          maxHeight: "200px",
+                          overflowY: "auto",
+                        }}
+                      >
+                        {departments.map((dept) => (
+                          <div
+                            key={dept.value}
+                            className={`category-dropdown-item ${
+                              selectedDepartment === dept.value ? "active" : ""
+                            }`}
+                            onClick={() => handleDepartmentSelect(dept.value)}
+                            onMouseDown={(e) => e.preventDefault()}
+                            style={{
+                              padding: "8px 12px",
+                              cursor: "pointer",
+                              backgroundColor:
+                                selectedDepartment === dept.value
+                                  ? "#f0f0f0"
+                                  : "white",
+                              outline: "none",
+                            }}
+                          >
+                            {dept.label}
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Category Filter */}
                   <div className="filter-dropdown" style={{ position: "relative" }}>
                     <button
                       className={`filter-dropdown-btn ${
@@ -1347,8 +1799,8 @@ const BudgetProposal = () => {
                           borderRadius: "4px",
                           width: "100%",
                           zIndex: 1000,
-                          maxHeight: "200px", // Add max height for scrolling
-                          overflowY: "auto", // Add overflow for scrolling
+                          maxHeight: "200px",
+                          overflowY: "auto",
                         }}
                       >
                         {categories.map((category) => (
@@ -1375,77 +1827,6 @@ const BudgetProposal = () => {
                       </div>
                     )}
                   </div>
-
-                  {/* Status Filter - Updated with LedgerView styling */}
-                  <div className="filter-dropdown" style={{ position: "relative" }}>
-                    <button
-                      className={`filter-dropdown-btn ${
-                        showStatusDropdown ? "active" : ""
-                      }`}
-                      onClick={toggleStatusDropdown}
-                      onMouseDown={(e) => e.preventDefault()}
-                      style={{
-                        padding: "8px 12px",
-                        border: "1px solid #ccc",
-                        borderRadius: "4px",
-                        backgroundColor: "white",
-                        display: "flex",
-                        alignItems: "center",
-                        gap: "5px",
-                        outline: "none",
-                      }}
-                    >
-                      <span>
-                        Status:{" "}
-                        {
-                          (
-                            statusOptions.find(
-                              (s) => s.value === selectedStatus
-                            ) || { label: "All Status" }
-                          ).label
-                        }
-                      </span>
-                      <ChevronDown size={14} />
-                    </button>
-                    {showStatusDropdown && (
-                      <div
-                        className="category-dropdown-menu"
-                        style={{
-                          position: "absolute",
-                          top: "100%",
-                          left: 0,
-                          backgroundColor: "white",
-                          border: "1px solid #ccc",
-                          borderRadius: "4px",
-                          width: "100%",
-                          zIndex: 1000,
-                        }}
-                      >
-                        {statusOptions.map((status) => (
-                          <div
-                            key={status.value}
-                            className={`category-dropdown-item ${
-                              selectedStatus === status.value ? "active" : ""
-                            }`}
-                            onClick={() => handleStatusSelect(status.value)}
-                            onMouseDown={(e) => e.preventDefault()}
-                            style={{
-                              padding: "8px 12px",
-                              cursor: "pointer",
-                              backgroundColor:
-                                selectedStatus === status.value
-                                  ? "#f0f0f0"
-                                  : "white",
-                              outline: "none",
-                            }}
-                          >
-                            {/* MODIFICATION: Use the label property from the object */}
-                            {status.label}
-                          </div>
-                        ))}
-                      </div>
-                    )}
-                  </div>
                 </div>
               </div>
 
@@ -1458,11 +1839,11 @@ const BudgetProposal = () => {
                 }}
               ></div>
 
-              {/* Proposals Table - Updated with LedgerView table layout */}
+              {/* Proposals Table */}
               <div
                 style={{
-                  flex: "1 1 auto", // Allow this container to grow and fill space
-                  overflowY: "auto", // Make this container scrollable
+                  flex: "1 1 auto",
+                  overflowY: "auto",
                   border: "1px solid #e0e0e0",
                   borderRadius: "4px",
                 }}
@@ -1479,9 +1860,9 @@ const BudgetProposal = () => {
                     <tr style={{ backgroundColor: "#f8f9fa" }}>
                       <th
                         style={{
-                          position: "sticky", // Make header sticky
-                          top: 0, // Stick to the top of the scrollable container
-                          width: "14%",
+                          position: "sticky",
+                          top: 0,
+                          width: "18%",
                           padding: "0.75rem",
                           textAlign: "left",
                           borderBottom: "2px solid #dee2e6",
@@ -1496,7 +1877,7 @@ const BudgetProposal = () => {
                       </th>
                       <th
                         style={{
-                          width: "22%",
+                          width: "18%",
                           padding: "0.75rem",
                           textAlign: "left",
                           borderBottom: "2px solid #dee2e6",
@@ -1506,11 +1887,11 @@ const BudgetProposal = () => {
                           overflowWrap: "break-word",
                         }}
                       >
-                        DESCRIPTION
+                        DEPARTMENT
                       </th>
                       <th
                         style={{
-                          width: "20%",
+                          width: "13%",
                           padding: "0.75rem",
                           textAlign: "left",
                           borderBottom: "2px solid #dee2e6",
@@ -1524,7 +1905,21 @@ const BudgetProposal = () => {
                       </th>
                       <th
                         style={{
-                          width: "14%",
+                          width: "20%",
+                          padding: "0.75rem",
+                          textAlign: "left",
+                          borderBottom: "2px solid #dee2e6",
+                          height: "50px",
+                          verticalAlign: "middle",
+                          wordWrap: "break-word",
+                          overflowWrap: "break-word",
+                        }}
+                      >
+                        SUB-CATEGORY
+                      </th>
+                      <th
+                        style={{
+                          width: "15%",
                           padding: "0.75rem",
                           textAlign: "left",
                           borderBottom: "2px solid #dee2e6",
@@ -1538,7 +1933,7 @@ const BudgetProposal = () => {
                       </th>
                       <th
                         style={{
-                          width: "12%",
+                          width: "11%",
                           padding: "0.75rem",
                           textAlign: "left",
                           borderBottom: "2px solid #dee2e6",
@@ -1552,23 +1947,9 @@ const BudgetProposal = () => {
                       </th>
                       <th
                         style={{
-                          width: "14%",
+                          width: "13%",
                           padding: "0.75rem",
-                          textAlign: "middle",
-                          borderBottom: "2px solid #dee2e6",
-                          height: "50px",
-                          verticalAlign: "middle",
-                          wordWrap: "break-word",
-                          overflowWrap: "break-word",
-                        }}
-                      >
-                        STATUS
-                      </th>
-                      <th
-                        style={{
-                          width: "12%",
-                          padding: "0.75rem",
-                          textAlign: "left",
+                          textAlign: "center",
                           borderBottom: "2px solid #dee2e6",
                           height: "50px",
                           verticalAlign: "middle",
@@ -1581,7 +1962,6 @@ const BudgetProposal = () => {
                     </tr>
                   </thead>
                   <tbody>
-                    {/* MODIFICATION: Render proposals from API state */}
                     {loading ? (
                       <tr>
                         <td
@@ -1635,7 +2015,7 @@ const BudgetProposal = () => {
                               whiteSpace: "normal",
                             }}
                           >
-                            {proposal.subject}
+                            {proposal.department || "N/A"}
                           </td>
                           <td
                             style={{
@@ -1647,7 +2027,7 @@ const BudgetProposal = () => {
                               whiteSpace: "normal",
                             }}
                           >
-                            {proposal.category}
+                            {proposal.category || "N/A"}
                           </td>
                           <td
                             style={{
@@ -1659,7 +2039,19 @@ const BudgetProposal = () => {
                               whiteSpace: "normal",
                             }}
                           >
-                            {proposal.submitted_by}
+                            {proposal.sub_category || "N/A"}
+                          </td>
+                          <td
+                            style={{
+                              padding: "0.75rem",
+                              borderBottom: "1px solid #dee2e6",
+                              verticalAlign: "middle",
+                              wordWrap: "break-word",
+                              overflowWrap: "break-word",
+                              whiteSpace: "normal",
+                            }}
+                          >
+                            {proposal.submitted_by_person || proposal.submitted_by || "N/A"}
                           </td>
                           <td
                             style={{
@@ -1684,28 +2076,7 @@ const BudgetProposal = () => {
                               wordWrap: "break-word",
                               overflowWrap: "break-word",
                               whiteSpace: "normal",
-                            }}
-                          >
-                            <Status
-                              type={
-                                proposal.status ? proposal.status.toLowerCase() : ""
-                              }
-                              name={
-                                proposal.status
-                                  ? proposal.status.charAt(0) +
-                                    proposal.status.slice(1).toLowerCase()
-                                  : ""
-                              }
-                            />
-                          </td>
-                          <td
-                            style={{
-                              padding: "0.75rem",
-                              borderBottom: "1px solid #dee2e6",
-                              verticalAlign: "middle",
-                              wordWrap: "break-word",
-                              overflowWrap: "break-word",
-                              whiteSpace: "normal",
+                              textAlign: "center",
                             }}
                           >
                             <button
@@ -1715,21 +2086,20 @@ const BudgetProposal = () => {
                                 handleReviewClick(proposal);
                               }}
                               style={{
-                                padding: "6px 12px",
+                                padding: "4px 8px",
                                 backgroundColor: "#007bff",
                                 color: "white",
                                 border: "none",
                                 borderRadius: "4px",
                                 cursor: "pointer",
                                 fontSize: "12px",
-                                minWidth: "70px",
+                                minWidth: "60px",
                                 outline: "none",
+                                height: "28px",
+                                lineHeight: "20px",
                               }}
                             >
-                              {proposal.status === "APPROVED" ||
-                              proposal.status === "REJECTED"
-                                ? "View"
-                                : "Review"}
+                              REVIEW
                             </button>
                           </td>
                         </tr>
@@ -1746,7 +2116,9 @@ const BudgetProposal = () => {
                             verticalAlign: "middle",
                           }}
                         >
-                          No proposals match your search criteria.
+                          {selectedDepartment 
+                            ? `No proposals found for ${selectedDepartment} department`
+                            : "No proposals match your search criteria."}
                         </td>
                       </tr>
                     )}
@@ -1754,7 +2126,7 @@ const BudgetProposal = () => {
                 </table>
               </div>
 
-              {/* MODIFICATION: Use pagination info from API */}
+              {/* Pagination */}
               {pagination.count > 0 && !loading && (
                 <Pagination
                   currentPage={currentPage}
@@ -1773,9 +2145,7 @@ const BudgetProposal = () => {
         )}
       </div>
 
-      {/* All popup components remain unchanged */}
-      {/* Review Popup */}
-      {/* MODIFICATION START: Use object destructuring for showReviewPopup state */}
+      {/* Review Popup - UPDATED with input field for Finance Operator name */}
       {showReviewPopup.visible && selectedProposal && (
         <div
           className="popup-overlay"
@@ -1790,6 +2160,8 @@ const BudgetProposal = () => {
               borderRadius: "8px",
               padding: "20px",
               boxShadow: "0 4px 6px rgba(0, 0, 0, 0.1)",
+              width: "800px",
+              maxWidth: "90vw",
             }}
           >
             {/* Header */}
@@ -1835,26 +2207,34 @@ const BudgetProposal = () => {
                   lineHeight: "1.2",
                 }}
               >
-                Budget Proposal
+                Ticket Review
               </h2>
-              <div className="print-section" style={{ width: "100px" }}>
-                <a
-                  href="#"
-                  className="print-link"
-                  style={{ color: "#007bff", textDecoration: "none" }}
-                >
-                  Print File
-                </a>
-              </div>
+              <button
+                onClick={handlePrint}
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: "4px",
+                  background: "none",
+                  border: "none",
+                  cursor: "pointer",
+                  color: "#007bff",
+                  fontSize: "14px",
+                  padding: "8px",
+                  outline: "none",
+                }}
+              >
+                <Printer size={16} />
+                Print File
+              </button>
             </div>
 
             {/* Content */}
             <div className="popup-content">
-              {/* MODIFICATION START: Bind all modal fields to selectedProposal data */}
               {/* Title and Date */}
               <div className="proposal-header">
                 <h3 className="proposal-project-title">
-                  {selectedProposal.title}
+                  {selectedProposal.title || selectedProposal.subject}
                 </h3>
                 <span className="proposal-date">
                   {selectedProposal.submitted_at
@@ -1877,19 +2257,15 @@ const BudgetProposal = () => {
                 </div>
                 <div className="detail-item">
                   <strong>Sub-Category:</strong>{" "}
-                  {selectedProposal.items?.[0]?.cost_element || "N/A"}
+                  {selectedProposal.sub_category || selectedProposal.items?.[0]?.cost_element || "N/A"}
                 </div>
                 <div className="detail-item">
-                  <strong>Vendor:</strong> {"N/A"}{" "}
-                  {/* This field is not in the API response */}
-                </div>
-                <div className="detail-item">
-                  <strong>Requested by:</strong>{" "}
-                  {selectedProposal.department_name}
+                  <strong>Department:</strong>{" "}
+                  {selectedProposal.department || "N/A"}
                 </div>
                 <div className="detail-item">
                   <strong>Budget Amount:</strong>
-                  {` ₱${parseFloat(selectedProposal.total_cost).toLocaleString(
+                  {` ₱${parseFloat(selectedProposal.total_cost || selectedProposal.amount).toLocaleString(
                     "en-US",
                     {
                       minimumFractionDigits: 2,
@@ -1899,7 +2275,8 @@ const BudgetProposal = () => {
                 </div>
                 <div className="detail-item">
                   <strong>Submitted by:</strong>{" "}
-                  {selectedProposal.submitted_by_name}
+                  {selectedProposal.submitted_by_person || selectedProposal.submitted_by_name || selectedProposal.submitted_by}
+                  {selectedProposal.department && ` (${selectedProposal.department})`}
                 </div>
               </div>
 
@@ -1907,7 +2284,7 @@ const BudgetProposal = () => {
               <div className="proposal-section">
                 <h4 className="section-label">PROJECT SUMMARY:</h4>
                 <p className="section-content">
-                  {selectedProposal.project_summary}
+                  {selectedProposal.project_summary || "No summary provided."}
                 </p>
               </div>
 
@@ -1915,125 +2292,192 @@ const BudgetProposal = () => {
               <div className="proposal-section">
                 <h4 className="section-label">PROJECT DESCRIPTION:</h4>
                 <p className="section-content">
-                  {selectedProposal.project_description}
+                  {selectedProposal.project_description || "No description provided."}
                 </p>
               </div>
 
               {/* Period of Performance */}
-              <div className="proposal-section">
-                <h4 className="section-label">PERIOD OF PERFORMANCE:</h4>
-                <p className="section-content">
-                  {`${new Date(
-                    selectedProposal.performance_start_date
-                  ).toLocaleDateString()} to ${new Date(
-                    selectedProposal.performance_end_date
-                  ).toLocaleDateString()}`}
-                </p>
-              </div>
+              {selectedProposal.performance_start_date && selectedProposal.performance_end_date && (
+                <div className="proposal-section">
+                  <h4 className="section-label">PERIOD OF PERFORMANCE:</h4>
+                  <p className="section-content">
+                    {`${new Date(
+                      selectedProposal.performance_start_date
+                    ).toLocaleDateString()} to ${new Date(
+                      selectedProposal.performance_end_date
+                    ).toLocaleDateString()}`}
+                  </p>
+                </div>
+              )}
 
               {/* Cost Elements Table */}
-              <div className="proposal-section">
-                <div className="cost-table">
-                  <div className="cost-table-header">
-                    <div className="cost-header-cell">COST ELEMENTS</div>
-                    <div className="cost-header-cell">DESCRIPTION</div>
-                    <div className="cost-header-cell">ESTIMATED COST</div>
-                  </div>
-
-                  {selectedProposal.items.map((item, index) => (
-                    <div className="cost-table-row" key={index}>
-                      <div className="cost-cell">
-                        <span className="cost-bullet green"></span>
-                        {item.cost_element}
-                      </div>
-                      <div className="cost-cell">{item.description}</div>
-                      <div className="cost-cell">{`₱${parseFloat(
-                        item.estimated_cost
-                      ).toLocaleString("en-US", {
-                        minimumFractionDigits: 2,
-                        maximumFractionDigits: 2,
-                      })}`}</div>
+              {selectedProposal.items && selectedProposal.items.length > 0 && (
+                <div className="proposal-section">
+                  <div className="cost-table">
+                    <div className="cost-table-header">
+                      <div className="cost-header-cell">COST ELEMENTS</div>
+                      <div className="cost-header-cell">DESCRIPTION</div>
+                      <div className="cost-header-cell">ESTIMATED COST</div>
                     </div>
-                  ))}
 
-                  <div className="cost-table-total">
-                    <div className="cost-cell"></div>
-                    <div className="cost-cell"></div>
-                    <div
-                      className="cost-cell total-amount"
-                      style={{ textAlign: "right" }}
-                    >
-                      {`₱${parseFloat(
-                        selectedProposal.total_cost
-                      ).toLocaleString("en-US", {
-                        minimumFractionDigits: 2,
-                        maximumFractionDigits: 2,
-                      })}`}
+                    {selectedProposal.items.map((item, index) => (
+                      <div className="cost-table-row" key={index}>
+                        <div className="cost-cell">
+                          <span className="cost-bullet green"></span>
+                          {item.cost_element || "N/A"}
+                        </div>
+                        <div className="cost-cell">{item.description || "N/A"}</div>
+                        <div className="cost-cell">{`₱${parseFloat(
+                          item.estimated_cost || 0
+                        ).toLocaleString("en-US", {
+                          minimumFractionDigits: 2,
+                          maximumFractionDigits: 2,
+                        })}`}</div>
+                      </div>
+                    ))}
+
+                    <div className="cost-table-total">
+                      <div className="cost-cell"></div>
+                      <div className="cost-cell"></div>
+                      <div
+                        className="cost-cell total-amount"
+                        style={{ textAlign: "right" }}
+                      >
+                        {`₱${parseFloat(
+                          selectedProposal.total_cost || selectedProposal.amount
+                        ).toLocaleString("en-US", {
+                          minimumFractionDigits: 2,
+                          maximumFractionDigits: 2,
+                        })}`}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Finance Department Approval Section - UPDATED with input field */}
+              <div className="proposal-section">
+                <h4 className="section-label">FINANCE DEPARTMENT APPROVAL:</h4>
+                <div className="finance-operator-section" style={{ 
+                  padding: "15px", 
+                  backgroundColor: "white",
+                  borderRadius: "4px",
+                  marginTop: "10px",
+                  border: "1px solid #e0e0e0"
+                }}>
+                  {/* Finance Operator Name - UPDATED to input field */}
+                  <div className="detail-item" style={{ marginBottom: "15px" }}>
+                    <strong>Finance Operator name:</strong>
+                    <div style={{ marginTop: "5px" }}>
+                      <input
+                        type="text"
+                        value={financeOperatorName}
+                        onChange={(e) => setFinanceOperatorName(e.target.value)}
+                        placeholder="Enter finance operator name"
+                        style={{
+                          width: "100%",
+                          padding: "8px",
+                          border: "1px solid #ccc",
+                          borderRadius: "4px",
+                          outline: "none",
+                          backgroundColor: "white",
+                        }}
+                      />
+                    </div>
+                  </div>
+                  
+                  {/* Signature */}
+                  <div className="detail-item" style={{ marginBottom: "15px" }}>
+                    <strong>Signature (Attachment):</strong>
+                    <div style={{ marginTop: "5px" }}>
+                      <SignatureUpload
+                        value={financeOperatorSignature}
+                        onChange={setFinanceOperatorSignature}
+                      />
+                    </div>
+                  </div>
+                  
+                  {/* Date submitted */}
+                  <div className="detail-item">
+                    <strong>Date submitted:</strong>
+                    <div style={{ 
+                      marginTop: "5px", 
+                      padding: "8px",
+                      border: "1px solid #e0e0e0",
+                      borderRadius: "4px",
+                      backgroundColor: "#f8f9fa"
+                    }}>
+                      {new Date().toLocaleDateString('en-US', { 
+                        year: 'numeric', 
+                        month: 'long', 
+                        day: 'numeric' 
+                      })}
                     </div>
                   </div>
                 </div>
               </div>
-              {/* MODIFICATION END */}
             </div>
 
-            {/* Footer with Action Buttons - Hide Approve/Reject if already approved */}
-            {/* MODIFICATION START: Use the readOnly flag to show/hide buttons */}
-            {!showReviewPopup.readOnly && (
+            {/* Footer with Action Buttons - APPROVE AND REJECT BUTTONS ARE HERE */}
+            <div
+              className="popup-footer"
+              style={{ 
+                marginTop: "20px", 
+                paddingTop: "15px",
+                borderTop: "1px solid #e0e0e0"
+              }}
+            >
               <div
-                className="popup-footer"
-                style={{ marginTop: "20px", paddingTop: "15px" }}
+                className="action-buttons"
+                style={{
+                  display: "flex",
+                  gap: "10px",
+                  justifyContent: "center",
+                }}
               >
-                <div
-                  className="action-buttons"
+                <button
+                  className="action-btn approve-btn"
+                  onClick={() => handleStatusChange("APPROVED")}
                   style={{
-                    display: "flex",
-                    gap: "10px",
-                    justifyContent: "center",
+                    padding: "8px 24px",
+                    backgroundColor: "#28a745",
+                    color: "white",
+                    border: "none",
+                    borderRadius: "4px",
+                    cursor: "pointer",
+                    fontSize: "14px",
+                    minWidth: "100px",
+                    outline: "none",
+                    fontWeight: "bold",
                   }}
                 >
-                  <button
-                    className="action-btn approve-btn"
-                    onClick={() => handleStatusChange("APPROVED")}
-                    style={{
-                      padding: "8px 16px",
-                      backgroundColor: "#28a745",
-                      color: "white",
-                      border: "none",
-                      borderRadius: "4px",
-                      cursor: "pointer",
-                      fontSize: "14px",
-                      minWidth: "80px",
-                      outline: "none",
-                    }}
-                  >
-                    Approve
-                  </button>
-                  <button
-                    className="action-btn reject-btn"
-                    onClick={() => handleStatusChange("REJECTED")}
-                    style={{
-                      padding: "8px 16px",
-                      backgroundColor: "#dc3545",
-                      color: "white",
-                      border: "none",
-                      borderRadius: "4px",
-                      cursor: "pointer",
-                      fontSize: "14px",
-                      minWidth: "80px",
-                      outline: "none",
-                    }}
-                  >
-                    Reject
-                  </button>
-                </div>
+                  Approve
+                </button>
+                <button
+                  className="action-btn reject-btn"
+                  onClick={() => handleStatusChange("REJECTED")}
+                  style={{
+                    padding: "8px 24px",
+                    backgroundColor: "#dc3545",
+                    color: "white",
+                    border: "none",
+                    borderRadius: "4px",
+                    cursor: "pointer",
+                    fontSize: "14px",
+                    minWidth: "100px",
+                    outline: "none",
+                    fontWeight: "bold",
+                  }}
+                >
+                  Reject
+                </button>
               </div>
-            )}
-            {/* MODIFICATION END */}
+            </div>
           </div>
         </div>
       )}
 
-      {/* Approval/Rejection Status Popup */}
+      {/* Approval/Rejection Status Popup - UPDATED to have Approve/Reject buttons */}
       {showConfirmationPopup && selectedProposal && (
         <div
           className="popup-overlay"
@@ -2048,6 +2492,8 @@ const BudgetProposal = () => {
               borderRadius: "8px",
               padding: "20px",
               boxShadow: "0 4px 6px rgba(0, 0, 0, 0.1)",
+              width: "600px",
+              maxWidth: "90vw",
             }}
           >
             {/* Header */}
@@ -2093,7 +2539,7 @@ const BudgetProposal = () => {
                   lineHeight: "1.2",
                 }}
               >
-                {reviewStatus === "approved"
+                {reviewStatus === "APPROVED"
                   ? "Approval Status"
                   : "Rejected Status"}
               </h2>
@@ -2104,53 +2550,53 @@ const BudgetProposal = () => {
               {/* Status Indicator */}
               <div className="status-section">
                 <div className="status-indicator">
-                  <div className={`status-dot ${reviewStatus}`}></div>
+                  <div className={`status-dot ${reviewStatus.toLowerCase()}`}></div>
                   <span className="status-text">
-                    {reviewStatus === "approved"
+                    {reviewStatus === "APPROVED"
                       ? "Approved by Finance Department"
                       : "Rejected by Finance Department"}
                   </span>
                 </div>
                 <div className="status-timestamp">
-                  {/* Updated timestamp format - removed seconds */}
                   {new Date().toLocaleString("en-PH", {
                     year: "numeric",
                     month: "short",
                     day: "2-digit",
                     hour: "2-digit",
                     minute: "2-digit",
-                    // Removed seconds
                   })}
                 </div>
               </div>
 
               {/* Project Title */}
               <h3 className="project-title-section">
-                {selectedProposal.description}
+                {selectedProposal.subject || selectedProposal.description}
               </h3>
 
               {/* Project Details */}
               <div className="project-info-section">
                 <div className="project-detail-inline">
                   <strong>Budget Amount:</strong>{" "}
-                  {selectedProposal.budgetAmount}
+                  {`₱${parseFloat(selectedProposal.amount || selectedProposal.total_cost).toLocaleString("en-US", {
+                    minimumFractionDigits: 2,
+                    maximumFractionDigits: 2,
+                  })}`}
                 </div>
                 <div className="project-detail-inline">
-                  <strong>Category:</strong> {selectedProposal.category}
+                  <strong>Category:</strong> {selectedProposal.category || "N/A"}
                 </div>
                 <div className="project-detail-inline">
-                  <strong>Sub-Category:</strong> {selectedProposal.subCategory}
+                  <strong>Sub-Category:</strong> {selectedProposal.sub_category || "N/A"}
                 </div>
                 <div className="project-detail-inline">
-                  <strong>Vendor:</strong> {selectedProposal.vendor}
+                  <strong>Department:</strong> {selectedProposal.department || "N/A"}
                 </div>
                 <div className="project-detail-inline">
-                  <strong>Requested by:</strong> {selectedProposal.requestedBy}
+                  <strong>Submitted by:</strong> {selectedProposal.submitted_by_person || selectedProposal.submitted_by_name || "N/A"}
                 </div>
               </div>
 
-              {/* Rejection Reason (if rejected) */}
-              {reviewStatus === "rejected" && (
+              {reviewStatus === "REJECTED" && (
                 <div className="rejection-reason-section">
                   <label className="comment-input-label">
                     Rejection Reason:
@@ -2177,8 +2623,7 @@ const BudgetProposal = () => {
                 </div>
               )}
 
-              {/* Comment Section - Only show for rejected status */}
-              {reviewStatus === "rejected" && (
+              {reviewStatus === "REJECTED" && (
                 <div className="comment-input-section">
                   <label className="comment-input-label">Comment:</label>
                   <textarea
@@ -2199,12 +2644,11 @@ const BudgetProposal = () => {
                 </div>
               )}
 
-              {/* Approval Metadata */}
               <div
                 className="approval-metadata"
                 style={{
                   backgroundColor:
-                    reviewStatus === "approved" ? "#d4edda" : "#f8d7da",
+                    reviewStatus === "APPROVED" ? "#d4edda" : "#f8d7da",
                   padding: "15px",
                   borderRadius: "8px",
                   marginTop: "20px",
@@ -2212,22 +2656,20 @@ const BudgetProposal = () => {
               >
                 <div className="metadata-item">
                   <strong>
-                    {reviewStatus === "approved"
+                    {reviewStatus === "APPROVED"
                       ? "Approved By:"
                       : "Rejected By:"}
                   </strong>{" "}
-                  {userProfile.name} ({userProfile.role})
+                  {financeOperatorName || financeOperatorNames[0]} (Finance Department)
                 </div>
                 <div className="metadata-item">
                   <strong>Timestamp:</strong>
-                  {/* Updated timestamp format - removed seconds */}
                   {new Date().toLocaleString("en-PH", {
                     year: "numeric",
                     month: "2-digit",
                     day: "2-digit",
                     hour: "2-digit",
                     minute: "2-digit",
-                    // Removed seconds
                   })}
                 </div>
                 {reviewComment && (
@@ -2235,7 +2677,7 @@ const BudgetProposal = () => {
                     <strong>Comment:</strong> {reviewComment}
                   </div>
                 )}
-                {reviewStatus === "rejected" && rejectionReason && (
+                {reviewStatus === "REJECTED" && rejectionReason && (
                   <div className="metadata-item">
                     <strong>Rejection Reason:</strong> {rejectionReason}
                   </div>
@@ -2243,34 +2685,47 @@ const BudgetProposal = () => {
               </div>
             </div>
 
-            {/* Footer */}
             <div
               className="approval-status-footer"
-              style={{ marginTop: "20px", paddingTop: "15px" }}
+              style={{ 
+                marginTop: "20px", 
+                paddingTop: "15px",
+                borderTop: "1px solid #e0e0e0"
+              }}
             >
-              <button
-                className="submit-comment-button"
-                onClick={handleSubmitReview}
+              <div
+                className="action-buttons"
                 style={{
-                  padding: "8px 16px",
-                  backgroundColor: "#007bff",
-                  color: "white",
-                  border: "none",
-                  borderRadius: "4px",
-                  cursor: "pointer",
-                  fontSize: "14px",
-                  minWidth: "80px",
-                  outline: "none",
+                  display: "flex",
+                  gap: "10px",
+                  justifyContent: "center",
                 }}
               >
-                Submit
-              </button>
+                <button
+                  className="submit-comment-button"
+                  onClick={handleSubmitReview}
+                  style={{
+                    padding: "8px 24px",
+                    backgroundColor: "#007bff",
+                    color: "white",
+                    border: "none",
+                    borderRadius: "4px",
+                    cursor: "pointer",
+                    fontSize: "14px",
+                    minWidth: "100px",
+                    outline: "none",
+                  }}
+                >
+                  Submit
+                </button>
+               
+              </div>
             </div>
           </div>
         </div>
       )}
 
-      {/* Comment Popup */}
+      {/* Comment Popup - UPDATED to have Approve/Reject buttons */}
       {showCommentPopup && selectedProposal && (
         <div
           className="popup-overlay"
@@ -2283,6 +2738,8 @@ const BudgetProposal = () => {
               borderRadius: "8px",
               padding: "20px",
               boxShadow: "0 4px 6px rgba(0, 0, 0, 0.1)",
+              width: "600px",
+              maxWidth: "90vw",
             }}
           >
             {/* Header */}
@@ -2335,7 +2792,6 @@ const BudgetProposal = () => {
             </div>
 
             <div className="approval-status-content">
-              {/* Approval Status Indicator */}
               <div className="status-section">
                 <div className="status-indicator">
                   <div className="status-dot approved"></div>
@@ -2344,16 +2800,14 @@ const BudgetProposal = () => {
                   </span>
                 </div>
                 <div className="status-timestamp">
-                  Apr 01, 2025 at 16:00 - Alex Smith
+                  Apr 01, 2025 at 16:00 - {financeOperatorNames[0]}
                 </div>
               </div>
 
-              {/* Project Title */}
               <h3 className="project-title-section">
                 {selectedProposal.description}
               </h3>
 
-              {/* Project Details */}
               <div className="project-info-section">
                 <div className="project-detail-inline">
                   <strong>Budget Amount:</strong>{" "}
@@ -2374,28 +2828,59 @@ const BudgetProposal = () => {
               </div>
             </div>
 
-            {/* Footer */}
             <div
               className="approval-status-footer"
-              style={{ marginTop: "20px", paddingTop: "15px" }}
+              style={{ 
+                marginTop: "20px", 
+                paddingTop: "15px",
+                borderTop: "1px solid #e0e0e0"
+              }}
             >
-              <button
-                className="submit-comment-button"
-                onClick={handleSubmitComment}
+              <div
+                className="action-buttons"
                 style={{
-                  padding: "8px 16px",
-                  backgroundColor: "#007bff",
-                  color: "white",
-                  border: "none",
-                  borderRadius: "4px",
-                  cursor: "pointer",
-                  fontSize: "14px",
-                  minWidth: "80px",
-                  outline: "none",
+                  display: "flex",
+                  gap: "10px",
+                  justifyContent: "center",
                 }}
               >
-                Submit
-              </button>
+                <button
+                  className="action-btn approve-btn"
+                  onClick={() => handleStatusChange("APPROVED")}
+                  style={{
+                    padding: "8px 24px",
+                    backgroundColor: "#28a745",
+                    color: "white",
+                    border: "none",
+                    borderRadius: "4px",
+                    cursor: "pointer",
+                    fontSize: "14px",
+                    minWidth: "100px",
+                    outline: "none",
+                    fontWeight: "bold",
+                  }}
+                >
+                  Approve
+                </button>
+                <button
+                  className="action-btn reject-btn"
+                  onClick={() => handleStatusChange("REJECTED")}
+                  style={{
+                    padding: "8px 24px",
+                    backgroundColor: "#dc3545",
+                    color: "white",
+                    border: "none",
+                    borderRadius: "4px",
+                    cursor: "pointer",
+                    fontSize: "14px",
+                    minWidth: "100px",
+                    outline: "none",
+                    fontWeight: "bold",
+                  }}
+                >
+                  Reject
+                </button>
+              </div>
             </div>
           </div>
         </div>

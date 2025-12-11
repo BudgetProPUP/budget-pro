@@ -92,6 +92,7 @@ class ExpenseDetailForModalSerializer(serializers.ModelSerializer):
         model = Expense
         fields = ['id', 'proposal_id']
         
+# MODIFICATION START
 class ExpenseCreateSerializer(serializers.ModelSerializer):
     project_id = serializers.IntegerField(write_only=True)
     account_code = serializers.CharField(write_only=True)
@@ -102,53 +103,52 @@ class ExpenseCreateSerializer(serializers.ModelSerializer):
         fields = [
             'project_id', 'account_code', 'category_code', # Input fields
             'amount', 'date', 'description', 'vendor', 'receipt', # Model fields
-            # submitted_by_user_id and submitted_by_username will be set in create
         ]
-        # Removed extra_kwargs for project, account, category as they are handled via _id/_code
-        # Retain for amount and date if they should always be required from payload
         extra_kwargs = {
             'amount': {'required': True},
             'date': {'required': True},
-            'description': {'required': True}, # Make description required
-            'vendor': {'required': True},      # Make vendor required
+            'description': {'required': True},
+            'vendor': {'required': True},      
         }
 
 
     def validate(self, data):
         project_id = data.get('project_id')
         account_code = data.get('account_code')
-        category_code = data.get('category_code')
         expense_amount = data.get('amount')
+        user = self.context['request'].user
+        department_id = getattr(user, 'department_id', None)
+
+        if not department_id:
+            raise serializers.ValidationError("Authenticated user is not associated with a department.")
 
         try:
-            project = Project.objects.get(id=project_id)
+            # Ensure the project exists and belongs to the user's department
+            project = Project.objects.get(id=project_id, department_id=department_id)
             data['project_obj'] = project
         except Project.DoesNotExist:
-            raise serializers.ValidationError({'project_id': 'Project not found'})
+            raise serializers.ValidationError({'project_id': "Project not found or you don't have permission for it."})
 
-        today = timezone.now().date()
-        if project.status == 'COMPLETED' or (project.end_date and today > project.end_date):
-            raise serializers.ValidationError({'project_id': 'Cannot create expense for a completed or past-due project.'})
-
+        # Basic validation for other codes
         try:
             account = Account.objects.get(code=account_code, is_active=True)
             data['account_obj'] = account
         except Account.DoesNotExist:
             raise serializers.ValidationError({'account_code': 'Active account not found.'})
-
+        
         try:
-            category = ExpenseCategory.objects.get(code=category_code, is_active=True)
+            category = ExpenseCategory.objects.get(code=data.get('category_code'), is_active=True)
             data['category_obj'] = category
         except ExpenseCategory.DoesNotExist:
             raise serializers.ValidationError({'category_code': 'Active expense category not found.'})
 
-        # --- MODIFIED VALIDATION LOGIC ---
-        # Instead of getting one allocation, we check the total project budget vs. spending.
-        
-        # 1. Find all active allocations for the project.
+        # --- CORRECTED VALIDATION LOGIC ---
+        # 1. Find all active allocations for the specified project.
         allocations = BudgetAllocation.objects.filter(project=project, is_active=True)
         if not allocations.exists():
-            raise serializers.ValidationError({'non_field_errors': f'No active budget allocations found for project "{project.name}".'})
+            raise serializers.ValidationError(
+                {'project_id': f'No active budget allocations found for project "{project.name}". Cannot submit expense.'}
+            )
 
         # 2. Calculate the project's total budget and total spent so far.
         project_total_budget = allocations.aggregate(total=Sum('amount'))['total'] or Decimal('0.00')
@@ -156,42 +156,45 @@ class ExpenseCreateSerializer(serializers.ModelSerializer):
         
         project_remaining_budget = project_total_budget - project_total_spent
 
+        # 3. Check if the new expense amount exceeds the project's remaining budget.
         if expense_amount > project_remaining_budget:
-            raise serializers.ValidationError({'amount': f'Insufficient funds for this project. Remaining: ₱{project_remaining_budget:,.2f}'})
+            raise serializers.ValidationError(
+                {'amount': f'Insufficient funds for this project. Remaining budget is ₱{project_remaining_budget:,.2f}'}
+            )
         
-        # We still need to associate the expense with one allocation. We'll pick the first one.
-        # A more advanced system might let the user choose which allocation to draw from.
+        # 4. We still need to associate the expense with one specific allocation.
+        #    We will pick the first one found. A more advanced system might let the user choose.
         data['allocation_obj'] = allocations.first()
-        # --- END OF MODIFIED VALIDATION LOGIC ---
+        # --- END OF CORRECTED LOGIC ---
 
         return data
 
     def create(self, validated_data):
-        # Pop the objects we added in validation
         project = validated_data.pop('project_obj')
         account = validated_data.pop('account_obj')
         category = validated_data.pop('category_obj')
         allocation = validated_data.pop('allocation_obj')
 
-        # Pop the original write-only fields to prevent passing them to the model create method
+        # Pop write-only fields so they aren't passed to the model's create method
         validated_data.pop('project_id', None)
         validated_data.pop('account_code', None)
         validated_data.pop('category_code', None)
 
-        request_user = self.context['request'].user # User from JWT
+        request_user = self.context['request'].user
 
         expense = Expense.objects.create(
             project=project,
             budget_allocation=allocation,
             account=account,
-            department=project.department, # Expense department is same as project's department
+            department=project.department, # Expense department is the same as the project's department
             category=category,
             submitted_by_user_id=request_user.id,
             submitted_by_username=getattr(request_user, 'username', 'N/A'),
             status='SUBMITTED', # Default status on creation
-            **validated_data # Now only contains amount, date, description, vendor, receipt
+            **validated_data
         )
         return expense
+# MODIFICATION END
     
 class BudgetAllocationCreateSerializer(serializers.ModelSerializer):
     """

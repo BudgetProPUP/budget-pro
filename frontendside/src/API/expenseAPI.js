@@ -67,5 +67,13 @@ export const getProposalDetails = (proposalId) => {
     return budgetApi.get(`/budget-proposals/${proposalId}/`);
 };
 
+// MODIFICATION START
+/**
+ * Fetches the list of all projects for dropdowns.
+ */
+export const getProjects = () => {
+    return budgetApi.get('/projects/all/');
+};
+// MODIFICATION END
 
 // Add other necessary functions, like fetching vendors or employees if they become dynamic

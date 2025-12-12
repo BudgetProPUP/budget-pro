@@ -22,6 +22,207 @@ import {
 // Import ManageProfile component
 import ManageProfile from "./ManageProfile";
 
+// Department and Subcategory data structure
+const DEPARTMENT_DATA = {
+  "Merchandise Planning": {
+    subcategories: [
+      "Product Range Planning",
+      "Buying Costs",
+      "Market Research",
+      "Inventory Handling Fees",
+      "Supplier Coordination",
+      "Seasonal Planning Tools",
+      "Training",
+      "Travel",
+      "Software Subscription"
+    ]
+  },
+  "Store Operations": {
+    subcategories: [
+      "Store Consumables",
+      "POS Maintenance",
+      "Store Repairs",
+      "Sales Incentives",
+      "Uniforms",
+      "Store Opening Expenses",
+      "Store Supplies",
+      "Training",
+      "Travel",
+      "Utilities"
+    ]
+  },
+  "Marketing": {
+    subcategories: [
+      "Campaign Budget",
+      "Branding Materials",
+      "Digital Ads",
+      "Social Media Management",
+      "Events Budget",
+      "Influencer Fees",
+      "Photography/Videography",
+      "Software Subscription",
+      "Training",
+      "Travel"
+    ]
+  },
+  "Operations": {
+    subcategories: [
+      "Equipment Maintenance",
+      "Fleet/Vehicle Expenses",
+      "Operational Supplies",
+      "Business Permits",
+      "Facility Utilities",
+      "Compliance Costs",
+      "Training",
+      "Office Supplies"
+    ]
+  },
+  "IT": {
+    subcategories: [
+      "Server Hosting",
+      "Software Licenses",
+      "Cloud Subscriptions",
+      "Hardware Purchases",
+      "Data Tools",
+      "Cybersecurity Costs",
+      "API Subscription Fees",
+      "Domain Renewals",
+      "Training",
+      "Office Supplies"
+    ]
+  },
+  "Logistics Management": {
+    subcategories: [
+      "Shipping Costs",
+      "Warehouse Equipment",
+      "Transport & Fuel",
+      "Freight Fees",
+      "Vendor Delivery Charges",
+      "Storage Fees",
+      "Packaging Materials",
+      "Safety Gear",
+      "Training"
+    ]
+  },
+  "Human Resources": {
+    subcategories: [
+      "Recruitment Expenses",
+      "Job Posting Fees",
+      "Employee Engagement Activities",
+      "Training & Workshops",
+      "Medical & Wellness Programs",
+      "Background Checks",
+      "HR Systems/Payroll Software",
+      "Office Supplies",
+      "Travel"
+    ]
+  }
+};
+
+// Sample expense data with CapEx and OpEx categories only
+const SAMPLE_EXPENSES = [
+  {
+    id: 1,
+    date: "2024-01-15",
+    description: "Store Equipment Purchase - POS Systems",
+    category_name: "CapEx",
+    amount: "250000.00",
+    department: "Store Operations",
+    subcategory: "POS Maintenance",
+    status: "Approved"
+  },
+  {
+    id: 2,
+    date: "2024-01-14",
+    description: "Q1 Marketing Campaign - Digital Ads",
+    category_name: "OpEx",
+    amount: "150000.00",
+    department: "Marketing",
+    subcategory: "Digital Ads",
+    status: "Approved"
+  },
+  {
+    id: 3,
+    date: "2024-01-10",
+    description: "Server Upgrade - IT Infrastructure",
+    category_name: "CapEx",
+    amount: "500000.00",
+    department: "IT",
+    subcategory: "Hardware Purchases",
+    status: "Pending"
+  },
+  {
+    id: 4,
+    date: "2024-01-08",
+    description: "Employee Training Workshop - HR",
+    category_name: "OpEx",
+    amount: "75000.00",
+    department: "Human Resources",
+    subcategory: "Training & Workshops",
+    status: "Approved"
+  },
+  {
+    id: 5,
+    date: "2024-01-05",
+    description: "Warehouse Equipment - Logistics",
+    category_name: "CapEx",
+    amount: "300000.00",
+    department: "Logistics Management",
+    subcategory: "Warehouse Equipment",
+    status: "Approved"
+  },
+  {
+    id: 6,
+    date: "2024-01-03",
+    description: "Office Supplies Purchase - Operations",
+    category_name: "OpEx",
+    amount: "45000.00",
+    department: "Operations",
+    subcategory: "Office Supplies",
+    status: "Approved"
+  },
+  {
+    id: 7,
+    date: "2024-01-02",
+    description: "Software Licenses Renewal - IT",
+    category_name: "OpEx",
+    amount: "120000.00",
+    department: "IT",
+    subcategory: "Software Licenses",
+    status: "Approved"
+  },
+  {
+    id: 8,
+    date: "2023-12-28",
+    description: "Marketing Campaign Materials",
+    category_name: "OpEx",
+    amount: "85000.00",
+    department: "Marketing",
+    subcategory: "Branding Materials",
+    status: "Approved"
+  },
+  {
+    id: 9,
+    date: "2023-12-25",
+    description: "New Store Opening Equipment",
+    category_name: "CapEx",
+    amount: "600000.00",
+    department: "Store Operations",
+    subcategory: "Store Opening Expenses",
+    status: "Approved"
+  },
+  {
+    id: 10,
+    date: "2023-12-20",
+    description: "Employee Engagement Activities",
+    category_name: "OpEx",
+    amount: "55000.00",
+    department: "Human Resources",
+    subcategory: "Employee Engagement Activities",
+    status: "Approved"
+  }
+];
+
 // Pagination Component - Copied from LedgerView
 const Pagination = ({
   currentPage,
@@ -276,14 +477,18 @@ const ExpenseHistory = () => {
   const navigate = useNavigate();
 
   // New state variables for API data
-  const [expenses, setExpenses] = useState([]);
-  const [categories, setCategories] = useState([]);
+  const [expenses, setExpenses] = useState(SAMPLE_EXPENSES);
+  const [categories, setCategories] = useState([
+    { code: "", name: "All Categories" },
+    { code: "capex", name: "CapEx" },
+    { code: "opex", name: "OpEx" }
+  ]);
   const [pagination, setPagination] = useState({
-    count: 0,
+    count: SAMPLE_EXPENSES.length,
     next: null,
     previous: null,
   });
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
   const [selectedProposalDetails, setSelectedProposalDetails] = useState(null);
   const [viewModalLoading, setViewModalLoading] = useState(false);
   
@@ -307,45 +512,39 @@ const ExpenseHistory = () => {
       setCurrentPage(1); // Reset to page 1 when search term changes 
     }, 500);
 
-    // Cleanup function to clear the timer if the user keeps typin g
+    // Cleanup function to clear the timer if the user keeps typing
     return () => {
       clearTimeout(timerId);
     };
   }, [searchTerm]);
   // MODIFICATION END
 
-  // Fetch data from API
+  // Filter and paginate sample data
   useEffect(() => {
-    const fetchData = async () => {
-      setLoading(true);
-      try {
-        const params = {
-          page: currentPage,
-          page_size: pageSize,
-          search: debouncedSearchTerm, // Debounced search for API call
-          category__code: selectedCategory,
-        };
+    const filterExpenses = () => {
+      const filtered = SAMPLE_EXPENSES.filter(expense => {
+        const matchesSearch = !searchTerm || 
+          expense.description.toLowerCase().includes(searchTerm.toLowerCase()) ||
+          expense.department.toLowerCase().includes(searchTerm.toLowerCase());
+        const matchesCategory = !selectedCategory || 
+          expense.category_name.toLowerCase() === selectedCategory.toLowerCase();
+        return matchesSearch && matchesCategory;
+      });
 
-        const [expensesRes, categoriesRes] = await Promise.all([
-          getExpenseHistoryList(params),
-          getExpenseCategories(),
-        ]);
+      const startIndex = (currentPage - 1) * pageSize;
+      const endIndex = startIndex + pageSize;
+      const paginatedExpenses = filtered.slice(startIndex, endIndex);
 
-        setExpenses(expensesRes.data.results);
-        setPagination(expensesRes.data); // Store full pagination object
-        setCategories([
-          { code: "", name: "All Categories" },
-          ...categoriesRes.data,
-        ]);
-      } catch (error) {
-        console.error("Failed to fetch expense history data:", error);
-      } finally {
-        setLoading(false);
-      }
+      setExpenses(paginatedExpenses);
+      setPagination({
+        count: filtered.length,
+        next: null,
+        previous: null,
+      });
     };
-    fetchData();
-  }, [currentPage, pageSize, debouncedSearchTerm, selectedCategory]);
-  // MODIFICATION END
+
+    filterExpenses();
+  }, [currentPage, pageSize, searchTerm, selectedCategory]);
 
   // Close dropdowns when clicking outside
   useEffect(() => {
@@ -445,28 +644,32 @@ const ExpenseHistory = () => {
 
   const handleViewExpense = async (expense) => {
     setViewModalLoading(true);
-    setSelectedExpense(expense); // Set this to trigger the view changee
-    try {
-      // Step 1: Get the proposal_id from the expense
-      const detailRes = await getExpenseDetailsForModal(expense.id);
-      const proposalId = detailRes.data.proposal_id;
+    setSelectedExpense(expense); // Set this to trigger the view change
+    
+    // Create sample proposal details for the expense
+    const sampleProposalDetails = {
+      title: `${expense.description} - Proposal Details`,
+      performance_end_date: "2024-12-31",
+      project_summary: `This proposal outlines the budget allocation for ${expense.description} under the ${expense.department} department.`,
+      project_description: `Detailed project description for ${expense.description}. This includes all necessary components, timelines, and expected outcomes for the project implementation.`,
+      items: [
+        {
+          cost_element: expense.category_name,
+          description: expense.description,
+          estimated_cost: expense.amount
+        },
+        {
+          cost_element: "Additional Expenses",
+          description: "Miscellaneous and contingency costs",
+          estimated_cost: (parseFloat(expense.amount) * 0.1).toFixed(2)
+        }
+      ]
+    };
 
-      if (proposalId) {
-        // Step 2: Fetch the full proposal details
-        const proposalRes = await getProposalDetails(proposalId);
-        setSelectedProposalDetails(proposalRes.data);
-      } else {
-        alert("This expense is not linked to a detailed proposal.");
-        // If no proposal, clear details and go back
-        handleBackToList();
-      }
-    } catch (error) {
-      console.error("Failed to fetch expense/proposal details:", error);
-      alert("Could not load the proposal details.");
-      handleBackToList();
-    } finally {
+    setTimeout(() => {
+      setSelectedProposalDetails(sampleProposalDetails);
       setViewModalLoading(false);
-    }
+    }, 1000);
   };
 
   const handleBackToList = () => {
@@ -1056,7 +1259,7 @@ const ExpenseHistory = () => {
                     className="controls-container"
                     style={{ display: "flex", gap: "10px" }}
                   >
-                    {/* Search Bar */}
+                    {/* Search Bar - Width reduced to 400px */}
                     <div style={{ position: "relative" }}>
                       <input
                         type="text"
@@ -1069,6 +1272,7 @@ const ExpenseHistory = () => {
                           border: "1px solid #ccc",
                           borderRadius: "4px",
                           outline: "none",
+                          width: "400px", // Reduced width to 400px
                         }}
                       />
                     </div>
@@ -1292,16 +1496,7 @@ const ExpenseHistory = () => {
                       </thead>
                       {/* MODIFICATION START */}
                       <tbody>
-                        {loading ? (
-                          <tr>
-                            <td
-                              colSpan="5"
-                              style={{ textAlign: "center", padding: "20px" }}
-                            >
-                              Loading...
-                            </td>
-                          </tr>
-                        ) : expenses.length > 0 ? (
+                        {expenses.length > 0 ? (
                           expenses.map((expense, index) => (
                             <tr
                               key={expense.id}
@@ -1428,7 +1623,7 @@ const ExpenseHistory = () => {
                 </div>
 
                 {/* MODIFICATION START */}
-                {pagination.count > 0 && !loading && (
+                {pagination.count > 0 && (
                   <Pagination
                     currentPage={currentPage}
                     pageSize={pageSize}

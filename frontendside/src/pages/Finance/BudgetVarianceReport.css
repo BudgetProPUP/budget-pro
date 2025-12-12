@@ -946,3 +946,117 @@
     height: 32px;
   }
 }
+
+/* Add these styles to your existing BudgetVarianceReport.css */
+
+/* Row styling */
+.level-0-row.main-category {
+  background-color: #f8fafc;
+  border-bottom: 2px solid #e2e8f0;
+}
+
+.level-0-row.main-category:hover {
+  background-color: #f1f5f9;
+}
+
+.total-row {
+  background-color: #eff6ff !important;
+  border-top: 2px solid #3b82f6;
+  border-bottom: 2px solid #3b82f6;
+}
+
+.total-row:hover {
+  background-color: #dbeafe !important;
+}
+
+.data-row:hover {
+  background-color: #f9fafb;
+}
+
+/* Status badges */
+.status-badge {
+  font-size: 11px;
+  padding: 2px 8px;
+  border-radius: 12px;
+  font-weight: 500;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.status-critical {
+  background-color: #fee2e2;
+  color: #991b1b;
+}
+
+.status-warning {
+  background-color: #fef3c7;
+  color: #92400e;
+}
+
+.status-good {
+  background-color: #d1fae5;
+  color: #065f46;
+}
+
+/* Table cell styling */
+.report-table td {
+  padding: 12px;
+  border-bottom: 1px solid #e5e7eb;
+}
+
+.report-table th {
+  padding: 12px;
+  font-weight: 600;
+  color: #374151;
+  background-color: #f9fafb;
+}
+
+/* Highlight main category totals */
+.main-category-total {
+  font-weight: 700;
+  color: #1e40af;
+  background-color: #eff6ff;
+}
+
+/* Color coding for available amounts */
+.available-positive {
+  color: #059669;
+}
+
+.available-warning {
+  color: #d97706;
+}
+
+.available-critical {
+  color: #dc2626;
+}
+
+/* Animation for trend arrows */
+@keyframes pulse {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.5;
+  }
+}
+
+.trend-up {
+  animation: pulse 2s infinite;
+  color: #059669;
+}
+
+.trend-down {
+  animation: pulse 2s infinite;
+  color: #dc2626;
+}
+
+/* Summary card styling */
+.summary-card {
+  transition: transform 0.2s ease;
+}
+
+.summary-card:hover {
+  transform: translateY(-2px);
+}

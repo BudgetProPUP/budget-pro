@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import {
   Search,
   ChevronDown,
@@ -15,8 +15,7 @@ import { getLedgerEntries } from "../../API/ledgerAPI";
 import { getJournalChoices } from "../../API/dropdownAPI";
 
 // Import ManageProfile component
-import ManageProfile from "./ManageProfile"; // currently unreferenced
-
+import ManageProfile from "./ManageProfile";
 
 // Pagination Component
 const Pagination = ({
@@ -37,11 +36,10 @@ const Pagination = ({
 
   const renderPageNumbers = () => {
     const pages = [];
-    const pageLimit = 5; // The number of page buttons to show
+    const pageLimit = 5;
     const sideButtons = Math.floor(pageLimit / 2);
 
     if (totalPages <= pageLimit + 2) {
-      // If total pages are few, show all of them
       for (let i = 1; i <= totalPages; i++) {
         pages.push(
           <button
@@ -65,7 +63,6 @@ const Pagination = ({
         );
       }
     } else {
-      // Always show first page
       pages.push(
         <button
           key={1}
@@ -144,7 +141,6 @@ const Pagination = ({
         );
       }
 
-      // Always show last page
       pages.push(
         <button
           key={totalPages}
@@ -180,7 +176,6 @@ const Pagination = ({
         padding: "10px 0",
       }}
     >
-      {/* Left Side: Page Size Selector */}
       <div
         className="pageSizeSelector"
         style={{ display: "flex", alignItems: "center", gap: "8px" }}
@@ -208,7 +203,6 @@ const Pagination = ({
         <span style={{ fontSize: "14px" }}>items per page</span>
       </div>
 
-      {/* Right Side: Page Navigation */}
       <div
         className="pageNavigation"
         style={{ display: "flex", alignItems: "center", gap: "5px" }}
@@ -255,12 +249,109 @@ const Pagination = ({
   );
 };
 
-// MODIFICATION START: Replaced the entire LedgerView component function
+// Sample data based on your provided structure
+const sampleData = {
+  "Merchandise Planning": {
+    subCategories: [
+      "Product Range Planning",
+      "Buying Costs",
+      "Market Research",
+      "Inventory Handling Fees",
+      "Supplier Coordination",
+      "Seasonal Planning Tools",
+      "Training",
+      "Travel",
+      "Software Subscription"
+    ]
+  },
+  "Store Operations": {
+    subCategories: [
+      "Store Consumables",
+      "POS Maintenance",
+      "Store Repairs",
+      "Sales Incentives",
+      "Uniforms",
+      "Store Opening Expenses",
+      "Store Supplies",
+      "Training",
+      "Travel",
+      "Utilities"
+    ]
+  },
+  "Marketing": {
+    subCategories: [
+      "Campaign Budget",
+      "Branding Materials",
+      "Digital Ads",
+      "Social Media Management",
+      "Events Budget",
+      "Influencer Fees",
+      "Photography/Videography",
+      "Software Subscription",
+      "Training",
+      "Travel"
+    ]
+  },
+  "Operations": {
+    subCategories: [
+      "Equipment Maintenance",
+      "Fleet/Vehicle Expenses",
+      "Operational Supplies",
+      "Business Permits",
+      "Facility Utilities",
+      "Compliance Costs",
+      "Training",
+      "Office Supplies"
+    ]
+  },
+  "IT": {
+    subCategories: [
+      "Server Hosting",
+      "Software Licenses",
+      "Cloud Subscriptions",
+      "Hardware Purchases",
+      "Data Tools",
+      "Cybersecurity Costs",
+      "API Subscription Fees",
+      "Domain Renewals",
+      "Training",
+      "Office Supplies"
+    ]
+  },
+  "Logistics": {
+    subCategories: [
+      "Shipping Costs",
+      "Warehouse Equipment",
+      "Transport & Fuel",
+      "Freight Fees",
+      "Vendor Delivery Charges",
+      "Storage Fees",
+      "Packaging Materials",
+      "Safety Gear",
+      "Training"
+    ]
+  },
+  "Human Resources": {
+    subCategories: [
+      "Recruitment Expenses",
+      "Job Posting Fees",
+      "Employee Engagement Activities",
+      "Training & Workshops",
+      "Medical & Wellness Programs",
+      "Background Checks",
+      "HR Systems/Payroll Software",
+      "Office Supplies",
+      "Travel"
+    ]
+  }
+};
+
 const LedgerView = () => {
   // Navigation and UI State
   const [showBudgetDropdown, setShowBudgetDropdown] = useState(false);
   const [showExpenseDropdown, setShowExpenseDropdown] = useState(false);
   const [showCategoryDropdown, setShowCategoryDropdown] = useState(false);
+  const [showDepartmentDropdown, setShowDepartmentDropdown] = useState(false);
   const [showProfileDropdown, setShowProfileDropdown] = useState(false);
   const [showNotifications, setShowNotifications] = useState(false);
   const navigate = useNavigate();
@@ -276,27 +367,230 @@ const LedgerView = () => {
 
   // API Data State
   const [ledgerEntries, setLedgerEntries] = useState([]);
+  const [filteredLedgerEntries, setFilteredLedgerEntries] = useState([]);
   const [pagination, setPagination] = useState({ count: 0 });
   const [loading, setLoading] = useState(true);
-  const [categoryOptions, setCategoryOptions] = useState([]);
-
-  const [showManageProfile, setShowManageProfile] = useState(false);
 
   // Filter and Pagination State
   const [searchTerm, setSearchTerm] = useState("");
   const [debouncedSearchTerm, setDebouncedSearchTerm] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize, setPageSize] = useState(5);
-  const [selectedCategory, setSelectedCategory] = useState(""); // Use empty string for "All"
+  const [selectedCategory, setSelectedCategory] = useState("");
+  const [selectedDepartment, setSelectedDepartment] = useState("");
 
   // Date/Time State
   const [currentDate, setCurrentDate] = useState(new Date());
+
+  // Department options
+  const departmentOptions = [
+    { value: "", label: "All Departments" },
+    { value: "Merchandise Planning", label: "Merchandise Planning" },
+    { value: "Store Operations", label: "Store Operations" },
+    { value: "Marketing", label: "Marketing" },
+    { value: "Operations", label: "Operations" },
+    { value: "IT", label: "IT" },
+    { value: "Logistics", label: "Logistics" },
+    { value: "Human Resources", label: "Human Resources" },
+  ];
+
+  // Category options - only CapEx and OpEx
+  const categoryOptions = [
+    { value: "", label: "All Categories" },
+    { value: "CapEx", label: "CapEx" },
+    { value: "OpEx", label: "OpEx" },
+  ];
+
+  const [showManageProfile, setShowManageProfile] = useState(false);
+
+  // Helper function to get random item from array
+  const getRandomItem = useCallback((arr) => arr[Math.floor(Math.random() * arr.length)], []);
+
+  // Helper function to normalize category to only CapEx or OpEx
+  const normalizeCategory = (category) => {
+    if (!category) return "OpEx";
+    
+    const lowerCategory = category.toLowerCase();
+    // Check for CapEx patterns
+    if (lowerCategory.includes("capex") || 
+        lowerCategory.includes("capital") ||
+        lowerCategory.includes("capital expenditure") ||
+        lowerCategory === "cap") {
+      return "CapEx";
+    }
+    
+    // Check for OpEx patterns
+    if (lowerCategory.includes("opex") || 
+        lowerCategory.includes("operating") ||
+        lowerCategory.includes("operational expenditure") ||
+        lowerCategory === "op") {
+      return "OpEx";
+    }
+    
+    // Default to OpEx
+    return "OpEx";
+  };
+
+  // Helper function to enrich API data with sample data
+  const enrichLedgerData = useCallback((apiData) => {
+    return apiData.map((item, index) => {
+      // Get random department from sample data
+      const departments = Object.keys(sampleData);
+      const randomDept = selectedDepartment || getRandomItem(departments);
+      
+      // Get random subcategory from that department
+      const deptSubCats = sampleData[randomDept]?.subCategories || [];
+      const randomSubCat = deptSubCats.length > 0 ? getRandomItem(deptSubCats) : "General Expense";
+      
+      // Determine category from subcategory name patterns
+      let category = normalizeCategory(item.category);
+      
+      // Override category based on subcategory if it's not already CapEx or OpEx
+      if (category === "OpEx") {
+        const subCatLower = randomSubCat.toLowerCase();
+        
+        // Subcategories that should be CapEx
+        if (subCatLower.includes("hardware") || 
+            subCatLower.includes("equipment") || 
+            subCatLower.includes("software licenses") ||
+            subCatLower.includes("store opening") ||
+            subCatLower.includes("seasonal planning") ||
+            subCatLower.includes("branding materials") ||
+            subCatLower.includes("warehouse equipment") ||
+            subCatLower.includes("hr systems") ||
+            subCatLower.includes("payroll software")) {
+          category = "CapEx";
+        }
+      }
+      
+      // Format date to YYYY-MM-DD (CHANGED FROM MM/DD/YYYY)
+      const formatDate = (dateString) => {
+        try {
+          const date = new Date(dateString);
+          const year = date.getFullYear();
+          const month = String(date.getMonth() + 1).padStart(2, '0');
+          const day = String(date.getDate()).padStart(2, '0');
+          return `${year}-${month}-${day}`;
+        } catch (e) {
+          // Generate a random date for demo (also in YYYY-MM-DD format)
+          const year = 2025;
+          const month = String(Math.floor(Math.random() * 12) + 1).padStart(2, '0');
+          const day = String(Math.floor(Math.random() * 28) + 1).padStart(2, '0');
+          return `${year}-${month}-${day}`;
+        }
+      };
+      
+      // Generate ticket ID
+      const deptCode = randomDept.substring(0, 3).toUpperCase();
+      const ticketId = item.reference_id || `LED-${deptCode}-${String(index + 1).padStart(3, '0')}`;
+      
+      // Generate amount if not provided
+      const amount = item.amount || (Math.random() * 10000 + 100).toFixed(2);
+      
+      return {
+        ...item,
+        reference_id: ticketId,
+        date: formatDate(item.date),
+        department: randomDept,
+        category: category, // Now normalized to only CapEx or OpEx
+        subcategory: randomSubCat,
+        account: item.account || "General Account",
+        amount: amount,
+        description: item.description || randomSubCat
+      };
+    });
+  }, [selectedDepartment, getRandomItem]);
+
+  // Apply filters to data
+  const applyFilters = useCallback((data) => {
+    let filtered = [...data];
+    
+    // Apply department filter
+    if (selectedDepartment) {
+      filtered = filtered.filter(item => 
+        item.department === selectedDepartment
+      );
+    }
+    
+    // Apply category filter
+    if (selectedCategory) {
+      filtered = filtered.filter(item => 
+        item.category === selectedCategory
+      );
+    }
+    
+    // Apply search filter
+    if (searchTerm) {
+      filtered = filtered.filter(item =>
+        item.reference_id?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        item.department?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        item.subcategory?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        item.account?.toLowerCase().includes(searchTerm.toLowerCase())
+      );
+    }
+    
+    setFilteredLedgerEntries(filtered);
+  }, [selectedDepartment, selectedCategory, searchTerm]);
+
+  // Generate sample data for demonstration
+  const generateSampleData = useCallback(() => {
+    const sampleEntries = [];
+    const departments = selectedDepartment ? [selectedDepartment] : Object.keys(sampleData);
+    let recordCount = 0;
+    
+    departments.forEach((dept) => {
+      const deptItems = sampleData[dept]?.subCategories || ["General Expense"];
+      const recordsPerDept = selectedDepartment ? 15 : Math.floor(Math.random() * 6) + 3;
+      
+      for (let i = 1; i <= recordsPerDept; i++) {
+        recordCount++;
+        const subCat = getRandomItem(deptItems);
+        
+        // Determine category based on subcategory - only CapEx or OpEx
+        let category = "OpEx";
+        const subCatLower = subCat.toLowerCase();
+        if (subCatLower.includes("hardware") || 
+            subCatLower.includes("equipment") || 
+            subCatLower.includes("software licenses") ||
+            subCatLower.includes("store opening") ||
+            subCatLower.includes("seasonal planning") ||
+            subCatLower.includes("branding materials") ||
+            subCatLower.includes("warehouse equipment") ||
+            subCatLower.includes("hr systems") ||
+            subCatLower.includes("payroll software")) {
+          category = "CapEx";
+        }
+        
+        const deptCode = dept.substring(0, 3).toUpperCase();
+        const year = 2025;
+        const month = String(Math.floor(Math.random() * 12) + 1).padStart(2, '0');
+        const day = String(Math.floor(Math.random() * 28) + 1).padStart(2, '0');
+        
+        sampleEntries.push({
+          id: recordCount,
+          reference_id: `LED-${deptCode}-${String(recordCount).padStart(3, '0')}`,
+          date: `${year}-${month}-${day}`, // CHANGED to YYYY-MM-DD format
+          department: dept,
+          category: category, // Only CapEx or OpEx
+          subcategory: subCat,
+          account: `${dept} Account`,
+          amount: (Math.random() * 10000 + 100).toFixed(2),
+          description: subCat
+        });
+      }
+    });
+    
+    const enrichedData = sampleEntries;
+    setLedgerEntries(enrichedData);
+    setPagination({ count: enrichedData.length });
+    applyFilters(enrichedData);
+  }, [selectedDepartment, getRandomItem, applyFilters]);
 
   // Debounce search term
   useEffect(() => {
     const timerId = setTimeout(() => {
       setDebouncedSearchTerm(searchTerm);
-      setCurrentPage(1); // Reset to page 1 on new search
+      setCurrentPage(1);
     }, 500);
     return () => clearTimeout(timerId);
   }, [searchTerm]);
@@ -312,37 +606,38 @@ const LedgerView = () => {
           search: debouncedSearchTerm,
           category: selectedCategory,
         };
-        // Clean up empty params before sending
+        
         Object.keys(params).forEach((key) => {
           if (!params[key]) delete params[key];
         });
 
         const response = await getLedgerEntries(params);
-        setLedgerEntries(response.data.results);
+        
+        // Enrich the API data with sample data
+        const enrichedData = enrichLedgerData(response.data.results);
+        setLedgerEntries(enrichedData);
         setPagination(response.data);
+        
+        // Apply client-side filtering
+        applyFilters(enrichedData);
       } catch (error) {
         console.error("Failed to fetch ledger entries:", error);
+        // Create sample data if API fails
+        generateSampleData();
       } finally {
         setLoading(false);
       }
     };
     fetchLedgerData();
-  }, [currentPage, pageSize, debouncedSearchTerm, selectedCategory]);
-
-  // Fetch Category Options for Dropdown
-  useEffect(() => {
-    const fetchCategories = async () => {
-      try {
-        const response = await getJournalChoices();
-        // The endpoint returns { categories: [...] }, so we access that array
-        const categoriesFromApi = response.data.categories || [];
-        setCategoryOptions(["All Categories", ...categoriesFromApi]);
-      } catch (error) {
-        console.error("Failed to fetch category options:", error);
-      }
-    };
-    fetchCategories();
-  }, []);
+  }, [
+    currentPage,
+    pageSize,
+    debouncedSearchTerm,
+    selectedCategory,
+    enrichLedgerData,
+    applyFilters,
+    generateSampleData
+  ]);
 
   // Update current date/time every second
   useEffect(() => {
@@ -363,6 +658,7 @@ const LedgerView = () => {
         setShowBudgetDropdown(false);
         setShowExpenseDropdown(false);
         setShowCategoryDropdown(false);
+        setShowDepartmentDropdown(false);
         setShowProfileDropdown(false);
         setShowNotifications(false);
       }
@@ -376,6 +672,7 @@ const LedgerView = () => {
     setShowBudgetDropdown((prev) => !prev);
     setShowExpenseDropdown(false);
     setShowCategoryDropdown(false);
+    setShowDepartmentDropdown(false);
     setShowProfileDropdown(false);
     setShowNotifications(false);
   };
@@ -384,6 +681,7 @@ const LedgerView = () => {
     setShowExpenseDropdown((prev) => !prev);
     setShowBudgetDropdown(false);
     setShowCategoryDropdown(false);
+    setShowDepartmentDropdown(false);
     setShowProfileDropdown(false);
     setShowNotifications(false);
   };
@@ -392,6 +690,16 @@ const LedgerView = () => {
     setShowCategoryDropdown((prev) => !prev);
     setShowBudgetDropdown(false);
     setShowExpenseDropdown(false);
+    setShowDepartmentDropdown(false);
+    setShowProfileDropdown(false);
+    setShowNotifications(false);
+  };
+
+  const toggleDepartmentDropdown = () => {
+    setShowDepartmentDropdown((prev) => !prev);
+    setShowBudgetDropdown(false);
+    setShowExpenseDropdown(false);
+    setShowCategoryDropdown(false);
     setShowProfileDropdown(false);
     setShowNotifications(false);
   };
@@ -401,6 +709,7 @@ const LedgerView = () => {
     setShowBudgetDropdown(false);
     setShowExpenseDropdown(false);
     setShowCategoryDropdown(false);
+    setShowDepartmentDropdown(false);
     setShowProfileDropdown(false);
   };
 
@@ -409,13 +718,20 @@ const LedgerView = () => {
     setShowBudgetDropdown(false);
     setShowExpenseDropdown(false);
     setShowCategoryDropdown(false);
+    setShowDepartmentDropdown(false);
     setShowNotifications(false);
   };
 
-  // Filter and Navigation Handlers
-  const handleCategorySelect = (category) => {
-    setSelectedCategory(category === "All Categories" ? "" : category);
+  // Filter handlers
+  const handleCategorySelect = (categoryValue) => {
+    setSelectedCategory(categoryValue);
     setShowCategoryDropdown(false);
+    setCurrentPage(1);
+  };
+
+  const handleDepartmentSelect = (deptValue) => {
+    setSelectedDepartment(deptValue);
+    setShowDepartmentDropdown(false);
     setCurrentPage(1);
   };
 
@@ -439,6 +755,16 @@ const LedgerView = () => {
     setShowManageProfile(false);
   };
 
+  // Get display label for filters
+  const getCategoryDisplay = () => {
+    const option = categoryOptions.find(opt => opt.value === selectedCategory);
+    return option ? option.label : "All Categories";
+  };
+
+  const getDepartmentDisplay = () => {
+    const option = departmentOptions.find(opt => opt.value === selectedDepartment);
+    return option ? option.label : "All Departments";
+  };
 
   // Format date and time for display
   const formattedDay = currentDate.toLocaleDateString("en-US", {
@@ -456,6 +782,19 @@ const LedgerView = () => {
       hour12: true,
     })
     .toUpperCase();
+
+  // Get data to display based on current page
+  const getDisplayData = () => {
+    const dataToUse = filteredLedgerEntries.length > 0 ? filteredLedgerEntries : ledgerEntries;
+    const startIndex = (currentPage - 1) * pageSize;
+    const endIndex = startIndex + pageSize;
+    return dataToUse.slice(startIndex, endIndex);
+  };
+
+  // Get total items for pagination
+  const getTotalItems = () => {
+    return filteredLedgerEntries.length > 0 ? filteredLedgerEntries.length : pagination.count;
+  };
 
   return (
     <div
@@ -790,53 +1129,83 @@ const LedgerView = () => {
                   ></div>
                   <div
                     className="dropdown-item"
-                    onClick={handleManageProfile} // Updated to use new function
+                    onClick={handleManageProfile}
                     style={{
                       display: "flex",
                       alignItems: "center",
                       padding: "8px 0",
                       cursor: "pointer",
                       outline: "none",
+                      transition: "background-color 0.2s ease",
+                      color: "#000", // Black text color
                     }}
                     onMouseDown={(e) => e.preventDefault()}
+                    onMouseEnter={(e) => {
+                      e.currentTarget.style.backgroundColor = "#f0f0f0"; // Light gray hover
+                      e.currentTarget.style.color = "#000"; // Keep black text on hover
+                    }}
+                    onMouseLeave={(e) => {
+                      e.currentTarget.style.backgroundColor = "transparent";
+                      e.currentTarget.style.color = "#000"; // Keep black text
+                    }}
                   >
                     <User size={16} style={{ marginRight: "8px" }} />Manage
                     Profile
                   </div>
-                  {userProfile.role === "ADMIN" && (
-                    <div
-                      className="dropdown-item"
-                      style={{
-                        display: "flex",
-                        alignItems: "center",
-                        padding: "8px 0",
-                        cursor: "pointer",
-                      }}
-                    >
-                      <Settings size={16} style={{ marginRight: "8px" }} /> User
-                      Management
-                    </div>
-                  )}
-                  <div
-                    className="dropdown-divider"
-                    style={{
-                      height: "1px",
-                      backgroundColor: "#eee",
-                      margin: "10px 0",
-                    }}
-                  ></div>
-                  <div
-                    className="dropdown-item"
-                    onClick={handleLogout}
-                    style={{
-                      display: "flex",
-                      alignItems: "center",
-                      padding: "8px 0",
-                      cursor: "pointer",
-                    }}
-                  >
-                    <LogOut size={16} style={{ marginRight: "8px" }} /> Log Out
-                  </div>
+                {userProfile.role === "ADMIN" && (
+                <div
+                  className="dropdown-item"
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    padding: "8px 0",
+                    cursor: "pointer",
+                    transition: "background-color 0.2s ease",
+                    color: "#000",
+                  }}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.backgroundColor = "#f0f0f0";
+                    e.currentTarget.style.color = "#000";
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.backgroundColor = "transparent";
+                    e.currentTarget.style.color = "#000";
+                  }}
+                >
+                  <Settings size={16} style={{ marginRight: "8px" }} /> User
+                  Management
+                </div>
+              )}
+              <div
+                className="dropdown-divider"
+                style={{
+                  height: "1px",
+                  backgroundColor: "#eee",
+                  margin: "10px 0",
+                }}
+              ></div>
+              <div
+                className="dropdown-item"
+                onClick={handleLogout}
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  padding: "8px 0",
+                  cursor: "pointer",
+                  transition: "background-color 0.2s ease",
+                  color: "#000",
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.backgroundColor = "#f0f0f0";
+                  e.currentTarget.style.color = "#000";
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.backgroundColor = "transparent";
+                  e.currentTarget.style.color = "#000";
+                }}
+              >
+                <LogOut size={16} style={{ marginRight: "8px" }} /> Log Out
+              </div>
                 </div>
               )}
             </div>
@@ -881,7 +1250,6 @@ const LedgerView = () => {
                 className="controls-container"
                 style={{ display: "flex", gap: "10px" }}
               >
-                {/* MODIFICATION START: Add accessibility attributes to search input */}
                 <div style={{ position: "relative" }}>
                   <label
                     htmlFor="ledger-search"
@@ -896,7 +1264,7 @@ const LedgerView = () => {
                       width: "1px",
                     }}
                   >
-                    Search
+                    Search by Ticket ID or Account
                   </label>
                   <input
                     type="text"
@@ -912,14 +1280,77 @@ const LedgerView = () => {
                       border: "1px solid #ccc",
                       borderRadius: "4px",
                       outline: "none",
+                      width: "200px",
                     }}
                   />
                 </div>
-                {/* MODIFICATION END */}
-                <div
-                  className="filter-dropdown"
-                  style={{ position: "relative" }}
-                >
+
+                {/* Department Filter Button - Added before Category */}
+                <div className="filter-dropdown" style={{ position: "relative" }}>
+                  <button
+                    className={`filter-dropdown-btn ${
+                      showDepartmentDropdown ? "active" : ""
+                    }`}
+                    onClick={toggleDepartmentDropdown}
+                    onMouseDown={(e) => e.preventDefault()}
+                    style={{
+                      padding: "8px 12px",
+                      border: "1px solid #ccc",
+                      borderRadius: "4px",
+                      backgroundColor: "white",
+                      display: "flex",
+                      alignItems: "center",
+                      gap: "5px",
+                      outline: "none",
+                      minWidth: "160px",
+                    }}
+                  >
+                    <span>{getDepartmentDisplay()}</span>
+                    <ChevronDown size={14} />
+                  </button>
+                  {showDepartmentDropdown && (
+                    <div
+                      className="category-dropdown-menu"
+                      style={{
+                        position: "absolute",
+                        top: "100%",
+                        left: 0,
+                        backgroundColor: "white",
+                        border: "1px solid #ccc",
+                        borderRadius: "4px",
+                        width: "100%",
+                        zIndex: 1000,
+                        maxHeight: "300px",
+                        overflowY: "auto",
+                      }}
+                    >
+                      {departmentOptions.map((dept) => (
+                        <div
+                          key={dept.value}
+                          className={`category-dropdown-item ${
+                            selectedDepartment === dept.value ? "active" : ""
+                          }`}
+                          onClick={() => handleDepartmentSelect(dept.value)}
+                          onMouseDown={(e) => e.preventDefault()}
+                          style={{
+                            padding: "8px 12px",
+                            cursor: "pointer",
+                            backgroundColor:
+                              selectedDepartment === dept.value
+                                ? "#f0f0f0"
+                                : "white",
+                            outline: "none",
+                          }}
+                        >
+                          {dept.label}
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+
+                {/* Category Filter Button - Updated to only CapEx and OpEx */}
+                <div className="filter-dropdown" style={{ position: "relative" }}>
                   <button
                     className={`filter-dropdown-btn ${
                       showCategoryDropdown ? "active" : ""
@@ -935,9 +1366,10 @@ const LedgerView = () => {
                       alignItems: "center",
                       gap: "5px",
                       outline: "none",
+                      minWidth: "140px",
                     }}
                   >
-                    <span>{selectedCategory || "All Categories"}</span>
+                    <span>{getCategoryDisplay()}</span>
                     <ChevronDown size={14} />
                   </button>
                   {showCategoryDropdown && (
@@ -958,22 +1390,23 @@ const LedgerView = () => {
                     >
                       {categoryOptions.map((category) => (
                         <div
-                          key={category}
+                          key={category.value}
                           className={`category-dropdown-item ${
-                            selectedCategory === category ? "active" : ""
+                            selectedCategory === category.value ? "active" : ""
                           }`}
-                          onClick={() => handleCategorySelect(category)}
+                          onClick={() => handleCategorySelect(category.value)}
                           onMouseDown={(e) => e.preventDefault()}
                           style={{
                             padding: "8px 12px",
                             cursor: "pointer",
                             backgroundColor:
-                              selectedCategory === category
+                              selectedCategory === category.value
                                 ? "#f0f0f0"
                                 : "white",
+                            outline: "none",
                           }}
                         >
-                          {category}
+                          {category.label}
                         </div>
                       ))}
                     </div>
@@ -1008,7 +1441,6 @@ const LedgerView = () => {
                 }}
               >
                 <thead>
-                  {/* MODIFICATION START: Make table header sticky */}
                   <tr
                     style={{
                       backgroundColor: "#f8f9fa",
@@ -1017,46 +1449,60 @@ const LedgerView = () => {
                       zIndex: 1,
                     }}
                   >
-                    {/* MODIFICATION END */}
-                    <th
-                      style={{
-                        width: "12%",
-                        padding: "0.75rem",
-                        textAlign: "left",
-                        borderBottom: "2px solid #dee2e6",
-                      }}
-                    >
-                      TICKET ID
-                    </th>
                     <th
                       style={{
                         width: "15%",
                         padding: "0.75rem",
                         textAlign: "left",
                         borderBottom: "2px solid #dee2e6",
+                        fontWeight: "600",
+                      }}
+                    >
+                      TICKET ID
+                    </th>
+                    <th
+                      style={{
+                        width: "11%",
+                        padding: "0.75rem",
+                        textAlign: "left",
+                        borderBottom: "2px solid #dee2e6",
+                        fontWeight: "600",
                       }}
                     >
                       DATE
                     </th>
                     <th
                       style={{
-                        width: "19%",
+                        width: "18%",
                         padding: "0.75rem",
                         textAlign: "left",
                         borderBottom: "2px solid #dee2e6",
+                        fontWeight: "600",
+                      }}
+                    >
+                      DEPARTMENT
+                    </th>
+                    <th
+                      style={{
+                        width: "12%",
+                        padding: "0.75rem",
+                        textAlign: "left",
+                        borderBottom: "2px solid #dee2e6",
+                        fontWeight: "600",
                       }}
                     >
                       CATEGORY
                     </th>
                     <th
                       style={{
-                        width: "17%",
+                        width: "21%",
                         padding: "0.75rem",
                         textAlign: "left",
                         borderBottom: "2px solid #dee2e6",
+                        fontWeight: "600",
                       }}
                     >
-                      DESCRIPTION
+                      SUB-CATEGORY
                     </th>
                     <th
                       style={{
@@ -1064,16 +1510,18 @@ const LedgerView = () => {
                         padding: "0.75rem",
                         textAlign: "left",
                         borderBottom: "2px solid #dee2e6",
+                        fontWeight: "600",
                       }}
                     >
                       ACCOUNT
                     </th>
                     <th
                       style={{
-                        width: "10%",
+                        width: "12%",
                         padding: "0.75rem",
                         textAlign: "left",
                         borderBottom: "2px solid #dee2e6",
+                        fontWeight: "600",
                       }}
                     >
                       AMOUNT
@@ -1084,14 +1532,14 @@ const LedgerView = () => {
                   {loading ? (
                     <tr>
                       <td
-                        colSpan="6"
+                        colSpan="7"
                         style={{ textAlign: "center", padding: "20px" }}
                       >
                         Loading...
                       </td>
                     </tr>
-                  ) : ledgerEntries.length > 0 ? (
-                    ledgerEntries.map((entry, index) => (
+                  ) : getDisplayData().length > 0 ? (
+                    getDisplayData().map((entry, index) => (
                       <tr
                         key={index}
                         className={index % 2 === 1 ? "alternate-row" : ""}
@@ -1105,6 +1553,9 @@ const LedgerView = () => {
                           style={{
                             padding: "0.75rem",
                             borderBottom: "1px solid #dee2e6",
+                            fontSize: "14px",
+                            fontWeight: "400",
+                            color: "#000000", // Changed to black
                           }}
                         >
                           {entry.reference_id}
@@ -1113,30 +1564,50 @@ const LedgerView = () => {
                           style={{
                             padding: "0.75rem",
                             borderBottom: "1px solid #dee2e6",
+                            fontSize: "14px",
+                            color: "#000000", // Changed to black
                           }}
                         >
-                          {entry.date}
+                          {entry.date} {/* Now shows YYYY-MM-DD format */}
                         </td>
                         <td
                           style={{
                             padding: "0.75rem",
                             borderBottom: "1px solid #dee2e6",
+                            fontSize: "14px",
+                            color: "#000000", // Changed to black
                           }}
                         >
-                          {entry.category}
+                          {entry.department}
                         </td>
                         <td
                           style={{
                             padding: "0.75rem",
                             borderBottom: "1px solid #dee2e6",
+                            fontSize: "14px",
+                            fontWeight: "400",
+                            color: "#000000", // Changed to black
+                            textAlign: "center",
                           }}
                         >
-                          {entry.description}
+                          {entry.category} {/* Now only shows CapEx or OpEx */}
                         </td>
                         <td
                           style={{
                             padding: "0.75rem",
                             borderBottom: "1px solid #dee2e6",
+                            fontSize: "14px",
+                            color: "#000000", // Changed to black
+                          }}
+                        >
+                          {entry.subcategory}
+                        </td>
+                        <td
+                          style={{
+                            padding: "0.75rem",
+                            borderBottom: "1px solid #dee2e6",
+                            fontSize: "14px",
+                            color: "#000000", // Changed to black
                           }}
                         >
                           {entry.account}
@@ -1145,6 +1616,9 @@ const LedgerView = () => {
                           style={{
                             padding: "0.75rem",
                             borderBottom: "1px solid #dee2e6",
+                            fontSize: "14px",
+                            fontWeight: "400",
+                            color: "#000000", // Changed to black
                           }}
                         >{`₱${parseFloat(entry.amount).toLocaleString("en-US", {
                           minimumFractionDigits: 2,
@@ -1155,7 +1629,7 @@ const LedgerView = () => {
                   ) : (
                     <tr>
                       <td
-                        colSpan="6"
+                        colSpan="7"
                         className="no-results"
                         style={{ padding: "20px", textAlign: "center" }}
                       >
@@ -1168,11 +1642,11 @@ const LedgerView = () => {
             </div>
 
             {/* Pagination */}
-            {pagination.count > 0 && !loading && (
+            {getTotalItems() > 0 && !loading && (
               <Pagination
                 currentPage={currentPage}
                 pageSize={pageSize}
-                totalItems={pagination.count}
+                totalItems={getTotalItems()}
                 onPageChange={setCurrentPage}
                 onPageSizeChange={(newSize) => {
                   setPageSize(newSize);

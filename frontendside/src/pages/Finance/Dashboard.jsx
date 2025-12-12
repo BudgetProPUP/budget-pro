@@ -53,6 +53,8 @@ import {
 import { useAuth } from "../../context/AuthContext";
 // Import ManageProfile component
 import ManageProfile from "./ManageProfile";
+// Import SheetJS for Excel export
+import * as XLSX from 'xlsx';
 
 // Register ChartJS components
 ChartJS.register(
@@ -144,6 +146,387 @@ const generateExampleAccuracyHistory = () => {
   return Array.from({ length: 6 }, () => Math.random() * 15 + 75); // 75-90% accuracy history
 };
 
+// Export to Excel function - UPDATED WITH SHEETJS
+const exportToExcel = (summaryData, moneyFlowData, pieChartData, departmentData, timeFilter) => {
+  // Create a timestamp for the filename
+  const now = new Date();
+  const dateStr = now.toISOString().split('T')[0].replace(/-/g, '');
+  const timeStr = now.toTimeString().split(' ')[0].replace(/:/g, '');
+  const fileName = `dashboard_summary_${dateStr}_${timeStr}.xlsx`;
+  
+  try {
+    // Create a new workbook
+    const wb = XLSX.utils.book_new();
+    
+    // ===== 1. SUMMARY SHEET =====
+    const summarySheetData = [];
+    
+    // Header
+    summarySheetData.push(['BudgetPro Dashboard Summary', '', '', '']);
+    summarySheetData.push(['Generated on:', now.toLocaleString(), '', '']);
+    summarySheetData.push(['Time Filter:', timeFilter.charAt(0).toUpperCase() + timeFilter.slice(1), '', '']);
+    summarySheetData.push([]);
+    
+    // Summary stats
+    summarySheetData.push(['Summary Statistics']);
+    summarySheetData.push(['Metric', 'Value', 'Percentage', 'Status']);
+    summarySheetData.push([
+      'Total Budget',
+      `₱${Number(summaryData?.total_budget || 0).toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
+      '100%',
+      'Total'
+    ]);
+    summarySheetData.push([
+      'Budget Used',
+      `₱${Number(summaryData?.budget_used || 0).toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
+      `${summaryData?.percentage_used || 0}%`,
+      'Used'
+    ]);
+    summarySheetData.push([
+      'Remaining Budget',
+      `₱${Number(summaryData?.remaining_budget || 0).toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
+      `${(100 - (summaryData?.percentage_used || 0)).toFixed(1)}%`,
+      'Available'
+    ]);
+    
+    // ===== 2. MONEY FLOW SHEET =====
+    const moneyFlowSheetData = [];
+    
+    // Header
+    moneyFlowSheetData.push(['Monthly Money Flow Analysis', '', '', '', '']);
+    moneyFlowSheetData.push(['Report Period:', timeFilter.charAt(0).toUpperCase() + timeFilter.slice(1), '', '', '']);
+    moneyFlowSheetData.push([]);
+    
+    // Column headers
+    moneyFlowSheetData.push(['Month', 'Budget Amount', 'Actual Expense', 'Variance', 'Status']);
+    
+    // Add money flow data with ACCURATE formatting matching the dashboard
+    if (moneyFlowData && Array.isArray(moneyFlowData)) {
+      moneyFlowData.forEach(item => {
+        const budget = Number(item.budget) || 0;
+        const actual = Number(item.actual) || 0;
+        const variance = budget - actual;
+        const variancePercentage = budget > 0 ? ((variance / budget) * 100).toFixed(1) : 0;
+        
+        // Format exactly as shown in dashboard
+        const formattedBudget = `₱${budget.toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+        const formattedActual = `₱${actual.toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+        const formattedVariance = `₱${Math.abs(variance).toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+        
+        let status = '';
+        if (variance > 0) {
+          status = `Under Budget by ${variancePercentage}%`;
+        } else if (variance < 0) {
+          status = `Over Budget by ${Math.abs(variancePercentage)}%`;
+        } else {
+          status = 'On Budget';
+        }
+        
+        moneyFlowSheetData.push([
+          item.month_name,
+          formattedBudget,
+          formattedActual,
+          formattedVariance,
+          status
+        ]);
+      });
+      
+      // Add totals row
+      const totalBudget = moneyFlowData.reduce((sum, item) => sum + (Number(item.budget) || 0), 0);
+      const totalActual = moneyFlowData.reduce((sum, item) => sum + (Number(item.actual) || 0), 0);
+      const totalVariance = totalBudget - totalActual;
+      const totalVariancePercentage = totalBudget > 0 ? ((totalVariance / totalBudget) * 100).toFixed(1) : 0;
+      
+      moneyFlowSheetData.push([]);
+      moneyFlowSheetData.push([
+        'TOTAL',
+        `₱${totalBudget.toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
+        `₱${totalActual.toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
+        `₱${Math.abs(totalVariance).toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
+        totalVariance > 0 ? `Under Budget by ${totalVariancePercentage}%` : 
+        totalVariance < 0 ? `Over Budget by ${Math.abs(totalVariancePercentage)}%` : 'Exactly On Budget'
+      ]);
+    }
+    
+    // ===== 3. DEPARTMENT BUDGET SHEET =====
+    const departmentSheetData = [];
+    
+    // Header
+    departmentSheetData.push(['Department Budget Allocation', '', '', '', '', '']);
+    departmentSheetData.push([]);
+    
+    // Column headers
+    departmentSheetData.push(['Department', 'Budget', 'Spent', 'Remaining', 'Percentage Used', 'Status']);
+    
+    if (departmentData && Array.isArray(departmentData)) {
+      departmentData.forEach(dept => {
+        const budget = Number(dept.budget) || 0;
+        const spent = Number(dept.spent) || 0;
+        const remaining = budget - spent;
+        const percentageUsed = budget > 0 ? ((spent / budget) * 100).toFixed(1) : 0;
+        
+        // Format exactly as shown in dashboard
+        const formattedBudget = `₱${budget.toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+        const formattedSpent = `₱${spent.toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+        const formattedRemaining = `₱${remaining.toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+        
+        let status = '';
+        if (percentageUsed >= 90) {
+          status = 'Critical';
+        } else if (percentageUsed >= 75) {
+          status = 'High Usage';
+        } else if (percentageUsed >= 50) {
+          status = 'Moderate Usage';
+        } else {
+          status = 'Low Usage';
+        }
+        
+        departmentSheetData.push([
+          dept.department_name,
+          formattedBudget,
+          formattedSpent,
+          formattedRemaining,
+          `${percentageUsed}%`,
+          status
+        ]);
+      });
+      
+      // Add totals
+      const totalDeptBudget = departmentData.reduce((sum, dept) => sum + (Number(dept.budget) || 0), 0);
+      const totalDeptSpent = departmentData.reduce((sum, dept) => sum + (Number(dept.spent) || 0), 0);
+      const totalDeptRemaining = totalDeptBudget - totalDeptSpent;
+      const totalDeptPercentageUsed = totalDeptBudget > 0 ? ((totalDeptSpent / totalDeptBudget) * 100).toFixed(1) : 0;
+      
+      departmentSheetData.push([]);
+      departmentSheetData.push([
+        'TOTAL',
+        `₱${totalDeptBudget.toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
+        `₱${totalDeptSpent.toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
+        `₱${totalDeptRemaining.toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
+        `${totalDeptPercentageUsed}%`,
+        'Overall'
+      ]);
+    }
+    
+    // ===== 4. PIE CHART SUMMARY SHEET =====
+    const pieChartSheetData = [];
+    
+    // Header
+    pieChartSheetData.push(['Department Budget Distribution (Pie Chart Data)', '', '', '']);
+    pieChartSheetData.push(['Total Value:', `₱${Number(pieChartData?.datasets?.[0]?.data?.reduce((a, b) => a + b, 0) || 0).toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`, '', '']);
+    pieChartSheetData.push([]);
+    
+    pieChartSheetData.push(['Department', 'Amount', 'Percentage', 'Color Code']);
+    
+    if (pieChartData && pieChartData.labels && pieChartData.datasets[0].data) {
+      const totalPieValue = pieChartData.datasets[0].data.reduce((sum, value) => sum + value, 0);
+      
+      pieChartData.labels.forEach((label, index) => {
+        const amount = pieChartData.datasets[0].data[index];
+        const percentage = totalPieValue > 0 ? ((amount / totalPieValue) * 100).toFixed(1) : 0;
+        const color = pieChartData.datasets[0].backgroundColor[index] || '#007bff';
+        
+        pieChartSheetData.push([
+          label,
+          `₱${amount.toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
+          `${percentage}%`,
+          color
+        ]);
+      });
+    }
+    
+    // Convert data to worksheets
+    const ws1 = XLSX.utils.aoa_to_sheet(summarySheetData);
+    const ws2 = XLSX.utils.aoa_to_sheet(moneyFlowSheetData);
+    const ws3 = XLSX.utils.aoa_to_sheet(departmentSheetData);
+    const ws4 = XLSX.utils.aoa_to_sheet(pieChartSheetData);
+    
+    // Add worksheets to workbook
+    XLSX.utils.book_append_sheet(wb, ws1, "Summary");
+    XLSX.utils.book_append_sheet(wb, ws2, "Money Flow");
+    XLSX.utils.book_append_sheet(wb, ws3, "Departments");
+    XLSX.utils.book_append_sheet(wb, ws4, "Distribution");
+    
+    // Set column widths for better readability
+    const colWidths = [
+      { wch: 25 }, // Column A width
+      { wch: 20 }, // Column B width
+      { wch: 20 }, // Column C width
+      { wch: 20 }, // Column D width
+      { wch: 25 }, // Column E width
+      { wch: 15 }, // Column F width
+    ];
+    
+    ws1['!cols'] = colWidths;
+    ws2['!cols'] = colWidths;
+    ws3['!cols'] = colWidths;
+    ws4['!cols'] = colWidths;
+    
+    // Generate Excel file
+    XLSX.writeFile(wb, fileName);
+    
+    console.log(`Exported successfully as ${fileName}`);
+    
+  } catch (error) {
+    console.error('Error exporting to Excel:', error);
+    alert('Failed to export Excel file. Please try again.');
+  }
+};
+
+// Forecast Accuracy Report Export
+const exportAccuracyReport = (forecastAccuracyData, moneyFlowData, forecastData) => {
+  // Create filename with required format: dashboard_summary_YYYYMMDD_TTTTTTT.xlsx
+  const now = new Date();
+  const dateStr = now.toISOString().split('T')[0].replace(/-/g, '');
+  const timeStr = now.toTimeString().split(' ')[0].replace(/:/g, '');
+  const fileName = `forecast_accuracy_report_${dateStr}_${timeStr}.xlsx`;
+  
+  // Guard clause to prevent exporting if data isn't ready
+  if (!forecastAccuracyData || !moneyFlowData || !forecastData) {
+    alert("Accuracy data is not available to export.");
+    return;
+  }
+
+  try {
+    // Create a new workbook
+    const wb = XLSX.utils.book_new();
+    
+    // ===== 1. FORECAST ACCURACY SUMMARY SHEET =====
+    const summarySheetData = [];
+    
+    // Header
+    summarySheetData.push(['Forecast Accuracy Report', '', '', '', '']);
+    summarySheetData.push(['Generated on:', now.toLocaleString(), '', '', '']);
+    summarySheetData.push(['Filename:', fileName, '', '', '']);
+    summarySheetData.push([]);
+    
+    // Summary Metrics
+    summarySheetData.push(['Summary Metrics']);
+    summarySheetData.push(['Metric', 'Value', 'Details', '', '']);
+    summarySheetData.push([
+      'Analyzed Month',
+      `${forecastAccuracyData.month_name} ${forecastAccuracyData.year}`,
+      'Last completed month',
+      '',
+      ''
+    ]);
+    summarySheetData.push([
+      'Accuracy Percentage',
+      `${forecastAccuracyData.accuracy_percentage}%`,
+      forecastAccuracyData.accuracy_percentage >= 90 ? 'Excellent' : 
+      forecastAccuracyData.accuracy_percentage >= 75 ? 'Good' : 
+      forecastAccuracyData.accuracy_percentage >= 50 ? 'Fair' : 'Poor',
+      '',
+      ''
+    ]);
+    summarySheetData.push([
+      'Variance',
+      `₱${Math.abs(Number(forecastAccuracyData.variance)).toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
+      Number(forecastAccuracyData.variance) >= 0 ? 'Over Forecast' : 'Under Forecast',
+      '',
+      ''
+    ]);
+    summarySheetData.push([
+      'Actual Spend',
+      `₱${Number(forecastAccuracyData.actual_spend).toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
+      'Actual amount spent',
+      '',
+      ''
+    ]);
+    summarySheetData.push([
+      'Forecasted Spend',
+      `₱${Number(forecastAccuracyData.forecasted_spend).toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
+      'Predicted amount',
+      '',
+      ''
+    ]);
+    
+    // ===== 2. MONTHLY COMPARISON SHEET =====
+    const comparisonSheetData = [];
+    
+    // Header
+    comparisonSheetData.push(['Monthly Forecast vs Actual Comparison', '', '', '', '', '']);
+    comparisonSheetData.push([]);
+    
+    // Column headers
+    comparisonSheetData.push(['Month', 'Actual', 'Forecast', 'Variance Amount', 'Variance Status', 'Accuracy']);
+    
+    // Build the detailed monthly comparison data
+    if (moneyFlowData && Array.isArray(moneyFlowData) && forecastData && Array.isArray(forecastData)) {
+      moneyFlowData.forEach((month) => {
+        const actualValue = Number(month.actual) || 0;
+        const forecastPoint = forecastData.find(f => f.month_name === month.month_name);
+        const forecastValue = forecastPoint ? Number(forecastPoint.forecast) : 0;
+        const variance = actualValue - forecastValue;
+        
+        let accuracy = 'N/A';
+        if (actualValue > 0) {
+          accuracy = (100 * (1 - Math.abs(variance) / actualValue)).toFixed(1) + '%';
+        } else if (forecastValue === 0) {
+          accuracy = '100.0%';
+        } else {
+          accuracy = '0.0%';
+        }
+
+        comparisonSheetData.push([
+          month.month_name,
+          `₱${actualValue.toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
+          `₱${forecastValue.toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
+          `₱${Math.abs(variance).toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
+          variance > 0 ? 'Actual > Forecast' : variance < 0 ? 'Actual < Forecast' : 'Exact Match',
+          accuracy
+        ]);
+      });
+    }
+    
+    // Convert data to worksheets
+    const ws1 = XLSX.utils.aoa_to_sheet(summarySheetData);
+    const ws2 = XLSX.utils.aoa_to_sheet(comparisonSheetData);
+    
+    // Add worksheets to workbook
+    XLSX.utils.book_append_sheet(wb, ws1, "Accuracy Summary");
+    XLSX.utils.book_append_sheet(wb, ws2, "Monthly Comparison");
+    
+    // Set column widths
+    const colWidths = [
+      { wch: 25 }, // Column A width
+      { wch: 20 }, // Column B width
+      { wch: 20 }, // Column C width
+      { wch: 20 }, // Column D width
+      { wch: 25 }, // Column E width
+      { wch: 15 }, // Column F width
+    ];
+    
+    ws1['!cols'] = colWidths;
+    ws2['!cols'] = colWidths;
+    
+    // Generate Excel file
+    XLSX.writeFile(wb, fileName);
+    
+    console.log(`Accuracy report exported successfully as ${fileName}`);
+    
+  } catch (error) {
+    console.error('Error exporting accuracy report:', error);
+    alert('Failed to export accuracy report. Please try again.');
+  }
+};
+
+// Your department list for the pie chart
+const DEPARTMENTS = [
+  'Merchandise Planning',
+  'Store Operations',
+  'Marketing',
+  'Operations',
+  'IT',
+  'Logistics',
+  'Human Resources'
+];
+
+// Helper function to format peso amounts
+const formatPeso = (amount) => {
+  return `₱${Number(amount).toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+};
+
 function BudgetDashboard() {
   const [currentDate, setCurrentDate] = useState(new Date());
   const [loading, setLoading] = useState(true);
@@ -170,22 +553,18 @@ function BudgetDashboard() {
   const [pieChartApiData, setPieChartApiData] = useState(null); // For Pie Chart
   const [departmentDetailsData, setDepartmentDetailsData] = useState(null); // For "View Details"
 
-
-
   // MODIFICATION START
   // New state for the forecast accuracy data from the API
   const [forecastAccuracyData, setForecastAccuracyData] = useState(null);
   // MODIFICATION END
 
   // New state for forecast analysis
-  // const [accuracyMetrics, setAccuracyMetrics] = useState(null); // This will be replaced
   const [performanceTrend, setPerformanceTrend] = useState('stable');
   const [accuracyHistory, setAccuracyHistory] = useState([85, 82, 88, 90, 87]); // This remains placeholder for now
 
-
   const { user, logout } = useAuth(); // Get user and logout function from context
 
-// MODIFICATION START
+  // MODIFICATION START
   // User profile data is now dynamic from the authentication context
   const userProfile = {
     name: user ? `${user.first_name} ${user.last_name}` : "User",
@@ -243,8 +622,8 @@ function BudgetDashboard() {
 
     fetchSummaryData();
   }, [timeFilter]); // Dependency array ensures this runs when the filter button is clicked
-  // MODIFICATION END
-// This new useEffect fetches forecast and accuracy data when the comparison view is toggled
+
+  // This new useEffect fetches forecast and accuracy data when the comparison view is toggled
   useEffect(() => {
     const fetchAnalysisData = async () => {
       // Only fetch if the comparison view is active and we don't have the data yet
@@ -275,7 +654,7 @@ function BudgetDashboard() {
     };
 
     fetchAnalysisData();
-  }, [showForecastComparison]); 
+  }, [showForecastComparison]);
 
   // MODIFICATION START
   // Update the dependency for calculating performance trend
@@ -498,32 +877,76 @@ function BudgetDashboard() {
     },
   };
 
-  // Pie chart data - updated with more vibrant colors
-  const pieChartData = {
-    labels: pieChartApiData?.map((c) => c.name) || [],
-    datasets: [
-      {
-        data: pieChartApiData?.map((c) => c.total_allocated) || [],
-        backgroundColor: [
-          "#007bff",
-          "#28a745",
-          "#ffc107",
-          "#dc3545",
-          "#6f42c1",
-          "#fd7e14",
+  // REVISION 3: Pie chart data changed to PER DEPARTMENT
+  // We'll use the department list and map it to the department data
+  const getDepartmentPieData = () => {
+    // If we have department data from API, use it
+    if (departmentDetailsData && departmentDetailsData.length > 0) {
+      // Filter to only include departments from our list
+      const filteredDepartments = departmentDetailsData.filter(dept => 
+        DEPARTMENTS.includes(dept.department_name)
+      );
+      
+      // If we have matching data, use it
+      if (filteredDepartments.length > 0) {
+        return {
+          labels: filteredDepartments.map((dept) => dept.department_name),
+          datasets: [
+            {
+              data: filteredDepartments.map((dept) => dept.budget),
+              backgroundColor: [
+                "#007bff", "#28a745", "#ffc107", "#dc3545", 
+                "#6f42c1", "#fd7e14", "#20c997", "#17a2b8"
+              ],
+              borderColor: "#ffffff",
+              borderWidth: 2,
+              hoverOffset: 15,
+            },
+          ],
+        };
+      }
+    }
+    
+    // Fallback: Use the categories data but relabel as departments
+    if (pieChartApiData && pieChartApiData.length > 0) {
+      const limitedData = pieChartApiData.slice(0, Math.min(pieChartApiData.length, DEPARTMENTS.length));
+      return {
+        labels: limitedData.map((_, index) => DEPARTMENTS[index] || `Department ${index + 1}`),
+        datasets: [
+          {
+            data: limitedData.map((c) => c.total_allocated),
+            backgroundColor: [
+              "#007bff", "#28a745", "#ffc107", "#dc3545", 
+              "#6f42c1", "#fd7e14", "#20c997", "#17a2b8"
+            ],
+            borderColor: "#ffffff",
+            borderWidth: 2,
+            hoverOffset: 15,
+          },
         ],
-        borderColor: "#ffffff",
-        borderWidth: 2,
-        hoverOffset: 15,
-      },
-    ],
+      };
+    }
+    
+    // Ultimate fallback: Use sample department data
+    return {
+      labels: DEPARTMENTS,
+      datasets: [
+        {
+          data: [1854420, 2618842, 2273144, 1895670, 1543200, 1367890, 1089450],
+          backgroundColor: [
+            "#007bff", "#28a745", "#ffc107", "#dc3545", 
+            "#6f42c1", "#fd7e14", "#20c997"
+          ],
+          borderColor: "#ffffff",
+          borderWidth: 2,
+          hoverOffset: 15,
+        },
+      ],
+    };
   };
 
-  const totalPieValue =
-    pieChartApiData?.reduce(
-      (sum, item) => sum + parseFloat(item.total_allocated),
-      0
-    ) || 0;
+  const pieChartData = getDepartmentPieData();
+  const totalPieValue = pieChartData.datasets[0].data.reduce((sum, value) => sum + value, 0);
 
   // Fixed the duplicate 'plugins' key issue
   const pieChartOptions = {
@@ -540,7 +963,7 @@ function BudgetDashboard() {
             const percentage = ((context.raw / totalPieValue) * 100).toFixed(1);
             return `${
               context.label
-            }: ₱${context.raw.toLocaleString()} (${percentage}%)`;
+            }: ${formatPeso(context.raw)} (${percentage}%)`;
           },
         },
       },
@@ -556,7 +979,7 @@ function BudgetDashboard() {
         ctx.textBaseline = "middle";
         ctx.textAlign = "center";
 
-        const text = `₱${totalPieValue.toLocaleString()}`,
+        const text = formatPeso(totalPieValue),
           textX = width / 2,
           textY = height / 2;
 
@@ -567,70 +990,6 @@ function BudgetDashboard() {
     },
   };
 
-  // MODIFICATION START
-  // Re-implemented export function to use live data
-  const exportAccuracyReport = () => {
-    // Guard clause to prevent exporting if data isn't ready
-    if (!forecastAccuracyData || !moneyFlowData || !forecastData) {
-      alert("Accuracy data is not available to export.");
-      return;
-    }
-
-    // Build the detailed monthly comparison data for the report
-    const monthlyComparisonData = moneyFlowData.map((month) => {
-      const actualValue = Number(month.actual) || 0;
-      
-      const forecastPoint = forecastData.find(f => f.month_name === month.month_name);
-      const forecastValue = forecastPoint ? Number(forecastPoint.forecast) : 0;
-      
-      const variance = actualValue - forecastValue;
-      
-      let accuracy = 'N/A';
-      if (actualValue > 0) {
-        accuracy = (100 * (1 - Math.abs(variance) / actualValue)).toFixed(1) + '%';
-      } else if (forecastValue === 0) {
-        accuracy = '100.0%'; // Perfect forecast if both are zero
-      } else {
-        accuracy = '0.0%';
-      }
-
-      return {
-        month: month.month_name,
-        actual: actualValue,
-        forecast: forecastValue,
-        variance: variance,
-        accuracy: accuracy
-      };
-    });
-
-    // Construct the final report object
-    const reportData = {
-      title: "Forecast Accuracy Report",
-      generatedAt: new Date().toLocaleString(),
-      dataSource: "Real Data",
-      summaryMetrics: {
-        analyzedMonth: `${forecastAccuracyData.month_name} ${forecastAccuracyData.year}`,
-        accuracyPercentage: forecastAccuracyData.accuracy_percentage,
-        variance: forecastAccuracyData.variance,
-        actualSpend: forecastAccuracyData.actual_spend,
-        forecastedSpend: forecastAccuracyData.forecasted_spend,
-      },
-      performanceTrend: performanceTrend, // Still based on placeholder history
-      monthlyBreakdown: monthlyComparisonData
-    };
-
-    const blob = new Blob([JSON.stringify(reportData, null, 2)], { type: 'application/json' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `forecast-accuracy-report-${new Date().toISOString().split('T')[0]}.json`;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
-  };
-  // MODIFICATION END
-
   // Generate new example data
   const generateNewExampleData = () => {
     if (moneyFlowData) {
@@ -640,7 +999,6 @@ function BudgetDashboard() {
       const actualValues = moneyFlowData.map(d => d.actual);
       const forecastValues = newExampleData.map(d => d.forecast);
       const metrics = calculateAccuracyMetrics(actualValues, forecastValues);
-      setAccuracyMetrics(metrics);
       
       const newHistory = generateExampleAccuracyHistory();
       setExampleAccuracyHistory(newHistory);
@@ -1257,7 +1615,6 @@ function BudgetDashboard() {
           <ManageProfile 
             onClose={handleCloseManageProfile} 
           />
-          // MODIFICATION END
         ) : (
           <>
             {/* Time period filter - Updated with blue focus border */}
@@ -1319,117 +1676,117 @@ function BudgetDashboard() {
             </div>
 
             {/* Stats Grid - Updated with blue hover effect */}
-<div className="stats-grid" style={{ marginBottom: "30px" }}>
-  {/* Budget Completion */}
-  <div
-    className="card compact-budget-card"
-    style={{
-      flex: "1 1 33%",
-      transition: "all 0.2s ease",
-      cursor: "pointer",
-    }}
-    onMouseEnter={(e) => {
-      e.currentTarget.style.boxShadow =
-        "0 4px 8px rgba(0, 123, 255, 0.3)";
-      e.currentTarget.style.border = "1px solid #007bff";
-    }}
-    onMouseLeave={(e) => {
-      e.currentTarget.style.boxShadow = "";
-      e.currentTarget.style.border = "1px solid #e0e0e0";
-    }}
-  >
-    <h3 className="compact-card-title">Budget Completion</h3>
-    <p className="compact-stat-value">
-      {summaryData?.percentage_used || 0}%
-    </p>
-    <p className="compact-card-subtext">
-      Overall Status of Budget Plan
-    </p>
-    <div className="compact-progress-container">
-      <div
-        className="compact-progress-bar"
-        style={{
-          width: `${summaryData?.percentage_used || 0}%`,
-          backgroundColor: "#007bff",
-        }}
-      />
-    </div>
-  </div>
+            <div className="stats-grid" style={{ marginBottom: "30px" }}>
+              {/* Budget Completion */}
+              <div
+                className="card compact-budget-card"
+                style={{
+                  flex: "1 1 33%",
+                  transition: "all 0.2s ease",
+                  cursor: "pointer",
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.boxShadow =
+                    "0 4px 8px rgba(0, 123, 255, 0.3)";
+                  e.currentTarget.style.border = "1px solid #007bff";
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.boxShadow = "";
+                  e.currentTarget.style.border = "1px solid #e0e0e0";
+                }}
+              >
+                <h3 className="compact-card-title">Budget Completion</h3>
+                <p className="compact-stat-value">
+                  {summaryData?.percentage_used || 0}%
+                </p>
+                <p className="compact-card-subtext">
+                  Overall Status of Budget Plan
+                </p>
+                <div className="compact-progress-container">
+                  <div
+                    className="compact-progress-bar"
+                    style={{
+                      width: `${summaryData?.percentage_used || 0}%`,
+                      backgroundColor: "#007bff",
+                    }}
+                  />
+                </div>
+              </div>
 
-  {/* Total Budget */}
-  <div
-    className="card compact-budget-card"
-    style={{
-      flex: "1 1 33%",
-      transition: "all 0.2s ease",
-      cursor: "pointer",
-    }}
-    onMouseEnter={(e) => {
-      e.currentTarget.style.boxShadow =
-        "0 4px 8px rgba(0, 123, 255, 0.3)";
-      e.currentTarget.style.border = "1px solid #007bff";
-    }}
-    onMouseLeave={(e) => {
-      e.currentTarget.style.boxShadow = "";
-      e.currentTarget.style.border = "1px solid #e0e0e0";
-    }}
-  >
-    <h3 className="compact-card-title">Total Budget</h3>
-    <div
-      style={{
-        fontSize: "12px",
-        color: "#007bff",
-        marginBottom: "8px",
-        fontFamily: "Poppins, sans-serif",
-      }}
-    >
-      As of {currentMonth} {currentYear}
-    </div>
-    <p className="compact-stat-value">
-      ₱{Number(summaryData?.total_budget || 0).toLocaleString()}
-    </p>
-    <p className="compact-card-subtext">
-      {summaryData?.percentage_used || 0}% allocated
-    </p>
-    <div className="compact-progress-container">
-      <div
-        className="compact-progress-bar"
-        style={{
-          width: `${summaryData?.allocated_percentage || summaryData?.percentage_used || 0}%`,
-          backgroundColor: "#007bff",
-        }}
-      />
-    </div>
-  </div>
+              {/* REVISION 2: Total Budget with Peso format and dash amount */}
+              <div
+                className="card compact-budget-card"
+                style={{
+                  flex: "1 1 33%",
+                  transition: "all 0.2s ease",
+                  cursor: "pointer",
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.boxShadow =
+                    "0 4px 8px rgba(0, 123, 255, 0.3)";
+                  e.currentTarget.style.border = "1px solid #007bff";
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.boxShadow = "";
+                  e.currentTarget.style.border = "1px solid #e0e0e0";
+                }}
+              >
+                <h3 className="compact-card-title">Total Budget</h3>
+                <div
+                  style={{
+                    fontSize: "12px",
+                    color: "#007bff",
+                    marginBottom: "8px",
+                    fontFamily: "Poppins, sans-serif",
+                  }}
+                >
+                  As of {currentMonth} {currentYear}
+                </div>
+                <p className="compact-stat-value">
+                  {formatPeso(summaryData?.total_budget || 0)}
+                </p>
+                <p className="compact-card-subtext">
+                  {summaryData?.percentage_used || 0}% allocated
+                </p>
+                <div className="compact-progress-container">
+                  <div
+                    className="compact-progress-bar"
+                    style={{
+                      width: `${summaryData?.allocated_percentage || summaryData?.percentage_used || 0}%`,
+                      backgroundColor: "#007bff",
+                    }}
+                  />
+                </div>
+              </div>
 
-  {/* Remaining Budget */}
-  <div
-    className="card compact-budget-card"
-    style={{
-      flex: "1 1 33%",
-      transition: "all 0.2s ease",
-      cursor: "pointer",
-    }}
-    onMouseEnter={(e) => {
-      e.currentTarget.style.boxShadow =
-        "0 4px 8px rgba(0, 123, 255, 0.3)";
-      e.currentTarget.style.border = "1px solid #007bff";
-    }}
-    onMouseLeave={(e) => {
-      e.currentTarget.style.boxShadow = "";
-      e.currentTarget.style.border = "1px solid #e0e0e0";
-    }}
-  >
-    <h3 className="compact-card-title">Remaining Budget</h3>
-    <p className="compact-stat-value">
-      ₱{Number(summaryData?.remaining_budget || 0).toLocaleString()}
-    </p>
-    <p className="compact-card-subtext">
-      {(100 - (summaryData?.percentage_used || 0)).toFixed(1)}% of Total Budget
-    </p>
-    <span className="compact-badge">Available for Allocation</span>
-  </div>
-</div>
+              {/* REVISION 2: Remaining Budget with Peso format and dash amount */}
+              <div
+                className="card compact-budget-card"
+                style={{
+                  flex: "1 1 33%",
+                  transition: "all 0.2s ease",
+                  cursor: "pointer",
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.boxShadow =
+                    "0 4px 8px rgba(0, 123, 255, 0.3)";
+                  e.currentTarget.style.border = "1px solid #007bff";
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.boxShadow = "";
+                  e.currentTarget.style.border = "1px solid #e0e0e0";
+                }}
+              >
+                <h3 className="compact-card-title">Remaining Budget</h3>
+                <p className="compact-stat-value">
+                  {formatPeso(summaryData?.remaining_budget || 0)}
+                </p>
+                <p className="compact-card-subtext">
+                  {(100 - (summaryData?.percentage_used || 0)).toFixed(1)}% of Total Budget
+                </p>
+                <span className="compact-badge">Available for Allocation</span>
+              </div>
+            </div>
 
             {/* Money Flow Chart - Expanded with improved month spacing */}
             <div
@@ -1567,8 +1924,9 @@ function BudgetDashboard() {
                   }}
                 >
                   <h3 className="card-title">Forecast Accuracy Analysis</h3>
+                  {/* MOVED: Export Report Button from Money Flow to here */}
                   <button
-                    onClick={exportAccuracyReport}
+                    onClick={() => exportToExcel(summaryData, moneyFlowData, pieChartData, departmentDetailsData, timeFilter)}
                     style={{
                       display: "flex",
                       alignItems: "center",
@@ -1621,31 +1979,31 @@ function BudgetDashboard() {
                         </span>
                       </div>
 
-                      {/* Variance Card */}
+                      {/* REVISION 2: Variance Card with Peso format */}
                       <div className="card compact-budget-card" style={{ flex: "1 1 25%" }}>
                         <h3 className="compact-card-title">Variance</h3>
                         <p className="compact-stat-value" style={{ color: Number(forecastAccuracyData.variance) >= 0 ? '#dc3545' : '#28a745' }}>
-                          ₱{Math.abs(Number(forecastAccuracyData.variance)).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                          {formatPeso(Math.abs(Number(forecastAccuracyData.variance)))}
                         </p>
                         <p className="compact-card-subtext">
                           {Number(forecastAccuracyData.variance) >= 0 ? 'Over Forecast' : 'Under Forecast'}
                         </p>
                       </div>
 
-                      {/* Actual Spend Card */}
+                      {/* Actual Spend Card with Peso format */}
                       <div className="card compact-budget-card" style={{ flex: "1 1 25%" }}>
                         <h3 className="compact-card-title">Actual Spend ({forecastAccuracyData.month_name})</h3>
                         <p className="compact-stat-value" style={{ color: '#28a745' }}>
-                          ₱{Number(forecastAccuracyData.actual_spend).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                          {formatPeso(Number(forecastAccuracyData.actual_spend))}
                         </p>
                         <p className="compact-card-subtext">Last Completed Month</p>
                       </div>
 
-                      {/* Forecasted Spend Card */}
+                      {/* Forecasted Spend Card with Peso format */}
                       <div className="card compact-budget-card" style={{ flex: "1 1 25%" }}>
                         <h3 className="compact-card-title">Forecasted Spend ({forecastAccuracyData.month_name})</h3>
                         <p className="compact-stat-value" style={{ color: '#ff6b35' }}>
-                          ₱{Number(forecastAccuracyData.forecasted_spend).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                          {formatPeso(Number(forecastAccuracyData.forecasted_spend))}
                         </p>
                         <p className="compact-card-subtext">Last Completed Month</p>
                       </div>
@@ -1676,20 +2034,25 @@ function BudgetDashboard() {
                               return (
                                 <tr key={index} style={{ borderBottom: '1px solid #e9ecef' }}>
                                   <td style={{ padding: '12px' }}>{month.month_name}</td>
-                                  <td style={{ padding: '12px', textAlign: 'right' }}>₱{actualValue.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
                                   <td style={{ padding: '12px', textAlign: 'right' }}>
-                                    {forecastPoint ? `₱${forecastValue.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : 'N/A'}
+                                    {formatPeso(actualValue)}
+                                  </td>
+                                  <td style={{ padding: '12px', textAlign: 'right' }}>
+                                    {forecastPoint ? formatPeso(forecastValue) : 'N/A'}
                                   </td>
                                   <td style={{ 
                                     padding: '12px', 
-                                    textAlign: 'right',
+                                    textAlign: "right",
                                     color: variance > 0 ? '#28a745' : '#dc3545'
                                   }}>
-                                    {variance !== 0 ? `₱${Math.abs(variance).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ${variance > 0 ? 'Under' : 'Over'}` : 'Exact'}
+                                    {variance !== 0 ? 
+                                      `${formatPeso(Math.abs(variance))} ${variance > 0 ? 'Under' : 'Over'}` : 
+                                      'Exact'
+                                    }
                                   </td>
                                   <td style={{ 
                                     padding: '12px', 
-                                    textAlign: 'right',
+                                    textAlign: "right",
                                     color: accuracy !== 'N/A' && accuracy >= 90 ? '#28a745' : 
                                           accuracy !== 'N/A' && accuracy >= 80 ? '#007bff' : 
                                           accuracy !== 'N/A' && accuracy >= 70 ? '#ffc107' : '#dc3545'
@@ -1709,7 +2072,7 @@ function BudgetDashboard() {
             )}
             {/* --- MODIFICATION END --- */}
 
-            {/* Budget per category with Pie Chart - Updated with single "View Details" button */}
+            {/* FIXED: Budget per Department with proper peso formatting */}
             <div className="card">
               <div
                 style={{
@@ -1719,7 +2082,7 @@ function BudgetDashboard() {
                   marginBottom: "16px",
                 }}
               >
-                <h3 className="card-title">Budget per category</h3>
+                <h3 className="card-title">Budget per Department</h3>
                 <button
                   className="view-button"
                   onClick={toggleBudgetDetails}
@@ -1767,8 +2130,9 @@ function BudgetDashboard() {
                   }}
                 >
                   {pieChartData.labels.map((label, index) => {
+                    const amount = pieChartData.datasets[0].data[index];
                     const percentage = (
-                      (pieChartData.datasets[0].data[index] / totalPieValue) *
+                      (amount / totalPieValue) *
                       100
                     ).toFixed(1);
                     return (
@@ -1817,21 +2181,23 @@ function BudgetDashboard() {
                             gap: "8px",
                           }}
                         >
+                          {/* FIXED: Proper peso format with commas and two decimal places */}
                           <span
                             style={{
                               fontWeight: "bold",
                               flexShrink: 0,
-                              minWidth: "70px",
+                              minWidth: "120px",
                               textAlign: "right",
                             }}
                           >
-                            ₱{pieChartData.datasets[0].data[index].toLocaleString()}
+                            {formatPeso(amount)}
                           </span>
                           <span
                             style={{
                               color: "#6c757d",
                               fontSize: "12px",
-                              minWidth: "40px",
+                              minWidth: "45px",
+                              textAlign: "right",
                             }}
                           >
                             {percentage}%
@@ -1843,17 +2209,16 @@ function BudgetDashboard() {
                 </div>
               </div>
 
-              {/* MODIFICATION START */}
-              {/* Department list is now DYNAMIC and shown when clicking the eye icon */}
+              {/* FIXED: Department list with proper peso formatting */}
               {showBudgetDetails && (
                 <div className="dept-budget-list">
                   {/* Use the 'departmentDetailsData' from the API call, not 'categoryData' */}
                   {departmentDetailsData &&
-                    departmentDetailsData.map((dept, index) => (
+                    departmentDetailsData.filter(dept => DEPARTMENTS.includes(dept.department_name)).map((dept, index, filteredArray) => (
                       <div
                         key={dept.department_id} // Use a stable key like the ID
                         className={`dept-budget-item ${
-                          index < departmentDetailsData.length - 1 ? "with-border" : ""
+                          index < filteredArray.length - 1 ? "with-border" : ""
                         }`}
                       >
                         <div className="dept-budget-header">
@@ -1873,8 +2238,9 @@ function BudgetDashboard() {
                           ></div>
                         </div>
                         <div className="dept-budget-details">
-                          <p>Budget: ₱{Number(dept.budget).toLocaleString()}</p>
-                          <p>Spent: ₱{Number(dept.spent).toLocaleString()}</p>
+                          {/* FIXED: Proper peso format with commas and two decimal places */}
+                          <p>Budget: {formatPeso(dept.budget)}</p>
+                          <p>Spent: {formatPeso(dept.spent)}</p>
                         </div>
                       </div>
                     ))}

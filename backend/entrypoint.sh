@@ -9,7 +9,7 @@ python manage.py migrate --noinput
 
 # Run the seeder
 echo "Running budget_service seeder..."
-python manage.py comprehensive_seeder
+python manage.py controlled_seeder
 
 # --- MODIFICATION START ---
 # Generate the initial forecast data after seeding

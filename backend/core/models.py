@@ -11,7 +11,7 @@ from django.utils import timezone
 
 class Department(models.Model):
     name = models.CharField(max_length=100)
-    code = models.CharField(max_length=20, unique=True)
+    code = models.CharField(max_length=80, unique=True)
     description = models.TextField(blank=True)
     is_active = models.BooleanField(default=True)
     created_at = models.DateTimeField(auto_now_add=True)
@@ -143,6 +143,18 @@ class BudgetProposal(models.Model):
     rejected_by_name = models.CharField(max_length=255, null=True, blank=True)
     rejection_date = models.DateTimeField(null=True, blank=True)
 
+    # --- UPDATED: New fields for Finance Operator Review ---
+    finance_operator_name = models.CharField(
+        max_length=255, null=True, blank=True,
+        help_text="Name of the finance operator who reviewed this proposal."
+    )
+    signature = models.FileField(
+        upload_to='budget_proposals/signatures/',
+        null=True, blank=True,
+        help_text="Digital signature or attached approval document."
+    )
+    # -----------------------------------------------------
+    
     external_system_id = models.CharField(
         max_length=100, unique=True, help_text="ID reference from the external help desk system")
     last_sync_timestamp = models.DateTimeField(
@@ -258,9 +270,9 @@ class RiskMetric(models.Model):
     updated_at = models.DateTimeField(auto_now=True)
     # updated_by = models.ForeignKey(User, on_delete=models.PROTECT)
     updated_by_user_id = models.IntegerField(
-        help_text="ID of user from Auth Service")  # NEW
+        help_text="ID of user from Auth Service") 
     updated_by_username = models.CharField(
-        max_length=150, null=True, blank=True)  # NEW
+        max_length=150, null=True, blank=True)
 
     class Meta:
         unique_together = ('project', 'risk_type')
@@ -298,19 +310,17 @@ class UserActivityLog(models.Model):
 
 
 class Account(models.Model):
-    code = models.CharField(max_length=20, unique=True)
+    code = models.CharField(max_length=80, unique=True)
     name = models.CharField(max_length=100)
     description = models.TextField(blank=True)
     account_type = models.ForeignKey(AccountType, on_delete=models.PROTECT)
     parent_account = models.ForeignKey(
         'self', on_delete=models.SET_NULL, null=True, blank=True, related_name='child_accounts')
 
-    # --- MODIFIED USER FIELD ---
-    # created_by = models.ForeignKey(User, on_delete=models.PROTECT) # OLD
+
     created_by_user_id = models.IntegerField(
-        help_text="ID of the user from Auth Service who created this account")  # NEW
+        help_text="ID of the user from Auth Service who created this account") 
     created_by_username = models.CharField(
-        # NEW
         max_length=150, null=True, blank=True, help_text="Username of the creator (denormalized)")
 
     is_active = models.BooleanField(default=True)
@@ -322,10 +332,17 @@ class Account(models.Model):
     def __str__(self):
         return f"{self.code} - {self.name}"
 
-
 class BudgetProposalItem(models.Model):
     proposal = models.ForeignKey(
         BudgetProposal, on_delete=models.CASCADE, related_name='items')
+    # MODIFICATION START: Added explicit Category link
+    category = models.ForeignKey(
+        'ExpenseCategory',
+        on_delete=models.PROTECT,
+        null=True, # Allow null temporarily for migration compatibility
+        help_text="The budget category this item belongs to (e.g., IT-HARDWARE)."
+    )
+    # MODIFICATION END
     cost_element = models.CharField(max_length=100)
     description = models.TextField()
     estimated_cost = models.DecimalField(
@@ -338,13 +355,30 @@ class BudgetProposalItem(models.Model):
 
 
 class ExpenseCategory(models.Model):
-    code = models.CharField(max_length=20, unique=True)
+    # --- UPDATED: Added Classification Choices ---
+    CLASSIFICATION_CHOICES = [
+        ('CAPEX', 'Capital Expenditure'),
+        ('OPEX', 'Operational Expenditure'),
+        ('MIXED', 'Mixed/Both'),
+    ]
+
+    code = models.CharField(max_length=80, unique=True)
     name = models.CharField(max_length=100)
     description = models.TextField(blank=True)
     parent_category = models.ForeignKey('self', on_delete=models.SET_NULL,
                                         null=True, blank=True, related_name='subcategories')
     level = models.IntegerField(
         validators=[MinValueValidator(1), MaxValueValidator(3)])
+    
+    # --- UPDATED: Added Classification Field ---
+    classification = models.CharField(
+        max_length=10, 
+        choices=CLASSIFICATION_CHOICES, 
+        null=True, 
+        blank=True,
+        help_text="Determines if this category is primarily CapEx, OpEx, or Mixed."
+    )
+    
     is_active = models.BooleanField(default=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
@@ -449,13 +483,23 @@ class BudgetAllocation(models.Model):
         related_name='allocations',
         help_text='The project this budget allocation belongs to.'
     )
+    
 
     created_by_name = models.CharField(max_length=255, null=True, blank=True)
     amount = models.DecimalField(
         max_digits=15, decimal_places=2, validators=[MinValueValidator(Decimal('0'))])
     is_active = models.BooleanField(default=True)
+    
+    # --- UPDATED: Added Lock Status ---
+    is_locked = models.BooleanField(
+        default=True,
+        help_text="If True, this allocation requires Finance Manager approval before use."
+    )
+    
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
+    
+    
 
     def __str__(self):
         return f"{self.department.name} - {self.account.name} - {self.amount}"
@@ -495,11 +539,11 @@ class BudgetTransfer(models.Model):
         BudgetAllocation, on_delete=models.PROTECT, related_name='transfers_to')
 
     # --- MODIFIED USER FIELDS ---
-    # transferred_by = models.ForeignKey(User, on_delete=models.PROTECT) # OLD
+    # transferred_by = models.ForeignKey(User, on_delete=models.PROTECT)
     transferred_by_user_id = models.IntegerField(
-        help_text="ID of user from Auth Service")  # NEW
+        help_text="ID of user from Auth Service") 
     transferred_by_username = models.CharField(
-        max_length=150, null=True, blank=True)  # NEW
+        max_length=150, null=True, blank=True) 
 
     amount = models.DecimalField(max_digits=15, decimal_places=2, validators=[
                                  MinValueValidator(Decimal('0'))])
@@ -510,16 +554,16 @@ class BudgetTransfer(models.Model):
 
     # approved_by = models.ForeignKey(User, on_delete=models.PROTECT, null=True, blank=True, related_name='approved_transfers') # OLD
     approved_by_user_id = models.IntegerField(
-        null=True, blank=True, help_text="ID of user from Auth Service")  # NEW
+        null=True, blank=True, help_text="ID of user from Auth Service")  
     approved_by_username = models.CharField(
-        max_length=150, null=True, blank=True)  # NEW
+        max_length=150, null=True, blank=True)  
     approval_date = models.DateTimeField(null=True, blank=True)
 
     # rejected_by = models.ForeignKey(User, on_delete=models.PROTECT, null=True, blank=True, related_name='rejected_transfers') # OLD
     rejected_by_user_id = models.IntegerField(
-        null=True, blank=True, help_text="ID of user from Auth Service")  # NEW
+        null=True, blank=True, help_text="ID of user from Auth Service") 
     rejected_by_username = models.CharField(
-        max_length=150, null=True, blank=True)  # NEW
+        max_length=150, null=True, blank=True)  
     rejection_date = models.DateTimeField(null=True, blank=True)
     # ... (__str__, validate_sufficient_funds methods need Expense model to be updated) ...
     def __str__(
@@ -545,9 +589,17 @@ class JournalEntry(models.Model):
         max_digits=15, decimal_places=2, validators=[MinValueValidator(Decimal('0'))])
     status = models.CharField(
         max_length=20, choices=STATUS_CHOICES, default='DRAFT')
-    # created_by = models.ForeignKey(User, on_delete=models.PROTECT) # OLD
+    # MODIFICATION START: Added Department for Ledger Filtering
+    department = models.ForeignKey(
+        'Department', 
+        on_delete=models.SET_NULL, 
+        null=True, 
+        blank=True,
+        help_text="The department associated with this journal entry."
+    )
+    # MODIFICATION END
     created_by_user_id = models.IntegerField(
-        help_text="ID of user from Auth Service")  # NEW
+        help_text="ID of user from Auth Service")
     created_by_username = models.CharField(
         max_length=150, null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
@@ -586,6 +638,17 @@ class JournalEntryLine(models.Model):
     journal_entry = models.ForeignKey(
         JournalEntry, on_delete=models.CASCADE, related_name='lines')
     account = models.ForeignKey(Account, on_delete=models.PROTECT)
+    
+    # MODIFICATION START: Added ExpenseCategory for detailed Ledger reporting
+    expense_category = models.ForeignKey(
+        'ExpenseCategory',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        help_text="Specific budget category (e.g., Hardware, Travel) for this line item."
+    )
+    # MODIFICATION END
+
     description = models.TextField()
     transaction_type = models.CharField(
         max_length=10, choices=TRANSACTION_TYPE_CHOICES)
@@ -620,15 +683,21 @@ class Expense(models.Model):
     description = models.TextField()
     vendor = models.CharField(max_length=200)
     notes = models.TextField(blank=True)
+    
+    # --- MODIFIED: Receipt field kept for backward compatibility, but ExpenseAttachment preferred ---
     receipt = models.FileField(upload_to='receipts/', null=True, blank=True)
+    
     account = models.ForeignKey(Account, on_delete=models.PROTECT)
     department = models.ForeignKey(Department, on_delete=models.PROTECT)
     budget_allocation = models.ForeignKey(
         BudgetAllocation, on_delete=models.PROTECT)
-    # submitted_by = models.ForeignKey(
-    #    User, on_delete=models.PROTECT, related_name='submitted_expenses')
-    # approved_by = models.ForeignKey(
-    #    User, on_delete=models.PROTECT, null=True, blank=True, related_name='approved_expenses')
+    
+    # --- UPDATED: Added Accomplished Status ---
+    is_accomplished = models.BooleanField(
+        default=False, 
+        help_text="True if the manual entry has been checked and verified by the Finance Manager."
+    )
+
     submitted_by_user_id = models.IntegerField(
         help_text="ID of user from Auth Service")  # NEW
     submitted_by_username = models.CharField(
@@ -745,6 +814,21 @@ class Expense(models.Model):
             'percentage': (top_category['total_amount'] / total_expenses) * 100
         }
 
+# --- NEW MODEL: ExpenseAttachment ---
+class ExpenseAttachment(models.Model):
+    """
+    Allows multiple files (Receipts, Invoices, etc.) to be attached to a single Expense.
+    """
+    expense = models.ForeignKey(
+        Expense, 
+        on_delete=models.CASCADE, 
+        related_name='attachments'
+    )
+    file = models.FileField(upload_to='expense_attachments/')
+    uploaded_at = models.DateTimeField(auto_now_add=True)
+    
+    def __str__(self):
+        return f"Attachment for {self.expense.transaction_id}"
 
 class Document(models.Model):
     DOCUMENT_TYPES = [

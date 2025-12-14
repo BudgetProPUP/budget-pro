@@ -1,6 +1,6 @@
 from decimal import Decimal
 from .models import (
-    Account, AccountType, BudgetAllocation, BudgetProposal, BudgetProposalItem, Department,
+    Account, AccountType, BudgetAllocation, BudgetProposal, BudgetProposalItem, Department, Expense,
     FiscalYear, JournalEntry, JournalEntryLine, ProposalComment, ProposalHistory
 )
 from rest_framework import serializers
@@ -22,23 +22,37 @@ class BudgetProposalListSerializer(serializers.ModelSerializer):
     reference = serializers.CharField(
         source='external_system_id', read_only=True)
     subject = serializers.CharField(source='title', read_only=True)
-    category = serializers.SerializerMethodField()
+    # MODIFIED: Added department fields for UI filtering
+    department_code = serializers.CharField(source='department.code', read_only=True)
+    department_name = serializers.CharField(source='department.name', read_only=True)
+    
+    # MODIFIED: Split into Category and Sub-category
+    category = serializers.SerializerMethodField() 
+    sub_category = serializers.SerializerMethodField()
 
     class Meta:
         model = BudgetProposal
         fields = [
-            'id', 'reference', 'subject', 'category', 'submitted_by',  # Removed 'title'
-            'amount', 'status'
+            'id', 'reference', 'subject', 'category', 'sub_category', 'submitted_by',
+            'amount', 'status', 'department_code', 'department_name'
         ]
-
+        
     def get_amount(self, obj):
         return obj.items.aggregate(total=Sum('estimated_cost'))['total'] or 0
 
+     # MODIFIED: Updated to fetch category name from the new relationship
     def get_category(self, obj):
+        # Returns the Main Classification (CapEx/OpEx)
         first_item = obj.items.first()
-        if first_item and first_item.account and first_item.account.account_type:
-            return first_item.account.account_type.name
+        if first_item and first_item.category:
+            return first_item.category.classification # e.g., 'OPEX'
         return "Uncategorized"
+    def get_sub_category(self, obj):
+        # Returns the Specific Sub-category Name
+        first_item = obj.items.first()
+        if first_item and first_item.category:
+            return first_item.category.name # e.g., 'Server Hosting'
+        return "General"
 
 
 class BudgetProposalItemSerializer(serializers.ModelSerializer):
@@ -71,9 +85,7 @@ class BudgetProposalDetailSerializer(serializers.ModelSerializer):
     comments = ProposalCommentSerializer(many=True, read_only=True)
     last_reviewed_at = serializers.SerializerMethodField()
     latest_review_comment = serializers.SerializerMethodField()
-    # MODIFICATION START: Add a computed category field for consistency
     category = serializers.SerializerMethodField()
-    # MODIFICATION END
 
     class Meta:
         model = BudgetProposal
@@ -84,18 +96,19 @@ class BudgetProposalDetailSerializer(serializers.ModelSerializer):
             'items', 'total_cost', 'document', 'comments', 'last_reviewed_at',
             'approved_by_name', 'approval_date', 'rejected_by_name', 'rejection_date',
             'latest_review_comment', 'submitted_at',
+            # MODIFIED: New fields for detailed review form
+            'finance_operator_name', 'signature'
         ]
 
     def get_total_cost(self, obj): return obj.items.aggregate(
         total=Sum('estimated_cost'))['total'] or 0
 
-    # MODIFICATION START: Add the get_category method, same as in the list serializer
+    # MODIFIED: Updated to fetch category name from the new relationship
     def get_category(self, obj):
         first_item = obj.items.first()
-        if first_item and first_item.account and first_item.account.account_type:
-            return first_item.account.account_type.name
-        return "Uncategorized"
-    # MODIFICATION END
+        if first_item and first_item.category:
+            return first_item.category.name
+        return "General"
 
     def get_last_reviewed_at(self, obj):
         if obj.status == 'APPROVED':
@@ -126,10 +139,11 @@ class ProposalHistorySerializer(serializers.ModelSerializer):
     status = serializers.CharField(source='new_status', read_only=True)
     category = serializers.SerializerMethodField()
     subcategory = serializers.SerializerMethodField()
+    department = serializers.CharField(source='proposal.department.name', read_only=True)
 
     class Meta:
         model = ProposalHistory
-        fields = ['id', 'proposal_id', 'proposal', 'category', 'subcategory',
+        fields = ['id', 'proposal_id', 'proposal', 'category', 'subcategory', 'department',
                   'last_modified', 'last_modified_by', 'status']
         
     def get_category(self, obj):
@@ -140,7 +154,6 @@ class ProposalHistorySerializer(serializers.ModelSerializer):
                 return first_item.account.account_type.name
             return "N/A"
         except Exception as e:
-            print(f"Error getting category: {e}")  # Debug log
             return "N/A"
     
     def get_subcategory(self, obj):
@@ -151,7 +164,6 @@ class ProposalHistorySerializer(serializers.ModelSerializer):
                 return first_item.cost_element
             return "N/A"
         except Exception as e:
-            print(f"Error getting subcategory: {e}")  # Debug log
             return "N/A"
 
 
@@ -195,22 +207,37 @@ class AccountSetupSerializer(serializers.ModelSerializer):
 
 
 class LedgerViewSerializer(serializers.ModelSerializer):
-    # RENAMED to reference_id to be clearer for the frontend
     reference_id = serializers.CharField(
         source='journal_entry.entry_id', read_only=True)
     date = serializers.DateField(source='journal_entry.date', read_only=True)
-    category = serializers.CharField(
-        source='journal_entry.category', read_only=True)
-    # CORRECTED: Use the description from the line item itself for more detail
-    description = serializers.CharField(read_only=True)
-    # ADDED: Include the account name as required by the UI
+    
+    # MODIFIED: Split Category/Sub-category
+    category = serializers.SerializerMethodField()
+    sub_category = serializers.SerializerMethodField()
+    
     account = serializers.CharField(source='account.name', read_only=True)
+    department = serializers.CharField(
+        source='journal_entry.department.name', read_only=True, default="N/A"
+    )
+    # Kept description as it provides specific details "Payment for TXN..."
+    description = serializers.CharField(read_only=True)
 
     class Meta:
         model = JournalEntryLine
-        # UPDATED: Matched fields to the new UI columns
-        fields = ['reference_id', 'date', 'category',
+        fields = ['reference_id', 'date', 'department', 'category', 'sub_category',
                   'description', 'account', 'amount']
+
+    def get_category(self, obj):
+        # Main Bucket (CapEx/OpEx)
+        if obj.expense_category:
+            return obj.expense_category.classification
+        return obj.journal_entry.category # Fallback to JE category 'EXPENSES'
+
+    def get_sub_category(self, obj):
+        # Specific Bucket (Hardware, Travel)
+        if obj.expense_category:
+            return obj.expense_category.name
+        return "General"
 
 
 class JournalEntryListSerializer(serializers.ModelSerializer):
@@ -221,28 +248,21 @@ class JournalEntryListSerializer(serializers.ModelSerializer):
     ticket_id = serializers.CharField(source='entry_id', read_only=True)
     amount = serializers.DecimalField(source='total_amount', max_digits=15, decimal_places=2, read_only=True)
     account = serializers.SerializerMethodField()
-
+    # MODIFIED: Added Department Name
+    department_name = serializers.CharField(source='department.name', read_only=True, default="N/A")
     class Meta:
         model = JournalEntry
-        fields = ['id', 'ticket_id', 'date', 'category', 'account', 'description', 
+        fields = ['id', 'ticket_id', 'date', 'category', 'department_name', 'account', 'description', 
                   'amount', 'created_by_username']
         
     def get_account(self, obj):
         """
         Display the account from the first debit line for simplicity.
-        Falls back to first credit line, then any line.
         """
-        # Try debit line first
         first_debit_line = obj.lines.filter(transaction_type='DEBIT').first()
         if first_debit_line and first_debit_line.account:
             return first_debit_line.account.name
         
-        # Fallback to credit line
-        first_credit_line = obj.lines.filter(transaction_type='CREDIT').first()
-        if first_credit_line and first_credit_line.account:
-            return first_credit_line.account.name
-        
-        # Final fallback to any line
         first_line = obj.lines.first()
         if first_line and first_line.account:
             return first_line.account.name
@@ -310,9 +330,6 @@ class JournalEntryCreateSerializer(serializers.Serializer):
         return data
 
     def create(self, validated_data):
-        # user = self.context['request'].user # OLD
-        # In budget_service, request.user will be populated by JWTAuthentication
-        # It will have attributes like id, username, role from the JWT.
         request_user = self.context['request'].user
 
         lines_data = validated_data.pop('lines')
@@ -320,9 +337,7 @@ class JournalEntryCreateSerializer(serializers.Serializer):
                            == 'DEBIT' else -line['amount'] for line in lines_data)
 
         entry = JournalEntry.objects.create(
-            # created_by=user, # OLD
-            created_by_user_id=request_user.id,  # NEW - from JWT
-            # NEW - from JWT (ensure 'username' claim exists)
+            created_by_user_id=request_user.id, 
             created_by_username=getattr(request_user, 'username', 'N/A'),
             total_amount=abs(total_amount),
             **validated_data
@@ -369,10 +384,10 @@ class BudgetProposalItemCreateSerializer(serializers.ModelSerializer):
 
 
 class BudgetProposalMessageSerializer(serializers.ModelSerializer):
-    department_input = serializers.CharField(  # Changed from 'department' to 'department_input'
+    department_input = serializers.CharField( 
         write_only=True,
         required=True,
-        source='department',  # Payload key is 'department'
+        source='department', 
         help_text="Department ID (integer) or Department Code (string, e.g., 'FIN'). Required."
     )
     department_details = DepartmentDropdownSerializer(
@@ -384,17 +399,14 @@ class BudgetProposalMessageSerializer(serializers.ModelSerializer):
     )
     items = BudgetProposalItemCreateSerializer(many=True, allow_empty=False)
 
-    # Field for input from payload, named 'ticket_id'
     ticket_id = serializers.CharField(
         max_length=100,
-        write_only=True,  # Only for input
-        required=True,   # This field must be in the payload
+        write_only=True,  
+        required=True,   
         help_text="The unique ticket ID from the originating external system."
     )
-    # Field for output, maps to model's 'external_system_id'
     external_system_id = serializers.CharField(read_only=True)
 
-    # Write-only field for Draft Flag for saving a draft or submitting
     is_draft = serializers.BooleanField(
         write_only=True, required=False, default=False)
 
@@ -402,26 +414,24 @@ class BudgetProposalMessageSerializer(serializers.ModelSerializer):
         model = BudgetProposal
         fields = [
             'id', 'title', 'project_summary', 'project_description', 'performance_notes',
-            'department_details',  # For output
-            'department_input',   # For input (maps to 'department' in payload)
+            'department_details',  
+            'department_input',   
             'fiscal_year', 'submitted_by_name', 'status',
             'performance_start_date', 'performance_end_date',
-            'external_system_id',  # For output (model's value)
-            'ticket_id',          # For input (payload key)
+            'external_system_id',  
+            'ticket_id',          
             'document', 'items',
             'submitted_at', 'last_modified', 'sync_status', 'last_sync_timestamp',
             'approved_by_name', 'approval_date', 'rejected_by_name', 'rejection_date',
             'is_draft'
         ]
         read_only_fields = [
-            # external_system_id is read_only because it's populated from ticket_id
             'id', 'department_details', 'external_system_id',
             'submitted_at', 'last_modified', 'sync_status',
             'last_sync_timestamp', 'approved_by_name', 'approval_date',
             'rejected_by_name', 'rejection_date'
         ]
 
-    # Validates the 'department' payload key (via source)
     def validate_department_input(self, value):
         try:
             if isinstance(value, int) or (isinstance(value, str) and value.isdigit()):
@@ -441,16 +451,53 @@ class BudgetProposalMessageSerializer(serializers.ModelSerializer):
                 "Invalid department ID format if sending an integer ID.")
         return department_obj
 
+    # MODIFIED: Added Budget Validation Logic (Hard Cap)
+    def validate(self, data):
+        # 1. Calculate Total Cost of this new proposal
+        items = data.get('items', [])
+        total_proposed_cost = sum(item['estimated_cost'] for item in items)
+
+        # 2. Get Department and Fiscal Year
+        # Note: department is already resolved by validate_department_input and put into 'department' key
+        department = data.get('department') 
+        fiscal_year = data.get('fiscal_year')
+
+        # 3. Calculate Currently Available Funds
+        # (Sum of Allocations) - (Sum of Approved Expenses)
+        # Note: This checks the Department's TOTAL budget availability.
+        
+        total_allocation = BudgetAllocation.objects.filter(
+            department=department,
+            fiscal_year=fiscal_year,
+            is_active=True
+        ).aggregate(total=Sum('amount'))['total'] or Decimal('0.00')
+        
+        # Calculate total spent (Expenses)
+        total_spent = Expense.objects.filter(
+            department=department,
+            budget_allocation__fiscal_year=fiscal_year,
+            status='APPROVED'
+        ).aggregate(total=Sum('amount'))['total'] or Decimal('0.00')
+
+        available_funds = total_allocation - total_spent
+        
+        # 4. The Check
+        if available_funds < total_proposed_cost:
+             # We raise a validation error to reject the proposal if funds are insufficient.
+             # This fulfills the "Real-time budget availability check" requirement.
+             raise serializers.ValidationError(
+                 f"Insufficient funds. Department has {available_funds:,.2f} remaining, proposal cost is {total_proposed_cost:,.2f}."
+             )
+
+        return data
+
     def create(self, validated_data):
         is_draft = validated_data.pop('is_draft', False)
-        # This comes from 'department_input' due to source
         department_obj = validated_data.pop('department')
         items_data = validated_data.pop('items')
-        # Pop 'ticket_id' from validated_data and assign it to 'external_system_id' for the model
         ticket_id_value = validated_data.pop('ticket_id')
         validated_data['external_system_id'] = ticket_id_value
 
-        # Assign the actual Department instance
         validated_data['department'] = department_obj
         validated_data['status'] = 'DRAFT' if is_draft else 'SUBMITTED'
         validated_data.setdefault('submitted_at', timezone.now())
@@ -468,18 +515,11 @@ class BudgetProposalMessageSerializer(serializers.ModelSerializer):
 
         ProposalHistory.objects.create(
             proposal=proposal,
-            action='SUBMITTED',  # Reflects that it arrived as submitted
+            action='SUBMITTED',
             action_by_name=proposal.submitted_by_name or "System (External Message)",
             new_status=proposal.status,
             comments=f"Proposal received from external system (ID={proposal.external_system_id}) for department {department_obj.name}."
         )
-        # Only create a history record for actual submissions
-        if not is_draft:
-            ProposalHistory.objects.create(
-                proposal=proposal,
-                action='SUBMITTED',
-                # ...
-            )
         return proposal
 
     def update(self, instance, validated_data):
@@ -489,10 +529,9 @@ class BudgetProposalMessageSerializer(serializers.ModelSerializer):
 
         items_data = validated_data.pop('items', None)
 
-        # Handle ticket_id mapping to external_system_id for updates
         ticket_id_value = validated_data.pop('ticket_id', None)
         if ticket_id_value:
-            instance.external_system_id = ticket_id_value  # Update model's field
+            instance.external_system_id = ticket_id_value  
 
         for attr, val in validated_data.items():
             setattr(instance, attr, val)
@@ -521,6 +560,9 @@ class ProposalReviewSerializer(serializers.Serializer):
     status = serializers.ChoiceField(choices=['APPROVED', 'REJECTED'])
     comment = serializers.CharField(
         required=False, allow_blank=True, max_length=1000)
+    
+    finance_operator_name = serializers.CharField(required=False, allow_blank=True)
+    signature = serializers.FileField(required=False, allow_null=True)
 
     def validate_status(self, value):
         if value not in ['APPROVED', 'REJECTED']:
@@ -550,17 +592,13 @@ class BudgetAdjustmentSerializer(serializers.Serializer):
     date = serializers.DateField()
     description = serializers.CharField(max_length=255)
 
-    # The allocation to be modified
     source_allocation_id = serializers.IntegerField()
-    # The allocation receiving the funds (optional, for transfers)
     destination_allocation_id = serializers.IntegerField(
         required=False, allow_null=True)
 
     amount = serializers.DecimalField(max_digits=15, decimal_places=2, validators=[
                                       MinValueValidator(Decimal('0.01'))])
 
-    # An account to represent the source of funds for an increase,
-    # or the destination for a decrease (e.g., a general reserve account)
     offsetting_account_id = serializers.IntegerField()
 
     def validate(self, data):
@@ -593,11 +631,12 @@ class BudgetAdjustmentSerializer(serializers.Serializer):
 
         return data
 
-
 class ExpenseCategoryVarianceSerializer(serializers.Serializer):
     category = serializers.CharField()
     code = serializers.CharField()
     level = serializers.IntegerField()
+    # MODIFIED: Added classification to the report serializer
+    classification = serializers.CharField()
     budget = serializers.DecimalField(max_digits=15, decimal_places=2)
     actual = serializers.DecimalField(max_digits=15, decimal_places=2)
     available = serializers.DecimalField(max_digits=15, decimal_places=2)

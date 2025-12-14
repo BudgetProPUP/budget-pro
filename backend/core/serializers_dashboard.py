@@ -68,6 +68,8 @@ class CategoryBudgetStatusSerializer(serializers.Serializer):
     """
     category_id = serializers.IntegerField()
     category_name = serializers.CharField()
+    # MODIFIED: Added classification for UI grouping/coloring (CapEx/OpEx)
+    classification = serializers.CharField(allow_null=True)
     budget = serializers.DecimalField(max_digits=15, decimal_places=2)
     spent = serializers.DecimalField(max_digits=15, decimal_places=2)
     percentage_used = serializers.FloatField()
@@ -76,7 +78,7 @@ class CategoryAllocationSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = ExpenseCategory
-        fields = ['id', 'name', 'total_allocated']
+        fields = ['id', 'name', 'classification', 'total_allocated']
         
 class ProjectDetailSerializer(serializers.ModelSerializer):
     """

@@ -16,6 +16,8 @@ export default function ManageProfile({ onClose }) {
     role: "",
   });
 
+
+
   const [isSubmitting, setSubmitting] = useState(false);
   const [apiError, setApiError] = useState(null);
   const [apiSuccess, setApiSuccess] = useState(null);
@@ -29,7 +31,7 @@ export default function ManageProfile({ onClose }) {
         phone_number: user.phone_number || "",
         email: user.email || "",
         department_name: user.department_name || "",
-        role: user.roles?.bms || "User", // Safely access role
+        role: user.role_display || user.role || "User", // Prefer role_display
       });
     }
   }, [user]);

@@ -1,4 +1,4 @@
-//TODO: Add print function
+//TODO: Add popup helper when hovering over overflowing content
 
 import React, { useState, useEffect, useMemo } from "react";
 import {
@@ -22,10 +22,19 @@ import {
   getProposalDetail,
   reviewProposal,
 } from "../../API/proposalAPI";
+// MODIFIED: Import department API
+import { getAllDepartments } from "../../API/departments";
+// MODIFIED: Import category API if needed, or stick to CapEx/OpEx hardcoded if that's the requirement
+// But better to fetch from API if we want dynamic filtering.
 import { getAccountTypes } from "../../API/dropdownAPI";
-
 import { useAuth } from "../../context/AuthContext";
 import ManageProfile from "./ManageProfile";
+
+const financeOperatorNames = [
+  "Finance Operator",
+  "Finance Head",
+  "Finance Manager",
+];
 
 // Status Component - Copied from ProposalHistory
 const Status = ({ type, name, personName = null, location = null }) => {
@@ -284,15 +293,20 @@ const SignatureUpload = ({ value, onChange }) => {
     const file = e.target.files[0];
     if (file) {
       // Check file type
-      const validTypes = ['image/png', 'image/jpeg', 'image/jpg', 'image/svg+xml'];
+      const validTypes = [
+        "image/png",
+        "image/jpeg",
+        "image/jpg",
+        "image/svg+xml",
+      ];
       if (!validTypes.includes(file.type)) {
-        alert('Please upload a valid image file (PNG, JPG, JPEG, SVG)');
+        alert("Please upload a valid image file (PNG, JPG, JPEG, SVG)");
         return;
       }
 
       // Check file size (max 5MB)
       if (file.size > 5 * 1024 * 1024) {
-        alert('File size should be less than 5MB');
+        alert("File size should be less than 5MB");
         return;
       }
 
@@ -314,40 +328,44 @@ const SignatureUpload = ({ value, onChange }) => {
   };
 
   return (
-    <div style={{ position: 'relative' }}>
+    <div style={{ position: "relative" }}>
       {preview ? (
-        <div style={{ position: 'relative' }}>
+        <div style={{ position: "relative" }}>
           <img
             src={preview}
             alt="Signature Preview"
             style={{
-              maxWidth: '300px',
-              maxHeight: '100px',
-              border: '1px solid #ccc',
-              borderRadius: '4px',
-              padding: '5px',
-              backgroundColor: '#f8f9fa'
+              maxWidth: "300px",
+              maxHeight: "100px",
+              border: "1px solid #ccc",
+              borderRadius: "4px",
+              padding: "5px",
+              backgroundColor: "#f8f9fa",
             }}
           />
           <button
             type="button"
             onClick={removeFile}
             style={{
-              marginTop: '8px',
-              padding: '4px 12px',
-              backgroundColor: '#adb5bd', // SOFTER COLOR
-              color: 'white',
-              border: 'none',
-              borderRadius: '4px',
-              cursor: 'pointer',
-              fontSize: '12px',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '4px',
-              transition: 'background-color 0.2s'
+              marginTop: "8px",
+              padding: "4px 12px",
+              backgroundColor: "#adb5bd", // SOFTER COLOR
+              color: "white",
+              border: "none",
+              borderRadius: "4px",
+              cursor: "pointer",
+              fontSize: "12px",
+              display: "flex",
+              alignItems: "center",
+              gap: "4px",
+              transition: "background-color 0.2s",
             }}
-            onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#6c757d'}
-            onMouseLeave={(e) => e.currentTarget.style.backgroundColor = '#adb5bd'}
+            onMouseEnter={(e) =>
+              (e.currentTarget.style.backgroundColor = "#6c757d")
+            }
+            onMouseLeave={(e) =>
+              (e.currentTarget.style.backgroundColor = "#adb5bd")
+            }
           >
             <X size={12} />
             Remove
@@ -356,40 +374,40 @@ const SignatureUpload = ({ value, onChange }) => {
       ) : (
         <div
           style={{
-            border: '2px dashed #ccc',
-            borderRadius: '4px',
-            padding: '20px',
-            textAlign: 'center',
-            cursor: 'pointer',
-            backgroundColor: '#f8f9fa',
-            minHeight: '100px',
-            display: 'flex',
-            flexDirection: 'column',
-            alignItems: 'center',
-            justifyContent: 'center',
+            border: "2px dashed #ccc",
+            borderRadius: "4px",
+            padding: "20px",
+            textAlign: "center",
+            cursor: "pointer",
+            backgroundColor: "#f8f9fa",
+            minHeight: "100px",
+            display: "flex",
+            flexDirection: "column",
+            alignItems: "center",
+            justifyContent: "center",
           }}
-          onClick={() => document.getElementById('signature-upload').click()}
+          onClick={() => document.getElementById("signature-upload").click()}
         >
-          <Upload size={24} style={{ marginBottom: '8px', color: '#666' }} />
-          <div style={{ color: '#666', marginBottom: '4px' }}>
+          <Upload size={24} style={{ marginBottom: "8px", color: "#666" }} />
+          <div style={{ color: "#666", marginBottom: "4px" }}>
             Click to upload signature file
           </div>
-          <div style={{ fontSize: '12px', color: '#999' }}>
+          <div style={{ fontSize: "12px", color: "#999" }}>
             PNG, JPG, SVG up to 5MB
           </div>
         </div>
       )}
-      
+
       <input
         id="signature-upload"
         type="file"
         accept=".png,.jpg,.jpeg,.svg"
         onChange={handleFileChange}
-        style={{ display: 'none' }}
+        style={{ display: "none" }}
       />
-      
+
       {file && (
-        <div style={{ marginTop: '8px', fontSize: '12px', color: '#666' }}>
+        <div style={{ marginTop: "8px", fontSize: "12px", color: "#666" }}>
           File: {file.name}
         </div>
       )}
@@ -397,116 +415,11 @@ const SignatureUpload = ({ value, onChange }) => {
   );
 };
 
-// Updated Department data structure based on your requirements
-const departmentData = {
-  "Merchandise Planning": [
-    "Product Range Planning",
-    "Buying Costs",
-    "Market Research",
-    "Inventory Handling Fees",
-    "Supplier Coordination",
-    "Seasonal Planning Tools",
-    "Training",
-    "Travel",
-    "Software Subscription"
-  ],
-  "Store Operations": [
-    "Store Consumables",
-    "POS Maintenance",
-    "Store Repairs",
-    "Sales Incentives",
-    "Uniforms",
-    "Store Opening Expenses",
-    "Store Supplies",
-    "Training",
-    "Travel",
-    "Utilities"
-  ],
-  "Marketing": [
-    "Campaign Budget",
-    "Branding Materials",
-    "Digital Ads",
-    "Social Media Management",
-    "Events Budget",
-    "Influencer Fees",
-    "Photography/Videography",
-    "Software Subscription",
-    "Training",
-    "Travel"
-  ],
-  "Operations": [
-    "Equipment Maintenance",
-    "Fleet/Vehicle Expenses",
-    "Operational Supplies",
-    "Business Permits",
-    "Facility Utilities",
-    "Compliance Costs",
-    "Training",
-    "Office Supplies"
-  ],
-  "IT": [
-    "Server Hosting",
-    "Software Licenses",
-    "Cloud Subscriptions",
-    "Hardware Purchases",
-    "Data Tools",
-    "Cybersecurity Costs",
-    "API Subscription Fees",
-    "Domain Renewals",
-    "Training",
-    "Office Supplies"
-  ],
-  "Logistics": [
-    "Shipping Costs",
-    "Warehouse Equipment",
-    "Transport & Fuel",
-    "Freight Fees",
-    "Vendor Delivery Charges",
-    "Storage Fees",
-    "Packaging Materials",
-    "Safety Gear",
-    "Training"
-  ],
-  "Human Resources": [
-    "Recruitment Expenses",
-    "Job Posting Fees",
-    "Employee Engagement Activities",
-    "Training & Workshops",
-    "Medical & Wellness Programs",
-    "Background Checks",
-    "HR Systems/Payroll Software",
-    "Office Supplies",
-    "Travel"
-  ]
-};
-
-// Sample employee names for Submitted By column
-const employeeNames = [
-  "John Doe",
-  "Mary Collins",
-  "Robert Johnson",
-  "Sarah Williams",
-  "Michael Brown",
-  "Jennifer Davis",
-  "David Miller",
-  "Lisa Wilson",
-  "James Taylor",
-  "Patricia Anderson"
-];
-
-// Sample finance operator names for auto-generation
-const financeOperatorNames = [
-  "Alexander Thompson",
-  "Sophia Rodriguez",
-  "Benjamin Chen",
-  "Olivia Martinez",
-  "William Kim"
-];
-
-// Categories (CapEx and Opex)
+// Keep categoriesData if needs simple CapEx/OpEx filtering,
+// OR fetch from API.
 const categoriesData = [
-  { id: "capex", name: "CapEx" },
-  { id: "opex", name: "Opex" }
+  { id: "CAPEX", name: "CapEx" },
+  { id: "OPEX", name: "Opex" },
 ];
 
 const BudgetProposal = () => {
@@ -515,7 +428,10 @@ const BudgetProposal = () => {
   const [showProfileDropdown, setShowProfileDropdown] = useState(false);
   const [showNotifications, setShowNotifications] = useState(false);
   const [selectedProposal, setSelectedProposal] = useState(null);
-  const [showReviewPopup, setShowReviewPopup] = useState({ visible: false, readOnly: false });
+  const [showReviewPopup, setShowReviewPopup] = useState({
+    visible: false,
+    readOnly: false,
+  });
   const [showCommentPopup, setShowCommentPopup] = useState(false);
   const [showConfirmationPopup, setShowConfirmationPopup] = useState(false);
   const [reviewComment, setReviewComment] = useState("");
@@ -524,14 +440,43 @@ const BudgetProposal = () => {
   const [searchTerm, setSearchTerm] = useState("");
   const [showCategoryDropdown, setShowCategoryDropdown] = useState(false);
   const [showDepartmentDropdown, setShowDepartmentDropdown] = useState(false);
-  
+
   const [showManageProfile, setShowManageProfile] = useState(false);
-  
+
+  // MODIFIED: Add state for departments list
+  const [departmentOptions, setDepartmentOptions] = useState([]);
   // Finance operator signature state - UPDATED with auto-generated name
-  const [financeOperatorName, setFinanceOperatorName] = useState(financeOperatorNames[0]); // Auto-generated default
+
+  // Utility function to shorten department names
+  const shortenDepartmentName = (name, maxLength = 20) => {
+    if (!name || name.length <= maxLength) return name;
+
+    // Common abbreviations
+    const abbreviations = {
+      Department: "Dept.",
+      Management: "Mgmt.",
+      Operations: "Ops.",
+      Merchandise: "Merch.",
+      Marketing: "Mktg.",
+      Logistics: "Log.",
+      "Human Resources": "HR",
+      "Information Technology": "IT",
+      Finance: "Fin.",
+    };
+
+    let shortened = name;
+    for (const [full, abbr] of Object.entries(abbreviations)) {
+      shortened = shortened.replace(new RegExp(full, "gi"), abbr);
+    }
+
+    if (shortened.length <= maxLength) return shortened;
+    return shortened.substring(0, maxLength - 3) + "...";
+  };
+
+  // NEW: Initialize with empty string or a generic placeholder
+  const [financeOperatorName, setFinanceOperatorName] = useState("");
   const [financeOperatorSignature, setFinanceOperatorSignature] = useState("");
-  const [dateSubmitted] = useState(new Date().toISOString().split('T')[0]);
-  
+
   const handleManageProfile = () => {
     setShowManageProfile(true);
     setShowProfileDropdown(false);
@@ -540,7 +485,7 @@ const BudgetProposal = () => {
   const handleCloseManageProfile = () => {
     setShowManageProfile(false);
   };
-  
+
   const navigate = useNavigate();
   const { user, logout } = useAuth();
 
@@ -570,6 +515,16 @@ const BudgetProposal = () => {
 
   const [currentDate, setCurrentDate] = useState(new Date());
 
+  const fetchSummary = async () => {
+      try {
+        const summaryRes = await getProposalSummary();
+        setSummaryData(summaryRes.data);
+      } catch (error) {
+        console.error("Failed to fetch summary:", error);
+      }
+  };
+
+
   useEffect(() => {
     const timerId = setTimeout(() => {
       setDebouncedSearchTerm(searchTerm);
@@ -588,6 +543,31 @@ const BudgetProposal = () => {
     };
   }, []);
 
+
+  // MODIFIED: Fetch Departments on load
+  useEffect(() => {
+    const fetchDropdowns = async () => {
+      try {
+        const deptRes = await getAllDepartments();
+        setDepartmentOptions([
+          { value: "", label: "All Departments" },
+          ...deptRes.data.map((d) => ({ value: d.code, label: d.code })), // Use code for shorter labels
+        ]);
+
+        // Fetch Summary
+        const summaryRes = await getProposalSummary();
+        setSummaryData(summaryRes.data);
+        fetchSummary();
+
+        setCategories([{ id: "", name: "All Categories" }, ...categoriesData]);
+      } catch (error) {
+        console.error("Failed to fetch initial data:", error);
+      }
+    };
+    fetchDropdowns();
+  }, []);
+
+  // MODIFIED: Simplified fetchProposals (Removed Mock Logic)
   useEffect(() => {
     const fetchProposals = async () => {
       setLoading(true);
@@ -596,9 +576,19 @@ const BudgetProposal = () => {
           page: currentPage,
           page_size: pageSize,
           search: debouncedSearchTerm,
-          items__account__account_type__id: selectedCategory,
+          // Map UI filters to Backend filters
+          // If selectedCategory is 'CAPEX'/'OPEX', backend needs logic or we filter by text
+          // For now, let's assume backend filter 'search' covers it or add specific param
+          // Re-using 'search' for simplicity if backend supports it,
+          // or ideally 'category' param if we updated the view filter.
+          // The view uses 'items__account__account_type__id' which is old.
+          // Let's rely on the updated ListSerializer which returns 'category' (CapEx/OpEx).
+          // We might need to filter client-side if backend filter isn't strict yet,
+          // but let's send it.
+          department: selectedDepartment, // The ViewSet expects 'department' (code)
         };
-        
+
+        // Clean params
         Object.keys(params).forEach((key) => {
           if (params[key] === "" || params[key] === null) {
             delete params[key];
@@ -606,55 +596,21 @@ const BudgetProposal = () => {
         });
 
         const res = await getProposals(params);
-        
-        // Filter proposals based on selected department
-        let filteredProposals = res.data.results;
-        
-        // Apply department filter if selected
-        if (selectedDepartment) {
-          filteredProposals = filteredProposals.filter(proposal => {
-            // Get a department for the proposal based on index or other logic
-            const proposalDept = Object.keys(departmentData)[
-              filteredProposals.indexOf(proposal) % Object.keys(departmentData).length
-            ];
-            return proposalDept === selectedDepartment;
-          });
+
+        // MODIFIED: Use API results directly.
+        // The Serializer now returns: department_name, category (CapEx), sub_category (Server)
+        // We just filter client-side for CapEx/OpEx if backend doesn't support that specific filter key yet.
+        let results = res.data.results;
+
+        if (selectedCategory && selectedCategory !== "") {
+          results = results.filter((p) => p.category === selectedCategory);
         }
-        
-        // Add mock data for UI demonstration with proper department assignment
-        const enhancedProposals = filteredProposals.map((proposal, index) => {
-          // Determine department based on selected filter or round robin
-          let department;
-          let subCategory;
-          
-          if (selectedDepartment) {
-            department = selectedDepartment;
-            subCategory = departmentData[selectedDepartment]?.[index % departmentData[selectedDepartment].length] || "General";
-          } else {
-            const deptKeys = Object.keys(departmentData);
-            department = deptKeys[index % deptKeys.length];
-            subCategory = departmentData[department]?.[index % departmentData[department].length] || "General";
-          }
-          
-          // Determine category (CapEx or Opex) based on index
-          const category = index % 2 === 0 ? "CapEx" : "Opex";
-          
-          return {
-            ...proposal,
-            department: department,
-            sub_category: subCategory,
-            category: category,
-            submitted_by_person: employeeNames[index % employeeNames.length]
-          };
-        });
-        
-        setProposals(enhancedProposals);
-        
-        // Update pagination count based on filtered results
+
+        setProposals(results);
         setPagination({
           ...res.data,
-          count: enhancedProposals.length,
-          results: enhancedProposals
+          count: res.data.count,
+          results: results,
         });
       } catch (error) {
         console.error("Failed to fetch proposals:", error);
@@ -668,7 +624,7 @@ const BudgetProposal = () => {
     pageSize,
     debouncedSearchTerm,
     selectedCategory,
-    selectedDepartment, // Added dependency for department filtering
+    selectedDepartment,
   ]);
 
   const formattedDay = currentDate.toLocaleDateString("en-US", {
@@ -690,16 +646,11 @@ const BudgetProposal = () => {
   useEffect(() => {
     const fetchInitialData = async () => {
       try {
-        const [summaryRes] = await Promise.all([
-          getProposalSummary(),
-        ]);
+        const [summaryRes] = await Promise.all([getProposalSummary()]);
         setSummaryData(summaryRes.data);
-        
+
         // Set categories to only CapEx and Opex
-        setCategories([
-          { id: "", name: "All Categories" },
-          ...categoriesData,
-        ]);
+        setCategories([{ id: "", name: "All Categories" }, ...categoriesData]);
       } catch (error) {
         console.error("Failed to fetch initial data:", error);
       }
@@ -738,7 +689,7 @@ const BudgetProposal = () => {
     { value: "Operations", label: "Operations" },
     { value: "IT", label: "IT" },
     { value: "Logistics", label: "Logistics" },
-    { value: "Human Resources", label: "Human Resources" }
+    { value: "Human Resources", label: "Human Resources" },
   ];
 
   const rejectionReasons = [
@@ -832,16 +783,45 @@ const BudgetProposal = () => {
   const handleReviewClick = async (proposal) => {
     try {
       const res = await getProposalDetail(proposal.id);
+      const data = res.data;
+
+      // Normalize data for the view
       const enhancedProposal = {
-        ...res.data,
-        department: proposal.department || "Merchandise Planning",
-        sub_category: proposal.sub_category || "General",
-        category: proposal.category || "CapEx",
-        submitted_by_person: proposal.submitted_by_person || "John Doe"
+        ...data,
+        // FIXED: Map reference field for Ticket ID
+        reference: data.external_system_id || proposal.reference || "N/A",
+
+        // Map backend fields to what the UI expects if different
+        department: data.department_name || data.department || "N/A",
+
+        // FIXED: Preserve the actual status from the API
+        status: data.status || proposal.status || "PENDING",
+
+        category: data.category || "N/A",
+
+        sub_category:
+          data.sub_category ||
+          (data.items && data.items.length > 0
+            ? data.items[0].cost_element
+            : "N/A"),
+
+        submitted_by: data.submitted_by_name || data.submitted_by || "N/A",
+        amount: data.total_cost || data.amount || 0,
       };
+
       setSelectedProposal(enhancedProposal);
+
       const isReadOnly =
-        res.data.status === "APPROVED" || res.data.status === "REJECTED";
+        data.status === "APPROVED" || data.status === "REJECTED";
+
+      if (isReadOnly) {
+        setFinanceOperatorName(data.finance_operator_name || "");
+        setFinanceOperatorSignature(data.signature || "");
+      } else {
+        setFinanceOperatorName("");
+        setFinanceOperatorSignature("");
+      }
+
       setShowReviewPopup({ visible: true, readOnly: isReadOnly });
     } catch (error) {
       console.error("Failed to fetch proposal details:", error);
@@ -873,6 +853,7 @@ const BudgetProposal = () => {
     closeCommentPopup();
   };
 
+  // MODIFIED: Updated handleSubmitReview to use FormData for File Upload
   const handleSubmitReview = async () => {
     if (!selectedProposal) return;
 
@@ -882,137 +863,207 @@ const BudgetProposal = () => {
     }
 
     try {
-      await reviewProposal(selectedProposal.id, {
-        status: reviewStatus,
-        comment: finalComment,
-      });
+      // Create FormData to send file + text
+      const formData = new FormData();
+      formData.append("status", reviewStatus);
+      formData.append("comment", finalComment);
+      formData.append("finance_operator_name", financeOperatorName);
+
+      // Handle Signature:
+      // If it's a data URL (base64) from the SignatureUpload component,
+      // we need to convert it to a Blob to send as a file.
+      if (
+        financeOperatorSignature &&
+        financeOperatorSignature.startsWith("data:")
+      ) {
+        const fetchRes = await fetch(financeOperatorSignature);
+        const blob = await fetchRes.blob();
+        formData.append("signature", blob, "signature.png");
+      }
+
+      await reviewProposal(selectedProposal.id, formData);
 
       closeConfirmationPopup();
       closeReviewPopup();
+      // Refresh list
       setCurrentPage(1);
+      // Trigger re-fetch
+      setDebouncedSearchTerm((prev) => prev + " ");
+      // MODIFIED: Refresh Summary Cards
+      fetchSummary();
     } catch (error) {
       console.error("Failed to submit review:", error);
+      const msg =
+        error.response?.data?.detail ||
+        error.response?.data?.non_field_errors ||
+        "Failed to submit review.";
+      alert(msg);
     }
   };
 
   // Print function for the review popup
   const handlePrint = () => {
-    const printWindow = window.open('', '_blank');
+    const printWindow = window.open("", "_blank");
     printWindow.document.write(`
       <html>
         <head>
-          <title>Ticket Review - ${selectedProposal?.reference || 'Proposal'}</title>
+          <title>Ticket Review - ${
+            selectedProposal?.reference || "Proposal"
+          }</title>
           <style>
-            body { font-family: Arial, sans-serif; margin: 40px; }
+            @page { margin: 20mm; size: A4; }
+            body { font-family: Arial, sans-serif; margin: 0; padding: 20px; color: #333; }
             .print-header { text-align: center; margin-bottom: 30px; border-bottom: 2px solid #000; padding-bottom: 20px; }
-            .print-header h1 { margin: 0; font-size: 24px; }
-            .print-header .date { color: #666; margin-top: 5px; }
-            .section { margin-bottom: 25px; }
-            .section h2 { border-bottom: 1px solid #ccc; padding-bottom: 8px; margin-bottom: 15px; font-size: 18px; }
-            .details-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 15px; margin-bottom: 20px; }
-            .detail-item { margin-bottom: 10px; }
-            .detail-item strong { display: inline-block; width: 200px; }
-            table { width: 100%; border-collapse: collapse; margin: 20px 0; }
-            th, td { border: 1px solid #ddd; padding: 12px; text-align: left; }
-            th { background-color: #f2f2f2; font-weight: bold; }
-            .cost-table th { background-color: #e9ecef; }
-            .total-row { font-weight: bold; background-color: #f8f9fa; }
-            .signature-section { margin-top: 40px; padding-top: 20px; border-top: 2px solid #000; }
-            .signature-line { border-bottom: 1px solid #000; margin: 20px 0; padding: 20px 0; }
+            .print-header h1 { margin: 0; font-size: 24px; text-transform: uppercase; }
+            .print-header .date { color: #666; margin-top: 5px; font-size: 12px; }
+            .section { margin-bottom: 25px; page-break-inside: avoid; }
+            .section h2 { border-bottom: 1px solid #ccc; padding-bottom: 8px; margin-bottom: 15px; font-size: 16px; color: #000; text-transform: uppercase; }
+            .details-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; font-size: 14px; }
+            .detail-item { margin-bottom: 8px; }
+            .detail-item strong { display: inline-block; width: 140px; color: #555; }
+            
+            table { width: 100%; border-collapse: collapse; margin: 20px 0; font-size: 13px; }
+            th, td { border: 1px solid #ddd; padding: 10px; text-align: left; }
+            th { background-color: #f8f9fa; font-weight: bold; text-transform: uppercase; font-size: 12px; }
+            .total-row td { font-weight: bold; background-color: #f8f9fa; font-size: 14px; }
+            
+            .signature-section { margin-top: 40px; border: 1px solid #ddd; padding: 20px; border-radius: 4px; page-break-inside: avoid; }
+            .signature-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 40px; }
+            .signature-box { margin-top: 40px; border-top: 1px solid #000; padding-top: 10px; text-align: center; }
+            
             @media print {
-              body { margin: 0; }
+              body { -webkit-print-color-adjust: exact; }
               .no-print { display: none; }
             }
           </style>
         </head>
         <body>
           <div class="print-header">
-            <h1>TICKET REVIEW</h1>
-            <div class="date">Printed on: ${new Date().toLocaleDateString()} ${new Date().toLocaleTimeString()}</div>
+            <h1>Budget Proposal Review</h1>
+            <div class="date">Generated on: ${new Date().toLocaleString()}</div>
           </div>
           
           <div class="section">
             <h2>Ticket Information</h2>
             <div class="details-grid">
-              <div class="detail-item"><strong>Ticket ID:</strong> ${selectedProposal?.reference || 'N/A'}</div>
-              <div class="detail-item"><strong>Title:</strong> ${selectedProposal?.title || selectedProposal?.subject || 'N/A'}</div>
-              <div class="detail-item"><strong>Date Submitted:</strong> ${selectedProposal?.submitted_at ? new Date(selectedProposal.submitted_at).toLocaleDateString() : 'N/A'}</div>
-              <div class="detail-item"><strong>Category:</strong> ${selectedProposal?.category || 'N/A'}</div>
-              <div class="detail-item"><strong>Sub-Category:</strong> ${selectedProposal?.sub_category || 'N/A'}</div>
-              <div class="detail-item"><strong>Department:</strong> ${selectedProposal?.department || 'N/A'}</div>
-              <div class="detail-item"><strong>Budget Amount:</strong> ₱${parseFloat(selectedProposal?.total_cost || selectedProposal?.amount || 0).toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</div>
-              <div class="detail-item"><strong>Submitted by:</strong> ${selectedProposal?.submitted_by_person || selectedProposal?.submitted_by_name || selectedProposal?.submitted_by || 'N/A'}</div>
+              <div class="detail-item"><strong>Ticket ID:</strong> ${
+                selectedProposal?.reference || "N/A"
+              }</div>
+              <div class="detail-item"><strong>Status:</strong> ${
+                selectedProposal?.status || "PENDING"
+              }</div>
+              <div class="detail-item"><strong>Date Submitted:</strong> ${
+                selectedProposal?.submitted_at
+                  ? new Date(selectedProposal.submitted_at).toLocaleDateString()
+                  : "N/A"
+              }</div>
+              <div class="detail-item"><strong>Department:</strong> ${
+                selectedProposal?.department || "N/A"
+              }</div>
+              <div class="detail-item"><strong>Category:</strong> ${
+                selectedProposal?.category || "N/A"
+              }</div>
+              <div class="detail-item"><strong>Sub-Category:</strong> ${
+                selectedProposal?.sub_category || "N/A"
+              }</div>
+              <div class="detail-item"><strong>Submitted By:</strong> ${
+                selectedProposal?.submitted_by || "N/A"
+              }</div>
+              <div class="detail-item"><strong>Total Amount:</strong> ₱${parseFloat(
+                selectedProposal?.amount || 0
+              ).toLocaleString("en-US", { minimumFractionDigits: 2 })}</div>
             </div>
           </div>
           
           <div class="section">
-            <h2>Project Summary</h2>
-            <p>${selectedProposal?.project_summary || 'No summary provided.'}</p>
+            <h2>Project Details</h2>
+            <div style="margin-bottom: 15px;">
+              <strong>Title:</strong> <br/>
+              ${selectedProposal?.title || "N/A"}
+            </div>
+            <div style="margin-bottom: 15px;">
+              <strong>Summary:</strong> <br/>
+              ${selectedProposal?.project_summary || "N/A"}
+            </div>
+            <div>
+              <strong>Description:</strong> <br/>
+              ${selectedProposal?.project_description || "N/A"}
+            </div>
           </div>
-          
-          <div class="section">
-            <h2>Project Description</h2>
-            <p>${selectedProposal?.project_description || 'No description provided.'}</p>
-          </div>
-          
-          ${selectedProposal?.performance_start_date && selectedProposal?.performance_end_date ? `
-          <div class="section">
-            <h2>Period of Performance</h2>
-            <p>${new Date(selectedProposal.performance_start_date).toLocaleDateString()} to ${new Date(selectedProposal.performance_end_date).toLocaleDateString()}</p>
-          </div>
-          ` : ''}
-          
-          ${selectedProposal?.items && selectedProposal.items.length > 0 ? `
+
+          ${
+            selectedProposal?.items && selectedProposal.items.length > 0
+              ? `
           <div class="section">
             <h2>Cost Breakdown</h2>
-            <table class="cost-table">
+            <table>
               <thead>
                 <tr>
-                  <th>COST ELEMENTS</th>
-                  <th>DESCRIPTION</th>
-                  <th>ESTIMATED COST</th>
+                  <th style="width: 30%">Cost Element</th>
+                  <th style="width: 45%">Description</th>
+                  <th style="width: 25%; text-align: right">Estimated Cost</th>
                 </tr>
               </thead>
               <tbody>
-                ${selectedProposal.items.map(item => `
+                ${selectedProposal.items
+                  .map(
+                    (item) => `
                   <tr>
-                    <td>${item.cost_element || 'N/A'}</td>
-                    <td>${item.description || 'N/A'}</td>
-                    <td>₱${parseFloat(item.estimated_cost || 0).toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</td>
+                    <td>${item.cost_element || "N/A"}</td>
+                    <td>${item.description || "N/A"}</td>
+                    <td style="text-align: right">₱${parseFloat(
+                      item.estimated_cost || 0
+                    ).toLocaleString("en-US", {
+                      minimumFractionDigits: 2,
+                    })}</td>
                   </tr>
-                `).join('')}
+                `
+                  )
+                  .join("")}
               </tbody>
               <tfoot>
                 <tr class="total-row">
-                  <td colspan="2" style="text-align: right;"><strong>TOTAL AMOUNT:</strong></td>
-                  <td><strong>₱${parseFloat(selectedProposal?.total_cost || selectedProposal?.amount || 0).toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</strong></td>
+                  <td colspan="2" style="text-align: right"><strong>TOTAL:</strong></td>
+                  <td style="text-align: right"><strong>₱${parseFloat(
+                    selectedProposal?.amount || 0
+                  ).toLocaleString("en-US", {
+                    minimumFractionDigits: 2,
+                  })}</strong></td>
                 </tr>
               </tfoot>
             </table>
           </div>
-          ` : ''}
+          `
+              : ""
+          }
           
           <div class="section signature-section">
-            <h2>Finance Department Approval</h2>
-            <div style="margin: 30px 0;">
-              <div><strong>Finance Operator name:</strong> ${financeOperatorName || financeOperatorNames[0]}</div>
-              <div class="signature-line"></div>
-              <div style="margin-top: 10px;"><strong>Signature:</strong></div>
-              ${financeOperatorSignature ? `<div style="margin: 20px 0;"><img src="${financeOperatorSignature}" alt="Signature" style="max-width: 300px; height: auto;" /></div>` : '<div class="signature-line"></div>'}
-              <div style="margin-top: 20px;"><strong>Date submitted:</strong> ${new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}</div>
+            <h2>Finance Approval</h2>
+            <div class="details-grid">
+              <div class="detail-item"><strong>Approved By:</strong> ${
+                financeOperatorName || "Finance Officer"
+              }</div>
+              <div class="detail-item"><strong>Date:</strong> ${new Date().toLocaleDateString()}</div>
             </div>
-          </div>
-          
-          <div class="no-print" style="text-align: center; margin-top: 50px; color: #666; font-size: 12px;">
-            <p>This is a system-generated document from BudgetPro</p>
+            
+            <div style="margin-top: 20px;">
+              <strong>Signature:</strong>
+              <div style="margin-top: 10px; height: 80px;">
+                ${
+                  financeOperatorSignature
+                    ? `<img src="${financeOperatorSignature}" alt="Signature" style="max-height: 80px; max-width: 200px;" />`
+                    : ""
+                }
+              </div>
+              <div style="border-bottom: 1px solid #000; width: 250px;"></div>
+            </div>
           </div>
           
           <script>
             window.onload = function() {
               window.print();
-              setTimeout(function() {
-                window.close();
-              }, 100);
+              // Close window after print (optional, commented out for debugging)
+              // setTimeout(function() { window.close(); }, 500);
             };
           </script>
         </body>
@@ -1558,7 +1609,10 @@ const BudgetProposal = () => {
                   boxShadow: "0 2px 4px rgba(0,0,0,0.1)",
                 }}
               >
-                <div className="budget-card-label" style={{ marginBottom: "10px" }}>
+                <div
+                  className="budget-card-label"
+                  style={{ marginBottom: "10px" }}
+                >
                   <p style={{ margin: 0, fontSize: "14px", color: "#666" }}>
                     Total Proposals
                   </p>
@@ -1589,7 +1643,10 @@ const BudgetProposal = () => {
                   boxShadow: "0 2px 4px rgba(0,0,0,0.1)",
                 }}
               >
-                <div className="budget-card-label" style={{ marginBottom: "10px" }}>
+                <div
+                  className="budget-card-label"
+                  style={{ marginBottom: "10px" }}
+                >
                   <p style={{ margin: 0, fontSize: "14px", color: "#666" }}>
                     Pending Approval
                   </p>
@@ -1620,7 +1677,10 @@ const BudgetProposal = () => {
                   boxShadow: "0 2px 4px rgba(0,0,0,0.1)",
                 }}
               >
-                <div className="budget-card-label" style={{ marginBottom: "10px" }}>
+                <div
+                  className="budget-card-label"
+                  style={{ marginBottom: "10px" }}
+                >
                   <p style={{ margin: 0, fontSize: "14px", color: "#666" }}>
                     Budget Total
                   </p>
@@ -1628,10 +1688,13 @@ const BudgetProposal = () => {
                 <div
                   className="budget-card-amount"
                   style={{ fontSize: "24px", fontWeight: "bold" }}
-                >{`₱${parseFloat(summaryData.total_budget).toLocaleString("en-US", {
-                  minimumFractionDigits: 2,
-                  maximumFractionDigits: 2,
-                })}`}</div>
+                >{`₱${parseFloat(summaryData.total_budget).toLocaleString(
+                  "en-US",
+                  {
+                    minimumFractionDigits: 2,
+                    maximumFractionDigits: 2,
+                  }
+                )}`}</div>
               </div>
             </div>
 
@@ -1692,8 +1755,11 @@ const BudgetProposal = () => {
                     />
                   </div>
 
-                  {/* Department Filter */}
-                  <div className="filter-dropdown" style={{ position: "relative" }}>
+                  {/* Department Filter - MODIFIED to use API data */}
+                  <div
+                    className="filter-dropdown"
+                    style={{ position: "relative" }}
+                  >
                     <button
                       className={`filter-dropdown-btn ${
                         showDepartmentDropdown ? "active" : ""
@@ -1709,10 +1775,25 @@ const BudgetProposal = () => {
                         alignItems: "center",
                         gap: "5px",
                         outline: "none",
+                        minWidth: "160px",
+                        justifyContent: "space-between",
                       }}
                     >
-                      <span>
-                        {selectedDepartment ? selectedDepartment : "All Departments"}
+                      <span
+                        style={{
+                          whiteSpace: "nowrap",
+                          overflow: "hidden",
+                          textOverflow: "ellipsis",
+                          maxWidth: "140px",
+                        }}
+                      >
+                        {selectedDepartment
+                          ? shortenDepartmentName(
+                              departmentOptions.find(
+                                (d) => d.value === selectedDepartment
+                              )?.label
+                            )
+                          : "All Departments"}
                       </span>
                       <ChevronDown size={14} />
                     </button>
@@ -1732,7 +1813,7 @@ const BudgetProposal = () => {
                           overflowY: "auto",
                         }}
                       >
-                        {departments.map((dept) => (
+                        {departmentOptions.map((dept) => (
                           <div
                             key={dept.value}
                             className={`category-dropdown-item ${
@@ -1748,6 +1829,7 @@ const BudgetProposal = () => {
                                   ? "#f0f0f0"
                                   : "white",
                               outline: "none",
+                              fontSize: "14px",
                             }}
                           >
                             {dept.label}
@@ -1758,7 +1840,10 @@ const BudgetProposal = () => {
                   </div>
 
                   {/* Category Filter */}
-                  <div className="filter-dropdown" style={{ position: "relative" }}>
+                  <div
+                    className="filter-dropdown"
+                    style={{ position: "relative" }}
+                  >
                     <button
                       className={`filter-dropdown-btn ${
                         showCategoryDropdown ? "active" : ""
@@ -1774,12 +1859,16 @@ const BudgetProposal = () => {
                         alignItems: "center",
                         gap: "5px",
                         outline: "none",
+                        minWidth: "140px",
+                        justifyContent: "space-between",
                       }}
                     >
                       <span>
                         {
                           (
-                            categories.find((c) => c.id === selectedCategory) || {
+                            categories.find(
+                              (c) => c.id === selectedCategory
+                            ) || {
                               name: "All Categories",
                             }
                           ).name
@@ -1975,10 +2064,19 @@ const BudgetProposal = () => {
                       proposals.map((proposal, index) => (
                         <tr
                           key={proposal.id}
-                          className={index % 2 === 1 ? "alternate-row" : ""}
+                          className={
+                            (index % 2 === 1 ? "alternate-row " : "") +
+                            (proposal.status === "SUBMITTED"
+                              ? "pending-row"
+                              : "")
+                          }
                           style={{
                             backgroundColor:
-                              index % 2 === 1 ? "#F8F8F8" : "#FFFFFF",
+                              proposal.status === "SUBMITTED"
+                                ? "#fffbe6"
+                                : index % 2 === 1
+                                ? "#F8F8F8"
+                                : "#FFFFFF",
                             color: "#0C0C0C",
                             height: "50px",
                             transition: "background-color 0.2s ease",
@@ -1989,7 +2087,11 @@ const BudgetProposal = () => {
                           }}
                           onMouseLeave={(e) => {
                             e.currentTarget.style.backgroundColor =
-                              index % 2 === 1 ? "#F8F8F8" : "#FFFFFF";
+                              proposal.status === "SUBMITTED"
+                                ? "#fffbe6"
+                                : index % 2 === 1
+                                ? "#F8F8F8"
+                                : "#FFFFFF";
                           }}
                           onClick={() => handleReviewClick(proposal)}
                         >
@@ -1997,10 +2099,6 @@ const BudgetProposal = () => {
                             style={{
                               padding: "0.75rem",
                               borderBottom: "1px solid #dee2e6",
-                              verticalAlign: "middle",
-                              wordWrap: "break-word",
-                              overflowWrap: "break-word",
-                              whiteSpace: "normal",
                             }}
                           >
                             {proposal.reference}
@@ -2009,73 +2107,55 @@ const BudgetProposal = () => {
                             style={{
                               padding: "0.75rem",
                               borderBottom: "1px solid #dee2e6",
-                              verticalAlign: "middle",
-                              wordWrap: "break-word",
-                              overflowWrap: "break-word",
-                              whiteSpace: "normal",
                             }}
                           >
-                            {proposal.department || "N/A"}
+                            {/* MODIFIED: Use API field department_name */}
+                            {proposal.department_name || "N/A"}
                           </td>
                           <td
                             style={{
                               padding: "0.75rem",
                               borderBottom: "1px solid #dee2e6",
-                              verticalAlign: "middle",
-                              wordWrap: "break-word",
-                              overflowWrap: "break-word",
-                              whiteSpace: "normal",
                             }}
                           >
+                            {/* MODIFIED: Use API field category (CapEx/OpEx) */}
                             {proposal.category || "N/A"}
                           </td>
                           <td
                             style={{
                               padding: "0.75rem",
                               borderBottom: "1px solid #dee2e6",
-                              verticalAlign: "middle",
-                              wordWrap: "break-word",
-                              overflowWrap: "break-word",
-                              whiteSpace: "normal",
                             }}
                           >
+                            {/* MODIFIED: Use API field sub_category */}
                             {proposal.sub_category || "N/A"}
                           </td>
                           <td
                             style={{
                               padding: "0.75rem",
                               borderBottom: "1px solid #dee2e6",
-                              verticalAlign: "middle",
-                              wordWrap: "break-word",
-                              overflowWrap: "break-word",
-                              whiteSpace: "normal",
                             }}
                           >
-                            {proposal.submitted_by_person || proposal.submitted_by || "N/A"}
+                            {proposal.submitted_by || "N/A"}
                           </td>
                           <td
                             style={{
                               padding: "0.75rem",
                               borderBottom: "1px solid #dee2e6",
-                              verticalAlign: "middle",
-                              wordWrap: "break-word",
-                              overflowWrap: "break-word",
-                              whiteSpace: "normal",
                             }}
                           >
                             {`₱${parseFloat(proposal.amount).toLocaleString(
                               "en-US",
-                              { minimumFractionDigits: 2, maximumFractionDigits: 2 }
+                              {
+                                minimumFractionDigits: 2,
+                                maximumFractionDigits: 2,
+                              }
                             )}`}
                           </td>
                           <td
                             style={{
                               padding: "0.75rem",
                               borderBottom: "1px solid #dee2e6",
-                              verticalAlign: "middle",
-                              wordWrap: "break-word",
-                              overflowWrap: "break-word",
-                              whiteSpace: "normal",
                               textAlign: "center",
                             }}
                           >
@@ -2094,9 +2174,6 @@ const BudgetProposal = () => {
                                 cursor: "pointer",
                                 fontSize: "12px",
                                 minWidth: "60px",
-                                outline: "none",
-                                height: "28px",
-                                lineHeight: "20px",
                               }}
                             >
                               REVIEW
@@ -2116,9 +2193,7 @@ const BudgetProposal = () => {
                             verticalAlign: "middle",
                           }}
                         >
-                          {selectedDepartment 
-                            ? `No proposals found for ${selectedDepartment} department`
-                            : "No proposals match your search criteria."}
+                          No proposals match your search criteria.
                         </td>
                       </tr>
                     )}
@@ -2257,26 +2332,31 @@ const BudgetProposal = () => {
                 </div>
                 <div className="detail-item">
                   <strong>Sub-Category:</strong>{" "}
-                  {selectedProposal.sub_category || selectedProposal.items?.[0]?.cost_element || "N/A"}
+                  {selectedProposal.sub_category ||
+                    selectedProposal.items?.[0]?.cost_element ||
+                    "N/A"}
                 </div>
                 <div className="detail-item">
                   <strong>Department:</strong>{" "}
+                  {/* FIX Issue 1: Use the normalized field */}
                   {selectedProposal.department || "N/A"}
                 </div>
                 <div className="detail-item">
                   <strong>Budget Amount:</strong>
-                  {` ₱${parseFloat(selectedProposal.total_cost || selectedProposal.amount).toLocaleString(
-                    "en-US",
-                    {
-                      minimumFractionDigits: 2,
-                      maximumFractionDigits: 2,
-                    }
-                  )}`}
+                  {` ₱${parseFloat(
+                    selectedProposal.total_cost || selectedProposal.amount
+                  ).toLocaleString("en-US", {
+                    minimumFractionDigits: 2,
+                    maximumFractionDigits: 2,
+                  })}`}
                 </div>
                 <div className="detail-item">
                   <strong>Submitted by:</strong>{" "}
-                  {selectedProposal.submitted_by_person || selectedProposal.submitted_by_name || selectedProposal.submitted_by}
-                  {selectedProposal.department && ` (${selectedProposal.department})`}
+                  {selectedProposal.submitted_by_person ||
+                    selectedProposal.submitted_by_name ||
+                    selectedProposal.submitted_by}
+                  {selectedProposal.department &&
+                    ` (${selectedProposal.department})`}
                 </div>
               </div>
 
@@ -2292,62 +2372,169 @@ const BudgetProposal = () => {
               <div className="proposal-section">
                 <h4 className="section-label">PROJECT DESCRIPTION:</h4>
                 <p className="section-content">
-                  {selectedProposal.project_description || "No description provided."}
+                  {selectedProposal.project_description ||
+                    "No description provided."}
                 </p>
               </div>
 
               {/* Period of Performance */}
-              {selectedProposal.performance_start_date && selectedProposal.performance_end_date && (
-                <div className="proposal-section">
-                  <h4 className="section-label">PERIOD OF PERFORMANCE:</h4>
-                  <p className="section-content">
-                    {`${new Date(
-                      selectedProposal.performance_start_date
-                    ).toLocaleDateString()} to ${new Date(
-                      selectedProposal.performance_end_date
-                    ).toLocaleDateString()}`}
-                  </p>
-                </div>
-              )}
+              {selectedProposal.performance_start_date &&
+                selectedProposal.performance_end_date && (
+                  <div className="proposal-section">
+                    <h4 className="section-label">PERIOD OF PERFORMANCE:</h4>
+                    <p className="section-content">
+                      {`${new Date(
+                        selectedProposal.performance_start_date
+                      ).toLocaleDateString()} to ${new Date(
+                        selectedProposal.performance_end_date
+                      ).toLocaleDateString()}`}
+                    </p>
+                  </div>
+                )}
 
               {/* Cost Elements Table */}
               {selectedProposal.items && selectedProposal.items.length > 0 && (
                 <div className="proposal-section">
-                  <div className="cost-table">
-                    <div className="cost-table-header">
-                      <div className="cost-header-cell">COST ELEMENTS</div>
-                      <div className="cost-header-cell">DESCRIPTION</div>
-                      <div className="cost-header-cell">ESTIMATED COST</div>
+                  <div
+                    className="cost-table"
+                    style={{
+                      display: "table",
+                      width: "100%",
+                      borderCollapse: "collapse",
+                    }}
+                  >
+                    <div
+                      className="cost-table-header"
+                      style={{
+                        display: "table-row",
+                        backgroundColor: "#f8f9fa",
+                        fontWeight: "bold",
+                      }}
+                    >
+                      <div
+                        className="cost-header-cell"
+                        style={{
+                          display: "table-cell",
+                          padding: "10px",
+                          borderBottom: "2px solid #dee2e6",
+                        }}
+                      >
+                        COST ELEMENTS
+                      </div>
+                      <div
+                        className="cost-header-cell"
+                        style={{
+                          display: "table-cell",
+                          padding: "10px",
+                          borderBottom: "2px solid #dee2e6",
+                        }}
+                      >
+                        DESCRIPTION
+                      </div>
+                      <div
+                        className="cost-header-cell"
+                        style={{
+                          display: "table-cell",
+                          padding: "10px",
+                          borderBottom: "2px solid #dee2e6",
+                          textAlign: "right",
+                        }}
+                      >
+                        ESTIMATED COST
+                      </div>
                     </div>
 
                     {selectedProposal.items.map((item, index) => (
-                      <div className="cost-table-row" key={index}>
-                        <div className="cost-cell">
-                          <span className="cost-bullet green"></span>
+                      <div
+                        className="cost-table-row"
+                        key={index}
+                        style={{ display: "table-row" }}
+                      >
+                        <div
+                          className="cost-cell"
+                          style={{
+                            display: "table-cell",
+                            padding: "10px",
+                            borderBottom: "1px solid #eee",
+                          }}
+                        >
+                          <span
+                            className="cost-bullet green"
+                            style={{
+                              display: "inline-block",
+                              width: "8px",
+                              height: "8px",
+                              borderRadius: "50%",
+                              backgroundColor: "#28a745",
+                              marginRight: "8px",
+                            }}
+                          ></span>
                           {item.cost_element || "N/A"}
                         </div>
-                        <div className="cost-cell">{item.description || "N/A"}</div>
-                        <div className="cost-cell">{`₱${parseFloat(
-                          item.estimated_cost || 0
-                        ).toLocaleString("en-US", {
-                          minimumFractionDigits: 2,
-                          maximumFractionDigits: 2,
-                        })}`}</div>
+                        <div
+                          className="cost-cell"
+                          style={{
+                            display: "table-cell",
+                            padding: "10px",
+                            borderBottom: "1px solid #eee",
+                          }}
+                        >
+                          {item.description || "N/A"}
+                        </div>
+                        <div
+                          className="cost-cell"
+                          style={{
+                            display: "table-cell",
+                            padding: "10px",
+                            borderBottom: "1px solid #eee",
+                            textAlign: "right",
+                          }}
+                        >
+                          {`₱${parseFloat(
+                            item.estimated_cost || 0
+                          ).toLocaleString("en-US", {
+                            minimumFractionDigits: 2,
+                          })}`}
+                        </div>
                       </div>
                     ))}
 
-                    <div className="cost-table-total">
-                      <div className="cost-cell"></div>
-                      <div className="cost-cell"></div>
+                    {/* Total Row */}
+                    <div
+                      className="cost-table-total"
+                      style={{
+                        display: "table-row",
+                        fontWeight: "bold",
+                        backgroundColor: "#f8f9fa",
+                      }}
+                    >
+                      <div
+                        className="cost-cell"
+                        style={{ display: "table-cell", padding: "10px" }}
+                      ></div>
+                      <div
+                        className="cost-cell"
+                        style={{
+                          display: "table-cell",
+                          padding: "10px",
+                          textAlign: "right",
+                        }}
+                      >
+                        TOTAL:
+                      </div>
                       <div
                         className="cost-cell total-amount"
-                        style={{ textAlign: "right" }}
+                        style={{
+                          display: "table-cell",
+                          padding: "10px",
+                          textAlign: "right",
+                          color: "#007bff",
+                        }}
                       >
                         {`₱${parseFloat(
-                          selectedProposal.total_cost || selectedProposal.amount
+                          selectedProposal.amount || 0
                         ).toLocaleString("en-US", {
                           minimumFractionDigits: 2,
-                          maximumFractionDigits: 2,
                         })}`}
                       </div>
                     </div>
@@ -2355,24 +2542,30 @@ const BudgetProposal = () => {
                 </div>
               )}
 
-              {/* Finance Department Approval Section - UPDATED with input field */}
+              {/* Finance Department Approval Section - UPDATED with binding */}
               <div className="proposal-section">
                 <h4 className="section-label">FINANCE DEPARTMENT APPROVAL:</h4>
-                <div className="finance-operator-section" style={{ 
-                  padding: "15px", 
-                  backgroundColor: "white",
-                  borderRadius: "4px",
-                  marginTop: "10px",
-                  border: "1px solid #e0e0e0"
-                }}>
-                  {/* Finance Operator Name - UPDATED to input field */}
+                <div
+                  className="finance-operator-section"
+                  style={{
+                    padding: "15px",
+                    backgroundColor: "white",
+                    borderRadius: "4px",
+                    marginTop: "10px",
+                    border: "1px solid #e0e0e0",
+                  }}
+                >
+                  {/* Finance Operator Name */}
                   <div className="detail-item" style={{ marginBottom: "15px" }}>
                     <strong>Finance Operator name:</strong>
                     <div style={{ marginTop: "5px" }}>
                       <input
                         type="text"
+                        // MODIFIED: Bind to state
                         value={financeOperatorName}
                         onChange={(e) => setFinanceOperatorName(e.target.value)}
+                        // MODIFIED: Read-only if reviewing history
+                        disabled={showReviewPopup.readOnly}
                         placeholder="Enter finance operator name"
                         style={{
                           width: "100%",
@@ -2380,99 +2573,130 @@ const BudgetProposal = () => {
                           border: "1px solid #ccc",
                           borderRadius: "4px",
                           outline: "none",
-                          backgroundColor: "white",
+                          backgroundColor: showReviewPopup.readOnly
+                            ? "#f8f9fa"
+                            : "white",
                         }}
                       />
                     </div>
                   </div>
-                  
+
                   {/* Signature */}
                   <div className="detail-item" style={{ marginBottom: "15px" }}>
                     <strong>Signature (Attachment):</strong>
                     <div style={{ marginTop: "5px" }}>
-                      <SignatureUpload
-                        value={financeOperatorSignature}
-                        onChange={setFinanceOperatorSignature}
-                      />
+                      {showReviewPopup.readOnly &&
+                      selectedProposal.signature ? (
+                        // If read-only and signature exists from API, show image
+                        <img
+                          src={selectedProposal.signature}
+                          alt="Signature"
+                          style={{
+                            maxWidth: "300px",
+                            maxHeight: "100px",
+                            border: "1px solid #ccc",
+                          }}
+                        />
+                      ) : !showReviewPopup.readOnly ? (
+                        // If editable, show upload component
+                        <SignatureUpload
+                          value={financeOperatorSignature}
+                          onChange={setFinanceOperatorSignature}
+                        />
+                      ) : (
+                        <div style={{ color: "#999", fontStyle: "italic" }}>
+                          No signature attached.
+                        </div>
+                      )}
                     </div>
                   </div>
-                  
+
                   {/* Date submitted */}
                   <div className="detail-item">
                     <strong>Date submitted:</strong>
-                    <div style={{ 
-                      marginTop: "5px", 
-                      padding: "8px",
-                      border: "1px solid #e0e0e0",
-                      borderRadius: "4px",
-                      backgroundColor: "#f8f9fa"
-                    }}>
-                      {new Date().toLocaleDateString('en-US', { 
-                        year: 'numeric', 
-                        month: 'long', 
-                        day: 'numeric' 
-                      })}
+                    <div
+                      style={{
+                        marginTop: "5px",
+                        padding: "8px",
+                        border: "1px solid #e0e0e0",
+                        borderRadius: "4px",
+                        backgroundColor: "#f8f9fa",
+                      }}
+                    >
+                      {/* Use current date or saved date if available */}
+                      {showReviewPopup.readOnly &&
+                      selectedProposal.approval_date
+                        ? new Date(
+                            selectedProposal.approval_date
+                          ).toLocaleDateString()
+                        : new Date().toLocaleDateString("en-US", {
+                            year: "numeric",
+                            month: "long",
+                            day: "numeric",
+                          })}
                     </div>
                   </div>
                 </div>
               </div>
             </div>
 
-            {/* Footer with Action Buttons - APPROVE AND REJECT BUTTONS ARE HERE */}
-            <div
-              className="popup-footer"
-              style={{ 
-                marginTop: "20px", 
-                paddingTop: "15px",
-                borderTop: "1px solid #e0e0e0"
-              }}
-            >
+            {/* Footer with Action Buttons - Only show if NOT read-only */}
+            {!showReviewPopup.readOnly && (
               <div
-                className="action-buttons"
+                className="popup-footer"
                 style={{
-                  display: "flex",
-                  gap: "10px",
-                  justifyContent: "center",
+                  marginTop: "20px",
+                  paddingTop: "15px",
+                  borderTop: "1px solid #e0e0e0",
                 }}
               >
-                <button
-                  className="action-btn approve-btn"
-                  onClick={() => handleStatusChange("APPROVED")}
+                <div
+                  className="action-buttons"
                   style={{
-                    padding: "8px 24px",
-                    backgroundColor: "#28a745",
-                    color: "white",
-                    border: "none",
-                    borderRadius: "4px",
-                    cursor: "pointer",
-                    fontSize: "14px",
-                    minWidth: "100px",
-                    outline: "none",
-                    fontWeight: "bold",
+                    display: "flex",
+                    gap: "10px",
+                    justifyContent: "center",
                   }}
                 >
-                  Approve
-                </button>
-                <button
-                  className="action-btn reject-btn"
-                  onClick={() => handleStatusChange("REJECTED")}
-                  style={{
-                    padding: "8px 24px",
-                    backgroundColor: "#dc3545",
-                    color: "white",
-                    border: "none",
-                    borderRadius: "4px",
-                    cursor: "pointer",
-                    fontSize: "14px",
-                    minWidth: "100px",
-                    outline: "none",
-                    fontWeight: "bold",
-                  }}
-                >
-                  Reject
-                </button>
+                  <button
+                    className="action-btn approve-btn"
+                    onClick={() => handleStatusChange("APPROVED")}
+                    style={{
+                      padding: "8px 24px",
+                      backgroundColor: "#28a745",
+                      color: "white",
+                      border: "none",
+                      borderRadius: "4px",
+                      cursor: "pointer",
+                      fontSize: "14px",
+                      minWidth: "100px",
+                      outline: "none",
+                      fontWeight: "bold",
+                    }}
+                  >
+                    Approve
+                  </button>
+                  <button
+                    className="action-btn reject-btn"
+                    onClick={() => handleStatusChange("REJECTED")}
+                    style={{
+                      padding: "8px 24px",
+                      backgroundColor: "#dc3545",
+                      color: "white",
+                      border: "none",
+                      borderRadius: "4px",
+                      cursor: "pointer",
+                      fontSize: "14px",
+                      minWidth: "100px",
+                      outline: "none",
+                      fontWeight: "bold",
+                    }}
+                  >
+                    Reject
+                  </button>
+                </div>
               </div>
-            </div>
+            )}
           </div>
         </div>
       )}
@@ -2550,7 +2774,9 @@ const BudgetProposal = () => {
               {/* Status Indicator */}
               <div className="status-section">
                 <div className="status-indicator">
-                  <div className={`status-dot ${reviewStatus.toLowerCase()}`}></div>
+                  <div
+                    className={`status-dot ${reviewStatus.toLowerCase()}`}
+                  ></div>
                   <span className="status-text">
                     {reviewStatus === "APPROVED"
                       ? "Approved by Finance Department"
@@ -2558,13 +2784,12 @@ const BudgetProposal = () => {
                   </span>
                 </div>
                 <div className="status-timestamp">
-                  {new Date().toLocaleString("en-PH", {
-                    year: "numeric",
-                    month: "short",
-                    day: "2-digit",
-                    hour: "2-digit",
-                    minute: "2-digit",
-                  })}
+                  {selectedProposal.approval_date
+                    ? new Date(
+                        selectedProposal.approval_date
+                      ).toLocaleDateString()
+                    : "Date N/A"}{" "}
+                  - {selectedProposal.approved_by_name || "Finance Officer"}
                 </div>
               </div>
 
@@ -2577,22 +2802,30 @@ const BudgetProposal = () => {
               <div className="project-info-section">
                 <div className="project-detail-inline">
                   <strong>Budget Amount:</strong>{" "}
-                  {`₱${parseFloat(selectedProposal.amount || selectedProposal.total_cost).toLocaleString("en-US", {
+                  {`₱${parseFloat(
+                    selectedProposal.amount || selectedProposal.total_cost
+                  ).toLocaleString("en-US", {
                     minimumFractionDigits: 2,
                     maximumFractionDigits: 2,
                   })}`}
                 </div>
                 <div className="project-detail-inline">
-                  <strong>Category:</strong> {selectedProposal.category || "N/A"}
+                  <strong>Category:</strong>{" "}
+                  {selectedProposal.category || "N/A"}
                 </div>
                 <div className="project-detail-inline">
-                  <strong>Sub-Category:</strong> {selectedProposal.sub_category || "N/A"}
+                  <strong>Sub-Category:</strong>{" "}
+                  {selectedProposal.sub_category || "N/A"}
                 </div>
                 <div className="project-detail-inline">
-                  <strong>Department:</strong> {selectedProposal.department || "N/A"}
+                  <strong>Department:</strong>{" "}
+                  {selectedProposal.department || "N/A"}
                 </div>
                 <div className="project-detail-inline">
-                  <strong>Submitted by:</strong> {selectedProposal.submitted_by_person || selectedProposal.submitted_by_name || "N/A"}
+                  <strong>Submitted by:</strong>{" "}
+                  {selectedProposal.submitted_by_person ||
+                    selectedProposal.submitted_by_name ||
+                    "N/A"}
                 </div>
               </div>
 
@@ -2660,7 +2893,8 @@ const BudgetProposal = () => {
                       ? "Approved By:"
                       : "Rejected By:"}
                   </strong>{" "}
-                  {financeOperatorName || financeOperatorNames[0]} (Finance Department)
+                  {financeOperatorName || "Finance Officer"} (Finance
+                  Department)
                 </div>
                 <div className="metadata-item">
                   <strong>Timestamp:</strong>
@@ -2687,10 +2921,10 @@ const BudgetProposal = () => {
 
             <div
               className="approval-status-footer"
-              style={{ 
-                marginTop: "20px", 
+              style={{
+                marginTop: "20px",
                 paddingTop: "15px",
-                borderTop: "1px solid #e0e0e0"
+                borderTop: "1px solid #e0e0e0",
               }}
             >
               <div
@@ -2718,7 +2952,6 @@ const BudgetProposal = () => {
                 >
                   Submit
                 </button>
-               
               </div>
             </div>
           </div>
@@ -2830,10 +3063,10 @@ const BudgetProposal = () => {
 
             <div
               className="approval-status-footer"
-              style={{ 
-                marginTop: "20px", 
+              style={{
+                marginTop: "20px",
                 paddingTop: "15px",
-                borderTop: "1px solid #e0e0e0"
+                borderTop: "1px solid #e0e0e0",
               }}
             >
               <div

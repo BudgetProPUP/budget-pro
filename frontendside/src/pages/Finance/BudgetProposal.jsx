@@ -1,6 +1,3 @@
-//TODO: Add popup helper when hovering over overflowing content
-//TODO: May need filter for pending. 
-//Question: Should only approved appear here?
 import React, { useState, useEffect, useMemo } from "react";
 import {
   ChevronDown,
@@ -30,6 +27,10 @@ import { getAllDepartments } from "../../API/departments";
 import { getAccountTypes } from "../../API/dropdownAPI";
 import { useAuth } from "../../context/AuthContext";
 import ManageProfile from "./ManageProfile";
+
+//TODO: Add popup helper when hovering over overflowing content
+//TODO: May need filter for pending. 
+//Question: Should only approved appear here?
 
 const financeOperatorNames = [
   "Finance Operator",

@@ -1,6 +1,6 @@
 from decimal import Decimal
 from .models import (
-    Account, AccountType, BudgetAllocation, BudgetProposal, BudgetProposalItem, Department,
+    Account, AccountType, BudgetAllocation, BudgetProposal, BudgetProposalItem, Department, Expense,
     FiscalYear, JournalEntry, JournalEntryLine, ProposalComment, ProposalHistory
 )
 from rest_framework import serializers
@@ -22,30 +22,37 @@ class BudgetProposalListSerializer(serializers.ModelSerializer):
     reference = serializers.CharField(
         source='external_system_id', read_only=True)
     subject = serializers.CharField(source='title', read_only=True)
-    category = serializers.SerializerMethodField()
     # MODIFIED: Added department fields for UI filtering
     department_code = serializers.CharField(source='department.code', read_only=True)
     department_name = serializers.CharField(source='department.name', read_only=True)
+    
+    # MODIFIED: Split into Category and Sub-category
+    category = serializers.SerializerMethodField() 
+    sub_category = serializers.SerializerMethodField()
 
     class Meta:
         model = BudgetProposal
         fields = [
-            'id', 'reference', 'subject', 'category', 'submitted_by',
+            'id', 'reference', 'subject', 'category', 'sub_category', 'submitted_by',
             'amount', 'status', 'department_code', 'department_name'
         ]
-
+        
     def get_amount(self, obj):
         return obj.items.aggregate(total=Sum('estimated_cost'))['total'] or 0
 
+     # MODIFIED: Updated to fetch category name from the new relationship
     def get_category(self, obj):
-        # Proposal Items link to Account. Account doesn't link directly to ExpenseCategory
-        # Yry to infer from the first item's cost element or account type
+        # Returns the Main Classification (CapEx/OpEx)
         first_item = obj.items.first()
-        if first_item:
-             # If we can map account back to a high level type
-             if first_item.account and first_item.account.account_type:
-                 return first_item.account.account_type.name
+        if first_item and first_item.category:
+            return first_item.category.classification # e.g., 'OPEX'
         return "Uncategorized"
+    def get_sub_category(self, obj):
+        # Returns the Specific Sub-category Name
+        first_item = obj.items.first()
+        if first_item and first_item.category:
+            return first_item.category.name # e.g., 'Server Hosting'
+        return "General"
 
 
 class BudgetProposalItemSerializer(serializers.ModelSerializer):
@@ -96,11 +103,11 @@ class BudgetProposalDetailSerializer(serializers.ModelSerializer):
     def get_total_cost(self, obj): return obj.items.aggregate(
         total=Sum('estimated_cost'))['total'] or 0
 
+    # MODIFIED: Updated to fetch category name from the new relationship
     def get_category(self, obj):
-        # Similar logic to list view
         first_item = obj.items.first()
-        if first_item and first_item.account and first_item.account.account_type:
-            return first_item.account.account_type.name
+        if first_item and first_item.category:
+            return first_item.category.name
         return "General"
 
     def get_last_reviewed_at(self, obj):
@@ -200,27 +207,37 @@ class AccountSetupSerializer(serializers.ModelSerializer):
 
 
 class LedgerViewSerializer(serializers.ModelSerializer):
-    # RENAMED to reference_id to be clearer for the frontend
     reference_id = serializers.CharField(
         source='journal_entry.entry_id', read_only=True)
     date = serializers.DateField(source='journal_entry.date', read_only=True)
-    category = serializers.CharField(
-        source='journal_entry.category', read_only=True)
-    # CORRECTED: Use the description from the line item itself for more detail
-    description = serializers.CharField(read_only=True)
-    # ADDED: Include the account name as required by the UI
+    
+    # MODIFIED: Split Category/Sub-category
+    category = serializers.SerializerMethodField()
+    sub_category = serializers.SerializerMethodField()
+    
     account = serializers.CharField(source='account.name', read_only=True)
-    # MODIFIED: Added Department logic (Ledger view needs to filter by dept)
-    # Note: JournalEntryLine doesn't have Dept directly, we might need to infer or add it
-    # For now, assume it comes from the linked Account (if we add Dept to Account) 
-    # or from the creator's department
-    # We will leave it as is for now, filtering is done in the View
+    department = serializers.CharField(
+        source='journal_entry.department.name', read_only=True, default="N/A"
+    )
+    # Kept description as it provides specific details "Payment for TXN..."
+    description = serializers.CharField(read_only=True)
 
     class Meta:
         model = JournalEntryLine
-        # UPDATED: Matched fields to the new UI columns
-        fields = ['reference_id', 'date', 'category',
+        fields = ['reference_id', 'date', 'department', 'category', 'sub_category',
                   'description', 'account', 'amount']
+
+    def get_category(self, obj):
+        # Main Bucket (CapEx/OpEx)
+        if obj.expense_category:
+            return obj.expense_category.classification
+        return obj.journal_entry.category # Fallback to JE category 'EXPENSES'
+
+    def get_sub_category(self, obj):
+        # Specific Bucket (Hardware, Travel)
+        if obj.expense_category:
+            return obj.expense_category.name
+        return "General"
 
 
 class JournalEntryListSerializer(serializers.ModelSerializer):
@@ -231,10 +248,11 @@ class JournalEntryListSerializer(serializers.ModelSerializer):
     ticket_id = serializers.CharField(source='entry_id', read_only=True)
     amount = serializers.DecimalField(source='total_amount', max_digits=15, decimal_places=2, read_only=True)
     account = serializers.SerializerMethodField()
-
+    # MODIFIED: Added Department Name
+    department_name = serializers.CharField(source='department.name', read_only=True, default="N/A")
     class Meta:
         model = JournalEntry
-        fields = ['id', 'ticket_id', 'date', 'category', 'account', 'description', 
+        fields = ['id', 'ticket_id', 'date', 'category', 'department_name', 'account', 'description', 
                   'amount', 'created_by_username']
         
     def get_account(self, obj):
@@ -446,8 +464,7 @@ class BudgetProposalMessageSerializer(serializers.ModelSerializer):
 
         # 3. Calculate Currently Available Funds
         # (Sum of Allocations) - (Sum of Approved Expenses)
-        # Note: This is a simplified check. In a real system, we might check specifically against
-        # the categories of the items. For now, checking Department Total
+        # Note: This checks the Department's TOTAL budget availability.
         
         total_allocation = BudgetAllocation.objects.filter(
             department=department,
@@ -455,19 +472,22 @@ class BudgetProposalMessageSerializer(serializers.ModelSerializer):
             is_active=True
         ).aggregate(total=Sum('amount'))['total'] or Decimal('0.00')
         
-        total_spent = 0 
-        # Calculate spent from expenses... 
-        # The check should be: Do we have enough TOTAL budget to cover this proposal?
-        # Ideally: Allocations - (Expenses + Approved Proposals).
+        # Calculate total spent (Expenses)
+        total_spent = Expense.objects.filter(
+            department=department,
+            budget_allocation__fiscal_year=fiscal_year,
+            status='APPROVED'
+        ).aggregate(total=Sum('amount'))['total'] or Decimal('0.00')
+
+        available_funds = total_allocation - total_spent
         
-        # For now, let's just check if the Department HAS any budget at all.
-        if total_allocation < total_proposed_cost:
-             # OPTION: Soft fail or Warning. 
-             # Since this comes from HDTS, maybe we don't block it, but we flag it
-             # But for strict control:
-             pass 
-             # Uncomment to enforce strict check:
-             # raise serializers.ValidationError(f"Insufficient funds. Department has {total_allocation}, proposal is {total_proposed_cost}.")
+        # 4. The Check
+        if available_funds < total_proposed_cost:
+             # We raise a validation error to reject the proposal if funds are insufficient.
+             # This fulfills the "Real-time budget availability check" requirement.
+             raise serializers.ValidationError(
+                 f"Insufficient funds. Department has {available_funds:,.2f} remaining, proposal cost is {total_proposed_cost:,.2f}."
+             )
 
         return data
 
@@ -541,7 +561,6 @@ class ProposalReviewSerializer(serializers.Serializer):
     comment = serializers.CharField(
         required=False, allow_blank=True, max_length=1000)
     
-    # MODIFIED: Added fields for the new Finance Approval section
     finance_operator_name = serializers.CharField(required=False, allow_blank=True)
     signature = serializers.FileField(required=False, allow_null=True)
 

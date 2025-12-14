@@ -1,5 +1,5 @@
 from decimal import Decimal
-from core.models import Account, BudgetAllocation, Expense, ExpenseCategory, Project
+from core.models import Account, BudgetAllocation, Expense, ExpenseAttachment, ExpenseCategory, Project
 from rest_framework import serializers 
 from django.db.models import Sum
 from django.utils import timezone
@@ -63,10 +63,8 @@ class ExpenseHistorySerializer(serializers.ModelSerializer):
         fields = ['id', 'date', 'description', 'category_name', 'amount']
         
 class ExpenseTrackingSerializer(serializers.ModelSerializer):
-    # ADDED: Map model fields to the new UI column names
     reference_no = serializers.CharField(source='transaction_id', read_only=True)
     type = serializers.CharField(source='account.account_type.name', read_only=True)
-    # MODIFIED: Use the new is_accomplished field
     accomplished = serializers.SerializerMethodField()
 
     class Meta:
@@ -88,12 +86,23 @@ class ExpenseCreateSerializer(serializers.ModelSerializer):
     project_id = serializers.IntegerField(write_only=True)
     account_code = serializers.CharField(write_only=True)
     category_code = serializers.CharField(write_only=True)
+    
+    # MODIFIED: Add field for multiple attachments
+    # 'receipt' is kept for backward compatibility if the frontend sends a single file
+    attachments = serializers.ListField(
+        child=serializers.FileField(),
+        write_only=True,
+        required=False,
+        help_text="List of file attachments (receipts, invoices)."
+    )
 
     class Meta:
         model = Expense
         fields = [
             'project_id', 'account_code', 'category_code', 
-            'amount', 'date', 'description', 'vendor', 'receipt', 
+            'amount', 'date', 'description', 'vendor', 
+            'receipt',       # Legacy single file
+            'attachments'    # New multiple files
         ]
         extra_kwargs = {
             'amount': {'required': True},
@@ -131,13 +140,21 @@ class ExpenseCreateSerializer(serializers.ModelSerializer):
         except ExpenseCategory.DoesNotExist:
             raise serializers.ValidationError({'category_code': 'Active expense category not found.'})
 
-        # --- VALIDATION LOGIC ---
+        # --- VALIDATION LOGIC (Refined) ---
         allocations = BudgetAllocation.objects.filter(project=project, is_active=True)
-        if not allocations.exists():
-            raise serializers.ValidationError(
-                {'project_id': f'No active budget allocations found for project "{project.name}". Cannot submit expense.'}
+        
+        # Check if allocation is LOCKED (New Requirement)
+        if allocations.filter(is_locked=True).exists():
+             raise serializers.ValidationError(
+                {'project_id': f'Budget allocation for project "{project.name}" is pending Finance Manager approval (Locked).'}
             )
 
+        if not allocations.exists():
+            raise serializers.ValidationError(
+                {'project_id': f'No active budget allocations found for project "{project.name}".'}
+            )
+
+        # Calculate Remaining Budget
         project_total_budget = allocations.aggregate(total=Sum('amount'))['total'] or Decimal('0.00')
         project_total_spent = Expense.objects.filter(project=project, status='APPROVED').aggregate(total=Sum('amount'))['total'] or Decimal('0.00')
         
@@ -145,7 +162,7 @@ class ExpenseCreateSerializer(serializers.ModelSerializer):
 
         if expense_amount > project_remaining_budget:
             raise serializers.ValidationError(
-                {'amount': f'Insufficient funds for this project. Remaining budget is ₱{project_remaining_budget:,.2f}'}
+                {'amount': f'Insufficient funds. Remaining budget is ₱{project_remaining_budget:,.2f}'}
             )
         
         data['allocation_obj'] = allocations.first()
@@ -157,6 +174,9 @@ class ExpenseCreateSerializer(serializers.ModelSerializer):
         account = validated_data.pop('account_obj')
         category = validated_data.pop('category_obj')
         allocation = validated_data.pop('allocation_obj')
+        
+        # MODIFIED: Extract attachments list
+        attachments_data = validated_data.pop('attachments', [])
 
         validated_data.pop('project_id', None)
         validated_data.pop('account_code', None)
@@ -173,9 +193,15 @@ class ExpenseCreateSerializer(serializers.ModelSerializer):
             submitted_by_user_id=request_user.id,
             submitted_by_username=getattr(request_user, 'username', 'N/A'),
             status='SUBMITTED', 
-            is_accomplished=False, # Default to False, must be approved by Finance
+            is_accomplished=False, 
             **validated_data
         )
+
+        # MODIFIED: Create ExpenseAttachment objects for each uploaded file
+        if attachments_data:
+            for file in attachments_data:
+                ExpenseAttachment.objects.create(expense=expense, file=file)
+
         return expense
     
 class BudgetAllocationCreateSerializer(serializers.ModelSerializer):

@@ -951,6 +951,8 @@ def get_category_budget_status(request):
             result.append({
                 "category_id": cat.id,
                 "category_name": cat.name,
+                # MODIFIED: Populate classification
+                "classification": cat.classification,
                 "budget": budget,
                 "spent": spent,
                 "percentage_used": round(percent_used, 2)

@@ -13,6 +13,7 @@ from rest_framework.views import APIView
 from rest_framework import serializers
 from rest_framework.response import Response
 from rest_framework import status
+from rest_framework.parsers import MultiPartParser, FormParser
 from django.db.models import Sum, Q
 from django.db.models.functions import Coalesce
 from core.service_authentication import APIKeyAuthentication
@@ -236,7 +237,7 @@ class BudgetAllocationCreateView(generics.CreateAPIView):
 
 class ExpenseCreateView(APIView):
     permission_classes = [IsAuthenticated]
-
+    parser_classes = [MultiPartParser, FormParser]  
     @extend_schema(
         tags=['Expense Tracking Page'],
         request=ExpenseCreateSerializer,
@@ -260,13 +261,13 @@ class ExpenseCreateView(APIView):
         responses={201: serializers.SerializerMethodField()}
     )
     def post(self, request):
+        # DRF merges request.POST and request.FILES into request.data when using MultiPartParser
         serializer = ExpenseCreateSerializer(
             data=request.data, context={'request': request})
         if serializer.is_valid():
             expense = serializer.save()
             return Response({'success': 'Expense submitted', 'id': expense.id}, status=201)
         return Response(serializer.errors, status=400)
-
 
 @extend_schema(
     tags=['Expense Category Dropdowns'],

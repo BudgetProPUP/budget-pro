@@ -288,36 +288,50 @@ class FiscalYearDropdownView(generics.ListAPIView):
 # --- Ledger and Journal Entry Views ---
 class LedgerViewList(generics.ListAPIView):
     serializer_class = LedgerViewSerializer
-    # MODIFIED: Use new pagination class for 5 items per page
     pagination_class = FiveResultsSetPagination
     permission_classes = [IsAuthenticated]
 
     def get_queryset(self):
+        # MODIFIED: Added select_related for new ForeignKeys to prevent N+1 queries
         queryset = JournalEntryLine.objects.select_related(
-            'journal_entry', 'account')  # Added account
+            'journal_entry', 
+            'account', 
+            'journal_entry__department',  # For Department column
+            'expense_category'            # For Category column
+        )
         search = self.request.query_params.get('search')
         category = self.request.query_params.get('category')
         transaction_type = self.request.query_params.get('transaction_type')
+        
+        # New Filter: Department
+        department_id = self.request.query_params.get('department')
+
         if search:
-            # MODIFICATION START: Add entry_id (Ticket ID) and date to the search fields
             queryset = queryset.filter(
-                # Search by Ticket ID
                 Q(journal_entry__entry_id__icontains=search) |
-                Q(journal_entry__date__icontains=search) |       # Search by Date
+                Q(journal_entry__date__icontains=search) |
                 Q(journal_entry__description__icontains=search) |
                 Q(description__icontains=search) |
                 Q(journal_entry__category__icontains=search) |
                 Q(account__name__icontains=search) |
                 Q(account__code__icontains=search)
             )
-            # MODIFICATION END
+        
         if category:
+            # Check both the high-level JE category AND the granular expense category
             queryset = queryset.filter(
-                journal_entry__category__iexact=category)
+                Q(journal_entry__category__iexact=category) |
+                Q(expense_category__name__icontains=category)
+            )
+            
         if transaction_type:
             queryset = queryset.filter(
                 journal_transaction_type__iexact=transaction_type)
-        # Added secondary sort
+        
+        # MODIFIED: Logic to filter by Department
+        if department_id:
+             queryset = queryset.filter(journal_entry__department_id=department_id)
+
         return queryset.order_by('-journal_entry__date', 'journal_entry__entry_id')
 
 
@@ -521,6 +535,7 @@ class ExternalBudgetProposalViewSet(viewsets.ModelViewSet):
     # methods from ModelViewSet, which are now correctly protected.
 
 
+# 2. Update BudgetProposalUIViewSet.review to save signature
 class BudgetProposalUIViewSet(viewsets.ReadOnlyModelViewSet):
     """
     ViewSet for the User Interface (UI).
@@ -580,28 +595,38 @@ class BudgetProposalUIViewSet(viewsets.ReadOnlyModelViewSet):
 
     @extend_schema(
         summary="Review a proposal (Finance Head)",
-        request=ProposalReviewSerializer,
+        request=ProposalReviewSerializer, # Serializer now has signature fields
         responses={200: BudgetProposalDetailSerializer},
         tags=['Budget Proposal Page Actions']
     )
     @action(detail=True, methods=['post'], permission_classes=[IsBMSFinanceHead])
     def review(self, request, pk=None):
         proposal = self.get_object()
-        review_input_serializer = ProposalReviewSerializer(data=request.data)
+        # Ensure we pass request.FILES to handle the signature upload
+        review_input_serializer = ProposalReviewSerializer(data=request.data, files=request.FILES)
         review_input_serializer.is_valid(raise_exception=True)
 
         new_status = review_input_serializer.validated_data['status']
-        comment_text = review_input_serializer.validated_data.get(
-            'comment', '')
+        comment_text = review_input_serializer.validated_data.get('comment', '')
+        
+        # MODIFIED: Extract new fields
+        finance_operator = review_input_serializer.validated_data.get('finance_operator_name', '')
+        signature_file = review_input_serializer.validated_data.get('signature')
 
         reviewer_user_id = request.user.id
-        # Use get_full_name() for consistency
         reviewer_name = request.user.get_full_name() or request.user.username
 
         previous_status_for_history = proposal.status
 
         with transaction.atomic():
             proposal.status = new_status
+            
+            # MODIFIED: Save the Finance Operator details
+            if finance_operator:
+                proposal.finance_operator_name = finance_operator
+            if signature_file:
+                proposal.signature = signature_file
+
             if new_status == 'APPROVED':
                 proposal.approved_by_name = reviewer_name
                 proposal.approval_date = timezone.now()
@@ -1149,6 +1174,7 @@ def export_budget_variance_excel(request):
     # Returns the created journal entry
     responses={201: JournalEntryListSerializer}
 )
+# Update BudgetAdjustmentView to populate Department
 class BudgetAdjustmentView(generics.CreateAPIView):
     """
     Handles the creation of a budget adjustment.
@@ -1180,10 +1206,12 @@ class BudgetAdjustmentView(generics.CreateAPIView):
             # Create the parent Journal Entry
             journal_entry = JournalEntry.objects.create(
                 date=date,
-                category='PROJECTS',  # Or a new 'ADJUSTMENTS' category
+                category='PROJECTS',
                 description=description,
                 total_amount=amount,
                 status='POSTED',
+                # MODIFIED: Populate Department from source allocation
+                department=source_alloc.department,
                 created_by_user_id=user.id,
                 created_by_username=getattr(user, 'username', 'N/A')
             )
@@ -1197,18 +1225,18 @@ class BudgetAdjustmentView(generics.CreateAPIView):
                 dest_alloc.amount += amount
                 dest_alloc.save(update_fields=['amount'])
 
-                # 3. Create Journal Entry Lines for the transfer
-                # Credit the source allocation's account
+                # MODIFIED: Create lines with Expense Category
                 JournalEntryLine.objects.create(
                     journal_entry=journal_entry, account=source_alloc.account,
                     transaction_type='CREDIT', journal_transaction_type='TRANSFER',
-                    amount=amount, description=f"Transfer from {source_alloc.project.name}"
+                    amount=amount, description=f"Transfer from {source_alloc.project.name}",
+                    expense_category=source_alloc.category # Populate Category
                 )
-                # Debit the destination allocation's account
                 JournalEntryLine.objects.create(
                     journal_entry=journal_entry, account=dest_alloc.account,
                     transaction_type='DEBIT', journal_transaction_type='TRANSFER',
-                    amount=amount, description=f"Transfer to {dest_alloc.project.name}"
+                    amount=amount, description=f"Transfer to {dest_alloc.project.name}",
+                    expense_category=dest_alloc.category # Populate Category
                 )
 
             else:  # This is an adjustment against a single allocation
@@ -1220,18 +1248,19 @@ class BudgetAdjustmentView(generics.CreateAPIView):
                 source_alloc.amount -= amount
                 source_alloc.save(update_fields=['amount'])
 
-                # 2. Create Journal Entry Lines for the adjustment
-                # Credit the source allocation's account (reducing its budget)
+                # MODIFIED: Create lines with Expense Category
                 JournalEntryLine.objects.create(
                     journal_entry=journal_entry, account=source_alloc.account,
-                    transaction_type='CREDIT', journal_transaction_type='OPERATIONAL_EXPENDITURE',  # Or similar
-                    amount=amount, description=f"Budget reduction for {source_alloc.project.name}"
+                    transaction_type='CREDIT', journal_transaction_type='OPERATIONAL_EXPENDITURE',
+                    amount=amount, description=f"Budget reduction for {source_alloc.project.name}",
+                    expense_category=source_alloc.category # Populate Category
                 )
-                # Debit the offsetting account (e.g., funds return to a general reserve)
+                # Debit the offsetting account
                 JournalEntryLine.objects.create(
                     journal_entry=journal_entry, account=offsetting_account,
                     transaction_type='DEBIT', journal_transaction_type='TRANSFER',
-                    amount=amount, description="Return of funds to reserve"
+                    amount=amount, description="Return of funds to reserve",
+                    expense_category=None # Offsetting account usually doesn't have a specific expense category
                 )
 
         # We return the created journal entry as proof of the transaction

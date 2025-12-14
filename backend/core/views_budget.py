@@ -106,31 +106,30 @@ class BudgetProposalSummaryView(generics.GenericAPIView):
         user_roles = getattr(user, 'roles', {})
         bms_role = user_roles.get('bms')
 
-        # --- MODIFICATION START ---
-        # Applied data isolation to the queryset used for the summary
         active_proposals = BudgetProposal.objects.filter(is_deleted=False)
 
-        if bms_role == 'FINANCE_HEAD':
+        # MODIFIED: Logic to match Table View visibility
+        if bms_role == 'ADMIN' or bms_role == 'FINANCE_HEAD':
+            # Finance Head/Admin sees GLOBAL stats
+            pass 
+        else:
+            # Department Heads see DEPARTMENT stats
             department_id = getattr(user, 'department_id', None)
             if department_id:
-                active_proposals = active_proposals.filter(
-                    department_id=department_id)
+                active_proposals = active_proposals.filter(department_id=department_id)
             else:
                 active_proposals = BudgetProposal.objects.none()
-        # Admins will see all proposals by default
+
         total = active_proposals.count()
-        # Assuming PENDING means SUBMITTED for approval
         pending = active_proposals.filter(status='SUBMITTED').count()
 
-        # Total budget from items of *approved* proposals if that's the intent for "total budget card"
-        # Or all non-rejected proposals. Clarify business rule for "total budget" card.
-        # For now, using all non-deleted proposals as per original:
+        # Total budget calculation...
         total_budget = active_proposals.aggregate(
             total=Sum('items__estimated_cost'))['total'] or 0
+            
         data = {'total_proposals': total,
                 'pending_approvals': pending, 'total_budget': total_budget}
-        serializer = BudgetProposalSummarySerializer(
-            data)  # Serialize the data
+        serializer = BudgetProposalSummarySerializer(data)
         return Response(serializer.data)
 
 
@@ -545,45 +544,59 @@ class BudgetProposalUIViewSet(viewsets.ReadOnlyModelViewSet):
     permission_classes = [IsBMSUser]
     pagination_class = FiveResultsSetPagination
     filter_backends = [DjangoFilterBackend, filters.SearchFilter]
-    search_fields = ['title', 'external_system_id']
-    filterset_fields = {
-        'status': ['exact'],
-        'items__account__account_type__id': ['exact'],
-    }
+    # MODIFIED: Added search fields for Submitted By and Sub-Category
+    search_fields = [
+        'title', 
+        'external_system_id', 
+        'submitted_by_name',
+        'items__cost_element', # Sub-category (cost element)
+        'items__category__name' # Sub-category (category name)
+    ]
+    filterset_fields = ['status'] # Removed the old complex one
 
     def get_queryset(self):
         """
         Dynamically filters the queryset based on user role for data isolation.
-        - ADMINs see all proposals.
-        - FINANCE_HEADs see proposals for their own department.
+        And applies UI filters.
         """
         user = self.request.user
-        # MODIFICATION START: Improve prefetch to include account_type for efficiency
         base_queryset = BudgetProposal.objects.filter(is_deleted=False).select_related(
             'department', 'fiscal_year'
-        ).prefetch_related('items__account__account_type', 'comments')
-        # MODIFICATION END
+        ).prefetch_related('items__account__account_type', 'comments', 'items__category')
 
         user_roles = getattr(user, 'roles', {})
         bms_role = user_roles.get('bms')
 
+        # 1. Determine Base Visibility (Data Isolation)
+        if bms_role == 'ADMIN' or bms_role == 'FINANCE_HEAD':
+             # Admins and Finance Heads see ALL proposals to allow review/oversight
+             queryset = base_queryset
+        else:
+             # Regular users (Dept Heads) see ONLY their own department's proposals
+             department_id = getattr(user, 'department_id', None)
+             if department_id:
+                 queryset = base_queryset.filter(department_id=department_id)
+             else:
+                 return BudgetProposal.objects.none()
+
+        # 2. Apply UI Filters (Department, Status, Category)
+        # These filters apply to everyone
+        
         status_filter = self.request.query_params.get('status')
         department_filter = self.request.query_params.get('department')
+        category_filter = self.request.query_params.get('category') # 'CAPEX' or 'OPEX'
 
-        if bms_role == 'ADMIN':
-            queryset = base_queryset
-            if department_filter:
-                queryset = queryset.filter(department__code=department_filter)
-        elif bms_role == 'FINANCE_HEAD':
-            department_id = getattr(user, 'department_id', None)
-            if not department_id:
-                return BudgetProposal.objects.none()
-            queryset = base_queryset.filter(department_id=department_id)
-        else:
-            return BudgetProposal.objects.none()
+        if department_filter:
+            # Filter by Department Code (e.g., 'IT', 'HR')
+            queryset = queryset.filter(department__code=department_filter)
 
         if status_filter:
             queryset = queryset.filter(status=status_filter)
+            
+        if category_filter:
+            # Filter by Classification (CapEx/OpEx)
+            # We filter if ANY item in the proposal matches the classification
+            queryset = queryset.filter(items__category__classification__iexact=category_filter).distinct()
 
         return queryset.order_by('-created_at')
 
@@ -592,24 +605,25 @@ class BudgetProposalUIViewSet(viewsets.ReadOnlyModelViewSet):
             return BudgetProposalDetailSerializer
         # For 'list' action
         return BudgetProposalListSerializer
-
+    
     @extend_schema(
         summary="Review a proposal (Finance Head)",
         request=ProposalReviewSerializer, # Serializer now has signature fields
         responses={200: BudgetProposalDetailSerializer},
         tags=['Budget Proposal Page Actions']
     )
+    
     @action(detail=True, methods=['post'], permission_classes=[IsBMSFinanceHead])
     def review(self, request, pk=None):
         proposal = self.get_object()
-        # Ensure we pass request.FILES to handle the signature upload
-        review_input_serializer = ProposalReviewSerializer(data=request.data, files=request.FILES)
+        
+        # MODIFIED: Remove 'files=' argument. Pass everything in 'data'.
+        review_input_serializer = ProposalReviewSerializer(data=request.data)
         review_input_serializer.is_valid(raise_exception=True)
 
         new_status = review_input_serializer.validated_data['status']
         comment_text = review_input_serializer.validated_data.get('comment', '')
         
-        # MODIFIED: Extract new fields
         finance_operator = review_input_serializer.validated_data.get('finance_operator_name', '')
         signature_file = review_input_serializer.validated_data.get('signature')
 
@@ -621,7 +635,6 @@ class BudgetProposalUIViewSet(viewsets.ReadOnlyModelViewSet):
         with transaction.atomic():
             proposal.status = new_status
             
-            # MODIFIED: Save the Finance Operator details
             if finance_operator:
                 proposal.finance_operator_name = finance_operator
             if signature_file:
@@ -630,6 +643,11 @@ class BudgetProposalUIViewSet(viewsets.ReadOnlyModelViewSet):
             if new_status == 'APPROVED':
                 proposal.approved_by_name = reviewer_name
                 proposal.approval_date = timezone.now()
+                
+                # MODIFIED: Clear rejection fields if previously rejected
+                proposal.rejected_by_name = None
+                proposal.rejection_date = None
+                
                 if not hasattr(proposal, 'project') or proposal.project is None:
                     Project.objects.create(
                         name=f"Project for: {proposal.title}",
@@ -643,6 +661,10 @@ class BudgetProposalUIViewSet(viewsets.ReadOnlyModelViewSet):
             elif new_status == 'REJECTED':
                 proposal.rejected_by_name = reviewer_name
                 proposal.rejection_date = timezone.now()
+
+                # MODIFIED: Clear approval fields if previously approved
+                proposal.approved_by_name = None
+                proposal.approval_date = None
                 if hasattr(proposal, 'project') and proposal.project is not None:
                     proposal.project.status = 'CANCELLED'
                     proposal.project.save(update_fields=['status'])

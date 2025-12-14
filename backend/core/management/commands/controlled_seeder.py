@@ -280,6 +280,8 @@ class Command(BaseCommand):
                     
                     ticket_id = f"TKT-{dept_code}-{year}-{i:03d}"
                     amount = Decimal(str(random.randint(5000, 500000)))
+                    # Set logical submission date: early January for that year
+                    submission_date = datetime(year, 1, random.randint(5, 14), random.randint(8, 17), random.randint(0, 59))
                     
                     proposal, created = BudgetProposal.objects.update_or_create(
                         external_system_id=ticket_id,
@@ -295,6 +297,7 @@ class Command(BaseCommand):
                             'performance_end_date': datetime(year, 12, 15).date(),
                             'sync_status': 'SYNCED',
                             'finance_operator_name': finance_head['full_name'] if status != 'SUBMITTED' else '',
+                            'submitted_at': timezone.make_aware(submission_date),
                         }
                     )
 

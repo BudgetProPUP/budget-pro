@@ -1,6 +1,6 @@
 from django.db.models.signals import post_save
 from django.dispatch import receiver
-from backend.core.models import Expense, TransactionAudit
+from core.models import Expense, TransactionAudit, JournalEntry, JournalEntryLine, Account
 
 
 @receiver(post_save, sender=Expense)
@@ -60,3 +60,69 @@ def expense_audit_log(sender, instance: Expense, created: bool, **kwargs): # Add
         }
     )
     print(f"Audit log created for Expense ID {instance.id}, Action: {action}, User: {audit_user_username or audit_user_id}")
+    
+    
+    from django.db.models.signals import post_save
+from django.dispatch import receiver
+from django.db import transaction
+from core.models import Expense, TransactionAudit, JournalEntry, JournalEntryLine, Account
+
+@receiver(post_save, sender=Expense)
+def create_journal_entry_for_expense(sender, instance: Expense, created: bool, **kwargs):
+    """
+    Automatically create a Journal Entry when an Expense is APPROVED.
+    This ensures the Ledger View is populated.
+    """
+    # Only create JE if status is APPROVED and it hasn't been posted yet
+    if instance.status == 'APPROVED' and not instance.posting_date:
+        
+        # Prevent duplicate JEs for the same expense (idempotency check)
+        if JournalEntry.objects.filter(description__contains=instance.transaction_id).exists():
+            return
+
+        with transaction.atomic():
+            # 1. Create the Parent Journal Entry
+            je = JournalEntry.objects.create(
+                date=instance.date,
+                category='EXPENSES', 
+                description=f"Expense Recorded: {instance.description} (Ref: {instance.transaction_id})",
+                total_amount=instance.amount,
+                status='POSTED',
+                department=instance.department, # Populate the new Department field
+                created_by_user_id=instance.submitted_by_user_id,
+                created_by_username=instance.submitted_by_username
+            )
+
+            # 2. Create Debit Line (The Expense)
+            JournalEntryLine.objects.create(
+                journal_entry=je,
+                account=instance.account,
+                expense_category=instance.category, # Populate the new Category field
+                description=instance.description,
+                transaction_type='DEBIT',
+                journal_transaction_type='OPERATIONAL_EXPENDITURE',
+                amount=instance.amount
+            )
+
+            # 3. Create Credit Line (Cash/Payable)
+            # Logic: If amount > 50,000, assume Accounts Payable (2010). Else Cash (1010).
+            credit_account_code = '2010' if instance.amount > 50000 else '1010'
+            credit_account = Account.objects.filter(code=credit_account_code).first()
+            
+            if not credit_account:
+                # Fallback to generic Asset if specific ones missing
+                credit_account = Account.objects.filter(account_type__name='Asset').first()
+
+            JournalEntryLine.objects.create(
+                journal_entry=je,
+                account=credit_account,
+                expense_category=None, # Credit side usually doesn't have the expense category
+                description=f"Payment for {instance.transaction_id}",
+                transaction_type='CREDIT',
+                journal_transaction_type='OPERATIONAL_EXPENDITURE',
+                amount=instance.amount
+            )
+
+            # Update expense to mark it as posted
+            Expense.objects.filter(pk=instance.pk).update(posting_date=instance.date)
+            print(f"Journal Entry created for Expense {instance.transaction_id}")

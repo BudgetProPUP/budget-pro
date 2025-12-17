@@ -15,11 +15,12 @@ export const getExpenseSummary = () => {
  * @param {object} params - The query parameters.
  * @param {number} params.page - The page number.
  * @param {string} [params.search] - The search term.
- * @param {string} [params.category__code] - The category code to filter by.
- * @param {string} [params.date_filter] - The date range filter.
+ * @param {string} [params.category__classification] - The main category classification (CAPEX or OPEX).
+ * @param {number} [params.department] - The department ID to filter by.
  */
 export const getExpenseTrackingList = (params) => {
-    return budgetApi.get('/expenses/tracking/', { params });
+    // MODIFICATION: The URL is now the root of the ExpenseViewSet
+    return budgetApi.get('/expenses/', { params });
 };
 
 /**
@@ -39,16 +40,21 @@ export const getExpenseHistoryList = (params) => {
  * @param {number} expenseId - The ID of the expense
  */
 export const getExpenseDetailsForModal = (expenseId) => {
-    // The <int:pk> in the URL corresponds to the expenseId
-    return budgetApi.get(`/expenses/${expenseId}/`);
+    // MODIFICATION: The URL was updated in urls.py
+    return budgetApi.get(`/expenses/${expenseId}/modal-details/`);
 };
 
 /**
- * Submits a new expense record.
- * @param {object} expenseData - The data for the new expense.
+ * Submits a new expense record using FormData for file uploads.
+ * @param {FormData} formData - The FormData object for the new expense.
  */
-export const createExpense = (expenseData) => {
-    return budgetApi.post('/expenses/submit/', expenseData);
+export const createExpense = (formData) => {
+    // MODIFICATION: The URL is the root of the ExpenseViewSet and content-type must be set for files
+    return budgetApi.post('/expenses/', formData, {
+        headers: {
+            'Content-Type': 'multipart/form-data',
+        },
+    });
 };
 
 /**
@@ -67,12 +73,31 @@ export const getProposalDetails = (proposalId) => {
     return budgetApi.get(`/budget-proposals/${proposalId}/`);
 };
 
-// MODIFICATION START
 /**
  * Fetches the list of all projects for dropdowns.
  */
 export const getProjects = () => {
     return budgetApi.get('/projects/all/');
+};
+
+// MODIFICATION START: New API functions for expense approval workflow
+/**
+ * Approves or rejects a submitted expense.
+ * @param {number} expenseId - The ID of the expense to review.
+ * @param {object} reviewData - The review data.
+ * @param {string} reviewData.status - 'APPROVED' or 'REJECTED'.
+ * @param {string} [reviewData.notes] - Optional comments.
+ */
+export const reviewExpense = (expenseId, reviewData) => {
+    return budgetApi.post(`/expenses/${expenseId}/review/`, reviewData);
+};
+
+/**
+ * Marks an approved expense as accomplished.
+ * @param {number} expenseId - The ID of the expense to mark.
+ */
+export const markExpenseAccomplished = (expenseId) => {
+    return budgetApi.post(`/expenses/${expenseId}/mark_as_accomplished/`);
 };
 // MODIFICATION END
 

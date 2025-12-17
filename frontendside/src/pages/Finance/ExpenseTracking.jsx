@@ -21,12 +21,17 @@ import { Link, useNavigate } from "react-router-dom";
 import LOGOMAP from "../../assets/MAP.jpg";
 import "./ExpenseTracking.css";
 import { useAuth } from "../../context/AuthContext"; // To get user info
+// MODIFICATION START: Imported all necessary API functions
 import {
   getExpenseSummary,
   getExpenseTrackingList,
   getExpenseCategories,
   createExpense,
+  getProjects, // For modal dropdown
 } from "../../API/expenseAPI";
+import { getAllDepartments } from "../../API/departments"; // For filter dropdown
+import { getAccounts } from "../../API/dropdownAPI"; // For modal dropdown
+// MODIFICATION END
 
 // Import ManageProfile component
 import ManageProfile from "./ManageProfile";
@@ -284,124 +289,282 @@ const Pagination = ({
 
 const ExpenseTracking = () => {
   const { user, logout } = useAuth();
+  const navigate = useNavigate();
+
+  // Navigation and UI state
   const [showBudgetDropdown, setShowBudgetDropdown] = useState(false);
   const [showExpenseDropdown, setShowExpenseDropdown] = useState(false);
   const [showProfileDropdown, setShowProfileDropdown] = useState(false);
   const [showNotifications, setShowNotifications] = useState(false);
-  const [showCategoryDropdown, setShowCategoryDropdown] = useState(false);
-  const [showDepartmentDropdown, setShowDepartmentDropdown] = useState(false);
-  const [showDateDropdown, setShowDateDropdown] = useState(false);
-  const [selectedCategory, setSelectedCategory] = useState(""); // Default to empty for "All Categories"
-  const [selectedDepartment, setSelectedDepartment] = useState(""); // New department filter state
-  const [_selectedDate, setSelectedDate] = useState("All Time");
-  const [showAddExpenseModal, setShowAddExpenseModal] = useState(false);
   const [showManageProfile, setShowManageProfile] = useState(false);
-  const [currentPage, setCurrentPage] = useState(1);
-  const [pageSize, setPageSize] = useState(5);
-  const [searchTerm, setSearchTerm] = useState("");
+  const [showAddExpenseModal, setShowAddExpenseModal] = useState(false);
+  
+  // Data state
+  const [loading, setLoading] = useState(true);
+  const [expenses, setExpenses] = useState([]);
   const [summaryData, setSummaryData] = useState({
     budget_remaining: "0.00",
     total_expenses_this_month: "0.00",
   });
   
-  // Sample data for UI
-  const [expenses, setExpenses] = useState([
-    {
-      id: 1,
-      reference_no: "EXP-2024-001",
-      date: "2024-01-15",
-      department: "Marketing",
-      category: "OpEx",
-      vendor: "Tech Training Inc.",
-      amount: "₱12,500.00",
-      status: "Submitted",
-      accomplished: "No",
-      attachment: "receipt.pdf",
-      sub_category: "Digital Ads"
-    },
-    {
-      id: 2,
-      reference_no: "EXP-2024-002",
-      date: "2024-01-18",
-      department: "Store Operations",
-      category: "CapEx",
-      vendor: "Software Solutions Ltd.",
-      amount: "₱45,000.00",
-      status: "Submitted",
-      accomplished: "Yes",
-      attachment: "invoice.jpg",
-      sub_category: "POS Maintenance"
-    },
-    {
-      id: 3,
-      reference_no: "EXP-2024-003",
-      date: "2024-01-20",
-      department: "IT",
-      category: "OpEx",
-      vendor: "Cloud Hosting Co.",
-      amount: "₱8,750.00",
-      status: "Submitted",
-      accomplished: "No",
-      attachment: "contract.pdf",
-      sub_category: "Software Licenses"
-    },
-    {
-      id: 4,
-      reference_no: "EXP-2024-004",
-      date: "2024-01-22",
-      department: "Human Resources",
-      category: "OpEx",
-      vendor: "Office Supplies Pro",
-      amount: "₱5,200.00",
-      status: "Submitted",
-      accomplished: "Yes",
-      attachment: "receipt.png",
-      sub_category: "Training & Workshops"
-    },
-    {
-      id: 5,
-      reference_no: "EXP-2024-005",
-      date: "2024-01-25",
-      department: "Logistics Management",
-      category: "CapEx",
-      vendor: "Computer World",
-      amount: "₱32,000.00",
-      status: "Submitted",
-      accomplished: "No",
-      attachment: "quote.pdf",
-      sub_category: "Warehouse Equipment"
-    }
-  ]);
-  
-  const [categories, setCategories] = useState([]);
+  // Dropdown data state
+  const [categories, setCategories] = useState([]); // For modal sub-category dropdown
+  const [departments, setDepartments] = useState([]); // For filter department dropdown
+  const [projects, setProjects] = useState([]); // For modal project dropdown
+  const [accounts, setAccounts] = useState([]); // For modal account dropdown
+
+  // Filter and Pagination state
+  const [showCategoryDropdown, setShowCategoryDropdown] = useState(false);
+  const [showDepartmentDropdown, setShowDepartmentDropdown] = useState(false);
+  const [selectedCategory, setSelectedCategory] = useState(""); // CAPEX or OPEX
+  const [selectedDepartment, setSelectedDepartment] = useState(""); // Department ID
+  const [searchTerm, setSearchTerm] = useState("");
+  const [debouncedSearchTerm, setDebouncedSearchTerm] = useState("");
+  const [currentPage, setCurrentPage] = useState(1);
+  const [pageSize, setPageSize] = useState(5);
   const [pagination, setPagination] = useState({
     count: 0,
     next: null,
     previous: null,
   });
-  const [loading, setLoading] = useState(true);
-  const [newExpense, setNewExpense] = useState({
-    ticketId: `EXP-${new Date().getFullYear()}-${String(Math.floor(Math.random() * 1000)).padStart(3, '0')}`,
-    department: "",
-    category: "",
-    sub_category: "",
+
+  // Add Expense Modal state
+  const initialExpenseState = {
+    project_id: "",
+    account_code: "",
+    category_code: "",
     vendor: "",
     amount: "",
     date: new Date().toISOString().split("T")[0],
-    attachment: null,
-  });
-  const navigate = useNavigate();
+    description: "",
+    attachments: [], // Use an array for multiple files
+  };
+  const [newExpense, setNewExpense] = useState(initialExpenseState);
+  
+  const [submissionError, setSubmissionError] = useState(null);
 
-  // Departments data - UPDATED to match LedgerView department options
-  const departments = [
-    "Merchandise Planning",
-    "Store Operations",
-    "Marketing",
-    "Operations",
-    "IT",
-    "Logistics",
-    "Human Resources"
+  // Debounce search term to prevent excessive API calls
+  useEffect(() => {
+    const timerId = setTimeout(() => {
+      setDebouncedSearchTerm(searchTerm);
+      setCurrentPage(1); // Reset to page 1 on new search
+    }, 500);
+    return () => clearTimeout(timerId);
+  }, [searchTerm]);
+  
+  // Fetch data for dropdowns (runs once on component mount)
+  useEffect(() => {
+    const fetchDropdownData = async () => {
+      try {
+        const [
+          summaryRes,
+          categoriesRes,
+          departmentsRes,
+          projectsRes,
+          accountsRes,
+        ] = await Promise.all([
+          getExpenseSummary(),
+          getExpenseCategories(),
+          getAllDepartments(),
+          getProjects(),
+          getAccounts(),
+        ]);
+
+        setSummaryData(summaryRes.data);
+        setCategories(categoriesRes.data);
+        setDepartments([{ id: "", name: "All Departments" }, ...departmentsRes.data]);
+        setProjects(projectsRes.data);
+        setAccounts(accountsRes.data);
+
+      } catch (error) {
+        console.error("Failed to fetch initial dropdown data:", error);
+      }
+    };
+    fetchDropdownData();
+  }, []);
+
+  // Fetch main expense list data (runs on filter/pagination change)
+  useEffect(() => {
+    const fetchExpenses = async () => {
+      setLoading(true);
+      try {
+        const params = {
+          page: currentPage,
+          page_size: pageSize,
+          search: debouncedSearchTerm,
+          department: selectedDepartment,
+          // NOTE: The backend needs to support filtering by classification
+          'category__classification': selectedCategory, 
+        };
+        
+        // Remove empty params
+        Object.keys(params).forEach(key => {
+          if (!params[key]) {
+            delete params[key];
+          }
+        });
+
+        const res = await getExpenseTrackingList(params);
+        setExpenses(res.data.results);
+        setPagination({
+          count: res.data.count,
+          next: res.data.next,
+          previous: res.data.previous,
+        });
+
+      } catch (error) {
+        console.error("Failed to fetch expense tracking list:", error);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchExpenses();
+  }, [currentPage, pageSize, debouncedSearchTerm, selectedDepartment, selectedCategory]);
+
+  const categoryOptions = [
+    { value: "", label: "All Categories" },
+    { value: "CAPEX", label: "CapEx" },
+    { value: "OPEX", label: "OpEx" },
   ];
+
+  // Current date state
+  const [currentDate, setCurrentDate] = useState(new Date());
+
+  // Update current date/time
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setCurrentDate(new Date());
+    }, 1000);
+    return () => clearInterval(interval);
+  }, []);
+
+  // Format date and time for display
+  const formattedDay = currentDate.toLocaleDateString("en-US", { weekday: "long" });
+  const formattedDate = currentDate.toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" });
+  const formattedTime = currentDate.toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit", hour12: true }).toUpperCase();
+
+  // Close dropdowns when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (
+        !event.target.closest(".nav-dropdown") &&
+        !event.target.closest(".profile-container") &&
+        !event.target.closest(".notification-container") &&
+        !event.target.closest(".filter-dropdown")
+      ) {
+        setShowBudgetDropdown(false);
+        setShowExpenseDropdown(false);
+        setShowProfileDropdown(false);
+        setShowNotifications(false);
+        setShowCategoryDropdown(false);
+        setShowDepartmentDropdown(false);
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
+
+  // Navigation and UI toggle functions
+  const toggleBudgetDropdown = () => setShowBudgetDropdown(!showBudgetDropdown);
+  const toggleExpenseDropdown = () => setShowExpenseDropdown(!showExpenseDropdown);
+  const toggleProfileDropdown = () => setShowProfileDropdown(!showProfileDropdown);
+  const toggleNotifications = () => setShowNotifications(!showNotifications);
+  const toggleCategoryDropdown = () => setShowCategoryDropdown(!showCategoryDropdown);
+  const toggleDepartmentDropdown = () => setShowDepartmentDropdown(!showDepartmentDropdown);
+  const handleManageProfile = () => { setShowManageProfile(true); setShowProfileDropdown(false); };
+  const handleCloseManageProfile = () => setShowManageProfile(false);
+  const handleNavigate = (path) => navigate(path);
+  const handleLogout = async () => await logout();
+
+  // Filter selection handlers
+  const handleCategorySelect = (categoryValue) => {
+    setSelectedCategory(categoryValue);
+    setCurrentPage(1);
+    setShowCategoryDropdown(false);
+  };
+  const handleDepartmentSelect = (deptId) => {
+    setSelectedDepartment(deptId);
+    setCurrentPage(1);
+    setShowDepartmentDropdown(false);
+  };
+
+  // Modal handlers
+  const handleAddExpense = () => setShowAddExpenseModal(true);
+  const handleCloseModal = () => {
+    setShowAddExpenseModal(false);
+    setNewExpense(initialExpenseState);
+    setSubmissionError(null);
+  };
+
+  const handleInputChange = (e) => {
+    const { name, value } = e.target;
+    setNewExpense((prev) => ({ ...prev, [name]: value }));
+  };
+
+  const handleFileChange = (e) => {
+    if (e.target.files) {
+      // Convert FileList to array and store it
+      setNewExpense((prev) => ({
+        ...prev,
+        attachments: Array.from(e.target.files),
+      }));
+    }
+  };
+  
+  const handleSubmitExpense = async (e) => {
+    e.preventDefault();
+    setSubmissionError(null);
+
+    const formData = new FormData();
+    // Append all fields from the newExpense state
+    Object.keys(newExpense).forEach(key => {
+      if (key === 'attachments') {
+        // Handle files array
+        newExpense.attachments.forEach(file => {
+          formData.append('attachments', file);
+        });
+      } else if (newExpense[key]) {
+        formData.append(key, newExpense[key]);
+      }
+    });
+
+    try {
+      await createExpense(formData);
+      alert("Expense submitted successfully!");
+      handleCloseModal();
+      // Trigger a refetch of the expense list by resetting page to 1
+      // If already on page 1, we need a different way to trigger useEffect
+      if (currentPage === 1) {
+        // Manually trigger a refetch if we are on the first page
+        setSearchTerm(prev => prev + ' '); // A bit of a hack to trigger the effect
+        setSearchTerm(prev => prev.trim());
+      } else {
+        setCurrentPage(1);
+      }
+    } catch (error) {
+      console.error("Failed to submit expense:", error);
+      // Extract user-friendly error from backend response
+      const errors = error.response?.data;
+      let errorMsg = "An unexpected error occurred.";
+      if (errors) {
+        // Join all error messages into a single string
+        errorMsg = Object.values(errors).flat().join(' ');
+      }
+      setSubmissionError(errorMsg);
+      alert(`Error: ${errorMsg}`);
+    }
+  };
+
+  // Helper functions for display
+  const getDepartmentDisplay = () => {
+    const option = departments.find(opt => opt.id === selectedDepartment);
+    return option ? option.name : "All Departments";
+  };
+
+  const getCategoryDisplay = () => {
+    const option = categoryOptions.find(opt => opt.value === selectedCategory);
+    return option ? option.label : "All Categories";
+  };
 
   // Department options matching LedgerView format
   const departmentOptions = [
@@ -501,13 +664,6 @@ const ExpenseTracking = () => {
   // Main categories (only CapEx and OpEx)
   const mainCategories = ["CapEx", "OpEx"];
 
-  // Category options - only CapEx and OpEx (matching LedgerView)
-  const categoryOptions = [
-    { value: "", label: "All Categories" },
-    { value: "CapEx", label: "CapEx" },
-    { value: "OpEx", label: "OpEx" },
-  ];
-
   useEffect(() => {
     const fetchData = async () => {
       setLoading(true);
@@ -556,8 +712,6 @@ const ExpenseTracking = () => {
       "https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?ixlib=rb-1.2.1&ixid=eyJhcHBfaWQiOjEyMDd9&auto=format&fit=facearea&facepad=2&w=256&h=256&q=80",
   };
 
-  // Current date state
-  const [currentDate, setCurrentDate] = useState(new Date());
 
   // Update current date/time
   useEffect(() => {
@@ -570,22 +724,7 @@ const ExpenseTracking = () => {
     };
   }, []);
 
-  // Format date and time for display
-  const formattedDay = currentDate.toLocaleDateString("en-US", {
-    weekday: "long",
-  });
-  const formattedDate = currentDate.toLocaleDateString("en-US", {
-    month: "long",
-    day: "numeric",
-    year: "numeric",
-  });
-  const formattedTime = currentDate
-    .toLocaleTimeString("en-US", {
-      hour: "2-digit",
-      minute: "2-digit",
-      hour12: true,
-    })
-    .toUpperCase();
+
 
   // Close dropdowns when clicking outside
   useEffect(() => {
@@ -631,54 +770,6 @@ const ExpenseTracking = () => {
     "This Year",
   ];
 
-  // Navigation functions
-  const toggleBudgetDropdown = () => {
-    setShowBudgetDropdown(!showBudgetDropdown);
-    if (showExpenseDropdown) setShowExpenseDropdown(false);
-    if (showProfileDropdown) setShowProfileDropdown(false);
-    if (showNotifications) setShowNotifications(false);
-    if (showCategoryDropdown) setShowCategoryDropdown(false);
-    if (showDepartmentDropdown) setShowDepartmentDropdown(false);
-  };
-
-  const toggleExpenseDropdown = () => {
-    setShowExpenseDropdown(!showExpenseDropdown);
-    if (showBudgetDropdown) setShowBudgetDropdown(false);
-    if (showProfileDropdown) setShowProfileDropdown(false);
-    if (showNotifications) setShowNotifications(false);
-    if (showCategoryDropdown) setShowCategoryDropdown(false);
-    if (showDepartmentDropdown) setShowDepartmentDropdown(false);
-  };
-
-  const toggleProfileDropdown = () => {
-    setShowProfileDropdown(!showProfileDropdown);
-    if (showBudgetDropdown) setShowBudgetDropdown(false);
-    if (showExpenseDropdown) setShowExpenseDropdown(false);
-    if (showNotifications) setShowNotifications(false);
-    if (showCategoryDropdown) setShowCategoryDropdown(false);
-    if (showDepartmentDropdown) setShowDepartmentDropdown(false);
-  };
-
-  const toggleNotifications = () => {
-    setShowNotifications(!showNotifications);
-    if (showBudgetDropdown) setShowBudgetDropdown(false);
-    if (showExpenseDropdown) setShowExpenseDropdown(false);
-    if (showProfileDropdown) setShowProfileDropdown(false);
-    if (showCategoryDropdown) setShowCategoryDropdown(false);
-    if (showDepartmentDropdown) setShowDepartmentDropdown(false);
-  };
-
-  const toggleCategoryDropdown = () => {
-    setShowCategoryDropdown(!showCategoryDropdown);
-    if (showDateDropdown) setShowDateDropdown(false);
-    if (showDepartmentDropdown) setShowDepartmentDropdown(false);
-  };
-
-  const toggleDepartmentDropdown = () => {
-    setShowDepartmentDropdown(!showDepartmentDropdown);
-    if (showDateDropdown) setShowDateDropdown(false);
-    if (showCategoryDropdown) setShowCategoryDropdown(false);
-  };
 
   const _toggleDateDropdown = () => {
     setShowDateDropdown(!showDateDropdown);
@@ -686,119 +777,11 @@ const ExpenseTracking = () => {
     if (showDepartmentDropdown) setShowDepartmentDropdown(false);
   };
 
-  // Handle Manage Profile
-  const handleManageProfile = () => {
-    setShowManageProfile(true);
-    setShowProfileDropdown(false);
-  };
-
-  const handleCloseManageProfile = () => {
-    setShowManageProfile(false);
-  };
-
-  const handleCategorySelect = (category) => {
-    setSelectedCategory(category);
-    setCurrentPage(1);
-    setShowCategoryDropdown(false);
-  };
-
-  const handleDepartmentSelect = (deptValue) => {
-    setSelectedDepartment(deptValue);
-    setCurrentPage(1);
-    setShowDepartmentDropdown(false);
-  };
 
   const _handleDateSelect = (date) => {
     setSelectedDate(date);
     setCurrentPage(1);
     setShowDateDropdown(false);
-  };
-
-  const handleNavigate = (path) => {
-    navigate(path);
-    setShowBudgetDropdown(false);
-    setShowExpenseDropdown(false);
-    setShowProfileDropdown(false);
-    setShowNotifications(false);
-    setShowCategoryDropdown(false);
-    setShowDepartmentDropdown(false);
-  };
-
-  // Updated logout function
-  const handleLogout = async () => {
-    await logout();
-  };
-
-  const handleAddExpense = () => {
-    setShowAddExpenseModal(true);
-  };
-
-  const handleCloseModal = () => {
-    setShowAddExpenseModal(false);
-    setNewExpense({
-      ticketId: `EXP-${new Date().getFullYear()}-${String(Math.floor(Math.random() * 1000)).padStart(3, '0')}`,
-      department: "",
-      category: "",
-      sub_category: "",
-      vendor: "",
-      amount: "",
-      date: new Date().toISOString().split("T")[0],
-      attachment: null,
-    });
-  };
-
-  const handleInputChange = (e) => {
-    const { name, value } = e.target;
-
-    if (name === "amount") {
-      if (value === "") {
-        setNewExpense((prev) => ({
-          ...prev,
-          [name]: "",
-        }));
-      } else {
-        const cleanValue = value.replace("₱", "").replace(/,/g, "");
-        const numericValue = cleanValue.replace(/[^\d.]/g, "");
-        const formattedValue = `₱${numericValue.replace(
-          /\B(?=(\d{3})+(?!\d))/g,
-          ","
-        )}`;
-
-        setNewExpense((prev) => ({
-          ...prev,
-          [name]: formattedValue,
-        }));
-      }
-    } else {
-      setNewExpense((prev) => ({
-        ...prev,
-        [name]: value,
-      }));
-    }
-
-    // Reset sub_category when department changes
-    if (name === "department") {
-      setNewExpense((prev) => ({
-        ...prev,
-        sub_category: "",
-      }));
-    }
-  };
-
-  // Handle file attachment
-  const handleFileChange = (e) => {
-    const file = e.target.files[0];
-    if (file) {
-      const allowedTypes = ['image/jpeg', 'image/png', 'application/pdf'];
-      if (!allowedTypes.includes(file.type)) {
-        alert('Only JPG, PNG, and PDF files are allowed.');
-        return;
-      }
-      setNewExpense((prev) => ({
-        ...prev,
-        attachment: file,
-      }));
-    }
   };
 
   // Clear amount function
@@ -809,71 +792,12 @@ const ExpenseTracking = () => {
     }));
   };
 
-  const handleSubmitExpense = async (e) => {
-    e.preventDefault();
-
-    // Clean amount value by removing '₱' and ','
-    const cleanAmount = newExpense.amount.replace(/[₱,]/g, "");
-
-    const payload = {
-      project_id: 1,
-      account_code: "5100",
-      department: newExpense.department,
-      category: newExpense.category,
-      sub_category: newExpense.sub_category,
-      amount: cleanAmount,
-      date: newExpense.date,
-      vendor: newExpense.vendor,
-      reference_no: newExpense.ticketId,
-      attachment: newExpense.attachment,
-    };
-
-    try {
-      await createExpense(payload);
-      alert("Expense submitted successfully!");
-      handleCloseModal();
-      // Refetch data
-      const summaryRes = await getExpenseSummary();
-      setSummaryData(summaryRes.data);
-      const expensesRes = await getExpenseTrackingList({
-        page: 1,
-        page_size: pageSize,
-      });
-      setExpenses(expensesRes.data.results);
-      setPagination({
-        count: expensesRes.data.count,
-        next: expensesRes.data.next,
-        previous: expensesRes.data.previous,
-      });
-      setCurrentPage(1);
-    } catch (error) {
-      console.error("Failed to submit expense:", error);
-      const errorMsg =
-        error.response?.data?.amount ||
-        error.response?.data?.non_field_errors?.[0] ||
-        "An unexpected error occurred.";
-      alert(`Error: ${errorMsg}`);
-    }
-  };
-
   // Format date as YYYY-MM-DD for input type="date"
   const formatDateForInput = (date) => {
     const year = date.getFullYear();
     const month = String(date.getMonth() + 1).padStart(2, "0");
     const day = String(date.getDate()).padStart(2, "0");
     return `${year}-${month}-${day}`;
-  };
-
-  // Get display label for department filter
-  const getDepartmentDisplay = () => {
-    const option = departmentOptions.find(opt => opt.value === selectedDepartment);
-    return option ? option.label : "All Departments";
-  };
-
-  // Get display label for category filter
-  const getCategoryDisplay = () => {
-    const option = categoryOptions.find(opt => opt.value === selectedCategory);
-    return option ? option.label : "All Categories";
   };
 
   // Filter expenses based on selected department and category

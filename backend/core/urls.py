@@ -14,9 +14,9 @@ from .views import (
     ValidProjectAccountView
 )
 from .views_expense import (
-    ExpenseDetailView, ExpenseHistoryView, ExpenseTrackingView, ExpenseCreateView,
+    ExpenseDetailView, ExpenseDetailViewForModal, ExpenseHistoryDetailView, ExpenseHistoryView, ExpenseTrackingView, ExpenseCreateView,
     ExpenseCategoryDropdownView, ExpenseTrackingSummaryView,
-    BudgetAllocationCreateView, ExternalExpenseViewSet
+    BudgetAllocationCreateView, ExternalExpenseViewSet, ExpenseViewSet
 )
 from core import views_budget
 
@@ -33,6 +33,8 @@ router.register(r'external-expenses', ExternalExpenseViewSet, basename='external
 # Router for UI calls from authenticated users (JWT protected)
 ui_router = DefaultRouter()
 ui_router.register(r'budget-proposals', views_budget.BudgetProposalUIViewSet, basename='budget-proposals')
+# MODIFICATION START: The router now handles all primary expense endpoints
+ui_router.register(r'expenses', ExpenseViewSet, basename='expense')
 
 urlpatterns = [
     path('', include(router.urls)), 
@@ -85,14 +87,20 @@ urlpatterns = [
 
     # --- Expense Endpoints ---
     path('expenses/history/', ExpenseHistoryView.as_view(), name='expense-history'),
-    path('expenses/tracking/', ExpenseTrackingView.as_view(),
-         name='expense-tracking'),
+    # MODIFICATION START: Add path for history detail view
+    path('expenses/history/<int:pk>/', ExpenseHistoryDetailView.as_view(), name='expense-history-detail'),
+    # MODIFICATION END
+    # MODIFICATION START: The following 3 lines are now handled by the ExpenseViewSet router
+    # path('expenses/tracking/', ExpenseTrackingView.as_view(), name='expense-tracking'),
+    # path('expenses/submit/', ExpenseCreateView.as_view(), name='submit-expense'),
+    # path('expenses/<int:pk>/', ExpenseDetailView.as_view(), name='expense-detail'),
+    # This specific detail view is for a different purpose (modal on history page) and should be kept
+    path('expenses/<int:pk>/modal-details/', ExpenseDetailViewForModal.as_view(), name='expense-modal-detail'),
+    # MODIFICATION END
     path('expenses/tracking/summary/', ExpenseTrackingSummaryView.as_view(),
          name='expense-tracking-summary'),
-    path('expenses/<int:pk>/', ExpenseDetailView.as_view(), name='expense-detail'),
     path('expenses/add-budget/',
          BudgetAllocationCreateView.as_view(), name='add-budget'),
-    path('expenses/submit/', ExpenseCreateView.as_view(), name='submit-expense'),
     path('expenses/valid-project-accounts/',
          ValidProjectAccountView.as_view(), name='valid-project-accounts'),
 

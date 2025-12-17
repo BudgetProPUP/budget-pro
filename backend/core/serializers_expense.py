@@ -1,9 +1,9 @@
 from decimal import Decimal
-from core.models import Account, BudgetAllocation, Expense, ExpenseAttachment, ExpenseCategory, Project
+from core.models import Account, BudgetAllocation, Department, Expense, ExpenseAttachment, ExpenseCategory, FiscalYear, Project
 from rest_framework import serializers 
 from django.db.models import Sum
 from django.utils import timezone
-
+from django.db import transaction
 class ExpenseMessageSerializer(serializers.ModelSerializer):
     """
     Serializer for incoming expense creation requests from other services (AMS, HDS).
@@ -64,16 +64,43 @@ class ExpenseHistorySerializer(serializers.ModelSerializer):
         
 class ExpenseTrackingSerializer(serializers.ModelSerializer):
     reference_no = serializers.CharField(source='transaction_id', read_only=True)
-    type = serializers.CharField(source='account.account_type.name', read_only=True)
+    department_name = serializers.CharField(source='department.name', read_only=True)
+    # The main category (e.g., CAPEX, OPEX) is the parent of the assigned expense category.
+    category_name = serializers.CharField(source='category.parent_category.name', read_only=True, allow_null=True)
+    sub_category_name = serializers.CharField(source='category.name', read_only=True)
     accomplished = serializers.SerializerMethodField()
 
     class Meta:
         model = Expense
-        fields = ['id', 'reference_no', 'type', 'description', 'status', 'accomplished', 'date']
-
+        fields = [
+            'id', 
+            'reference_no',       # Corresponds to "Ticket ID"
+            'date',               # Corresponds to "Date"
+            'department_name',    # Corresponds to "Department"
+            'category_name',      # Corresponds to "Category"
+            'sub_category_name',  # Corresponds to "Sub-category"
+            'amount',             # Corresponds to "Amount"
+            'status',             # Corresponds to "Status"
+            'accomplished'        # Corresponds to "Accomplished"
+        ]
+        
     def get_accomplished(self, obj):
         # Return "Yes" if is_accomplished is True, else "No"
         return "Yes" if obj.is_accomplished else "No"
+    
+# MODIFICATION START: New serializer for the expense review action
+class ExpenseReviewSerializer(serializers.Serializer):
+    """
+    Serializer for validating the input for approving or rejecting an expense.
+    """
+    status = serializers.ChoiceField(choices=['APPROVED', 'REJECTED'])
+    notes = serializers.CharField(required=False, allow_blank=True, help_text="Reason for approval or rejection.")
+
+    def validate_status(self, value):
+        if value not in ['APPROVED', 'REJECTED']:
+            raise serializers.ValidationError("Status must be either 'APPROVED' or 'REJECTED'.")
+        return value
+# MODIFICATION END
 
 class ExpenseDetailForModalSerializer(serializers.ModelSerializer):
     proposal_id = serializers.IntegerField(source='project.budget_proposal.id', read_only=True)
@@ -83,124 +110,126 @@ class ExpenseDetailForModalSerializer(serializers.ModelSerializer):
         fields = ['id', 'proposal_id']
         
 class ExpenseCreateSerializer(serializers.ModelSerializer):
-    project_id = serializers.IntegerField(write_only=True)
-    account_code = serializers.CharField(write_only=True)
-    category_code = serializers.CharField(write_only=True)
-    
-    # MODIFIED: Add field for multiple attachments
-    # 'receipt' is kept for backward compatibility if the frontend sends a single file
+    # MODIFICATION START: Fields now match the frontend modal
+    department_id = serializers.IntegerField(write_only=True)
+    category_code = serializers.CharField(write_only=True) # This is for the Sub-Category
     attachments = serializers.ListField(
-        child=serializers.FileField(),
+        child=serializers.FileField(allow_empty_file=False),
         write_only=True,
-        required=False,
-        help_text="List of file attachments (receipts, invoices)."
+        required=False
     )
+    # MODIFICATION END
 
     class Meta:
         model = Expense
+        # MODIFICATION START: Updated fields list
         fields = [
-            'project_id', 'account_code', 'category_code', 
+            'department_id', 'category_code', 
             'amount', 'date', 'description', 'vendor', 
-            'receipt',       # Legacy single file
-            'attachments'    # New multiple files
+            'notes', 'attachments'
         ]
+        # MODIFICATION END
         extra_kwargs = {
             'amount': {'required': True},
             'date': {'required': True},
-            'description': {'required': True},
+            'description': {'required': False, 'allow_blank': True},
             'vendor': {'required': True},      
+            'notes': {'required': False, 'allow_blank': True},
         }
 
 
     def validate(self, data):
-        project_id = data.get('project_id')
-        account_code = data.get('account_code')
+        department_id = data.get('department_id')
+        category_code = data.get('category_code')
         expense_amount = data.get('amount')
-        user = self.context['request'].user
-        department_id = getattr(user, 'department_id', None)
-
-        if not department_id:
-            raise serializers.ValidationError("Authenticated user is not associated with a department.")
 
         try:
-            project = Project.objects.get(id=project_id, department_id=department_id)
-            data['project_obj'] = project
-        except Project.DoesNotExist:
-            raise serializers.ValidationError({'project_id': "Project not found or you don't have permission for it."})
-
-        try:
-            account = Account.objects.get(code=account_code, is_active=True)
-            data['account_obj'] = account
-        except Account.DoesNotExist:
-            raise serializers.ValidationError({'account_code': 'Active account not found.'})
-        
-        try:
-            category = ExpenseCategory.objects.get(code=data.get('category_code'), is_active=True)
-            data['category_obj'] = category
+            department = Department.objects.get(id=department_id)
+            # This is the SUB-category, e.g., 'IT-HARDWARE'
+            sub_category = ExpenseCategory.objects.get(code=category_code, is_active=True)
+        except Department.DoesNotExist:
+            raise serializers.ValidationError({'department_id': "Department not found."})
         except ExpenseCategory.DoesNotExist:
-            raise serializers.ValidationError({'category_code': 'Active expense category not found.'})
+            raise serializers.ValidationError({'category_code': 'Active expense sub-category not found.'})
 
-        # --- VALIDATION LOGIC (Refined) ---
-        allocations = BudgetAllocation.objects.filter(project=project, is_active=True)
-        
-        # Check if allocation is LOCKED (New Requirement)
-        if allocations.filter(is_locked=True).exists():
-             raise serializers.ValidationError(
-                {'project_id': f'Budget allocation for project "{project.name}" is pending Finance Manager approval (Locked).'}
-            )
+        today = timezone.now().date()
+        active_fiscal_year = FiscalYear.objects.filter(start_date__lte=today, end_date__gte=today, is_active=True).first()
+        if not active_fiscal_year:
+            raise serializers.ValidationError("No active fiscal year found to allocate this expense against.")
+
+        # --- INTELLIGENT ALLOCATION FINDING ---
+        # Find all active, unlocked budget allocations for the given department and sub-category in the current fiscal year.
+        allocations = BudgetAllocation.objects.filter(
+            department=department,
+            category=sub_category,
+            fiscal_year=active_fiscal_year,
+            is_active=True,
+            is_locked=False
+        )
 
         if not allocations.exists():
             raise serializers.ValidationError(
-                {'project_id': f'No active budget allocations found for project "{project.name}".'}
+                f'No active and unlocked budget allocation found for Department "{department.name}" and Sub-Category "{sub_category.name}" in the current fiscal year.'
             )
 
-        # Calculate Remaining Budget
-        project_total_budget = allocations.aggregate(total=Sum('amount'))['total'] or Decimal('0.00')
-        project_total_spent = Expense.objects.filter(project=project, status='APPROVED').aggregate(total=Sum('amount'))['total'] or Decimal('0.00')
+        # Calculate the total budget and spending for this specific budget bucket
+        total_budget_for_category = allocations.aggregate(total=Sum('amount'))['total'] or Decimal('0.00')
+        total_spent_for_category = Expense.objects.filter(
+            budget_allocation__in=allocations,
+            status__in=['APPROVED', 'SUBMITTED'] # Also consider pending expenses
+        ).aggregate(total=Sum('amount'))['total'] or Decimal('0.00')
         
-        project_remaining_budget = project_total_budget - project_total_spent
+        remaining_budget = total_budget_for_category - total_spent_for_category
 
-        if expense_amount > project_remaining_budget:
+        if expense_amount > remaining_budget:
             raise serializers.ValidationError(
-                {'amount': f'Insufficient funds. Remaining budget is ₱{project_remaining_budget:,.2f}'}
+                {'amount': f'Insufficient funds. Remaining budget for this category is ₱{remaining_budget:,.2f}'}
             )
         
-        data['allocation_obj'] = allocations.first()
+        # We will charge this expense to the first available allocation found.
+        # More complex logic could be added here if needed (e.g., charge to oldest allocation).
+        allocation_to_charge = allocations.first()
+        
+        data['department_obj'] = department
+        data['category_obj'] = sub_category
+        data['allocation_obj'] = allocation_to_charge
+        data['account_obj'] = allocation_to_charge.account # Get account from the allocation
+        data['project_obj'] = allocation_to_charge.project # Get project from the allocation
 
         return data
 
     def create(self, validated_data):
-        project = validated_data.pop('project_obj')
-        account = validated_data.pop('account_obj')
+        department = validated_data.pop('department_obj')
         category = validated_data.pop('category_obj')
         allocation = validated_data.pop('allocation_obj')
+        account = validated_data.pop('account_obj')
+        project = validated_data.pop('project_obj')
         
-        # MODIFIED: Extract attachments list
         attachments_data = validated_data.pop('attachments', [])
 
-        validated_data.pop('project_id', None)
-        validated_data.pop('account_code', None)
+        # Remove write-only fields that are not on the Expense model
+        validated_data.pop('department_id', None)
         validated_data.pop('category_code', None)
 
         request_user = self.context['request'].user
+        
+        with transaction.atomic():
+            expense = Expense.objects.create(
+                project=project,
+                budget_allocation=allocation,
+                account=account,
+                department=department, 
+                category=category,
+                submitted_by_user_id=request_user.id,
+                submitted_by_username=getattr(request_user, 'username', 'N/A'),
+                status='SUBMITTED', 
+                is_accomplished=False, 
+                **validated_data
+            )
 
-        expense = Expense.objects.create(
-            project=project,
-            budget_allocation=allocation,
-            account=account,
-            department=project.department, 
-            category=category,
-            submitted_by_user_id=request_user.id,
-            submitted_by_username=getattr(request_user, 'username', 'N/A'),
-            status='SUBMITTED', 
-            is_accomplished=False, 
-            **validated_data
-        )
-
-        # MODIFIED: Create ExpenseAttachment objects for each uploaded file
-        if attachments_data:
-            for file in attachments_data:
-                ExpenseAttachment.objects.create(expense=expense, file=file)
+            if attachments_data:
+                for file in attachments_data:
+                    ExpenseAttachment.objects.create(expense=expense, file=file)
 
         return expense
     
@@ -267,7 +296,8 @@ class ExpenseDetailSerializer(serializers.ModelSerializer):
     category_name = serializers.CharField(source='category.name', read_only=True)
     department_name = serializers.CharField(source='department.name', read_only=True)
     receipt_url = serializers.SerializerMethodField()
-    # MODIFIED: Added is_accomplished
+    # MODIFICATION START: Add a field for multiple attachments
+    attachments = serializers.SerializerMethodField()
     is_accomplished = serializers.BooleanField(read_only=True)
 
     class Meta:
@@ -290,7 +320,8 @@ class ExpenseDetailSerializer(serializers.ModelSerializer):
             'submitted_at',
             'approved_by_username',
             'approved_at',
-            'is_accomplished'
+            'is_accomplished',
+            'attachments'
         ]
     
     def get_receipt_url(self, obj):
@@ -299,6 +330,18 @@ class ExpenseDetailSerializer(serializers.ModelSerializer):
             if request:
                 return request.build_absolute_uri(obj.receipt.url)
         return None
+    
+    # MODIFICATION START: Add method to get attachment URLs
+    def get_attachments(self, obj):
+        request = self.context.get('request')
+        attachments = obj.attachments.all()
+        if not attachments:
+            return []
+        
+        if request:
+            return [request.build_absolute_uri(att.file.url) for att in attachments]
+        
+        return [att.file.url for att in attachments]
 
 class ExpenseCategoryDropdownSerializer(serializers.ModelSerializer):
     class Meta:

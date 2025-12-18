@@ -1,3 +1,5 @@
+// QUestion: Are dates in the modal read-only, should it be today?
+
 import React, { useState, useEffect } from "react";
 import {
   Search,
@@ -19,10 +21,148 @@ import {
   getExpenseTrackingList,
   getExpenseCategories,
   createExpense,
-  getProjects,
+  getValidProjectAccounts, // CHANGED: Imported new API function
 } from "../../API/expenseAPI";
 import { getAllDepartments } from "../../API/departments";
 import ManageProfile from "./ManageProfile";
+
+// --- ADD THIS CUSTOM COMPONENT BEFORE THE ExpenseTracking COMPONENT ---
+const SearchableSelect = ({
+  options,
+  value,
+  onChange,
+  placeholder,
+  disabled,
+}) => {
+  const [isOpen, setIsOpen] = useState(false);
+  const [searchTerm, setSearchTerm] = useState("");
+  const wrapperRef = React.useRef(null);
+
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (wrapperRef.current && !wrapperRef.current.contains(event.target)) {
+        setIsOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
+
+  // Find selected item label
+  const selectedItem = options.find((opt) => opt.value === value);
+
+  const filteredOptions = options.filter((opt) =>
+    opt.label.toLowerCase().includes(searchTerm.toLowerCase())
+  );
+
+  return (
+    <div ref={wrapperRef} style={{ position: "relative", width: "100%" }}>
+      <div
+        onClick={() => !disabled && setIsOpen(!isOpen)}
+        style={{
+          padding: "8px 12px",
+          border: "1px solid #ccc",
+          borderRadius: "4px",
+          backgroundColor: disabled ? "#f5f5f5" : "white",
+          cursor: disabled ? "not-allowed" : "pointer",
+          display: "flex",
+          justifyContent: "space-between",
+          alignItems: "center",
+          minHeight: "38px", // Match input height
+        }}
+      >
+        <span
+          style={{
+            color: selectedItem ? "#000" : "#666",
+            fontSize: "14px",
+            whiteSpace: "nowrap",
+            overflow: "hidden",
+            textOverflow: "ellipsis",
+          }}
+        >
+          {selectedItem ? selectedItem.label : placeholder}
+        </span>
+        <ChevronDown size={16} color="#666" />
+      </div>
+
+      {isOpen && !disabled && (
+        <div
+          style={{
+            position: "absolute",
+            top: "100%",
+            left: 0,
+            right: 0,
+            zIndex: 2000,
+            backgroundColor: "white",
+            border: "1px solid #ccc",
+            borderRadius: "4px",
+            marginTop: "4px",
+            boxShadow: "0 4px 6px rgba(0,0,0,0.1)",
+            maxHeight: "200px",
+            overflowY: "auto",
+          }}
+        >
+          <div
+            style={{
+              padding: "8px",
+              position: "sticky",
+              top: 0,
+              background: "white",
+            }}
+          >
+            <input
+              type="text"
+              placeholder="Type to filter..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              autoFocus
+              style={{
+                width: "100%",
+                padding: "6px",
+                border: "1px solid #ddd",
+                borderRadius: "4px",
+                fontSize: "13px",
+                outline: "none",
+              }}
+            />
+          </div>
+          {filteredOptions.length > 0 ? (
+            filteredOptions.map((opt) => (
+              <div
+                key={opt.value}
+                onClick={() => {
+                  onChange(opt.value);
+                  setIsOpen(false);
+                  setSearchTerm("");
+                }}
+                style={{
+                  padding: "8px 12px",
+                  cursor: "pointer",
+                  fontSize: "14px",
+                  borderBottom: "1px solid #f0f0f0",
+                }}
+                onMouseEnter={(e) =>
+                  (e.currentTarget.style.backgroundColor = "#f0f8ff")
+                }
+                onMouseLeave={(e) =>
+                  (e.currentTarget.style.backgroundColor = "white")
+                }
+              >
+                {opt.label}
+              </div>
+            ))
+          ) : (
+            <div
+              style={{ padding: "8px 12px", color: "#999", fontSize: "14px" }}
+            >
+              No results found
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+};
 
 // --- STATUS COMPONENT ---
 const Status = ({ type, name }) => {
@@ -347,11 +487,11 @@ const ExpenseTracking = () => {
         const [summaryRes, departmentsRes, projectsRes] = await Promise.all([
           getExpenseSummary(),
           getAllDepartments(),
-          getProjects(),
+          getValidProjectAccounts(), // CHANGED: Fetch valid accounts instead of raw projects
         ]);
         setSummaryData(summaryRes.data);
         setDepartments(departmentsRes.data);
-        setProjects(projectsRes.data);
+        setProjects(projectsRes.data); // Store the valid project data
       } catch (error) {
         console.error("Failed to fetch initial data:", error);
       }
@@ -498,8 +638,7 @@ const ExpenseTracking = () => {
 
   const fetchProjectCategories = async (projectId) => {
     try {
-      const res = await getExpenseCategories();
-      // Filter categories by project_id if needed, or rely on backend filtering
+      const res = await getExpenseCategories(projectId); // Pass ID to filter on backend
       setCategories(res.data);
     } catch (err) {
       console.error("Error fetching categories", err);
@@ -507,11 +646,15 @@ const ExpenseTracking = () => {
     }
   };
 
-  const handleProjectChange = (e) => {
-    const pid = e.target.value;
-    setNewExpense((prev) => ({ ...prev, project_id: pid, category_code: "" }));
-    if (pid) {
-      fetchProjectCategories(pid);
+  const handleProjectChange = (projectId) => {
+    // UPDATED: Now accepts the value directly from SearchableSelect
+    setNewExpense((prev) => ({
+      ...prev,
+      project_id: projectId,
+      category_code: "",
+    }));
+    if (projectId) {
+      fetchProjectCategories(projectId);
     } else {
       setCategories([]);
     }
@@ -519,6 +662,12 @@ const ExpenseTracking = () => {
 
   const handleModalInputChange = (e) => {
     const { name, value } = e.target;
+
+    // Date Validation to prevent overflow
+    if (name === "date") {
+      if (value.length > 10) return; // Prevent more than 4 chars for year (YYYY-MM-DD)
+    }
+
     setNewExpense((prev) => ({ ...prev, [name]: value }));
   };
 
@@ -536,6 +685,12 @@ const ExpenseTracking = () => {
 
   const handleSubmitExpense = async (e) => {
     e.preventDefault();
+
+    // Validation
+    if (parseFloat(newExpense.amount) < 0) {
+      alert("Amount cannot be negative.");
+      return;
+    }
     const formData = new FormData();
 
     // Append all fields
@@ -553,9 +708,11 @@ const ExpenseTracking = () => {
 
     try {
       await createExpense(formData);
-      alert("Expense submitted successfully!");
+      // alert("Expense submitted successfully!");
       setShowAddExpenseModal(false);
       setNewExpense(initialExpenseState);
+      // Clear categories to reset dependent dropdown
+      setCategories([]);
 
       // Refresh data
       const summaryRes = await getExpenseSummary();
@@ -587,6 +744,17 @@ const ExpenseTracking = () => {
     const dept = departments.find((d) => d.id === parseInt(selectedDepartment));
     return dept ? dept.name : "All Departments";
   };
+
+  // Helper to format options for the SearchableSelect
+  const projectOptions = projects.map((p) => ({
+    value: p.project_id,
+    label: p.project_title,
+  }));
+
+  // Find selected project for department display
+  const selectedProject = projects.find(
+    (p) => p.project_id === parseInt(newExpense.project_id)
+  );
 
   const getCategoryDisplay = () => {
     if (!selectedCategory) return "All Categories";
@@ -1947,11 +2115,16 @@ const ExpenseTracking = () => {
                 width: "550px",
                 maxWidth: "90%",
                 maxHeight: "90vh",
-                overflow: "auto",
+                overflow: "visible", // Changed to visible for dropdown overflow
+                display: "flex",
+                flexDirection: "column",
                 boxShadow: "0 4px 6px rgba(0, 0, 0, 0.1)",
               }}
             >
-              <div className="modal-content" style={{ padding: "24px" }}>
+              <div
+                className="modal-content"
+                style={{ padding: "24px", overflowY: "auto" }}
+              >
                 <h3
                   className="modal-title"
                   style={{
@@ -1978,46 +2151,12 @@ const ExpenseTracking = () => {
                     >
                       Project <span style={{ color: "red" }}>*</span>
                     </label>
-                    <div
-                      className="select-wrapper"
-                      style={{ position: "relative" }}
-                    >
-                      <select
-                        id="project_id"
-                        name="project_id"
-                        value={newExpense.project_id}
-                        onChange={handleProjectChange}
-                        required
-                        className="form-control"
-                        style={{
-                          width: "100%",
-                          padding: "8px 12px",
-                          border: "1px solid #ccc",
-                          borderRadius: "4px",
-                          backgroundColor: "white",
-                          appearance: "none",
-                          outline: "none",
-                          fontSize: "14px",
-                        }}
-                      >
-                        <option value="">Select a project</option>
-                        {projects.map((project) => (
-                          <option key={project.id} value={project.id}>
-                            {project.name}
-                          </option>
-                        ))}
-                      </select>
-                      <ChevronDown
-                        size={16}
-                        style={{
-                          position: "absolute",
-                          right: "12px",
-                          top: "50%",
-                          transform: "translateY(-50%)",
-                          pointerEvents: "none",
-                        }}
-                      />
-                    </div>
+                    <SearchableSelect
+                      options={projectOptions}
+                      value={parseInt(newExpense.project_id)}
+                      onChange={handleProjectChange}
+                      placeholder="Select or type a project..."
+                    />
                   </div>
 
                   {/* Department (Read-only) */}
@@ -2038,10 +2177,8 @@ const ExpenseTracking = () => {
                       id="department"
                       readOnly
                       value={
-                        newExpense.project_id
-                          ? projects.find(
-                              (p) => p.id === parseInt(newExpense.project_id)
-                            )?.department_name || ""
+                        selectedProject
+                          ? selectedProject.department_name
                           : "Select Project First"
                       }
                       className="form-control"
@@ -2058,7 +2195,7 @@ const ExpenseTracking = () => {
                     />
                   </div>
 
-                  {/* Date */}
+                  {/* Date - Editable with validation */}
                   <div className="form-group" style={{ marginBottom: "16px" }}>
                     <label
                       htmlFor="date"
@@ -2075,6 +2212,7 @@ const ExpenseTracking = () => {
                       type="date"
                       id="date"
                       name="date"
+                      max="9999-12-31" // Prevents overflow via picker
                       value={newExpense.date}
                       onChange={handleModalInputChange}
                       className="form-control"
@@ -2119,6 +2257,7 @@ const ExpenseTracking = () => {
                           padding: "8px 12px",
                           border: "1px solid #ccc",
                           borderRadius: "4px",
+                          // Visual feedback for disabled state
                           backgroundColor: newExpense.project_id
                             ? "white"
                             : "#f5f5f5",
@@ -2132,8 +2271,11 @@ const ExpenseTracking = () => {
                             ? "Select a sub-category"
                             : "Select project first"}
                         </option>
-                        {categories.map((category) => (
-                          <option key={category.code} value={category.code}>
+                        {categories.map((category, index) => (
+                          <option
+                            key={`${category.code}-${index}`}
+                            value={category.code}
+                          >
                             {category.name}
                           </option>
                         ))}
@@ -2151,7 +2293,7 @@ const ExpenseTracking = () => {
                     </div>
                   </div>
 
-                  {/* Vendor */}
+                  {/* Vendor - Typeable */}
                   <div className="form-group" style={{ marginBottom: "16px" }}>
                     <label
                       htmlFor="vendor"
@@ -2171,6 +2313,7 @@ const ExpenseTracking = () => {
                       value={newExpense.vendor}
                       onChange={handleModalInputChange}
                       required
+                      placeholder="Enter vendor name"
                       className="form-control"
                       style={{
                         width: "100%",
@@ -2183,7 +2326,7 @@ const ExpenseTracking = () => {
                     />
                   </div>
 
-                  {/* Amount */}
+                  {/* Amount with Peso Sign */}
                   <div className="form-group" style={{ marginBottom: "16px" }}>
                     <label
                       htmlFor="amount"
@@ -2196,26 +2339,51 @@ const ExpenseTracking = () => {
                     >
                       Amount <span style={{ color: "red" }}>*</span>
                     </label>
-                    <input
-                      type="number"
-                      id="amount"
-                      name="amount"
-                      placeholder="0.00"
-                      value={newExpense.amount}
-                      onChange={handleModalInputChange}
-                      required
-                      min="0"
-                      step="0.01"
-                      className="form-control"
+                    <div
                       style={{
-                        width: "100%",
-                        padding: "8px 12px",
-                        border: "1px solid #ccc",
-                        borderRadius: "4px",
-                        outline: "none",
-                        fontSize: "14px",
+                        position: "relative",
+                        display: "flex",
+                        alignItems: "center",
                       }}
-                    />
+                    >
+                      <span
+                        style={{
+                          position: "absolute",
+                          left: "12px",
+                          color: "#666",
+                          fontSize: "14px",
+                          pointerEvents: "none",
+                        }}
+                      >
+                        ₱
+                      </span>
+                      <input
+                        type="number"
+                        id="amount"
+                        name="amount"
+                        placeholder="0.00"
+                        value={newExpense.amount}
+                        onChange={handleModalInputChange}
+                        onKeyDown={(e) => {
+                          // Block negative sign and scientific notation 'e'
+                          if (e.key === "-" || e.key === "e") {
+                            e.preventDefault();
+                          }
+                        }}
+                        required
+                        min="0"
+                        step="0.01"
+                        className="form-control"
+                        style={{
+                          width: "100%",
+                          padding: "8px 12px 8px 30px", // Left padding for symbol
+                          border: "1px solid #ccc",
+                          borderRadius: "4px",
+                          outline: "none",
+                          fontSize: "14px",
+                        }}
+                      />
+                    </div>
                   </div>
 
                   {/* Description */}
@@ -2271,6 +2439,7 @@ const ExpenseTracking = () => {
                         textAlign: "center",
                         cursor: "pointer",
                         position: "relative",
+                        backgroundColor: "#fafafa",
                       }}
                       onClick={() =>
                         document.getElementById("file-input").click()
@@ -2288,32 +2457,57 @@ const ExpenseTracking = () => {
                         <div>
                           <Paperclip
                             size={20}
-                            style={{ marginBottom: "8px" }}
+                            style={{ marginBottom: "8px", color: "#007bff" }}
                           />
                           <p
                             style={{
                               margin: "4px 0",
-                              fontWeight: "500",
+                              fontWeight: "600",
                               fontSize: "14px",
+                              color: "#007bff",
                             }}
                           >
                             {newExpense.attachments.length} file(s) selected
                           </p>
-                          <p
+                          <ul
                             style={{
-                              margin: "0",
+                              listStyle: "none",
+                              padding: 0,
+                              margin: "5px 0",
                               fontSize: "12px",
                               color: "#666",
                             }}
                           >
-                            Click to change files (JPG, PNG, PDF only)
+                            {newExpense.attachments.map((file, idx) => (
+                              <li
+                                key={idx}
+                                style={{
+                                  whiteSpace: "nowrap",
+                                  overflow: "hidden",
+                                  textOverflow: "ellipsis",
+                                  maxWidth: "200px",
+                                  margin: "0 auto",
+                                }}
+                              >
+                                {file.name}
+                              </li>
+                            ))}
+                          </ul>
+                          <p
+                            style={{
+                              margin: "0",
+                              fontSize: "11px",
+                              color: "#999",
+                            }}
+                          >
+                            Click to change files
                           </p>
                         </div>
                       ) : (
                         <div>
                           <Paperclip
                             size={20}
-                            style={{ marginBottom: "8px" }}
+                            style={{ marginBottom: "8px", color: "#999" }}
                           />
                           <p
                             style={{
@@ -2354,18 +2548,20 @@ const ExpenseTracking = () => {
                         onClick={() => {
                           setShowAddExpenseModal(false);
                           setNewExpense(initialExpenseState);
+                          setCategories([]);
                         }}
                         onMouseDown={(e) => e.preventDefault()}
                         style={{
-                          padding: "6px 14px",
+                          padding: "8px 16px",
                           border: "1px solid #ccc",
                           borderRadius: "4px",
                           backgroundColor: "#f8f9fa",
                           color: "#333",
                           cursor: "pointer",
-                          minWidth: "70px",
+                          minWidth: "80px",
                           outline: "none",
-                          fontSize: "13px",
+                          fontSize: "14px",
+                          fontWeight: "500",
                         }}
                       >
                         Cancel
@@ -2375,15 +2571,17 @@ const ExpenseTracking = () => {
                         className="btn-submit"
                         onMouseDown={(e) => e.preventDefault()}
                         style={{
-                          padding: "6px 14px",
-                          border: "1px solid #ccc",
+                          padding: "8px 16px",
+                          border: "none",
                           borderRadius: "4px",
                           backgroundColor: "#007bff",
                           color: "white",
                           cursor: "pointer",
-                          minWidth: "70px",
+                          minWidth: "80px",
                           outline: "none",
-                          fontSize: "13px",
+                          fontSize: "14px",
+                          fontWeight: "500",
+                          boxShadow: "0 2px 4px rgba(0,123,255,0.2)",
                         }}
                       >
                         Submit

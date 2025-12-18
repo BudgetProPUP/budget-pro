@@ -8,7 +8,6 @@ export const getExpenseSummary = () => {
     // URL comes from urls.py: name='expense-tracking-summary'
     return budgetApi.get('/expenses/tracking/summary/');
 };
-
 /**
  * Fetches the list of expenses for the main tracking table.
  * Supports pagination, search, and filtering.
@@ -21,6 +20,14 @@ export const getExpenseSummary = () => {
 export const getExpenseTrackingList = (params) => {
     // MODIFICATION: The URL is now the root of the ExpenseViewSet
     return budgetApi.get('/expenses/', { params });
+};
+
+/**
+ * Fetches valid projects that have active budget allocations.
+ * Returns project_id, project_title, department_name, etc.
+ */
+export const getValidProjectAccounts = () => {
+    return budgetApi.get('/expenses/valid-project-accounts/');
 };
 
 /**

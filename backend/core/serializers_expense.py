@@ -333,8 +333,7 @@ class ExpenseDetailSerializer(serializers.ModelSerializer):
         
         return [att.file.url for att in attachments]
 
-class ExpenseCategoryDropdownSerializer(serializers.ModelSerializer):
+class ExpenseCategoryDropdownSerializerV2(serializers.ModelSerializer):  # ← New name
     class Meta:
         model = ExpenseCategory
-        # MODIFIED: Added classification field for grouping
         fields = ['code', 'name', 'classification']

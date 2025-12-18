@@ -6,7 +6,7 @@ from django_filters.rest_framework import DjangoFilterBackend
 from drf_spectacular.utils import extend_schema, OpenApiParameter, OpenApiExample, OpenApiResponse
 from core.permissions import IsBMSFinanceHead, IsBMSUser, IsTrustedService
 from core.models import BudgetAllocation, Department, Expense, ExpenseCategory, FiscalYear
-from .serializers_expense import BudgetAllocationCreateSerializer, ExpenseCategoryDropdownSerializer, ExpenseCreateSerializer, ExpenseDetailForModalSerializer, ExpenseDetailSerializer, ExpenseHistorySerializer, ExpenseReviewSerializer, ExpenseTrackingSerializer, ExpenseTrackingSummarySerializer, ExpenseMessageSerializer
+from .serializers_expense import BudgetAllocationCreateSerializer, ExpenseCategoryDropdownSerializerV2, ExpenseCreateSerializer, ExpenseDetailForModalSerializer, ExpenseDetailSerializer, ExpenseHistorySerializer, ExpenseReviewSerializer, ExpenseTrackingSerializer, ExpenseTrackingSummarySerializer, ExpenseMessageSerializer
 from core.pagination import FiveResultsSetPagination, StandardResultsSetPagination
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.views import APIView
@@ -197,9 +197,16 @@ class ExpenseViewSet(viewsets.ModelViewSet):
         user_roles = getattr(user, 'roles', {})
         bms_role = user_roles.get('bms')
 
-        if bms_role == 'ADMIN':
+        # MODIFICATION: Allow FINANCE_HEAD to see all expenses (Global View)
+        if bms_role in ['ADMIN', 'FINANCE_HEAD']:
             queryset = base_queryset
+            
+            # Optional: If the UI sends a 'department' filter, apply itt
+            # This allows the Finance Head to "Drill Down" using the dropdown
+            # (DjangoFilterBackend usually handles this automatically if configured, 
+            # but explicit handling ensures it works with custom logic)
         else:
+            # Regular Department Heads only see their own
             department_id = getattr(user, 'department_id', None)
             if department_id:
                 queryset = base_queryset.filter(department_id=department_id)
@@ -334,41 +341,55 @@ class ExpenseTrackingSummaryView(APIView):
 
     def get(self, request, *args, **kwargs):
         user = request.user
-        if not hasattr(user, 'department_id'):
-            return Response({"error": "User has no associated department."}, status=status.HTTP_400_BAD_REQUEST)
-
-        try:
-            department = Department.objects.get(id=user.department_id)
-        except Department.DoesNotExist:
-            return Response({"error": "Department not found."}, status=status.HTTP_404_NOT_FOUND)
+        user_roles = getattr(user, 'roles', {})
+        bms_role = user_roles.get('bms')
 
         today = timezone.now().date()
         active_fiscal_year = FiscalYear.objects.filter(
             start_date__lte=today, end_date__gte=today, is_active=True).first()
+        
         if not active_fiscal_year:
             return Response({"error": "No active fiscal year found."}, status=status.HTTP_404_NOT_FOUND)
 
-        # NOTE: The summary calculations (budget remaining, expenses this month) are based on 'APPROVED'
-        # expenses only. Newly submitted expenses will not affect these totals until they are approved.
+        # MODIFICATION: Global vs Department Summary
+        if bms_role in ['ADMIN', 'FINANCE_HEAD']:
+            # Global Summary
+            total_budget = BudgetAllocation.objects.filter(
+                fiscal_year=active_fiscal_year, is_active=True
+            ).aggregate(total=Coalesce(Sum('amount'), Decimal('0.0')))['total']
 
-        # 1. Calculate Budget Remaining for the department
-        total_budget = BudgetAllocation.objects.filter(
-            department=department, fiscal_year=active_fiscal_year, is_active=True
-        ).aggregate(total=Coalesce(Sum('amount'), Decimal('0.0')))['total']
+            total_spent = Expense.objects.filter(
+                budget_allocation__fiscal_year=active_fiscal_year, status='APPROVED'
+            ).aggregate(total=Coalesce(Sum('amount'), Decimal('0.0')))['total']
+            
+            total_expenses_this_month = Expense.objects.filter(
+                status='APPROVED',
+                date__year=today.year,
+                date__month=today.month
+            ).aggregate(total=Coalesce(Sum('amount'), Decimal('0.0')))['total']
+        else:
+            # Department Summary (Existing Logic)
+            if not hasattr(user, 'department_id'):
+                return Response({"error": "User has no associated department."}, status=status.HTTP_400_BAD_REQUEST)
+            
+            department_id = user.department_id
+            
+            total_budget = BudgetAllocation.objects.filter(
+                department_id=department_id, fiscal_year=active_fiscal_year, is_active=True
+            ).aggregate(total=Coalesce(Sum('amount'), Decimal('0.0')))['total']
 
-        total_spent = Expense.objects.filter(
-            department=department, budget_allocation__fiscal_year=active_fiscal_year, status='APPROVED'
-        ).aggregate(total=Coalesce(Sum('amount'), Decimal('0.0')))['total']
+            total_spent = Expense.objects.filter(
+                department_id=department_id, budget_allocation__fiscal_year=active_fiscal_year, status='APPROVED'
+            ).aggregate(total=Coalesce(Sum('amount'), Decimal('0.0')))['total']
+
+            total_expenses_this_month = Expense.objects.filter(
+                department_id=department_id,
+                status='APPROVED',
+                date__year=today.year,
+                date__month=today.month
+            ).aggregate(total=Coalesce(Sum('amount'), Decimal('0.0')))['total']
 
         budget_remaining = total_budget - total_spent
-
-        # 2. Calculate Total Expenses This Month for the department
-        total_expenses_this_month = Expense.objects.filter(
-            department=department,
-            status='APPROVED',
-            date__year=today.year,
-            date__month=today.month
-        ).aggregate(total=Coalesce(Sum('amount'), Decimal('0.0')))['total']
 
         data = {
             'budget_remaining': budget_remaining,
@@ -435,70 +456,26 @@ class BudgetAllocationCreateView(generics.CreateAPIView):
     parameters=[
         OpenApiParameter(name="project_id", type=int, required=False, description="Filter categories by project allocation")
     ],
-    responses={200: ExpenseCategoryDropdownSerializer(many=True)}
+    responses={200: ExpenseCategoryDropdownSerializerV2(many=True)}
 )
 class ExpenseCategoryDropdownView(generics.ListAPIView):
-    serializer_class = ExpenseCategoryDropdownSerializer
+    serializer_class = ExpenseCategoryDropdownSerializerV2
     permission_classes = [IsAuthenticated]
 
     def get_queryset(self):
-        queryset = ExpenseCategory.objects.filter(is_active=True).order_by('code')
+        queryset = ExpenseCategory.objects.filter(is_active=True)
         
-        # MODIFICATION: Support Project-based filtering
         project_id = self.request.query_params.get('project_id')
         if project_id:
-            # Only return categories that have an active allocation for this project
-            queryset = queryset.filter(
-                budget_allocations__project_id=project_id,
-                budget_allocations__is_active=True
-            ).distinct()
+            category_ids = BudgetAllocation.objects.filter(
+                project_id=project_id,
+                is_active=True,
+                is_locked=False
+            ).values_list('category_id', flat=True).distinct()
             
-        return queryset
-
-    @extend_schema(parameters=[])
-    def get(self, request, *args, **kwargs):
-        return super().get(request, *args, **kwargs)
-
-
-# @extend_schema(
-#     tags=['Expense History Page'],
-#     # MODIFIED: Updated summary and description for clarity
-#     summary="Get the parent proposal ID for a single expense",
-#     description="Returns the project and budget_proposal ID for a given expense ID. This is used by the frontend to fetch the full proposal details for the 'View' modal.",
-#     # MODIFIED: Response schema is now correct
-#     responses={200: ExpenseDetailForModalSerializer}
-# )
-# class ExpenseDetailView(generics.RetrieveAPIView):
-    # --- MODIFICATION START ---
-    permission_classes = [IsBMSUser]
-    # This serializer is fine for its purpose
-    serializer_class = ExpenseDetailForModalSerializer
-
-    def get_queryset(self):
-        """
-        Implements data isolation for viewing expense details.
-        An ADMIN can see any expense.
-        Other users can only see expenses within their own department.
-        """
-        user = self.request.user
-        user_roles = getattr(user, 'roles', {})
-        bms_role = user_roles.get('bms')
-
-        base_queryset = Expense.objects.select_related(
-            'project__budget_proposal')
-
-        if bms_role == 'ADMIN':
-            return base_queryset.all()
-
-        department_id = getattr(user, 'department_id', None)
-        if department_id:
-            return base_queryset.filter(department_id=department_id)
-
-        return Expense.objects.none()
-    # --- MODIFICATION END ---
-
-    # MODIFICATION START
-
+            queryset = queryset.filter(id__in=category_ids)
+        
+        return queryset.order_by('code')
 @extend_schema(
     tags=['Expense History Page'],
     summary="Get the parent proposal ID for a single expense",

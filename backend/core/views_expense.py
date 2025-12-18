@@ -185,7 +185,9 @@ class ExpenseViewSet(viewsets.ModelViewSet):
         'description', 'vendor', 'transaction_id', 
         'account__account_type__name', 'status', 'date'
     ]
-    filterset_fields = ['category__code', 'department']
+    # MODIFICATION START: Add category__classification to filterset_fields
+    filterset_fields = ['category__code', 'department', 'category__classification']
+    # MODIFICATION END
     # Needed for file uploads in the 'create' action
     parser_classes = [MultiPartParser, FormParser]
 

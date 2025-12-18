@@ -187,18 +187,20 @@ def get_dashboard_budget_summary(request):
         end_date_filter = (start_date_filter + relativedelta(months=3)) - relativedelta(days=1)
         budget_divisor = 4
     
-    # Base queryset for allocations with data isolation
+    # Base queryset for allocations
+    # MODIFICATION: Remove Data Isolation for Dashboard Summary
+    # We want the summary cards to show the COMPANY-WIDE status, not just the user's department.
     allocations_qs = BudgetAllocation.objects.filter(
         is_active=True,
         fiscal_year=fiscal_year
     )
 
-    if bms_role == 'FINANCE_HEAD':
-        department_id = getattr(user, 'department_id', None)
-        if department_id:
-            allocations_qs = allocations_qs.filter(department_id=department_id)
-        else:
-            allocations_qs = BudgetAllocation.objects.none()
+    # if bms_role == 'FINANCE_HEAD':
+    #     department_id = getattr(user, 'department_id', None)
+    #     if department_id:
+    #         allocations_qs = allocations_qs.filter(department_id=department_id)
+    #     else:
+    #         allocations_qs = BudgetAllocation.objects.none()
     
     # Calculate the total budget for the ENTIRE year first
     total_yearly_budget = allocations_qs.aggregate(total=Sum('amount'))['total'] or Decimal('0.00')
@@ -717,20 +719,11 @@ def get_department_budget_status(request):
     if not fiscal_year:
         return Response({"detail": "No active fiscal year found."}, status=404)
 
-    # --- MODIFICATION START ---
+     # --- MODIFICATION START ---
+    # REMOVE DATA ISOLATION FOR THIS VIEW
+    # We want the Dashboard Pie Chart to show the global context (All Departments)
+    # regardless of the user's specific department assignment.
     departments_qs = Department.objects.filter(is_active=True)
-
-    user_roles = getattr(user, 'roles', {})
-    bms_role = user_roles.get('bms')
-
-    if bms_role == 'FINANCE_HEAD':
-        department_id = getattr(user, 'department_id', None)
-        if department_id:
-            departments_qs = departments_qs.filter(id=department_id)
-        else:
-            departments_qs = Department.objects.none()
-    # ADMIN sees all
-    # --- MODIFICATION END ---
     result = []
 
     # MODIFIED: Iterate over the filtered queryset
@@ -851,14 +844,14 @@ def overall_monthly_budget_actual(request):
     budget_query = BudgetAllocation.objects.filter(fiscal_year=fiscal_year, is_active=True)
     expense_query_base = Expense.objects.filter(status='APPROVED', budget_allocation__fiscal_year=fiscal_year)
 
-    if bms_role == 'FINANCE_HEAD':
-        department_id = getattr(user, 'department_id', None)
-        if department_id:
-            budget_query = budget_query.filter(department_id=department_id)
-            expense_query_base = expense_query_base.filter(department_id=department_id)
-        else:
-            budget_query = budget_query.none()
-            expense_query_base = expense_query_base.none()
+    # if bms_role == 'FINANCE_HEAD':
+    #     department_id = getattr(user, 'department_id', None)
+    #     if department_id:
+    #         budget_query = budget_query.filter(department_id=department_id)
+    #         expense_query_base = expense_query_base.filter(department_id=department_id)
+    #     else:
+    #         budget_query = budget_query.none()
+    #         expense_query_base = expense_query_base.none()
     # ADMIN role will not be filtered and will see overall data
     
     total_budget = budget_query.aggregate(total=Coalesce(Sum('amount'), Decimal('0')))['total']
@@ -1100,54 +1093,57 @@ def get_budget_forecast(request):
 @api_view(['GET'])
 @permission_classes([IsBMSUser])
 def get_forecast_accuracy(request):
-    """
-    Calculates the forecast accuracy for the most recently completed month.
-    """
     today = timezone.now().date()
-    # Go back one month to get the last fully completed month
+    # Go back one month
     last_month_date = today - relativedelta(months=1)
     last_month = last_month_date.month
     year = last_month_date.year
 
-    # 1. Find the actual total spend for the last completed month
+    # 1. Actual Spend
+    # Make sure this query matches the global logic
     actual_spend = Expense.objects.filter(
         status='APPROVED',
         date__year=year,
         date__month=last_month
     ).aggregate(total=Coalesce(Sum('amount'), Decimal('0.0')))['total']
 
-    # 2. Find the forecasted value for that same month from the most relevant forecast
-    # The most relevant forecast is the one generated *before* that month started.
-    first_day_of_last_month = last_month_date.replace(day=1)
-    
+    # 2. Forecast Spend
+    # Find the forecast generated for this year
     relevant_forecast = Forecast.objects.filter(
-        generated_at__lt=first_day_of_last_month
+        fiscal_year__start_date__lte=last_month_date,
+        fiscal_year__end_date__gte=last_month_date
     ).order_by('-generated_at').first()
 
     forecasted_spend = Decimal('0.0')
     if relevant_forecast:
-        forecast_point = relevant_forecast.data_points.filter(month=last_month).first()
-        if forecast_point:
-            forecasted_spend = forecast_point.forecasted_value
+        point = relevant_forecast.data_points.filter(month=last_month).first()
+        # IMPORTANT: The ForecastDataPoint stores CUMULATIVE.
+        # We need Monthly.
+        if point:
+            cum_val = point.forecasted_value
+            # Get previous month's cumulative to subtract
+            prev_point = relevant_forecast.data_points.filter(month=last_month-1).first()
+            prev_val = prev_point.forecasted_value if prev_point else Decimal('0.0')
+            
+            forecasted_spend = cum_val - prev_val
 
-    # 3. Calculate accuracy
+    # 3. Variance
     variance = actual_spend - forecasted_spend
+    
+    # 4. Accuracy
     accuracy_percentage = 0.0
     if actual_spend > 0:
-        # Accuracy = 100% - Percentage Error
-        accuracy_percentage = 100 * (1 - abs(variance) / actual_spend)
+        error = abs(variance) / actual_spend
+        accuracy_percentage = max(0, 100 * (1 - error)) # Clamp to 0
     elif actual_spend == 0 and forecasted_spend == 0:
-        accuracy_percentage = 100.0 # Perfect forecast if both are zero
+        accuracy_percentage = 100.0
 
     data = {
         "month_name": calendar.month_name[last_month],
         "year": year,
         "actual_spend": actual_spend,
         "forecasted_spend": forecasted_spend,
-        "accuracy_percentage": max(0, round(accuracy_percentage, 2)), # Ensure it doesn't go below 0
+        "accuracy_percentage": round(accuracy_percentage, 2),
         "variance": variance
     }
-
-    serializer = ForecastAccuracySerializer(data)
-    return Response(serializer.data)
-# MODIFICATION END
+    return Response(ForecastAccuracySerializer(data).data)

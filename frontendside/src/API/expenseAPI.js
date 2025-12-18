@@ -59,11 +59,15 @@ export const createExpense = (formData) => {
 
 /**
  * Fetches the list of available expense categories for dropdowns.
+ * Supports filtering by project ID.
  */
-export const getExpenseCategories = () => {
-    return budgetApi.get('/dropdowns/expense-categories/');
+export const getExpenseCategories = (projectId = null) => {
+    const params = {};
+    if (projectId) {
+        params.project_id = projectId;
+    }
+    return budgetApi.get('/dropdowns/expense-categories/', { params });
 };
-
 /**
  * Fetches the details for a single budget proposal.
  * Used for the "View" modal in Expense History.

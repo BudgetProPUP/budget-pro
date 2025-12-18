@@ -1,16 +1,9 @@
-import React, { useState, useEffect, useMemo } from "react";
+import React, { useState, useEffect } from "react";
 import {
   Search,
   ChevronDown,
-  ArrowLeft,
-  ChevronLeft,
-  ChevronRight,
   Plus,
-  Calendar,
-  FileText,
   User,
-  Mail,
-  Briefcase,
   LogOut,
   Bell,
   Settings,
@@ -20,43 +13,29 @@ import {
 import { Link, useNavigate } from "react-router-dom";
 import LOGOMAP from "../../assets/MAP.jpg";
 import "./ExpenseTracking.css";
-import { useAuth } from "../../context/AuthContext"; // To get user info
-// MODIFICATION START: Imported all necessary API functions
+import { useAuth } from "../../context/AuthContext";
 import {
   getExpenseSummary,
   getExpenseTrackingList,
   getExpenseCategories,
   createExpense,
-  getProjects, // For modal dropdown
+  getProjects,
 } from "../../API/expenseAPI";
-import { getAllDepartments } from "../../API/departments"; // For filter dropdown
-import { getAccounts } from "../../API/dropdownAPI"; // For modal dropdown
-// MODIFICATION END
-
-// Import ManageProfile component
+import { getAllDepartments } from "../../API/departments";
 import ManageProfile from "./ManageProfile";
 
-const Status = ({ type, name, personName = null, location = null }) => {
+// --- STATUS COMPONENT ---
+const Status = ({ type, name }) => {
+  const statusType = type ? type.toLowerCase() : "draft";
   return (
-    <div className={`status-${type.split(" ").join("-")}`}>
+    <div className={`status-${statusType.split(" ").join("-")}`}>
       <div className="circle"></div>
       {name}
-      {(personName != null || location != null) && (
-        <span className="status-details">
-          <span className="status-to">to</span>
-          <div className="icon">
-            <div className="icon-placeholder"></div>
-          </div>
-          <span className="status-target">
-            {personName != null ? personName : location}
-          </span>
-        </span>
-      )}
     </div>
   );
 };
 
-// Pagination Component (Copied from LedgerView)
+// --- PAGINATION COMPONENT (From Original) ---
 const Pagination = ({
   currentPage,
   pageSize,
@@ -73,14 +52,12 @@ const Pagination = ({
     }
   };
 
-  // MODIFICATION START
   const renderPageNumbers = () => {
     const pages = [];
-    const pageLimit = 5; // The number of page buttons to show
+    const pageLimit = 5;
     const sideButtons = Math.floor(pageLimit / 2);
 
     if (totalPages <= pageLimit + 2) {
-      // If total pages are few, show all of them
       for (let i = 1; i <= totalPages; i++) {
         pages.push(
           <button
@@ -104,7 +81,6 @@ const Pagination = ({
         );
       }
     } else {
-      // Always show first page
       pages.push(
         <button
           key={1}
@@ -175,7 +151,6 @@ const Pagination = ({
         );
       }
 
-      // Always show last page
       pages.push(
         <button
           key={totalPages}
@@ -212,7 +187,6 @@ const Pagination = ({
         padding: "10px 0",
       }}
     >
-      {/* Left Side: Page Size Selector */}
       <div
         className="pageSizeSelector"
         style={{ display: "flex", alignItems: "center", gap: "8px" }}
@@ -240,7 +214,6 @@ const Pagination = ({
         <span style={{ fontSize: "14px" }}>items per page</span>
       </div>
 
-      {/* Right Side: Page Navigation */}
       <div
         className="pageNavigation"
         style={{ display: "flex", alignItems: "center", gap: "5px" }}
@@ -291,99 +264,111 @@ const ExpenseTracking = () => {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
 
-  // Navigation and UI state
+  // --- STATE ---
   const [showBudgetDropdown, setShowBudgetDropdown] = useState(false);
   const [showExpenseDropdown, setShowExpenseDropdown] = useState(false);
   const [showProfileDropdown, setShowProfileDropdown] = useState(false);
   const [showNotifications, setShowNotifications] = useState(false);
+  const [showCategoryDropdown, setShowCategoryDropdown] = useState(false);
+  const [showDepartmentDropdown, setShowDepartmentDropdown] = useState(false);
+
   const [showManageProfile, setShowManageProfile] = useState(false);
   const [showAddExpenseModal, setShowAddExpenseModal] = useState(false);
-  
-  // Data state
+
   const [loading, setLoading] = useState(true);
   const [expenses, setExpenses] = useState([]);
   const [summaryData, setSummaryData] = useState({
     budget_remaining: "0.00",
     total_expenses_this_month: "0.00",
   });
-  
-  // Dropdown data state
-  const [categories, setCategories] = useState([]); // For modal sub-category dropdown
-  const [departments, setDepartments] = useState([]); // For filter department dropdown
-  const [projects, setProjects] = useState([]); // For modal project dropdown
-  const [accounts, setAccounts] = useState([]); // For modal account dropdown
 
-  // Filter and Pagination state
-  const [showCategoryDropdown, setShowCategoryDropdown] = useState(false);
-  const [showDepartmentDropdown, setShowDepartmentDropdown] = useState(false);
-  const [selectedCategory, setSelectedCategory] = useState(""); // CAPEX or OPEX
-  const [selectedDepartment, setSelectedDepartment] = useState(""); // Department ID
+  // Data Options
+  const [categories, setCategories] = useState([]); // For modal (Sub-categories)
+  const [departments, setDepartments] = useState([]); // All Departments
+  const [projects, setProjects] = useState([]); // For modal
+
+  // Filters
+  const [selectedCategory, setSelectedCategory] = useState(""); // CAPEX/OPEX filter
+  const [selectedDepartment, setSelectedDepartment] = useState(""); // Department ID filter
   const [searchTerm, setSearchTerm] = useState("");
   const [debouncedSearchTerm, setDebouncedSearchTerm] = useState("");
+
+  // Pagination
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize, setPageSize] = useState(5);
-  const [pagination, setPagination] = useState({
-    count: 0,
-    next: null,
-    previous: null,
-  });
+  const [totalItems, setTotalItems] = useState(0);
 
-  // Add Expense Modal state
+  // Modal State
   const initialExpenseState = {
     project_id: "",
-    account_code: "",
     category_code: "",
     vendor: "",
     amount: "",
     date: new Date().toISOString().split("T")[0],
     description: "",
-    attachments: [], // Use an array for multiple files
+    attachments: [],
   };
   const [newExpense, setNewExpense] = useState(initialExpenseState);
-  
-  const [submissionError, setSubmissionError] = useState(null);
 
-  // Debounce search term to prevent excessive API calls
-  useEffect(() => {
-    const timerId = setTimeout(() => {
-      setDebouncedSearchTerm(searchTerm);
-      setCurrentPage(1); // Reset to page 1 on new search
-    }, 500);
-    return () => clearTimeout(timerId);
-  }, [searchTerm]);
-  
-  // Fetch data for dropdowns (runs once on component mount)
+  // Date/Time
+  const [currentDate, setCurrentDate] = useState(new Date());
+
+  // User profile
+  const userProfile = {
+    name: user ? `${user.first_name} ${user.last_name}` : "User",
+    role: user?.roles?.bms || "User",
+    avatar:
+      "https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?ixlib=rb-1.2.1&ixid=eyJhcHBfaWQiOjEyMDd9&auto=format&fit=facearea&facepad=2&w=256&h=256&q=80",
+  };
+
+  // Format date and time
+  const formattedDay = currentDate.toLocaleDateString("en-US", {
+    weekday: "long",
+  });
+  const formattedDate = currentDate.toLocaleDateString("en-US", {
+    month: "long",
+    day: "numeric",
+    year: "numeric",
+  });
+  const formattedTime = currentDate
+    .toLocaleTimeString("en-US", {
+      hour: "2-digit",
+      minute: "2-digit",
+      hour12: true,
+    })
+    .toUpperCase();
+
+  // --- EFFECTS ---
+
+  // Initial Load
   useEffect(() => {
     const fetchDropdownData = async () => {
       try {
-        const [
-          summaryRes,
-          categoriesRes,
-          departmentsRes,
-          projectsRes,
-          accountsRes,
-        ] = await Promise.all([
+        const [summaryRes, departmentsRes, projectsRes] = await Promise.all([
           getExpenseSummary(),
-          getExpenseCategories(),
           getAllDepartments(),
           getProjects(),
-          getAccounts(),
         ]);
-
         setSummaryData(summaryRes.data);
-        setCategories(categoriesRes.data);
-        setDepartments([{ id: "", name: "All Departments" }, ...departmentsRes.data]);
+        setDepartments(departmentsRes.data);
         setProjects(projectsRes.data);
-        setAccounts(accountsRes.data);
-
       } catch (error) {
-        console.error("Failed to fetch initial dropdown data:", error);
+        console.error("Failed to fetch initial data:", error);
       }
     };
     fetchDropdownData();
   }, []);
 
-  // Fetch main expense list data (runs on filter/pagination change)
+  // Debounce Search
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedSearchTerm(searchTerm);
+      setCurrentPage(1);
+    }, 500);
+    return () => clearTimeout(timer);
+  }, [searchTerm]);
+
+  // Fetch Expenses
   useEffect(() => {
     const fetchExpenses = async () => {
       setLoading(true);
@@ -392,45 +377,31 @@ const ExpenseTracking = () => {
           page: currentPage,
           page_size: pageSize,
           search: debouncedSearchTerm,
-          department: selectedDepartment,
-          // NOTE: The backend needs to support filtering by classification
-          'category__classification': selectedCategory, 
         };
-        
-        // Remove empty params
-        Object.keys(params).forEach(key => {
-          if (!params[key]) {
-            delete params[key];
-          }
-        });
+
+        if (selectedDepartment) params.department = selectedDepartment;
+        if (selectedCategory)
+          params.category__classification = selectedCategory;
 
         const res = await getExpenseTrackingList(params);
         setExpenses(res.data.results);
-        setPagination({
-          count: res.data.count,
-          next: res.data.next,
-          previous: res.data.previous,
-        });
-
+        setTotalItems(res.data.count);
       } catch (error) {
-        console.error("Failed to fetch expense tracking list:", error);
+        console.error("Failed to fetch expenses:", error);
       } finally {
         setLoading(false);
       }
     };
     fetchExpenses();
-  }, [currentPage, pageSize, debouncedSearchTerm, selectedDepartment, selectedCategory]);
+  }, [
+    currentPage,
+    pageSize,
+    debouncedSearchTerm,
+    selectedDepartment,
+    selectedCategory,
+  ]);
 
-  const categoryOptions = [
-    { value: "", label: "All Categories" },
-    { value: "CAPEX", label: "CapEx" },
-    { value: "OPEX", label: "OpEx" },
-  ];
-
-  // Current date state
-  const [currentDate, setCurrentDate] = useState(new Date());
-
-  // Update current date/time
+  // Clock
   useEffect(() => {
     const interval = setInterval(() => {
       setCurrentDate(new Date());
@@ -438,11 +409,6 @@ const ExpenseTracking = () => {
     return () => clearInterval(interval);
   }, []);
 
-  // Format date and time for display
-  const formattedDay = currentDate.toLocaleDateString("en-US", { weekday: "long" });
-  const formattedDate = currentDate.toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" });
-  const formattedTime = currentDate.toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit", hour12: true }).toUpperCase();
-
   // Close dropdowns when clicking outside
   useEffect(() => {
     const handleClickOutside = (event) => {
@@ -458,290 +424,6 @@ const ExpenseTracking = () => {
         setShowNotifications(false);
         setShowCategoryDropdown(false);
         setShowDepartmentDropdown(false);
-      }
-    };
-    document.addEventListener("mousedown", handleClickOutside);
-    return () => document.removeEventListener("mousedown", handleClickOutside);
-  }, []);
-
-  // Navigation and UI toggle functions
-  const toggleBudgetDropdown = () => setShowBudgetDropdown(!showBudgetDropdown);
-  const toggleExpenseDropdown = () => setShowExpenseDropdown(!showExpenseDropdown);
-  const toggleProfileDropdown = () => setShowProfileDropdown(!showProfileDropdown);
-  const toggleNotifications = () => setShowNotifications(!showNotifications);
-  const toggleCategoryDropdown = () => setShowCategoryDropdown(!showCategoryDropdown);
-  const toggleDepartmentDropdown = () => setShowDepartmentDropdown(!showDepartmentDropdown);
-  const handleManageProfile = () => { setShowManageProfile(true); setShowProfileDropdown(false); };
-  const handleCloseManageProfile = () => setShowManageProfile(false);
-  const handleNavigate = (path) => navigate(path);
-  const handleLogout = async () => await logout();
-
-  // Filter selection handlers
-  const handleCategorySelect = (categoryValue) => {
-    setSelectedCategory(categoryValue);
-    setCurrentPage(1);
-    setShowCategoryDropdown(false);
-  };
-  const handleDepartmentSelect = (deptId) => {
-    setSelectedDepartment(deptId);
-    setCurrentPage(1);
-    setShowDepartmentDropdown(false);
-  };
-
-  // Modal handlers
-  const handleAddExpense = () => setShowAddExpenseModal(true);
-  const handleCloseModal = () => {
-    setShowAddExpenseModal(false);
-    setNewExpense(initialExpenseState);
-    setSubmissionError(null);
-  };
-
-  const handleInputChange = (e) => {
-    const { name, value } = e.target;
-    setNewExpense((prev) => ({ ...prev, [name]: value }));
-  };
-
-  const handleFileChange = (e) => {
-    if (e.target.files) {
-      // Convert FileList to array and store it
-      setNewExpense((prev) => ({
-        ...prev,
-        attachments: Array.from(e.target.files),
-      }));
-    }
-  };
-  
-  const handleSubmitExpense = async (e) => {
-    e.preventDefault();
-    setSubmissionError(null);
-
-    const formData = new FormData();
-    // Append all fields from the newExpense state
-    Object.keys(newExpense).forEach(key => {
-      if (key === 'attachments') {
-        // Handle files array
-        newExpense.attachments.forEach(file => {
-          formData.append('attachments', file);
-        });
-      } else if (newExpense[key]) {
-        formData.append(key, newExpense[key]);
-      }
-    });
-
-    try {
-      await createExpense(formData);
-      alert("Expense submitted successfully!");
-      handleCloseModal();
-      // Trigger a refetch of the expense list by resetting page to 1
-      // If already on page 1, we need a different way to trigger useEffect
-      if (currentPage === 1) {
-        // Manually trigger a refetch if we are on the first page
-        setSearchTerm(prev => prev + ' '); // A bit of a hack to trigger the effect
-        setSearchTerm(prev => prev.trim());
-      } else {
-        setCurrentPage(1);
-      }
-    } catch (error) {
-      console.error("Failed to submit expense:", error);
-      // Extract user-friendly error from backend response
-      const errors = error.response?.data;
-      let errorMsg = "An unexpected error occurred.";
-      if (errors) {
-        // Join all error messages into a single string
-        errorMsg = Object.values(errors).flat().join(' ');
-      }
-      setSubmissionError(errorMsg);
-      alert(`Error: ${errorMsg}`);
-    }
-  };
-
-  // Helper functions for display
-  const getDepartmentDisplay = () => {
-    const option = departments.find(opt => opt.id === selectedDepartment);
-    return option ? option.name : "All Departments";
-  };
-
-  const getCategoryDisplay = () => {
-    const option = categoryOptions.find(opt => opt.value === selectedCategory);
-    return option ? option.label : "All Categories";
-  };
-
-  // Department options matching LedgerView format
-  const departmentOptions = [
-    { value: "", label: "All Departments" },
-    { value: "Merchandise Planning", label: "Merchandise Planning" },
-    { value: "Store Operations", label: "Store Operations" },
-    { value: "Marketing", label: "Marketing" },
-    { value: "Operations", label: "Operations" },
-    { value: "IT", label: "IT" },
-    { value: "Logistics", label: "Logistics" },
-    { value: "Human Resources", label: "Human Resources" },
-  ];
-
-  // Sub-categories data based on department
-  const subCategoriesByDepartment = {
-    "Merchandise Planning": [
-      "Product Range Planning",
-      "Buying Costs",
-      "Market Research",
-      "Inventory Handling Fees",
-      "Supplier Coordination",
-      "Seasonal Planning Tools",
-      "Training",
-      "Travel",
-      "Software Subscription"
-    ],
-    "Store Operations": [
-      "Store Consumables",
-      "POS Maintenance",
-      "Store Repairs",
-      "Sales Incentives",
-      "Uniforms",
-      "Store Opening Expenses",
-      "Store Supplies",
-      "Training",
-      "Travel",
-      "Utilities"
-    ],
-    "Marketing": [
-      "Campaign Budget",
-      "Branding Materials",
-      "Digital Ads",
-      "Social Media Management",
-      "Events Budget",
-      "Influencer Fees",
-      "Photography/Videography",
-      "Software Subscription",
-      "Training",
-      "Travel"
-    ],
-    "Operations": [
-      "Equipment Maintenance",
-      "Fleet/Vehicle Expenses",
-      "Operational Supplies",
-      "Business Permits",
-      "Facility Utilities",
-      "Compliance Costs",
-      "Training",
-      "Office Supplies"
-    ],
-    "IT": [
-      "Server Hosting",
-      "Software Licenses",
-      "Cloud Subscriptions",
-      "Hardware Purchases",
-      "Data Tools",
-      "Cybersecurity Costs",
-      "API Subscription Fees",
-      "Domain Renewals",
-      "Training",
-      "Office Supplies"
-    ],
-    "Logistics": [
-      "Shipping Costs",
-      "Warehouse Equipment",
-      "Transport & Fuel",
-      "Freight Fees",
-      "Vendor Delivery Charges",
-      "Storage Fees",
-      "Packaging Materials",
-      "Safety Gear",
-      "Training"
-    ],
-    "Human Resources": [
-      "Recruitment Expenses",
-      "Job Posting Fees",
-      "Employee Engagement Activities",
-      "Training & Workshops",
-      "Medical & Wellness Programs",
-      "Background Checks",
-      "HR Systems/Payroll Software",
-      "Office Supplies",
-      "Travel"
-    ]
-  };
-
-  // Main categories (only CapEx and OpEx)
-  const mainCategories = ["CapEx", "OpEx"];
-
-  useEffect(() => {
-    const fetchData = async () => {
-      setLoading(true);
-      try {
-        const params = {
-          page: currentPage,
-          page_size: pageSize,
-          search: searchTerm,
-        };
-
-        if (selectedCategory && selectedCategory !== "") {
-          params.category__code = selectedCategory;
-        }
-
-        const [summaryRes, expensesRes, categoriesRes] = await Promise.all([
-          getExpenseSummary(),
-          getExpenseTrackingList(params),
-          getExpenseCategories(),
-        ]);
-
-        setSummaryData(summaryRes.data);
-        setExpenses(expensesRes.data.results);
-        setPagination({
-          count: expensesRes.data.count,
-          next: expensesRes.data.next,
-          previous: expensesRes.data.previous,
-        });
-        setCategories([
-          { code: "", name: "All Categories" },
-          ...categoriesRes.data,
-        ]);
-      } catch (error) {
-        console.error("Failed to fetch expense data:", error);
-      } finally {
-        setLoading(false);
-      }
-    };
-    fetchData();
-  }, [currentPage, pageSize, searchTerm, selectedCategory]);
-
-  // User profile data
-  const userProfile = {
-    name: user ? `${user.first_name} ${user.last_name}` : "User",
-    role: user?.roles?.bms || "User",
-    avatar:
-      "https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?ixlib=rb-1.2.1&ixid=eyJhcHBfaWQiOjEyMDd9&auto=format&fit=facearea&facepad=2&w=256&h=256&q=80",
-  };
-
-
-  // Update current date/time
-  useEffect(() => {
-    const interval = setInterval(() => {
-      setCurrentDate(new Date());
-    }, 1000);
-
-    return () => {
-      clearInterval(interval);
-    };
-  }, []);
-
-
-
-  // Close dropdowns when clicking outside
-  useEffect(() => {
-    const handleClickOutside = (event) => {
-      if (
-        !event.target.closest(".nav-dropdown") &&
-        !event.target.closest(".profile-container") &&
-        !event.target.closest(".notification-container") &&
-        !event.target.closest(".filter-dropdown")
-      ) {
-        setShowBudgetDropdown(false);
-        setShowExpenseDropdown(false);
-        setShowProfileDropdown(false);
-        setShowNotifications(false);
-        setShowCategoryDropdown(false);
-        setShowDepartmentDropdown(false);
-        setShowDateDropdown(false);
       }
     };
 
@@ -751,81 +433,172 @@ const ExpenseTracking = () => {
     };
   }, []);
 
-  // Sample vendors
-  const vendors = [
-    "Tech Training Inc.",
-    "Software Solutions Ltd.",
-    "Cloud Hosting Co.",
-    "Computer World",
-    "Office Supplies Pro",
-    "AI Learning Center",
-  ];
+  // --- HANDLERS ---
 
-  // Date filter options
-  const _dateOptions = [
-    "All Time",
-    "This Month",
-    "Last Month",
-    "Last 3 Months",
-    "This Year",
-  ];
-
-
-  const _toggleDateDropdown = () => {
-    setShowDateDropdown(!showDateDropdown);
-    if (showCategoryDropdown) setShowCategoryDropdown(false);
-    if (showDepartmentDropdown) setShowDepartmentDropdown(false);
+  const toggleBudgetDropdown = () => {
+    setShowBudgetDropdown(!showBudgetDropdown);
+    if (showExpenseDropdown) setShowExpenseDropdown(false);
+    if (showProfileDropdown) setShowProfileDropdown(false);
+    if (showNotifications) setShowNotifications(false);
   };
 
+  const toggleExpenseDropdown = () => {
+    setShowExpenseDropdown(!showExpenseDropdown);
+    if (showBudgetDropdown) setShowBudgetDropdown(false);
+    if (showProfileDropdown) setShowProfileDropdown(false);
+    if (showNotifications) setShowNotifications(false);
+  };
 
-  const _handleDateSelect = (date) => {
-    setSelectedDate(date);
+  const toggleProfileDropdown = () => {
+    setShowProfileDropdown(!showProfileDropdown);
+    if (showBudgetDropdown) setShowBudgetDropdown(false);
+    if (showExpenseDropdown) setShowExpenseDropdown(false);
+    if (showNotifications) setShowNotifications(false);
+  };
+
+  const toggleNotifications = () => {
+    setShowNotifications(!showNotifications);
+    if (showBudgetDropdown) setShowBudgetDropdown(false);
+    if (showExpenseDropdown) setShowExpenseDropdown(false);
+    if (showProfileDropdown) setShowProfileDropdown(false);
+  };
+
+  const handleCategorySelect = (category) => {
+    setSelectedCategory(category);
     setCurrentPage(1);
-    setShowDateDropdown(false);
+    setShowCategoryDropdown(false);
   };
 
-  // Clear amount function
-  const clearAmount = () => {
-    setNewExpense((prev) => ({
-      ...prev,
-      amount: "",
-    }));
+  const handleDepartmentSelect = (deptId) => {
+    setSelectedDepartment(deptId);
+    setCurrentPage(1);
+    setShowDepartmentDropdown(false);
   };
 
-  // Format date as YYYY-MM-DD for input type="date"
-  const formatDateForInput = (date) => {
-    const year = date.getFullYear();
-    const month = String(date.getMonth() + 1).padStart(2, "0");
-    const day = String(date.getDate()).padStart(2, "0");
-    return `${year}-${month}-${day}`;
+  const handleNavigate = (path) => {
+    navigate(path);
+    setShowBudgetDropdown(false);
+    setShowExpenseDropdown(false);
+    setShowProfileDropdown(false);
+    setShowNotifications(false);
   };
 
-  // Filter expenses based on selected department and category
-  const filteredExpenses = useMemo(() => {
-    return expenses.filter(expense => {
-      const matchesDepartment = !selectedDepartment || expense.department === selectedDepartment;
-      const matchesCategory = !selectedCategory || expense.category === selectedCategory;
-      const matchesSearch = !searchTerm || 
-        expense.reference_no.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        (expense.vendor && expense.vendor.toLowerCase().includes(searchTerm.toLowerCase())) ||
-        (expense.sub_category && expense.sub_category.toLowerCase().includes(searchTerm.toLowerCase()));
-      
-      return matchesDepartment && matchesCategory && matchesSearch;
+  const handleLogout = async () => {
+    await logout();
+  };
+
+  const handleManageProfile = () => {
+    setShowManageProfile(true);
+    setShowProfileDropdown(false);
+  };
+
+  const handleCloseManageProfile = () => {
+    setShowManageProfile(false);
+  };
+
+  const fetchProjectCategories = async (projectId) => {
+    try {
+      const res = await getExpenseCategories();
+      // Filter categories by project_id if needed, or rely on backend filtering
+      setCategories(res.data);
+    } catch (err) {
+      console.error("Error fetching categories", err);
+      setCategories([]);
+    }
+  };
+
+  const handleProjectChange = (e) => {
+    const pid = e.target.value;
+    setNewExpense((prev) => ({ ...prev, project_id: pid, category_code: "" }));
+    if (pid) {
+      fetchProjectCategories(pid);
+    } else {
+      setCategories([]);
+    }
+  };
+
+  const handleModalInputChange = (e) => {
+    const { name, value } = e.target;
+    setNewExpense((prev) => ({ ...prev, [name]: value }));
+  };
+
+  const handleFileChange = (e) => {
+    const files = Array.from(e.target.files);
+    const allowedTypes = ["image/jpeg", "image/png", "application/pdf"];
+
+    const validFiles = files.filter((file) => allowedTypes.includes(file.type));
+    if (validFiles.length !== files.length) {
+      alert("Only JPG, PNG, and PDF files are allowed.");
+    }
+
+    setNewExpense((prev) => ({ ...prev, attachments: validFiles }));
+  };
+
+  const handleSubmitExpense = async (e) => {
+    e.preventDefault();
+    const formData = new FormData();
+
+    // Append all fields
+    formData.append("project_id", newExpense.project_id);
+    formData.append("category_code", newExpense.category_code);
+    formData.append("vendor", newExpense.vendor);
+    formData.append("amount", newExpense.amount);
+    formData.append("date", newExpense.date);
+    formData.append("description", newExpense.description || "");
+
+    // Append multiple attachments
+    newExpense.attachments.forEach((file) => {
+      formData.append("attachments", file);
     });
-  }, [expenses, selectedDepartment, selectedCategory, searchTerm]);
 
-  // Calculate pagination for filtered expenses
-  const indexOfLastItem = currentPage * pageSize;
-  const indexOfFirstItem = indexOfLastItem - pageSize;
-  const currentExpenses = filteredExpenses.slice(indexOfFirstItem, indexOfLastItem);
-  const totalItems = filteredExpenses.length;
+    try {
+      await createExpense(formData);
+      alert("Expense submitted successfully!");
+      setShowAddExpenseModal(false);
+      setNewExpense(initialExpenseState);
+
+      // Refresh data
+      const summaryRes = await getExpenseSummary();
+      setSummaryData(summaryRes.data);
+
+      const params = {
+        page: currentPage,
+        page_size: pageSize,
+        search: debouncedSearchTerm,
+      };
+      if (selectedDepartment) params.department = selectedDepartment;
+      if (selectedCategory) params.category__classification = selectedCategory;
+
+      const expensesRes = await getExpenseTrackingList(params);
+      setExpenses(expensesRes.data.results);
+      setTotalItems(expensesRes.data.count);
+    } catch (error) {
+      console.error("Failed to submit expense:", error);
+      const errorMsg =
+        error.response?.data?.amount ||
+        error.response?.data?.non_field_errors?.[0] ||
+        "An unexpected error occurred.";
+      alert(`Error: ${errorMsg}`);
+    }
+  };
+
+  const getDepartmentDisplay = () => {
+    if (!selectedDepartment) return "All Departments";
+    const dept = departments.find((d) => d.id === parseInt(selectedDepartment));
+    return dept ? dept.name : "All Departments";
+  };
+
+  const getCategoryDisplay = () => {
+    if (!selectedCategory) return "All Categories";
+    return selectedCategory === "CAPEX" ? "CapEx" : "OpEx";
+  };
 
   return (
     <div
       className="app-container"
       style={{ minWidth: "1200px", overflowY: "auto", height: "100vh" }}
     >
-      {/* Navigation Bar (unchanged) */}
+      {/* Navigation Bar */}
       <nav
         className="navbar"
         style={{ position: "static", marginBottom: "20px" }}
@@ -1210,11 +983,7 @@ const ExpenseTracking = () => {
                   src={userProfile.avatar}
                   alt="User avatar"
                   className="profile-image"
-                  style={{
-                    width: "32px",
-                    height: "32px",
-                    borderRadius: "50%",
-                  }}
+                  style={{ width: "32px", height: "32px", borderRadius: "50%" }}
                 />
               </div>
 
@@ -1292,7 +1061,7 @@ const ExpenseTracking = () => {
                     }}
                     onMouseDown={(e) => e.preventDefault()}
                   >
-                    <User size={16} style={{ marginRight: "8px" }} />{" "}
+                    <User size={16} style={{ marginRight: "8px" }} />
                     <span>Manage Profile</span>
                   </div>
                   {userProfile.role === "Admin" && (
@@ -1306,7 +1075,7 @@ const ExpenseTracking = () => {
                       }}
                       onMouseDown={(e) => e.preventDefault()}
                     >
-                      <Settings size={16} style={{ marginRight: "8px" }} />{" "}
+                      <Settings size={16} style={{ marginRight: "8px" }} />
                       <span>User Management</span>
                     </div>
                   )}
@@ -1329,7 +1098,7 @@ const ExpenseTracking = () => {
                     }}
                     onMouseDown={(e) => e.preventDefault()}
                   >
-                    <LogOut size={16} style={{ marginRight: "8px" }} />{" "}
+                    <LogOut size={16} style={{ marginRight: "8px" }} />
                     <span>Log Out</span>
                   </div>
                 </div>
@@ -1343,11 +1112,8 @@ const ExpenseTracking = () => {
         className="content-container"
         style={{ padding: "20px", maxWidth: "1200px", margin: "0 auto" }}
       >
-        {/* Conditionally render either ExpenseTracking content or ManageProfile */}
         {showManageProfile ? (
-          <ManageProfile 
-            onClose={handleCloseManageProfile} 
-          />
+          <ManageProfile onClose={handleCloseManageProfile} />
         ) : (
           <>
             {/* Budget Summary Cards */}
@@ -1378,7 +1144,10 @@ const ExpenseTracking = () => {
                   boxShadow: "0 2px 4px rgba(0,0,0,0.1)",
                 }}
               >
-                <div className="budget-card-label" style={{ marginBottom: "10px" }}>
+                <div
+                  className="budget-card-label"
+                  style={{ marginBottom: "10px" }}
+                >
                   <p style={{ margin: 0, fontSize: "14px", color: "#666" }}>
                     Budget Remaining
                   </p>
@@ -1416,7 +1185,10 @@ const ExpenseTracking = () => {
                   boxShadow: "0 2px 4px rgba(0,0,0,0.1)",
                 }}
               >
-                <div className="budget-card-label" style={{ marginBottom: "10px" }}>
+                <div
+                  className="budget-card-label"
+                  style={{ marginBottom: "10px" }}
+                >
                   <p style={{ margin: 0, fontSize: "14px", color: "#666" }}>
                     Total Expenses This Month
                   </p>
@@ -1426,13 +1198,12 @@ const ExpenseTracking = () => {
                   style={{ fontSize: "24px", fontWeight: "bold" }}
                 >
                   ₱
-                  {parseFloat(summaryData.total_expenses_this_month).toLocaleString(
-                    "en-US",
-                    {
-                      minimumFractionDigits: 2,
-                      maximumFractionDigits: 2,
-                    }
-                  )}
+                  {parseFloat(
+                    summaryData.total_expenses_this_month
+                  ).toLocaleString("en-US", {
+                    minimumFractionDigits: 2,
+                    maximumFractionDigits: 2,
+                  })}
                 </div>
               </div>
             </div>
@@ -1451,7 +1222,7 @@ const ExpenseTracking = () => {
                 minHeight: "calc(80vh - 100px)",
               }}
             >
-              {/* Header Section with Title and Controls - UPDATED for better spacing */}
+              {/* Header Section */}
               <div
                 className="top"
                 style={{
@@ -1475,14 +1246,14 @@ const ExpenseTracking = () => {
 
                 <div
                   className="controls-container"
-                  style={{ 
-                    display: "flex", 
+                  style={{
+                    display: "flex",
                     gap: "10px",
                     alignItems: "center",
                     flexWrap: "nowrap",
                   }}
                 >
-                  {/* Search Bar - REDUCED WIDTH */}
+                  {/* Search Bar */}
                   <div style={{ position: "relative", width: "180px" }}>
                     <input
                       type="text"
@@ -1501,13 +1272,18 @@ const ExpenseTracking = () => {
                     />
                   </div>
 
-                  {/* Department Filter - UPDATED to match LedgerView UI */}
-                  <div className="filter-dropdown" style={{ position: "relative", width: "180px" }}>
+                  {/* Department Filter */}
+                  <div
+                    className="filter-dropdown"
+                    style={{ position: "relative", width: "180px" }}
+                  >
                     <button
                       className={`filter-dropdown-btn ${
                         showDepartmentDropdown ? "active" : ""
                       }`}
-                      onClick={toggleDepartmentDropdown}
+                      onClick={() =>
+                        setShowDepartmentDropdown(!showDepartmentDropdown)
+                      }
                       onMouseDown={(e) => e.preventDefault()}
                       style={{
                         padding: "8px 12px",
@@ -1522,11 +1298,13 @@ const ExpenseTracking = () => {
                         width: "100%",
                       }}
                     >
-                      <span style={{ 
-                        overflow: "hidden",
-                        textOverflow: "ellipsis",
-                        whiteSpace: "nowrap" 
-                      }}>
+                      <span
+                        style={{
+                          overflow: "hidden",
+                          textOverflow: "ellipsis",
+                          whiteSpace: "nowrap",
+                        }}
+                      >
                         {getDepartmentDisplay()}
                       </span>
                       <ChevronDown size={14} />
@@ -1547,38 +1325,62 @@ const ExpenseTracking = () => {
                           overflowY: "auto",
                         }}
                       >
-                        {departmentOptions.map((dept) => (
+                        <div
+                          className={`category-dropdown-item ${
+                            !selectedDepartment ? "active" : ""
+                          }`}
+                          onClick={() => handleDepartmentSelect("")}
+                          onMouseDown={(e) => e.preventDefault()}
+                          style={{
+                            padding: "8px 12px",
+                            cursor: "pointer",
+                            backgroundColor: !selectedDepartment
+                              ? "#f0f0f0"
+                              : "white",
+                            outline: "none",
+                          }}
+                        >
+                          All Departments
+                        </div>
+                        {departments.map((dept) => (
                           <div
-                            key={dept.value}
+                            key={dept.id}
                             className={`category-dropdown-item ${
-                              selectedDepartment === dept.value ? "active" : ""
+                              selectedDepartment === dept.id.toString()
+                                ? "active"
+                                : ""
                             }`}
-                            onClick={() => handleDepartmentSelect(dept.value)}
+                            onClick={() => handleDepartmentSelect(dept.id)}
                             onMouseDown={(e) => e.preventDefault()}
                             style={{
                               padding: "8px 12px",
                               cursor: "pointer",
                               backgroundColor:
-                                selectedDepartment === dept.value
+                                selectedDepartment === dept.id.toString()
                                   ? "#f0f0f0"
                                   : "white",
                               outline: "none",
                             }}
                           >
-                            {dept.label}
+                            {dept.name}
                           </div>
                         ))}
                       </div>
                     )}
                   </div>
 
-                  {/* Category Filter - UPDATED to match LedgerView UI */}
-                  <div className="filter-dropdown" style={{ position: "relative", width: "150px" }}>
+                  {/* Category Filter */}
+                  <div
+                    className="filter-dropdown"
+                    style={{ position: "relative", width: "150px" }}
+                  >
                     <button
                       className={`filter-dropdown-btn ${
                         showCategoryDropdown ? "active" : ""
                       }`}
-                      onClick={toggleCategoryDropdown}
+                      onClick={() =>
+                        setShowCategoryDropdown(!showCategoryDropdown)
+                      }
                       onMouseDown={(e) => e.preventDefault()}
                       style={{
                         padding: "8px 12px",
@@ -1593,11 +1395,13 @@ const ExpenseTracking = () => {
                         width: "100%",
                       }}
                     >
-                      <span style={{ 
-                        overflow: "hidden",
-                        textOverflow: "ellipsis",
-                        whiteSpace: "nowrap" 
-                      }}>
+                      <span
+                        style={{
+                          overflow: "hidden",
+                          textOverflow: "ellipsis",
+                          whiteSpace: "nowrap",
+                        }}
+                      >
                         {getCategoryDisplay()}
                       </span>
                       <ChevronDown size={14} />
@@ -1618,27 +1422,57 @@ const ExpenseTracking = () => {
                           overflowY: "auto",
                         }}
                       >
-                        {categoryOptions.map((category) => (
-                          <div
-                            key={category.value}
-                            className={`category-dropdown-item ${
-                              selectedCategory === category.value ? "active" : ""
-                            }`}
-                            onClick={() => handleCategorySelect(category.value)}
-                            onMouseDown={(e) => e.preventDefault()}
-                            style={{
-                              padding: "8px 12px",
-                              cursor: "pointer",
-                              backgroundColor:
-                                selectedCategory === category.value
-                                  ? "#f0f0f0"
-                                  : "white",
-                              outline: "none",
-                            }}
-                          >
-                            {category.label}
-                          </div>
-                        ))}
+                        <div
+                          className={`category-dropdown-item ${
+                            !selectedCategory ? "active" : ""
+                          }`}
+                          onClick={() => handleCategorySelect("")}
+                          onMouseDown={(e) => e.preventDefault()}
+                          style={{
+                            padding: "8px 12px",
+                            cursor: "pointer",
+                            backgroundColor: !selectedCategory
+                              ? "#f0f0f0"
+                              : "white",
+                            outline: "none",
+                          }}
+                        >
+                          All Categories
+                        </div>
+                        <div
+                          className={`category-dropdown-item ${
+                            selectedCategory === "CAPEX" ? "active" : ""
+                          }`}
+                          onClick={() => handleCategorySelect("CAPEX")}
+                          onMouseDown={(e) => e.preventDefault()}
+                          style={{
+                            padding: "8px 12px",
+                            cursor: "pointer",
+                            backgroundColor:
+                              selectedCategory === "CAPEX"
+                                ? "#f0f0f0"
+                                : "white",
+                            outline: "none",
+                          }}
+                        >
+                          CapEx
+                        </div>
+                        <div
+                          className={`category-dropdown-item ${
+                            selectedCategory === "OPEX" ? "active" : ""
+                          }`}
+                          onClick={() => handleCategorySelect("OPEX")}
+                          onMouseDown={(e) => e.preventDefault()}
+                          style={{
+                            padding: "8px 12px",
+                            cursor: "pointer",
+                            backgroundColor:
+                              selectedCategory === "OPEX" ? "#f0f0f0" : "white",
+                            outline: "none",
+                          }}
+                        >
+                          OpEx
+                        </div>
                       </div>
                     )}
                   </div>
@@ -1646,7 +1480,7 @@ const ExpenseTracking = () => {
                   {/* Add Expense Button */}
                   <button
                     className="add-journal-button"
-                    onClick={handleAddExpense}
+                    onClick={() => setShowAddExpenseModal(true)}
                     style={{
                       padding: "8px 16px",
                       border: "1px solid #ccc",
@@ -1673,7 +1507,7 @@ const ExpenseTracking = () => {
                 }}
               ></div>
 
-              {/* Expenses Table - UPDATED: Removed Vendor column and adjusted column widths */}
+              {/* Expenses Table */}
               <div
                 style={{
                   border: "1px solid #e0e0e0",
@@ -1700,7 +1534,6 @@ const ExpenseTracking = () => {
                         zIndex: 1,
                       }}
                     >
-                      {/* Equal width columns - 12.5% each for 8 columns */}
                       <th
                         style={{
                           width: "10%",
@@ -1825,8 +1658,40 @@ const ExpenseTracking = () => {
                     </tr>
                   </thead>
                   <tbody>
-                    {currentExpenses.length > 0 ? (
-                      currentExpenses.map((expense, index) => (
+                    {loading ? (
+                      <tr>
+                        <td
+                          colSpan="8"
+                          style={{
+                            padding: "20px",
+                            textAlign: "center",
+                            height: "50px",
+                            verticalAlign: "middle",
+                            fontSize: "14px",
+                          }}
+                        >
+                          Loading...
+                        </td>
+                      </tr>
+                    ) : expenses.length === 0 ? (
+                      <tr>
+                        <td
+                          colSpan="8"
+                          style={{
+                            padding: "20px",
+                            textAlign: "center",
+                            height: "50px",
+                            verticalAlign: "middle",
+                            fontSize: "14px",
+                          }}
+                        >
+                          {searchTerm || selectedDepartment || selectedCategory
+                            ? "No expenses match your search criteria."
+                            : "No expenses found."}
+                        </td>
+                      </tr>
+                    ) : (
+                      expenses.map((expense, index) => (
                         <tr
                           key={expense.id}
                           className={index % 2 === 1 ? "alternate-row" : ""}
@@ -1856,11 +1721,13 @@ const ExpenseTracking = () => {
                               fontSize: "13px",
                             }}
                           >
-                            <div style={{
-                              maxWidth: "100%",
-                              overflow: "hidden",
-                              textOverflow: "ellipsis"
-                            }}>
+                            <div
+                              style={{
+                                maxWidth: "100%",
+                                overflow: "hidden",
+                                textOverflow: "ellipsis",
+                              }}
+                            >
                               {expense.reference_no}
                             </div>
                           </td>
@@ -1875,11 +1742,13 @@ const ExpenseTracking = () => {
                               fontSize: "13px",
                             }}
                           >
-                            <div style={{
-                              maxWidth: "100%",
-                              overflow: "hidden",
-                              textOverflow: "ellipsis"
-                            }}>
+                            <div
+                              style={{
+                                maxWidth: "100%",
+                                overflow: "hidden",
+                                textOverflow: "ellipsis",
+                              }}
+                            >
                               {expense.date}
                             </div>
                           </td>
@@ -1894,12 +1763,14 @@ const ExpenseTracking = () => {
                               fontSize: "13px",
                             }}
                           >
-                            <div style={{
-                              maxWidth: "100%",
-                              overflow: "hidden",
-                              textOverflow: "ellipsis"
-                            }}>
-                              {expense.department}
+                            <div
+                              style={{
+                                maxWidth: "100%",
+                                overflow: "hidden",
+                                textOverflow: "ellipsis",
+                              }}
+                            >
+                              {expense.department_name}
                             </div>
                           </td>
                           <td
@@ -1913,12 +1784,14 @@ const ExpenseTracking = () => {
                               fontSize: "13px",
                             }}
                           >
-                            <div style={{
-                              maxWidth: "100%",
-                              overflow: "hidden",
-                              textOverflow: "ellipsis"
-                            }}>
-                              {expense.category}
+                            <div
+                              style={{
+                                maxWidth: "100%",
+                                overflow: "hidden",
+                                textOverflow: "ellipsis",
+                              }}
+                            >
+                              {expense.category_name || "-"}
                             </div>
                           </td>
                           <td
@@ -1932,12 +1805,14 @@ const ExpenseTracking = () => {
                               fontSize: "13px",
                             }}
                           >
-                            <div style={{
-                              maxWidth: "100%",
-                              overflow: "hidden",
-                              textOverflow: "ellipsis"
-                            }}>
-                              {expense.sub_category}
+                            <div
+                              style={{
+                                maxWidth: "100%",
+                                overflow: "hidden",
+                                textOverflow: "ellipsis",
+                              }}
+                            >
+                              {expense.sub_category_name}
                             </div>
                           </td>
                           <td
@@ -1949,15 +1824,24 @@ const ExpenseTracking = () => {
                               overflowWrap: "break-word",
                               whiteSpace: "normal",
                               fontSize: "13px",
-                              fontWeight: "bold",
+                              // fontWeight: "bold",
                             }}
                           >
-                            <div style={{
-                              maxWidth: "100%",
-                              overflow: "hidden",
-                              textOverflow: "ellipsis"
-                            }}>
-                              {expense.amount}
+                            <div
+                              style={{
+                                maxWidth: "100%",
+                                overflow: "hidden",
+                                textOverflow: "ellipsis",
+                              }}
+                            >
+                              ₱
+                              {parseFloat(expense.amount).toLocaleString(
+                                "en-US",
+                                {
+                                  minimumFractionDigits: 2,
+                                  maximumFractionDigits: 2,
+                                }
+                              )}
                             </div>
                           </td>
                           <td
@@ -1971,13 +1855,15 @@ const ExpenseTracking = () => {
                               fontSize: "13px",
                             }}
                           >
-                            <div style={{
-                              maxWidth: "100%",
-                              overflow: "hidden",
-                              textOverflow: "ellipsis"
-                            }}>
+                            <div
+                              style={{
+                                maxWidth: "100%",
+                                overflow: "hidden",
+                                textOverflow: "ellipsis",
+                              }}
+                            >
                               <Status
-                                type={expense.status.toLowerCase()}
+                                type={expense.status}
                                 name={expense.status}
                               />
                             </div>
@@ -1991,45 +1877,35 @@ const ExpenseTracking = () => {
                               overflowWrap: "break-word",
                               whiteSpace: "normal",
                               fontSize: "13px",
-                              color: expense.accomplished === "Yes" ? "#2e7d32" : "#c62828",
-                              fontWeight: expense.accomplished === "Yes" ? "bold" : "normal",
+                              color:
+                                expense.accomplished === "Yes"
+                                  ? "#2e7d32"
+                                  : "#c62828",
+                              // fontWeight:
+                              //   expense.accomplished === "Yes"
+                              //     ? "bold"
+                              //     : "normal",
                             }}
                           >
-                            <div style={{
-                              maxWidth: "100%",
-                              overflow: "hidden",
-                              textOverflow: "ellipsis"
-                            }}>
+                            <div
+                              style={{
+                                maxWidth: "100%",
+                                overflow: "hidden",
+                                textOverflow: "ellipsis",
+                              }}
+                            >
                               {expense.accomplished}
                             </div>
                           </td>
                         </tr>
                       ))
-                    ) : (
-                      <tr>
-                        <td
-                          colSpan="8"
-                          className="no-results"
-                          style={{
-                            padding: "20px",
-                            textAlign: "center",
-                            height: "50px",
-                            verticalAlign: "middle",
-                            fontSize: "14px",
-                          }}
-                        >
-                          {searchTerm || selectedDepartment || selectedCategory
-                            ? "No expenses match your search criteria."
-                            : "No expenses found."}
-                        </td>
-                      </tr>
                     )}
                   </tbody>
                 </table>
               </div>
 
               {/* Pagination Component */}
-              {currentExpenses.length > 0 && (
+              {expenses.length > 0 && (
                 <Pagination
                   currentPage={currentPage}
                   pageSize={pageSize}
@@ -2046,7 +1922,7 @@ const ExpenseTracking = () => {
           </>
         )}
 
-        {/* UPDATED: Add Expense Modal with smaller buttons */}
+        {/* Add Expense Modal */}
         {showAddExpenseModal && (
           <div
             className="modal-overlay"
@@ -2089,10 +1965,10 @@ const ExpenseTracking = () => {
                 </h3>
 
                 <form onSubmit={handleSubmitExpense} className="budget-form">
-                  {/* Ticket ID - Disabled (system generated) */}
+                  {/* Project Selection */}
                   <div className="form-group" style={{ marginBottom: "16px" }}>
                     <label
-                      htmlFor="ticketId"
+                      htmlFor="project_id"
                       style={{
                         display: "block",
                         marginBottom: "8px",
@@ -2100,15 +1976,74 @@ const ExpenseTracking = () => {
                         fontSize: "14px",
                       }}
                     >
-                      Ticket ID
+                      Project <span style={{ color: "red" }}>*</span>
+                    </label>
+                    <div
+                      className="select-wrapper"
+                      style={{ position: "relative" }}
+                    >
+                      <select
+                        id="project_id"
+                        name="project_id"
+                        value={newExpense.project_id}
+                        onChange={handleProjectChange}
+                        required
+                        className="form-control"
+                        style={{
+                          width: "100%",
+                          padding: "8px 12px",
+                          border: "1px solid #ccc",
+                          borderRadius: "4px",
+                          backgroundColor: "white",
+                          appearance: "none",
+                          outline: "none",
+                          fontSize: "14px",
+                        }}
+                      >
+                        <option value="">Select a project</option>
+                        {projects.map((project) => (
+                          <option key={project.id} value={project.id}>
+                            {project.name}
+                          </option>
+                        ))}
+                      </select>
+                      <ChevronDown
+                        size={16}
+                        style={{
+                          position: "absolute",
+                          right: "12px",
+                          top: "50%",
+                          transform: "translateY(-50%)",
+                          pointerEvents: "none",
+                        }}
+                      />
+                    </div>
+                  </div>
+
+                  {/* Department (Read-only) */}
+                  <div className="form-group" style={{ marginBottom: "16px" }}>
+                    <label
+                      htmlFor="department"
+                      style={{
+                        display: "block",
+                        marginBottom: "8px",
+                        fontWeight: "500",
+                        fontSize: "14px",
+                      }}
+                    >
+                      Department
                     </label>
                     <input
                       type="text"
-                      id="ticketId"
-                      name="ticketId"
-                      value={newExpense.ticketId}
+                      id="department"
                       readOnly
-                      disabled
+                      value={
+                        newExpense.project_id
+                          ? projects.find(
+                              (p) => p.id === parseInt(newExpense.project_id)
+                            )?.department_name || ""
+                          : "Select Project First"
+                      }
                       className="form-control"
                       style={{
                         width: "100%",
@@ -2121,20 +2056,9 @@ const ExpenseTracking = () => {
                         fontSize: "14px",
                       }}
                     />
-                    <span
-                      className="helper-text"
-                      style={{
-                        fontSize: "12px",
-                        color: "#666",
-                        marginTop: "4px",
-                        display: "block",
-                      }}
-                    >
-                      System generated
-                    </span>
                   </div>
 
-                  {/* Date - Auto-generated */}
+                  {/* Date */}
                   <div className="form-group" style={{ marginBottom: "16px" }}>
                     <label
                       htmlFor="date"
@@ -2152,135 +2076,23 @@ const ExpenseTracking = () => {
                       id="date"
                       name="date"
                       value={newExpense.date}
-                      readOnly
+                      onChange={handleModalInputChange}
                       className="form-control"
                       style={{
                         width: "100%",
                         padding: "8px 12px",
                         border: "1px solid #ccc",
                         borderRadius: "4px",
-                        backgroundColor: "#f5f5f5",
-                        cursor: "not-allowed",
                         outline: "none",
                         fontSize: "14px",
                       }}
                     />
                   </div>
 
-                  {/* Department - REQUIRED */}
+                  {/* Sub-Category */}
                   <div className="form-group" style={{ marginBottom: "16px" }}>
                     <label
-                      htmlFor="department"
-                      style={{
-                        display: "block",
-                        marginBottom: "8px",
-                        fontWeight: "500",
-                        fontSize: "14px",
-                      }}
-                    >
-                      Department <span style={{ color: "red" }}>*</span>
-                    </label>
-                    <div
-                      className="select-wrapper"
-                      style={{ position: "relative" }}
-                    >
-                      <select
-                        id="department"
-                        name="department"
-                        value={newExpense.department}
-                        onChange={handleInputChange}
-                        required
-                        className="form-control"
-                        style={{
-                          width: "100%",
-                          padding: "8px 12px",
-                          border: "1px solid #ccc",
-                          borderRadius: "4px",
-                          backgroundColor: "white",
-                          appearance: "none",
-                          outline: "none",
-                          fontSize: "14px",
-                        }}
-                      >
-                        <option value="">Select a department</option>
-                        {departments.map((department) => (
-                          <option key={department} value={department}>
-                            {department}
-                          </option>
-                        ))}
-                      </select>
-                      <ChevronDown
-                        size={16}
-                        style={{
-                          position: "absolute",
-                          right: "12px",
-                          top: "50%",
-                          transform: "translateY(-50%)",
-                          pointerEvents: "none",
-                        }}
-                      />
-                    </div>
-                  </div>
-
-                  {/* Category - REQUIRED (only CapEx and OpEx) */}
-                  <div className="form-group" style={{ marginBottom: "16px" }}>
-                    <label
-                      htmlFor="category"
-                      style={{
-                        display: "block",
-                        marginBottom: "8px",
-                        fontWeight: "500",
-                        fontSize: "14px",
-                      }}
-                    >
-                      Category <span style={{ color: "red" }}>*</span>
-                    </label>
-                    <div
-                      className="select-wrapper"
-                      style={{ position: "relative" }}
-                    >
-                      <select
-                        id="category"
-                        name="category"
-                        value={newExpense.category}
-                        onChange={handleInputChange}
-                        required
-                        className="form-control"
-                        style={{
-                          width: "100%",
-                          padding: "8px 12px",
-                          border: "1px solid #ccc",
-                          borderRadius: "4px",
-                          backgroundColor: "white",
-                          appearance: "none",
-                          outline: "none",
-                          fontSize: "14px",
-                        }}
-                      >
-                        <option value="">Select a category</option>
-                        {mainCategories.map((category) => (
-                          <option key={category} value={category}>
-                            {category}
-                          </option>
-                        ))}
-                      </select>
-                      <ChevronDown
-                        size={16}
-                        style={{
-                          position: "absolute",
-                          right: "12px",
-                          top: "50%",
-                          transform: "translateY(-50%)",
-                          pointerEvents: "none",
-                        }}
-                      />
-                    </div>
-                  </div>
-
-                  {/* Sub-Category - REQUIRED (dynamic based on department) */}
-                  <div className="form-group" style={{ marginBottom: "16px" }}>
-                    <label
-                      htmlFor="sub_category"
+                      htmlFor="category_code"
                       style={{
                         display: "block",
                         marginBottom: "8px",
@@ -2295,30 +2107,34 @@ const ExpenseTracking = () => {
                       style={{ position: "relative" }}
                     >
                       <select
-                        id="sub_category"
-                        name="sub_category"
-                        value={newExpense.sub_category}
-                        onChange={handleInputChange}
+                        id="category_code"
+                        name="category_code"
+                        value={newExpense.category_code}
+                        onChange={handleModalInputChange}
                         required
-                        disabled={!newExpense.department}
+                        disabled={!newExpense.project_id}
                         className="form-control"
                         style={{
                           width: "100%",
                           padding: "8px 12px",
                           border: "1px solid #ccc",
                           borderRadius: "4px",
-                          backgroundColor: newExpense.department ? "white" : "#f5f5f5",
+                          backgroundColor: newExpense.project_id
+                            ? "white"
+                            : "#f5f5f5",
                           appearance: "none",
                           outline: "none",
                           fontSize: "14px",
                         }}
                       >
                         <option value="">
-                          {newExpense.department ? "Select a sub-category" : "Select department first"}
+                          {newExpense.project_id
+                            ? "Select a sub-category"
+                            : "Select project first"}
                         </option>
-                        {newExpense.department && subCategoriesByDepartment[newExpense.department]?.map((subCat) => (
-                          <option key={subCat} value={subCat}>
-                            {subCat}
+                        {categories.map((category) => (
+                          <option key={category.code} value={category.code}>
+                            {category.name}
                           </option>
                         ))}
                       </select>
@@ -2335,7 +2151,7 @@ const ExpenseTracking = () => {
                     </div>
                   </div>
 
-                  {/* Vendor - REQUIRED */}
+                  {/* Vendor */}
                   <div className="form-group" style={{ marginBottom: "16px" }}>
                     <label
                       htmlFor="vendor"
@@ -2348,49 +2164,26 @@ const ExpenseTracking = () => {
                     >
                       Vendor <span style={{ color: "red" }}>*</span>
                     </label>
-                    <div
-                      className="select-wrapper"
-                      style={{ position: "relative" }}
-                    >
-                      <select
-                        id="vendor"
-                        name="vendor"
-                        value={newExpense.vendor}
-                        onChange={handleInputChange}
-                        required
-                        className="form-control"
-                        style={{
-                          width: "100%",
-                          padding: "8px 12px",
-                          border: "1px solid #ccc",
-                          borderRadius: "4px",
-                          backgroundColor: "white",
-                          appearance: "none",
-                          outline: "none",
-                          fontSize: "14px",
-                        }}
-                      >
-                        <option value="">Select a vendor</option>
-                        {vendors.map((vendor, idx) => (
-                          <option key={idx} value={vendor}>
-                            {vendor}
-                          </option>
-                        ))}
-                      </select>
-                      <ChevronDown
-                        size={16}
-                        style={{
-                          position: "absolute",
-                          right: "12px",
-                          top: "50%",
-                          transform: "translateY(-50%)",
-                          pointerEvents: "none",
-                        }}
-                      />
-                    </div>
+                    <input
+                      type="text"
+                      id="vendor"
+                      name="vendor"
+                      value={newExpense.vendor}
+                      onChange={handleModalInputChange}
+                      required
+                      className="form-control"
+                      style={{
+                        width: "100%",
+                        padding: "8px 12px",
+                        border: "1px solid #ccc",
+                        borderRadius: "4px",
+                        outline: "none",
+                        fontSize: "14px",
+                      }}
+                    />
                   </div>
 
-                  {/* Amount - REQUIRED */}
+                  {/* Amount */}
                   <div className="form-group" style={{ marginBottom: "16px" }}>
                     <label
                       htmlFor="amount"
@@ -2403,53 +2196,61 @@ const ExpenseTracking = () => {
                     >
                       Amount <span style={{ color: "red" }}>*</span>
                     </label>
-                    <div style={{ position: "relative" }}>
-                      <input
-                        type="text"
-                        id="amount"
-                        name="amount"
-                        placeholder="₱0.00"
-                        value={newExpense.amount}
-                        onChange={handleInputChange}
-                        required
-                        className="form-control"
-                        style={{
-                          width: "100%",
-                          padding: "8px 40px 8px 12px",
-                          border: "1px solid #e0e0e0",
-                          borderRadius: "4px",
-                          outline: "none",
-                          fontSize: "14px",
-                        }}
-                      />
-                      {newExpense.amount && (
-                        <button
-                          type="button"
-                          onClick={clearAmount}
-                          style={{
-                            position: "absolute",
-                            right: "8px",
-                            top: "50%",
-                            transform: "translateY(-50%)",
-                            background: "none",
-                            border: "none",
-                            cursor: "pointer",
-                            padding: "4px",
-                            borderRadius: "50%",
-                            display: "flex",
-                            alignItems: "center",
-                            justifyContent: "center",
-                            outline: "none",
-                          }}
-                          onMouseDown={(e) => e.preventDefault()}
-                        >
-                          <X size={16} color="#666" />
-                        </button>
-                      )}
-                    </div>
+                    <input
+                      type="number"
+                      id="amount"
+                      name="amount"
+                      placeholder="0.00"
+                      value={newExpense.amount}
+                      onChange={handleModalInputChange}
+                      required
+                      min="0"
+                      step="0.01"
+                      className="form-control"
+                      style={{
+                        width: "100%",
+                        padding: "8px 12px",
+                        border: "1px solid #ccc",
+                        borderRadius: "4px",
+                        outline: "none",
+                        fontSize: "14px",
+                      }}
+                    />
                   </div>
 
-                  {/* Attachment - JPG, PDF, PNG */}
+                  {/* Description */}
+                  <div className="form-group" style={{ marginBottom: "16px" }}>
+                    <label
+                      htmlFor="description"
+                      style={{
+                        display: "block",
+                        marginBottom: "8px",
+                        fontWeight: "500",
+                        fontSize: "14px",
+                      }}
+                    >
+                      Description
+                    </label>
+                    <textarea
+                      id="description"
+                      name="description"
+                      value={newExpense.description}
+                      onChange={handleModalInputChange}
+                      className="form-control"
+                      style={{
+                        width: "100%",
+                        padding: "8px 12px",
+                        border: "1px solid #ccc",
+                        borderRadius: "4px",
+                        outline: "none",
+                        fontSize: "14px",
+                        minHeight: "80px",
+                        resize: "vertical",
+                      }}
+                    />
+                  </div>
+
+                  {/* Attachment */}
                   <div className="form-group" style={{ marginBottom: "16px" }}>
                     <label
                       htmlFor="attachment"
@@ -2460,7 +2261,7 @@ const ExpenseTracking = () => {
                         fontSize: "14px",
                       }}
                     >
-                      Attachment
+                      Attachments
                     </label>
                     <div
                       style={{
@@ -2471,34 +2272,65 @@ const ExpenseTracking = () => {
                         cursor: "pointer",
                         position: "relative",
                       }}
-                      onClick={() => document.getElementById('file-input').click()}
+                      onClick={() =>
+                        document.getElementById("file-input").click()
+                      }
                     >
                       <input
                         type="file"
                         id="file-input"
+                        multiple
                         accept=".jpg,.jpeg,.png,.pdf"
                         onChange={handleFileChange}
-                        style={{
-                          display: "none",
-                        }}
+                        style={{ display: "none" }}
                       />
-                      {newExpense.attachment ? (
+                      {newExpense.attachments.length > 0 ? (
                         <div>
-                          <Paperclip size={20} style={{ marginBottom: "8px" }} />
-                          <p style={{ margin: "4px 0", fontWeight: "500", fontSize: "14px" }}>
-                            {newExpense.attachment.name}
+                          <Paperclip
+                            size={20}
+                            style={{ marginBottom: "8px" }}
+                          />
+                          <p
+                            style={{
+                              margin: "4px 0",
+                              fontWeight: "500",
+                              fontSize: "14px",
+                            }}
+                          >
+                            {newExpense.attachments.length} file(s) selected
                           </p>
-                          <p style={{ margin: "0", fontSize: "12px", color: "#666" }}>
-                            Click to change file (JPG, PNG, PDF only)
+                          <p
+                            style={{
+                              margin: "0",
+                              fontSize: "12px",
+                              color: "#666",
+                            }}
+                          >
+                            Click to change files (JPG, PNG, PDF only)
                           </p>
                         </div>
                       ) : (
                         <div>
-                          <Paperclip size={20} style={{ marginBottom: "8px" }} />
-                          <p style={{ margin: "4px 0", fontWeight: "500", fontSize: "14px" }}>
-                            Click to upload file
+                          <Paperclip
+                            size={20}
+                            style={{ marginBottom: "8px" }}
+                          />
+                          <p
+                            style={{
+                              margin: "4px 0",
+                              fontWeight: "500",
+                              fontSize: "14px",
+                            }}
+                          >
+                            Click to upload files
                           </p>
-                          <p style={{ margin: "0", fontSize: "12px", color: "#666" }}>
+                          <p
+                            style={{
+                              margin: "0",
+                              fontSize: "12px",
+                              color: "#666",
+                            }}
+                          >
                             Supported formats: JPG, PNG, PDF
                           </p>
                         </div>
@@ -2506,7 +2338,7 @@ const ExpenseTracking = () => {
                     </div>
                   </div>
 
-                  {/* Modal Actions with SMALLER BUTTONS */}
+                  {/* Modal Actions */}
                   <div className="modal-actions" style={{ marginTop: "24px" }}>
                     <div
                       className="button-row"
@@ -2519,7 +2351,10 @@ const ExpenseTracking = () => {
                       <button
                         type="button"
                         className="btn-cancel"
-                        onClick={handleCloseModal}
+                        onClick={() => {
+                          setShowAddExpenseModal(false);
+                          setNewExpense(initialExpenseState);
+                        }}
                         onMouseDown={(e) => e.preventDefault()}
                         style={{
                           padding: "6px 14px",
@@ -2561,7 +2396,7 @@ const ExpenseTracking = () => {
           </div>
         )}
 
-        {/* Add Status component CSS directly */}
+        {/* Status component CSS */}
         <style jsx>{`
           .status-active,
           .status-inactive,
@@ -2652,40 +2487,6 @@ const ExpenseTracking = () => {
             background-color: #424242;
             --pulse-color: 66, 66, 66;
           }
-
-          .status-details {
-            display: flex;
-            align-items: center;
-            gap: 5px;
-            flex-wrap: nowrap;
-            max-width: 100%;
-          }
-
-          .status-to {
-            margin: 0 2px;
-            white-space: nowrap;
-          }
-
-          .status-target {
-            white-space: normal;
-            word-break: break-word;
-            max-width: 100%;
-          }
-
-          .icon {
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            flex-shrink: 0;
-          }
-
-          .icon-placeholder {
-            height: 12px;
-            width: 12px;
-            flex-shrink: 0;
-            background-color: currentColor;
-            border-radius: 2px;
-          }
         `}</style>
       </div>
     </div>
@@ -2693,26 +2494,3 @@ const ExpenseTracking = () => {
 };
 
 export default ExpenseTracking;
-
-  // What was changed:
-  // 1.  Summary Cards: Replaced the three old summary cards with two new ones ("Budget Remaining", "Total Expenses This Month") that are connected to the `summaryData` state from the API. Added currency formatting.
-  // 2.  Table Structure: Overhauled the table `<thead>` to match the new API response fields: "REF NO.", "DATE", "TYPE", "DESCRIPTION", "STATUS", "ACCOMPLISHED".
-  // 3.  Table Data Binding: Changed the `<tbody>` to iterate over the `expenses` state and render the new fields (`expense.reference_no`, `expense.type`, etc.).
-  // 4.  Pagination: Updated the `<Pagination>` component's `totalItems` prop to use `pagination.count` from the API response.
-  // 5.  Category Filter: Modified the filter dropdown to display category names while using category codes for API requests.
-  // 6.  Add Expense Modal: Updated the modal title and form fields. Added a required "Description" field and removed fields not present in the new API (Subcategory, Employee). The category dropdown now populates from the API.
-  // 7.  CSS Styles: Added new CSS classes (`.status-draft`, `.status-submitted`, etc.) to the local `<style jsx>` block to support the different status types returned by the API.
-
-// What was changed:
-// 1.  State Management: Updated component state to handle API data for expenses, categories, summary cards, and pagination. Removed outdated/unused state variables.
-// 2.  API Integration: Implemented a `useEffect` hook to fetch all necessary data from the backend API endpoints when the component mounts or when filters/pagination change.
-// 3.  Removed Frontend Logic: Eliminated frontend-based filtering and pagination (`useMemo`, `slice`) to rely on the backend for these operations, improving performance and data consistency.
-// 4.  Event Handlers: Modified `handleCategorySelect` to work with category codes.
-// 5.  Add Expense Submission: Re-wired the `handleSubmitExpense` function to be asynchronous, build a correct payload, and call the `createExpense` API endpoint, including success/error handling and data refetching.
-
-
-/* TODO: For the "Type" column, the UI displays the account.accont_type.name for each expense, from the Account model
-, which can be Asset, Expense, Liability. The seeder assigns random category to each allocation, create_expense function creates expense using that allocation's
-account and its random category. Meaning a BudgetAllocation for an Account of type "Expense". Modify the seeder later.
-- Add specific date-picker filter to the UI
-*/

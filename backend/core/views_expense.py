@@ -431,7 +431,10 @@ class BudgetAllocationCreateView(generics.CreateAPIView):
 @extend_schema(
     tags=['Expense Category Dropdowns'],
     summary="List Expense Categories",
-    description="Returns all active expense categories for dropdown selection.",
+    description="Returns all active expense categories. Optional: Filter by ?project_id=X to show only categories allocated to that project.",
+    parameters=[
+        OpenApiParameter(name="project_id", type=int, required=False, description="Filter categories by project allocation")
+    ],
     responses={200: ExpenseCategoryDropdownSerializer(many=True)}
 )
 class ExpenseCategoryDropdownView(generics.ListAPIView):
@@ -439,7 +442,18 @@ class ExpenseCategoryDropdownView(generics.ListAPIView):
     permission_classes = [IsAuthenticated]
 
     def get_queryset(self):
-        return ExpenseCategory.objects.filter(is_active=True).order_by('code')
+        queryset = ExpenseCategory.objects.filter(is_active=True).order_by('code')
+        
+        # MODIFICATION: Support Project-based filtering
+        project_id = self.request.query_params.get('project_id')
+        if project_id:
+            # Only return categories that have an active allocation for this project
+            queryset = queryset.filter(
+                budget_allocations__project_id=project_id,
+                budget_allocations__is_active=True
+            ).distinct()
+            
+        return queryset
 
     @extend_schema(parameters=[])
     def get(self, request, *args, **kwargs):

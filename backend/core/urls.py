@@ -14,7 +14,7 @@ from .views import (
     ValidProjectAccountView
 )
 from .views_expense import (
-    ExpenseDetailView, ExpenseDetailViewForModal, ExpenseHistoryDetailView, ExpenseHistoryView, ExpenseTrackingView, ExpenseCreateView,
+    ExpenseDetailViewForModal, ExpenseHistoryDetailView, ExpenseHistoryView,
     ExpenseCategoryDropdownView, ExpenseTrackingSummaryView,
     BudgetAllocationCreateView, ExternalExpenseViewSet, ExpenseViewSet
 )

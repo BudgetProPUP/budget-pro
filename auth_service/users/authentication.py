@@ -5,6 +5,12 @@ import re
 from django.core.exceptions import ValidationError
 User = get_user_model()
 
+
+#JWT info:
+#Dashboard.jsx: Frontend component - consumes data from budget service APIs
+#AuthContext.jsx: Frontend context - manages JWT storage locally
+#api.js & authAPI.js: Frontend API clients - add JWT to requests
+
 class EmailOrPhoneNumberBackend(ModelBackend):
     """
     Custom authentication backend that allows login with either email or phone number

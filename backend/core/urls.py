@@ -14,9 +14,9 @@ from .views import (
     ValidProjectAccountView
 )
 from .views_expense import (
-    ExpenseDetailView, ExpenseHistoryView, ExpenseTrackingView, ExpenseCreateView,
-    ExpenseCategoryDropdownView, ExpenseTrackingSummaryView,
-    BudgetAllocationCreateView, ExternalExpenseViewSet
+    ExpenseDetailViewForModal, ExpenseHistoryDetailView, ExpenseHistoryView,
+    ExpenseCategoryDropdownView,
+    BudgetAllocationCreateView, ExpenseTrackingSummaryView, ExternalExpenseViewSet, ExpenseViewSet
 )
 from core import views_budget
 
@@ -33,6 +33,8 @@ router.register(r'external-expenses', ExternalExpenseViewSet, basename='external
 # Router for UI calls from authenticated users (JWT protected)
 ui_router = DefaultRouter()
 ui_router.register(r'budget-proposals', views_budget.BudgetProposalUIViewSet, basename='budget-proposals')
+# MODIFICATION START: The router now handles all primary expense endpoints
+ui_router.register(r'expenses', ExpenseViewSet, basename='expense')
 
 urlpatterns = [
     path('', include(router.urls)), 
@@ -63,10 +65,6 @@ urlpatterns = [
     path('budget-proposals/<int:proposal_id>/review-overview/',
          ProposalReviewBudgetOverview.as_view(), name='proposal-review-overview'),
    
-    # Router handles /budget-proposals/ (list) and /budget-proposals/{id}/ (detail)
-    # This MUST come after specific budget-proposals/ paths
-    path('', include(ui_router.urls)),
-
     # --- Budget Adjustment & Journal Entry Endpoints ---
     path('journal-entries/', JournalEntryListView.as_view(),
          name='journal-entry-list'),
@@ -84,17 +82,20 @@ urlpatterns = [
          export_budget_variance_excel, name='budget-variance-export'),
 
     # --- Expense Endpoints ---
+    # These MUST come before include(ui_router.urls) because ui_router handles 'expenses/' root
     path('expenses/history/', ExpenseHistoryView.as_view(), name='expense-history'),
-    path('expenses/tracking/', ExpenseTrackingView.as_view(),
-         name='expense-tracking'),
+    path('expenses/history/<int:pk>/', ExpenseHistoryDetailView.as_view(), name='expense-history-detail'),
+    path('expenses/<int:pk>/modal-details/', ExpenseDetailViewForModal.as_view(), name='expense-modal-detail'),
     path('expenses/tracking/summary/', ExpenseTrackingSummaryView.as_view(),
          name='expense-tracking-summary'),
-    path('expenses/<int:pk>/', ExpenseDetailView.as_view(), name='expense-detail'),
     path('expenses/add-budget/',
          BudgetAllocationCreateView.as_view(), name='add-budget'),
-    path('expenses/submit/', ExpenseCreateView.as_view(), name='submit-expense'),
     path('expenses/valid-project-accounts/',
          ValidProjectAccountView.as_view(), name='valid-project-accounts'),
+
+    # --- Router Include (Moved Down) ---
+    # Router handles /budget-proposals/ (list) and /expenses/ (list)
+    path('', include(ui_router.urls)),
 
     # --- General & Dropdown Endpoints ---
     path('user-management/', include(user_management_router.urls)),

@@ -59,7 +59,7 @@ def expense_audit_log(sender, instance: Expense, created: bool, **kwargs): # Add
             'vendor': instance.vendor,
         }
     )
-    print(f"Audit log created for Expense ID {instance.id}, Action: {action}, User: {audit_user_username or audit_user_id}")
+    # print(f"Audit log created for Expense ID {instance.id}, Action: {action}, User: {audit_user_username or audit_user_id}")
     
     
     from django.db.models.signals import post_save
@@ -125,4 +125,4 @@ def create_journal_entry_for_expense(sender, instance: Expense, created: bool, *
 
             # Update expense to mark it as posted
             Expense.objects.filter(pk=instance.pk).update(posting_date=instance.date)
-            print(f"Journal Entry created for Expense {instance.transaction_id}")
+            # print(f"Journal Entry created for Expense {instance.transaction_id}")

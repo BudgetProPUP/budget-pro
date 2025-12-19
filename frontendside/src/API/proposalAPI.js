@@ -49,3 +49,15 @@ export const reviewProposal = (id, data) => {
   return budgetApi.post(`/budget-proposals/${id}/review/`, data);
 };
 // MODIFICATION END
+
+// MODIFICATION START
+/**
+ * Exports a single budget proposal to Excel.
+ * @param {number} id - The ID of the proposal.
+ */
+export const exportProposal = (id) => {
+  return budgetApi.get(`/budget-proposals/${id}/export/`, {
+    responseType: 'blob', // Important: response is a file (blob)
+  });
+};
+// MODIFICATION END

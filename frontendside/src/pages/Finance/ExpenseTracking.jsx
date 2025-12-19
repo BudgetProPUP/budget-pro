@@ -21,7 +21,9 @@ import {
   getExpenseTrackingList,
   getExpenseCategories,
   createExpense,
-  getValidProjectAccounts, // CHANGED: Imported new API function
+  getValidProjectAccounts,
+  reviewExpense,
+  markExpenseAsAccomplished,
 } from "../../API/expenseAPI";
 import { getAllDepartments } from "../../API/departments";
 import ManageProfile from "./ManageProfile";
@@ -415,6 +417,11 @@ const ExpenseTracking = () => {
   const [showManageProfile, setShowManageProfile] = useState(false);
   const [showAddExpenseModal, setShowAddExpenseModal] = useState(false);
 
+  const [showReviewModal, setShowReviewModal] = useState(false);
+  const [selectedExpense, setSelectedExpense] = useState(null);
+  const [reviewAction, setReviewAction] = useState(""); // "APPROVED" or "REJECTED"
+  const [reviewNotes, setReviewNotes] = useState("");
+
   const [loading, setLoading] = useState(true);
   const [expenses, setExpenses] = useState([]);
   const [summaryData, setSummaryData] = useState({
@@ -438,6 +445,55 @@ const ExpenseTracking = () => {
   const [pageSize, setPageSize] = useState(5);
   const [totalItems, setTotalItems] = useState(0);
 
+  const handleOpenReview = (expense, action) => {
+    setSelectedExpense(expense);
+    setReviewAction(action);
+    setReviewNotes("");
+    setShowReviewModal(true);
+  };
+
+  const submitReview = async () => {
+    if (!selectedExpense) return;
+    try {
+      await reviewExpense(selectedExpense.id, {
+        status: reviewAction,
+        notes: reviewNotes,
+      });
+      setShowReviewModal(false);
+      setSelectedExpense(null);
+      setReviewAction("");
+      setReviewNotes("");
+
+      // Refresh list
+      const params = {
+        page: currentPage,
+        page_size: pageSize,
+        search: debouncedSearchTerm,
+      };
+      const res = await getExpenseTrackingList(params);
+      setExpenses(res.data.results);
+    } catch (error) {
+      alert("Failed to review expense: " + error.message);
+    }
+  };
+
+  const handleMarkAccomplished = async (expense) => {
+    if (!window.confirm("Mark this expense as accomplished?")) return;
+    try {
+      await markExpenseAsAccomplished(expense.id);
+      // Refresh list logic (same as above)
+      const params = {
+        page: currentPage,
+        page_size: pageSize,
+        search: debouncedSearchTerm,
+      };
+      const res = await getExpenseTrackingList(params);
+      setExpenses(res.data.results);
+    } catch (error) {
+      alert("Failed to mark as accomplished: " + error.message);
+    }
+  };
+
   // Modal State
   const initialExpenseState = {
     project_id: "",
@@ -454,27 +510,34 @@ const ExpenseTracking = () => {
   const [currentDate, setCurrentDate] = useState(new Date());
 
   const getUserRole = () => {
-  if (!user) return "User";
-  
-  // Check for role in different possible locations
-  if (user.roles?.bms) return user.roles.bms;
-  if (user.role_display) return user.role_display;
-  if (user.role) return user.role;
-  
-  // Default role names based on user type
-  if (user.is_superuser) return "ADMIN";
-  if (user.is_staff) return "STAFF";
-  
-  return "User";
-};
+    if (!user) return "User";
 
-const userRole = getUserRole();
+    // Check for role in different possible locations
+    if (user.roles?.bms) return user.roles.bms;
+    if (user.role_display) return user.role_display;
+    if (user.role) return user.role;
 
-const userProfile = {
-  name: user ? `${user.first_name || ''} ${user.last_name || ''}`.trim() || "User" : "User",
-  role: userRole,
-  avatar: user?.profile_picture || "https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?ixlib=rb-1.2.1&ixid=eyJhcHBfaWQiOjEyMDd9&auto=format&fit=facearea&facepad=2&w=256&h=256&q=80",
-};
+    // Default role names based on user type
+    if (user.is_superuser) return "ADMIN";
+    if (user.is_staff) return "STAFF";
+
+    return "User";
+  };
+
+  const userRole = getUserRole();
+
+  const userProfile = {
+    name: user
+      ? `${user.first_name || ""} ${user.last_name || ""}`.trim() || "User"
+      : "User",
+    role: userRole,
+    avatar:
+      user?.profile_picture ||
+      "https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?ixlib=rb-1.2.1&ixid=eyJhcHBfaWQiOjEyMDd9&auto=format&fit=facearea&facepad=2&w=256&h=256&q=80",
+  };
+
+  const isFinanceManager =
+    userRole === "FINANCE_HEAD" || userRole === "ADMIN" || user?.is_staff;
 
   // Format date and time
   const formattedDay = currentDate.toLocaleDateString("en-US", {
@@ -1697,7 +1760,7 @@ const userProfile = {
                   borderRadius: "4px",
                   height: "424px",
                   overflowY: "auto",
-                  overflowX: "hidden",
+                  overflowX: "auto", // Changed from "hidden" to handle extra column
                 }}
               >
                 <table
@@ -1705,7 +1768,7 @@ const userProfile = {
                   style={{
                     width: "100%",
                     borderCollapse: "collapse",
-                    tableLayout: "fixed",
+                    minWidth: "1100px", // Ensure minimum width for all columns
                   }}
                 >
                   <thead>
@@ -1725,39 +1788,39 @@ const userProfile = {
                           borderBottom: "2px solid #dee2e6",
                           height: "50px",
                           verticalAlign: "middle",
-                          wordWrap: "break-word",
-                          overflowWrap: "break-word",
                           fontSize: "14px",
+                          fontWeight: "600",
+                          color: "#333",
                         }}
                       >
                         TICKET ID
                       </th>
                       <th
                         style={{
-                          width: "10%",
+                          width: "8%",
                           padding: "0.75rem",
                           textAlign: "left",
                           borderBottom: "2px solid #dee2e6",
                           height: "50px",
                           verticalAlign: "middle",
-                          wordWrap: "break-word",
-                          overflowWrap: "break-word",
                           fontSize: "14px",
+                          fontWeight: "600",
+                          color: "#333",
                         }}
                       >
                         DATE
                       </th>
                       <th
                         style={{
-                          width: "10%",
+                          width: "12%",
                           padding: "0.75rem",
                           textAlign: "left",
                           borderBottom: "2px solid #dee2e6",
                           height: "50px",
                           verticalAlign: "middle",
-                          wordWrap: "break-word",
-                          overflowWrap: "break-word",
                           fontSize: "14px",
+                          fontWeight: "600",
+                          color: "#333",
                         }}
                       >
                         DEPARTMENT
@@ -1770,25 +1833,24 @@ const userProfile = {
                           borderBottom: "2px solid #dee2e6",
                           height: "50px",
                           verticalAlign: "middle",
-                          wordWrap: "break-word",
-                          overflowWrap: "break-word",
                           fontSize: "14px",
+                          fontWeight: "600",
+                          color: "#333",
                         }}
                       >
                         CATEGORY
                       </th>
                       <th
                         style={{
-                          width: "10%",
+                          width: "12%",
                           padding: "0.75rem",
                           textAlign: "left",
                           borderBottom: "2px solid #dee2e6",
                           height: "50px",
                           verticalAlign: "middle",
-                          wordWrap: "break-word",
-                          overflowWrap: "break-word",
-                          whiteSpace: "normal",
                           fontSize: "14px",
+                          fontWeight: "600",
+                          color: "#333",
                         }}
                       >
                         SUB-CATEGORY
@@ -1801,9 +1863,9 @@ const userProfile = {
                           borderBottom: "2px solid #dee2e6",
                           height: "50px",
                           verticalAlign: "middle",
-                          wordWrap: "break-word",
-                          overflowWrap: "break-word",
                           fontSize: "14px",
+                          fontWeight: "600",
+                          color: "#333",
                         }}
                       >
                         AMOUNT
@@ -1816,9 +1878,9 @@ const userProfile = {
                           borderBottom: "2px solid #dee2e6",
                           height: "50px",
                           verticalAlign: "middle",
-                          wordWrap: "break-word",
-                          overflowWrap: "break-word",
                           fontSize: "14px",
+                          fontWeight: "600",
+                          color: "#333",
                         }}
                       >
                         STATUS
@@ -1831,13 +1893,31 @@ const userProfile = {
                           borderBottom: "2px solid #dee2e6",
                           height: "50px",
                           verticalAlign: "middle",
-                          wordWrap: "break-word",
-                          overflowWrap: "break-word",
                           fontSize: "14px",
+                          fontWeight: "600",
+                          color: "#333",
                         }}
                       >
                         ACCOMPLISHED
                       </th>
+                      {/* NEW: Only show for Finance Head/Admin */}
+                      {isFinanceManager && (
+                        <th
+                          style={{
+                            width: "12%",
+                            padding: "0.75rem",
+                            textAlign: "center",
+                            borderBottom: "2px solid #dee2e6",
+                            height: "50px",
+                            verticalAlign: "middle",
+                            fontWeight: "600",
+                            fontSize: "14px",
+                            color: "#333",
+                          }}
+                        >
+                          ACTIONS
+                        </th>
+                      )}
                     </tr>
                   </thead>
                   <tbody>
@@ -2080,6 +2160,89 @@ const userProfile = {
                               {expense.accomplished}
                             </div>
                           </td>
+                          {/* Action Buttons */}
+                          {isFinanceManager && (
+                            <td
+                              style={{
+                                padding: "0.75rem",
+                                borderBottom: "1px solid #dee2e6",
+                                textAlign: "center",
+                                verticalAlign: "middle",
+                              }}
+                            >
+                              <div
+                                style={{
+                                  display: "flex",
+                                  gap: "6px",
+                                  justifyContent: "center",
+                                  flexWrap: "wrap",
+                                }}
+                              >
+                                {/* Review Action: Only if SUBMITTED */}
+                                {expense.status === "SUBMITTED" && (
+                                  <button
+                                    onClick={() =>
+                                      handleOpenReview(expense, "APPROVED")
+                                    }
+                                    style={{
+                                      backgroundColor: "#007bff",
+                                      color: "white",
+                                      border: "none",
+                                      borderRadius: "4px",
+                                      padding: "6px 12px",
+                                      cursor: "pointer",
+                                      fontSize: "12px",
+                                      fontWeight: "500",
+                                      transition: "all 0.2s ease",
+                                      minWidth: "70px",
+                                    }}
+                                    onMouseEnter={(e) =>
+                                      (e.currentTarget.style.backgroundColor =
+                                        "#0056b3")
+                                    }
+                                    onMouseLeave={(e) =>
+                                      (e.currentTarget.style.backgroundColor =
+                                        "#007bff")
+                                    }
+                                  >
+                                    Review
+                                  </button>
+                                )}
+
+                                {/* Accomplish Action: Only if APPROVED and not yet Accomplished */}
+                                {expense.status === "APPROVED" &&
+                                  expense.accomplished === "No" && (
+                                    <button
+                                      onClick={() =>
+                                        handleMarkAccomplished(expense)
+                                      }
+                                      style={{
+                                        backgroundColor: "#17a2b8",
+                                        color: "white",
+                                        border: "none",
+                                        borderRadius: "4px",
+                                        padding: "6px 12px",
+                                        cursor: "pointer",
+                                        fontSize: "12px",
+                                        fontWeight: "500",
+                                        transition: "all 0.2s ease",
+                                        minWidth: "85px",
+                                      }}
+                                      onMouseEnter={(e) =>
+                                        (e.currentTarget.style.backgroundColor =
+                                          "#138496")
+                                      }
+                                      onMouseLeave={(e) =>
+                                        (e.currentTarget.style.backgroundColor =
+                                          "#17a2b8")
+                                      }
+                                    >
+                                      Mark Done
+                                    </button>
+                                  )}
+                              </div>
+                            </td>
+                          )}
                         </tr>
                       ))
                     )}
@@ -2702,6 +2865,290 @@ const userProfile = {
           }
         `}</style>
       </div>
+
+      {/* Review Modal */}
+      {showReviewModal && selectedExpense && (
+        <div
+          className="modal-overlay"
+          style={{
+            position: "fixed",
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            backgroundColor: "rgba(0,0,0,0.5)",
+            display: "flex",
+            justifyContent: "center",
+            alignItems: "center",
+            zIndex: 3000,
+          }}
+        >
+          <div
+            className="modal-container"
+            style={{
+              backgroundColor: "white",
+              padding: "24px",
+              borderRadius: "8px",
+              width: "500px",
+              boxShadow: "0 4px 20px rgba(0,0,0,0.15)",
+            }}
+          >
+            <div style={{ marginBottom: "20px" }}>
+              <h3
+                style={{
+                  margin: "0 0 8px 0",
+                  color: "#333",
+                  fontSize: "20px",
+                  fontWeight: "bold",
+                }}
+              >
+                Review Expense
+              </h3>
+              <p
+                style={{
+                  margin: "0 0 16px 0",
+                  color: "#666",
+                  fontSize: "14px",
+                }}
+              >
+                Ticket ID: <strong>{selectedExpense.reference_no}</strong>
+              </p>
+
+              {/* Expense Details */}
+              <div
+                style={{
+                  backgroundColor: "#f8f9fa",
+                  borderRadius: "6px",
+                  padding: "12px",
+                  marginBottom: "20px",
+                  border: "1px solid #e9ecef",
+                }}
+              >
+                <div
+                  style={{
+                    display: "flex",
+                    justifyContent: "space-between",
+                    marginBottom: "8px",
+                  }}
+                >
+                  <span style={{ fontSize: "13px", color: "#666" }}>
+                    Amount:
+                  </span>
+                  <span style={{ fontSize: "13px", fontWeight: "500" }}>
+                    ₱
+                    {parseFloat(selectedExpense.amount).toLocaleString(
+                      "en-US",
+                      {
+                        minimumFractionDigits: 2,
+                        maximumFractionDigits: 2,
+                      }
+                    )}
+                  </span>
+                </div>
+                <div
+                  style={{
+                    display: "flex",
+                    justifyContent: "space-between",
+                    marginBottom: "8px",
+                  }}
+                >
+                  <span style={{ fontSize: "13px", color: "#666" }}>
+                    Department:
+                  </span>
+                  <span style={{ fontSize: "13px", fontWeight: "500" }}>
+                    {selectedExpense.department_name}
+                  </span>
+                </div>
+                <div
+                  style={{ display: "flex", justifyContent: "space-between" }}
+                >
+                  <span style={{ fontSize: "13px", color: "#666" }}>
+                    Category:
+                  </span>
+                  <span style={{ fontSize: "13px", fontWeight: "500" }}>
+                    {selectedExpense.category_name ||
+                      selectedExpense.sub_category_name}
+                  </span>
+                </div>
+              </div>
+            </div>
+
+            <div style={{ marginBottom: "24px" }}>
+              <label
+                style={{
+                  display: "block",
+                  marginBottom: "8px",
+                  fontWeight: "500",
+                  fontSize: "14px",
+                  color: "#333",
+                }}
+              >
+                Decision:
+              </label>
+              <div
+                style={{ display: "flex", gap: "10px", marginBottom: "16px" }}
+              >
+                <button
+                  type="button"
+                  onClick={() => setReviewAction("APPROVED")}
+                  style={{
+                    flex: 1,
+                    padding: "10px",
+                    backgroundColor:
+                      reviewAction === "APPROVED" ? "#28a745" : "#f8f9fa",
+                    color: reviewAction === "APPROVED" ? "white" : "#495057",
+                    border: `1px solid ${
+                      reviewAction === "APPROVED" ? "#28a745" : "#ced4da"
+                    }`,
+                    borderRadius: "4px",
+                    cursor: "pointer",
+                    fontSize: "14px",
+                    fontWeight: "500",
+                    transition: "all 0.2s ease",
+                    outline: "none",
+                  }}
+                >
+                  Approve
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setReviewAction("REJECTED")}
+                  style={{
+                    flex: 1,
+                    padding: "10px",
+                    backgroundColor:
+                      reviewAction === "REJECTED" ? "#dc3545" : "#f8f9fa",
+                    color: reviewAction === "REJECTED" ? "white" : "#495057",
+                    border: `1px solid ${
+                      reviewAction === "REJECTED" ? "#dc3545" : "#ced4da"
+                    }`,
+                    borderRadius: "4px",
+                    cursor: "pointer",
+                    fontSize: "14px",
+                    fontWeight: "500",
+                    transition: "all 0.2s ease",
+                    outline: "none",
+                  }}
+                >
+                  Reject
+                </button>
+              </div>
+
+              <label
+                style={{
+                  display: "block",
+                  marginBottom: "8px",
+                  fontWeight: "500",
+                  fontSize: "14px",
+                  color: "#333",
+                }}
+              >
+                Notes:
+              </label>
+              <textarea
+                value={reviewNotes}
+                onChange={(e) => setReviewNotes(e.target.value)}
+                placeholder="Enter review notes or reason for decision..."
+                style={{
+                  width: "100%",
+                  height: "100px",
+                  padding: "12px",
+                  borderRadius: "4px",
+                  border: "1px solid #ced4da",
+                  backgroundColor: "#f8f9fa", // Grey filled background
+                  fontSize: "14px",
+                  resize: "vertical",
+                  outline: "none",
+                  transition: "all 0.2s ease",
+                  fontFamily: "inherit",
+                }}
+                onFocus={(e) => {
+                  e.target.style.borderColor = "#007bff";
+                  e.target.style.backgroundColor = "white"; // Changes to white when focused
+                }}
+                onBlur={(e) => {
+                  e.target.style.borderColor = "#ced4da";
+                  e.target.style.backgroundColor = "#f8f9fa"; // Returns to grey when not focused
+                }}
+              />
+            </div>
+
+            <div
+              style={{
+                display: "flex",
+                justifyContent: "flex-end",
+                gap: "10px",
+                paddingTop: "16px",
+                borderTop: "1px solid #e9ecef",
+              }}
+            >
+              <button
+                onClick={() => {
+                  setShowReviewModal(false);
+                  setSelectedExpense(null);
+                  setReviewAction("");
+                  setReviewNotes("");
+                }}
+                style={{
+                  padding: "8px 16px",
+                  backgroundColor: "#f8f9fa",
+                  border: "1px solid #ced4da",
+                  borderRadius: "4px",
+                  cursor: "pointer",
+                  fontSize: "14px",
+                  fontWeight: "500",
+                  color: "#495057",
+                  transition: "all 0.2s ease",
+                  outline: "none",
+                }}
+                onMouseEnter={(e) =>
+                  (e.currentTarget.style.backgroundColor = "#e9ecef")
+                }
+                onMouseLeave={(e) =>
+                  (e.currentTarget.style.backgroundColor = "#f8f9fa")
+                }
+              >
+                Cancel
+              </button>
+              <button
+                onClick={submitReview}
+                disabled={!reviewAction}
+                style={{
+                  padding: "8px 16px",
+                  backgroundColor: !reviewAction
+                    ? "#6c757d"
+                    : reviewAction === "APPROVED"
+                    ? "#28a745"
+                    : "#dc3545",
+                  color: "white",
+                  border: "none",
+                  borderRadius: "4px",
+                  cursor: !reviewAction ? "not-allowed" : "pointer",
+                  fontSize: "14px",
+                  fontWeight: "500",
+                  transition: "all 0.2s ease",
+                  outline: "none",
+                  boxShadow: "0 2px 4px rgba(0,0,0,0.1)",
+                }}
+                onMouseEnter={(e) => {
+                  if (reviewAction) {
+                    e.currentTarget.style.backgroundColor =
+                      reviewAction === "APPROVED" ? "#218838" : "#c82333";
+                  }
+                }}
+                onMouseLeave={(e) => {
+                  if (reviewAction) {
+                    e.currentTarget.style.backgroundColor =
+                      reviewAction === "APPROVED" ? "#28a745" : "#dc3545";
+                  }
+                }}
+              >
+                Submit Review
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

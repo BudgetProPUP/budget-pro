@@ -62,7 +62,7 @@ def expense_audit_log(sender, instance: Expense, created: bool, **kwargs): # Add
     # print(f"Audit log created for Expense ID {instance.id}, Action: {action}, User: {audit_user_username or audit_user_id}")
     
     
-    from django.db.models.signals import post_save
+from django.db.models.signals import post_save
 from django.dispatch import receiver
 from django.db import transaction
 from core.models import Expense, TransactionAudit, JournalEntry, JournalEntryLine, Account
@@ -110,8 +110,13 @@ def create_journal_entry_for_expense(sender, instance: Expense, created: bool, *
             credit_account = Account.objects.filter(code=credit_account_code).first()
             
             if not credit_account:
-                # Fallback to generic Asset if specific ones missing
-                credit_account = Account.objects.filter(account_type__name='Asset').first()
+                # Fallback: Find ANY Asset or Liability account to balance the ledger
+                credit_account = Account.objects.filter(account_type__name__in=['Asset', 'Liability']).first()
+            
+            if not credit_account:
+                 # Last resort: Do not create the JE to avoid error, log warning
+                 print("Error: Could not find credit account for Expense Journal Entry.")
+                 return 
 
             JournalEntryLine.objects.create(
                 journal_entry=je,

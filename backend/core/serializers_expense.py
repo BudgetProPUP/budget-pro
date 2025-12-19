@@ -134,7 +134,6 @@ class ExpenseCreateSerializer(serializers.ModelSerializer):
             'notes': {'required': False, 'allow_blank': True},
         }
 
-
     def validate(self, data):
         project_id = data.get('project_id')
         category_code = data.get('category_code')
@@ -145,6 +144,20 @@ class ExpenseCreateSerializer(serializers.ModelSerializer):
             project = Project.objects.get(id=project_id)
             # Department is derived from Project
             department = project.department 
+            
+            # --- MODIFICATION START: Strict Department Check ---
+            request = self.context.get('request')
+            if request and hasattr(request.user, 'roles'):
+                user_roles = request.user.roles or {}
+                # If user is GENERAL_USER (Operator), ensure they match the project department
+                if user_roles.get('bms') == 'GENERAL_USER':
+                    user_dept_id = getattr(request.user, 'department_id', None)
+                    if user_dept_id and user_dept_id != project.department_id:
+                        raise serializers.ValidationError(
+                            {'project_id': "You cannot submit expenses for other departments."}
+                        )
+            # --- MODIFICATION END ---
+            
             sub_category = ExpenseCategory.objects.get(code=category_code, is_active=True)
         except Project.DoesNotExist:
             raise serializers.ValidationError({'project_id': "Project not found."})

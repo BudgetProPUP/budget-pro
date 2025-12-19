@@ -15,7 +15,7 @@ from django.utils import timezone
 from django.conf import settings
 from django.core.mail import send_mail
 from django_filters.rest_framework import DjangoFilterBackend
-from rest_framework import generics, status, viewsets, filters
+from rest_framework import generics, status, viewsets, filters, serializers
 from rest_framework.response import Response
 from rest_framework.views import APIView
 from rest_framework.permissions import IsAuthenticated
@@ -111,12 +111,13 @@ class BudgetProposalSummaryView(generics.GenericAPIView):
         # MODIFIED: Logic to match Table View visibility
         if bms_role == 'ADMIN' or bms_role == 'FINANCE_HEAD':
             # Finance Head/Admin sees GLOBAL stats
-            pass 
+            pass
         else:
             # Department Heads see DEPARTMENT stats
             department_id = getattr(user, 'department_id', None)
             if department_id:
-                active_proposals = active_proposals.filter(department_id=department_id)
+                active_proposals = active_proposals.filter(
+                    department_id=department_id)
             else:
                 active_proposals = BudgetProposal.objects.none()
 
@@ -126,7 +127,7 @@ class BudgetProposalSummaryView(generics.GenericAPIView):
         # Total budget calculation...
         total_budget = active_proposals.aggregate(
             total=Sum('items__estimated_cost'))['total'] or 0
-            
+
         data = {'total_proposals': total,
                 'pending_approvals': pending, 'total_budget': total_budget}
         serializer = BudgetProposalSummarySerializer(data)
@@ -293,15 +294,15 @@ class LedgerViewList(generics.ListAPIView):
     def get_queryset(self):
         # MODIFIED: Added select_related for new ForeignKeys to prevent N+1 queries
         queryset = JournalEntryLine.objects.select_related(
-            'journal_entry', 
-            'account', 
+            'journal_entry',
+            'account',
             'journal_entry__department',  # For Department column
             'expense_category'            # For Category column
         )
         search = self.request.query_params.get('search')
         category = self.request.query_params.get('category')
         transaction_type = self.request.query_params.get('transaction_type')
-        
+
         # New Filter: Department
         department_id = self.request.query_params.get('department')
 
@@ -315,21 +316,22 @@ class LedgerViewList(generics.ListAPIView):
                 Q(account__name__icontains=search) |
                 Q(account__code__icontains=search)
             )
-        
+
         if category:
             # Check both the high-level JE category AND the granular expense category
             queryset = queryset.filter(
                 Q(journal_entry__category__iexact=category) |
                 Q(expense_category__name__icontains=category)
             )
-            
+
         if transaction_type:
             queryset = queryset.filter(
                 journal_transaction_type__iexact=transaction_type)
-        
+
         # MODIFIED: Logic to filter by Department
         if department_id:
-             queryset = queryset.filter(journal_entry__department_id=department_id)
+            queryset = queryset.filter(
+                journal_entry__department_id=department_id)
 
         return queryset.order_by('-journal_entry__date', 'journal_entry__entry_id')
 
@@ -400,29 +402,34 @@ class LedgerExportView(APIView):
 )
 class JournalEntryListView(generics.ListAPIView):
     serializer_class = JournalEntryListSerializer
-    # MODIFICATION START: Change pagination class to match UI requirement
     pagination_class = FiveResultsSetPagination
-    # MODIFICATION END
     permission_classes = [IsAuthenticated]
-    # MODIFICATION START: Add more search fields and prefetch for performance
     search_fields = ['entry_id', 'description', 'lines__account__name']
 
     def get_queryset(self):
-        # Prefetch related lines and accounts to prevent N+1 queries
-        qs = JournalEntry.objects.prefetch_related('lines__account').all()
-    # MODIFICATION END
+        qs = JournalEntry.objects.prefetch_related(
+            'lines__account', 'lines__expense_category', 'department'
+        ).all()
+        
         search = self.request.query_params.get('search')
         category = self.request.query_params.get('category')
+        department = self.request.query_params.get('department') 
+
         if search:
-            qs = qs.filter(Q(description__icontains=search)
-                           | Q(entry_id__icontains=search)
-                           # MODIFICATION START: Add search by account name
-                           | Q(lines__account__name__icontains=search)
-                           # MODIFICATION END
-                           # Use distinct because of the join on lines
-                           ).distinct()
+            qs = qs.filter(Q(description__icontains=search) | 
+                           Q(entry_id__icontains=search) |
+                           Q(lines__account__name__icontains=search)).distinct()
+
         if category:
-            qs = qs.filter(category__iexact=category)
+            if category.upper() in ['CAPEX', 'OPEX']:
+                qs = qs.filter(lines__expense_category__classification__iexact=category).distinct()
+            else:
+                qs = qs.filter(category__iexact=category)
+
+        if department:
+            # Fix: Check both Name and Code
+            qs = qs.filter(Q(department__name__iexact=department) | Q(department__code__iexact=department))
+
         return qs.order_by('-date', '-entry_id')
 
     def get(self, *args, **kwargs):
@@ -546,13 +553,13 @@ class BudgetProposalUIViewSet(viewsets.ReadOnlyModelViewSet):
     filter_backends = [DjangoFilterBackend, filters.SearchFilter]
     # MODIFIED: Added search fields for Submitted By and Sub-Category
     search_fields = [
-        'title', 
-        'external_system_id', 
+        'title',
+        'external_system_id',
         'submitted_by_name',
-        'items__cost_element', # Sub-category (cost element)
-        'items__category__name' # Sub-category (category name)
+        'items__cost_element',  # Sub-category (cost element)
+        'items__category__name'  # Sub-category (category name)
     ]
-    filterset_fields = ['status'] # Removed the old complex one
+    filterset_fields = ['status']  # Removed the old complex one
 
     def get_queryset(self):
         """
@@ -569,22 +576,23 @@ class BudgetProposalUIViewSet(viewsets.ReadOnlyModelViewSet):
 
         # 1. Determine Base Visibility (Data Isolation)
         if bms_role == 'ADMIN' or bms_role == 'FINANCE_HEAD':
-             # Admins and Finance Heads see ALL proposals to allow review/oversight
-             queryset = base_queryset
+            # Admins and Finance Heads see ALL proposals to allow review/oversight
+            queryset = base_queryset
         else:
-             # Regular users (Dept Heads) see ONLY their own department's proposals
-             department_id = getattr(user, 'department_id', None)
-             if department_id:
-                 queryset = base_queryset.filter(department_id=department_id)
-             else:
-                 return BudgetProposal.objects.none()
+            # Regular users (Dept Heads) see ONLY their own department's proposals
+            department_id = getattr(user, 'department_id', None)
+            if department_id:
+                queryset = base_queryset.filter(department_id=department_id)
+            else:
+                return BudgetProposal.objects.none()
 
         # 2. Apply UI Filters (Department, Status, Category)
         # These filters apply to everyone
-        
+
         status_filter = self.request.query_params.get('status')
         department_filter = self.request.query_params.get('department')
-        category_filter = self.request.query_params.get('category') # 'CAPEX' or 'OPEX'
+        category_filter = self.request.query_params.get(
+            'category')  # 'CAPEX' or 'OPEX'
 
         if department_filter:
             # Filter by Department Code (e.g., 'IT', 'HR')
@@ -592,11 +600,12 @@ class BudgetProposalUIViewSet(viewsets.ReadOnlyModelViewSet):
 
         if status_filter:
             queryset = queryset.filter(status=status_filter)
-            
+
         if category_filter:
             # Filter by Classification (CapEx/OpEx)
             # We filter if ANY item in the proposal matches the classification
-            queryset = queryset.filter(items__category__classification__iexact=category_filter).distinct()
+            queryset = queryset.filter(
+                items__category__classification__iexact=category_filter).distinct()
 
         return queryset.order_by('-created_at')
 
@@ -605,27 +614,29 @@ class BudgetProposalUIViewSet(viewsets.ReadOnlyModelViewSet):
             return BudgetProposalDetailSerializer
         # For 'list' action
         return BudgetProposalListSerializer
-    
+
     @extend_schema(
         summary="Review a proposal (Finance Head)",
-        request=ProposalReviewSerializer, # Serializer now has signature fields
+        request=ProposalReviewSerializer,  # Serializer now has signature fields
         responses={200: BudgetProposalDetailSerializer},
         tags=['Budget Proposal Page Actions']
     )
-    
     @action(detail=True, methods=['post'], permission_classes=[IsBMSFinanceHead])
     def review(self, request, pk=None):
         proposal = self.get_object()
-        
+
         # MODIFIED: Remove 'files=' argument. Pass everything in 'data'.
         review_input_serializer = ProposalReviewSerializer(data=request.data)
         review_input_serializer.is_valid(raise_exception=True)
 
         new_status = review_input_serializer.validated_data['status']
-        comment_text = review_input_serializer.validated_data.get('comment', '')
-        
-        finance_operator = review_input_serializer.validated_data.get('finance_operator_name', '')
-        signature_file = review_input_serializer.validated_data.get('signature')
+        comment_text = review_input_serializer.validated_data.get(
+            'comment', '')
+
+        finance_operator = review_input_serializer.validated_data.get(
+            'finance_operator_name', '')
+        signature_file = review_input_serializer.validated_data.get(
+            'signature')
 
         reviewer_user_id = request.user.id
         reviewer_name = request.user.get_full_name() or request.user.username
@@ -634,7 +645,7 @@ class BudgetProposalUIViewSet(viewsets.ReadOnlyModelViewSet):
 
         with transaction.atomic():
             proposal.status = new_status
-            
+
             if finance_operator:
                 proposal.finance_operator_name = finance_operator
             if signature_file:
@@ -643,11 +654,11 @@ class BudgetProposalUIViewSet(viewsets.ReadOnlyModelViewSet):
             if new_status == 'APPROVED':
                 proposal.approved_by_name = reviewer_name
                 proposal.approval_date = timezone.now()
-                
+
                 # MODIFIED: Clear rejection fields if previously rejected
                 proposal.rejected_by_name = None
                 proposal.rejection_date = None
-                
+
                 if not hasattr(proposal, 'project') or proposal.project is None:
                     Project.objects.create(
                         name=f"Project for: {proposal.title}",
@@ -687,7 +698,7 @@ class BudgetProposalUIViewSet(viewsets.ReadOnlyModelViewSet):
                 new_status=proposal.status,
                 comments=comment_text or f"Status changed to {new_status}."
             )
-            
+
         # MODIFICATION START: outbound notification logic
             try:
                 dts_callback_url = settings.DTS_STATUS_UPDATE_URL
@@ -703,14 +714,17 @@ class BudgetProposalUIViewSet(viewsets.ReadOnlyModelViewSet):
                         'Content-Type': 'application/json',
                         'X-API-Key': settings.BMS_AUTH_KEY_FOR_DTS
                     }
-                    response = requests.post(dts_callback_url, json=payload, headers=headers, timeout=5)
+                    response = requests.post(
+                        dts_callback_url, json=payload, headers=headers, timeout=5)
                     response.raise_for_status()
-                    
+
                     proposal.sync_status = 'SYNCED'
                     proposal.last_sync_timestamp = timezone.now()
-                    proposal.save(update_fields=['sync_status', 'last_sync_timestamp'])
+                    proposal.save(
+                        update_fields=['sync_status', 'last_sync_timestamp'])
                 else:
-                    print(f"Warning: DTS_STATUS_UPDATE_URL not configured. Skipping notification for proposal {proposal.id}.")
+                    print(
+                        f"Warning: DTS_STATUS_UPDATE_URL not configured. Skipping notification for proposal {proposal.id}.")
 
             except requests.RequestException as e:
                 print(f"Error notifying DTS for proposal {proposal.id}: {e}")
@@ -887,6 +901,7 @@ def export_budget_proposal_excel(request, proposal_id):
 
     return response
 
+
 # MODIFICATION START
 '''
 Business Logic Explanation for BudgetVarianceReportView:
@@ -930,6 +945,8 @@ simplification for this application's purpose. Here is how to interpret the resu
 this unified approach is effective and consistent 
 for this application's goal: tracking planned financial outflows against actual outflows across all defined categories
 '''
+
+
 class BudgetVarianceReportView(APIView):
     permission_classes = [IsAuthenticated]
     '''
@@ -955,7 +972,8 @@ class BudgetVarianceReportView(APIView):
 
         # MODIFICATION START: Get the optional month parameter
         try:
-            month = int(request.query_params.get('month')) if request.query_params.get('month') else None
+            month = int(request.query_params.get('month')
+                        ) if request.query_params.get('month') else None
             if month and (month < 1 or month > 12):
                 raise ValueError()
         except (ValueError, TypeError):
@@ -967,7 +985,7 @@ class BudgetVarianceReportView(APIView):
         except FiscalYear.DoesNotExist:
             return Response({"error": "Fiscal Year not found"}, status=status.HTTP_404_NOT_FOUND)
         # --- START: Optional User Activity Logging ---
-       
+
         try:
             UserActivityLog.objects.create(
                 user_id=request.user.id,  # From JWT
@@ -1003,10 +1021,11 @@ class BudgetVarianceReportView(APIView):
             )
             if month:
                 actual_qs = actual_qs.filter(date__month=month)
-            
-            actual = actual_qs.aggregate(total=Coalesce(Sum('amount'), 0, output_field=DecimalField()))['total']
+
+            actual = actual_qs.aggregate(total=Coalesce(
+                Sum('amount'), 0, output_field=DecimalField()))['total']
             # MODIFICATION END
-            
+
             available = budget - actual
             children = []
 
@@ -1191,112 +1210,75 @@ def export_budget_variance_excel(request):
 @extend_schema(
     tags=["Budget Adjustment Page"],
     summary="Create a Budget Adjustment",
-    description="Modifies a budget by transferring funds between allocations or adjusting against a reserve account, while creating a corresponding journal entry for audit purposes.",
     request=BudgetAdjustmentSerializer,
-    # Returns the created journal entry
     responses={201: JournalEntryListSerializer}
 )
-# Update BudgetAdjustmentView to populate Department
 class BudgetAdjustmentView(generics.CreateAPIView):
-    """
-    Handles the creation of a budget adjustment.
-    - If both source and destination allocations are provided, it performs a transfer.
-    - If only a source is provided, it adjusts the budget against an offsetting account.
-    In both cases, it creates a balanced Journal Entry.
-    """
     permission_classes = [IsAuthenticated]
     serializer_class = BudgetAdjustmentSerializer
 
     def perform_create(self, serializer):
-        validated_data = serializer.validated_data
+        data = serializer.validated_data
         user = self.request.user
-
-        source_alloc = BudgetAllocation.objects.get(
-            id=validated_data['source_allocation_id'])
-        dest_alloc = None
-        if validated_data.get('destination_allocation_id'):
-            dest_alloc = BudgetAllocation.objects.get(
-                id=validated_data['destination_allocation_id'])
-
-        offsetting_account = Account.objects.get(
-            id=validated_data['offsetting_account_id'])
-        amount = validated_data['amount']
-        description = validated_data['description']
-        date = validated_data['date']
-
+        amount = data['amount']
+        
+        source_alloc = data.get('source_alloc')
+        dest_alloc = data.get('dest_alloc')
+        dept = data['department']
+        description = data.get('description') or f"Budget Adjustment/Transfer"
+        
         with transaction.atomic():
-            # Create the parent Journal Entry
-            journal_entry = JournalEntry.objects.create(
-                date=date,
+            # 1. Update Allocations (Real Impact)
+            if source_alloc:
+                source_alloc.amount -= amount  # Reduce source
+                if source_alloc.amount < 0:
+                    raise serializers.ValidationError("Source allocation cannot go negative")
+                source_alloc.save()
+                    
+            if dest_alloc:
+                dest_alloc.amount += amount  # Increase destination
+                dest_alloc.save()
+            
+            # 2. Create Journal Entry (Audit)
+            je = JournalEntry.objects.create(
+                date=data['date'],
                 category='PROJECTS',
                 description=description,
                 total_amount=amount,
                 status='POSTED',
-                # MODIFIED: Populate Department from source allocation
-                department=source_alloc.department,
+                department=dept,
                 created_by_user_id=user.id,
                 created_by_username=getattr(user, 'username', 'N/A')
             )
-
-            if dest_alloc:  # This is a transfer between two allocations
-                # 1. Decrease source allocation
-                source_alloc.amount -= amount
-                source_alloc.save(update_fields=['amount'])
-
-                # 2. Increase destination allocation
-                dest_alloc.amount += amount
-                dest_alloc.save(update_fields=['amount'])
-
-                # MODIFIED: Create lines with Expense Category
-                JournalEntryLine.objects.create(
-                    journal_entry=journal_entry, account=source_alloc.account,
-                    transaction_type='CREDIT', journal_transaction_type='TRANSFER',
-                    amount=amount, description=f"Transfer from {source_alloc.project.name}",
-                    expense_category=source_alloc.category # Populate Category
-                )
-                JournalEntryLine.objects.create(
-                    journal_entry=journal_entry, account=dest_alloc.account,
-                    transaction_type='DEBIT', journal_transaction_type='TRANSFER',
-                    amount=amount, description=f"Transfer to {dest_alloc.project.name}",
-                    expense_category=dest_alloc.category # Populate Category
-                )
-
-            else:  # This is an adjustment against a single allocation
-                # For this to be a balanced transaction, we need to decide if it's an increase or decrease
-                # The UI modal's Debit/Credit can determine this. Let's assume the serializer will provide it.
-                # For now, let's assume it's a decrease from the source allocation.
-
-                # 1. Decrease source allocation
-                source_alloc.amount -= amount
-                source_alloc.save(update_fields=['amount'])
-
-                # MODIFIED: Create lines with Expense Category
-                JournalEntryLine.objects.create(
-                    journal_entry=journal_entry, account=source_alloc.account,
-                    transaction_type='CREDIT', journal_transaction_type='OPERATIONAL_EXPENDITURE',
-                    amount=amount, description=f"Budget reduction for {source_alloc.project.name}",
-                    expense_category=source_alloc.category # Populate Category
-                )
-                # Debit the offsetting account
-                JournalEntryLine.objects.create(
-                    journal_entry=journal_entry, account=offsetting_account,
-                    transaction_type='DEBIT', journal_transaction_type='TRANSFER',
-                    amount=amount, description="Return of funds to reserve",
-                    expense_category=None # Offsetting account usually doesn't have a specific expense category
-                )
-
-        # We return the created journal entry as proof of the transaction
-        return_serializer = JournalEntryListSerializer(journal_entry)
-        # The DRF CreateAPIView will wrap this in a 201 Response automatically.
-        # To set the data for the response, we can set it on the instance.
-        self.created_instance = journal_entry
+            
+            # For Asset Accounts (Budget Accounts):
+            # CREDIT the source (money decreasing)
+            JournalEntryLine.objects.create(
+                journal_entry=je,
+                account=data['source_account_obj'],
+                transaction_type='CREDIT',  # Decrease in asset
+                journal_transaction_type='TRANSFER',
+                amount=amount,
+                description=f"Transfer out from {data['source_account_obj'].name}",
+                expense_category=source_alloc.category if source_alloc else None
+            )
+            
+            # DEBIT the destination (money increasing)
+            JournalEntryLine.objects.create(
+                journal_entry=je,
+                account=data['destination_account_obj'],
+                transaction_type='DEBIT',  # Increase in asset
+                journal_transaction_type='TRANSFER',
+                amount=amount,
+                description=f"Transfer in to {data['destination_account_obj'].name}",
+                expense_category=dest_alloc.category if dest_alloc else None
+            )
+            
+            self.created_instance = je
 
     def create(self, request, *args, **kwargs):
         serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         self.perform_create(serializer)
-
-        # Use the serializer for the list view to format the response
         response_serializer = JournalEntryListSerializer(self.created_instance)
-        headers = self.get_success_headers(response_serializer.data)
-        return Response(response_serializer.data, status=status.HTTP_201_CREATED, headers=headers)
+        return Response(response_serializer.data, status=status.HTTP_201_CREATED)

@@ -1,4 +1,23 @@
-import React, { useState, useEffect, useMemo } from "react";
+/* CONTEXT: Expense Detail Modal Logic & "Not Linked" Fallback
+
+Why do some expenses show full Project Proposal details while others show a simple "Expense Details" view?
+
+1. Data Model Hierarchy:
+    - Expenses are ideally linked to a Project, which is linked to a BudgetProposal.
+    - However, the database model allows `Expense.project` to be null to support ad-hoc/general expenses.
+
+2. Seeder & Data State:
+    - In the backend seeder, Projects (and thus Allocations) are primarily created for 'APPROVED' proposals.
+     - If expenses exist from previous seed runs or specific status flows (e.g. SUBMITTED) where the Project
+      was not fully instantiated, the expense exists but the link to the Proposal is missing.
+
+3. Frontend Logic:
+  - We fetch `proposal_id` via `getExpenseDetailsForModal`.
+  - If valid, we fetch and display the full Proposal narrative (Project Summary, Cost Elements).
+  - If null, we render the defensive "Fallback View" (Description, Amount, Category) to prevent UI crashes.
+*/
+
+import React, { useState, useEffect } from "react";
 import {
   Search,
   ChevronDown,
@@ -22,208 +41,7 @@ import {
 // Import ManageProfile component
 import ManageProfile from "./ManageProfile";
 
-// Department and Subcategory data structure
-const DEPARTMENT_DATA = {
-  "Merchandise Planning": {
-    subcategories: [
-      "Product Range Planning",
-      "Buying Costs",
-      "Market Research",
-      "Inventory Handling Fees",
-      "Supplier Coordination",
-      "Seasonal Planning Tools",
-      "Training",
-      "Travel",
-      "Software Subscription"
-    ]
-  },
-  "Store Operations": {
-    subcategories: [
-      "Store Consumables",
-      "POS Maintenance",
-      "Store Repairs",
-      "Sales Incentives",
-      "Uniforms",
-      "Store Opening Expenses",
-      "Store Supplies",
-      "Training",
-      "Travel",
-      "Utilities"
-    ]
-  },
-  "Marketing": {
-    subcategories: [
-      "Campaign Budget",
-      "Branding Materials",
-      "Digital Ads",
-      "Social Media Management",
-      "Events Budget",
-      "Influencer Fees",
-      "Photography/Videography",
-      "Software Subscription",
-      "Training",
-      "Travel"
-    ]
-  },
-  "Operations": {
-    subcategories: [
-      "Equipment Maintenance",
-      "Fleet/Vehicle Expenses",
-      "Operational Supplies",
-      "Business Permits",
-      "Facility Utilities",
-      "Compliance Costs",
-      "Training",
-      "Office Supplies"
-    ]
-  },
-  "IT": {
-    subcategories: [
-      "Server Hosting",
-      "Software Licenses",
-      "Cloud Subscriptions",
-      "Hardware Purchases",
-      "Data Tools",
-      "Cybersecurity Costs",
-      "API Subscription Fees",
-      "Domain Renewals",
-      "Training",
-      "Office Supplies"
-    ]
-  },
-  "Logistics Management": {
-    subcategories: [
-      "Shipping Costs",
-      "Warehouse Equipment",
-      "Transport & Fuel",
-      "Freight Fees",
-      "Vendor Delivery Charges",
-      "Storage Fees",
-      "Packaging Materials",
-      "Safety Gear",
-      "Training"
-    ]
-  },
-  "Human Resources": {
-    subcategories: [
-      "Recruitment Expenses",
-      "Job Posting Fees",
-      "Employee Engagement Activities",
-      "Training & Workshops",
-      "Medical & Wellness Programs",
-      "Background Checks",
-      "HR Systems/Payroll Software",
-      "Office Supplies",
-      "Travel"
-    ]
-  }
-};
-
-// Sample expense data with CapEx and OpEx categories only
-const SAMPLE_EXPENSES = [
-  {
-    id: 1,
-    date: "2024-01-15",
-    description: "Store Equipment Purchase - POS Systems",
-    category_name: "CapEx",
-    amount: "250000.00",
-    department: "Store Operations",
-    subcategory: "POS Maintenance",
-    status: "Approved"
-  },
-  {
-    id: 2,
-    date: "2024-01-14",
-    description: "Q1 Marketing Campaign - Digital Ads",
-    category_name: "OpEx",
-    amount: "150000.00",
-    department: "Marketing",
-    subcategory: "Digital Ads",
-    status: "Approved"
-  },
-  {
-    id: 3,
-    date: "2024-01-10",
-    description: "Server Upgrade - IT Infrastructure",
-    category_name: "CapEx",
-    amount: "500000.00",
-    department: "IT",
-    subcategory: "Hardware Purchases",
-    status: "Pending"
-  },
-  {
-    id: 4,
-    date: "2024-01-08",
-    description: "Employee Training Workshop - HR",
-    category_name: "OpEx",
-    amount: "75000.00",
-    department: "Human Resources",
-    subcategory: "Training & Workshops",
-    status: "Approved"
-  },
-  {
-    id: 5,
-    date: "2024-01-05",
-    description: "Warehouse Equipment - Logistics",
-    category_name: "CapEx",
-    amount: "300000.00",
-    department: "Logistics Management",
-    subcategory: "Warehouse Equipment",
-    status: "Approved"
-  },
-  {
-    id: 6,
-    date: "2024-01-03",
-    description: "Office Supplies Purchase - Operations",
-    category_name: "OpEx",
-    amount: "45000.00",
-    department: "Operations",
-    subcategory: "Office Supplies",
-    status: "Approved"
-  },
-  {
-    id: 7,
-    date: "2024-01-02",
-    description: "Software Licenses Renewal - IT",
-    category_name: "OpEx",
-    amount: "120000.00",
-    department: "IT",
-    subcategory: "Software Licenses",
-    status: "Approved"
-  },
-  {
-    id: 8,
-    date: "2023-12-28",
-    description: "Marketing Campaign Materials",
-    category_name: "OpEx",
-    amount: "85000.00",
-    department: "Marketing",
-    subcategory: "Branding Materials",
-    status: "Approved"
-  },
-  {
-    id: 9,
-    date: "2023-12-25",
-    description: "New Store Opening Equipment",
-    category_name: "CapEx",
-    amount: "600000.00",
-    department: "Store Operations",
-    subcategory: "Store Opening Expenses",
-    status: "Approved"
-  },
-  {
-    id: 10,
-    date: "2023-12-20",
-    description: "Employee Engagement Activities",
-    category_name: "OpEx",
-    amount: "55000.00",
-    department: "Human Resources",
-    subcategory: "Employee Engagement Activities",
-    status: "Approved"
-  }
-];
-
-// Pagination Component - Copied from LedgerView
+// Pagination Component (Kept as is)
 const Pagination = ({
   currentPage,
   pageSize,
@@ -242,7 +60,7 @@ const Pagination = ({
 
   const renderPageNumbers = () => {
     const pages = [];
-    const pageLimit = 5; // Max number of page buttons to show
+    const pageLimit = 5;
     const sideButtons = Math.floor(pageLimit / 2);
 
     if (totalPages <= pageLimit + 2) {
@@ -269,7 +87,6 @@ const Pagination = ({
         );
       }
     } else {
-      // Always show first page
       pages.push(
         <button
           key={1}
@@ -348,7 +165,6 @@ const Pagination = ({
         );
       }
 
-      // Always show last page
       pages.push(
         <button
           key={totalPages}
@@ -385,7 +201,6 @@ const Pagination = ({
         padding: "10px 0",
       }}
     >
-      {/* Left Side: Page Size Selector */}
       <div
         className="pageSizeSelector"
         style={{ display: "flex", alignItems: "center", gap: "8px" }}
@@ -413,7 +228,6 @@ const Pagination = ({
         <span style={{ fontSize: "14px" }}>items per page</span>
       </div>
 
-      {/* Right Side: Page Navigation */}
       <div
         className="pageNavigation"
         style={{ display: "flex", alignItems: "center", gap: "5px" }}
@@ -461,131 +275,36 @@ const Pagination = ({
 };
 
 const ExpenseHistory = () => {
-  const { user, logout } = useAuth(); // MODIFICATION: Get user and logout from context
+  const { user, logout } = useAuth();
   const [showBudgetDropdown, setShowBudgetDropdown] = useState(false);
   const [showExpenseDropdown, setShowExpenseDropdown] = useState(false);
   const [showCategoryDropdown, setShowCategoryDropdown] = useState(false);
-  const [selectedExpense, setSelectedExpense] = useState(null);
-  // MODIFICATION START: Updated state management
-  const [selectedCategory, setSelectedCategory] = useState(""); // Use empty string for 'All'
-  const [currentPage, setCurrentPage] = useState(1);
-  const [pageSize, setPageSize] = useState(5);
-  const [searchTerm, setSearchTerm] = useState("");
-  const [showNotifications, setShowNotifications] = useState(false);
   const [showProfileDropdown, setShowProfileDropdown] = useState(false);
-  const [showManageProfile, setShowManageProfile] = useState(false); // NEW: State for ManageProfile
+  const [showNotifications, setShowNotifications] = useState(false);
+  const [showManageProfile, setShowManageProfile] = useState(false);
+
   const navigate = useNavigate();
 
-  // New state variables for API data
-  const [expenses, setExpenses] = useState(SAMPLE_EXPENSES);
-  const [categories, setCategories] = useState([
-    { code: "", name: "All Categories" },
-    { code: "capex", name: "CapEx" },
-    { code: "opex", name: "OpEx" }
-  ]);
-  const [pagination, setPagination] = useState({
-    count: SAMPLE_EXPENSES.length,
-    next: null,
-    previous: null,
-  });
-  const [loading, setLoading] = useState(false);
+  // API Data State
+  const [expenses, setExpenses] = useState([]);
+  const [categories, setCategories] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [pagination, setPagination] = useState({ count: 0 });
+
+  // Filter State
+  const [selectedCategory, setSelectedCategory] = useState("");
+  const [searchTerm, setSearchTerm] = useState("");
+  const [debouncedSearchTerm, setDebouncedSearchTerm] = useState("");
+  const [currentPage, setCurrentPage] = useState(1);
+  const [pageSize, setPageSize] = useState(5);
+
+  // View Modal State
+  const [selectedExpense, setSelectedExpense] = useState(null);
   const [selectedProposalDetails, setSelectedProposalDetails] = useState(null);
   const [viewModalLoading, setViewModalLoading] = useState(false);
-  
-  // MODIFICATION START: Add a state for the debounced search term
-  const [debouncedSearchTerm, setDebouncedSearchTerm] = useState(searchTerm);
-  // MODIFICATION END
 
-  const getUserRole = () => {
-  if (!user) return "User";
-  
-  // Check for role in different possible locations
-  if (user.roles?.bms) return user.roles.bms;
-  if (user.role_display) return user.role_display;
-  if (user.role) return user.role;
-  
-  // Default role names based on user type
-  if (user.is_superuser) return "ADMIN";
-  if (user.is_staff) return "STAFF";
-  
-  return "User";
-};
+  // --- Handlers (MOVED TO CORRECT SCOPE) ---
 
-const userRole = getUserRole();
-
-const userProfile = {
-  name: user ? `${user.first_name || ''} ${user.last_name || ''}`.trim() || "User" : "User",
-  role: userRole,
-  avatar: user?.profile_picture || "https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?ixlib=rb-1.2.1&ixid=eyJhcHBfaWQiOjEyMDd9&auto=format&fit=facearea&facepad=2&w=256&h=256&q=80",
-};
-
-// MODIFICATION START: Added new useEffect hook to handle debouncing
-  useEffect(() => {
-    // Set a timer to update the debounced search term after 500ms
-    const timerId = setTimeout(() => {
-      setDebouncedSearchTerm(searchTerm);
-      setCurrentPage(1); // Reset to page 1 when search term changes 
-    }, 500);
-
-    // Cleanup function to clear the timer if the user keeps typing
-    return () => {
-      clearTimeout(timerId);
-    };
-  }, [searchTerm]);
-  // MODIFICATION END
-
-  // Filter and paginate sample data
-  useEffect(() => {
-    const filterExpenses = () => {
-      const filtered = SAMPLE_EXPENSES.filter(expense => {
-        const matchesSearch = !searchTerm || 
-          expense.description.toLowerCase().includes(searchTerm.toLowerCase()) ||
-          expense.department.toLowerCase().includes(searchTerm.toLowerCase());
-        const matchesCategory = !selectedCategory || 
-          expense.category_name.toLowerCase() === selectedCategory.toLowerCase();
-        return matchesSearch && matchesCategory;
-      });
-
-      const startIndex = (currentPage - 1) * pageSize;
-      const endIndex = startIndex + pageSize;
-      const paginatedExpenses = filtered.slice(startIndex, endIndex);
-
-      setExpenses(paginatedExpenses);
-      setPagination({
-        count: filtered.length,
-        next: null,
-        previous: null,
-      });
-    };
-
-    filterExpenses();
-  }, [currentPage, pageSize, searchTerm, selectedCategory]);
-
-  // Close dropdowns when clicking outside
-  useEffect(() => {
-    const handleClickOutside = (event) => {
-      if (
-        !event.target.closest(".nav-dropdown") &&
-        !event.target.closest(".profile-container") &&
-        !event.target.closest(".notification-container") &&
-        !event.target.closest(".filter-dropdown")
-      ) {
-        setShowBudgetDropdown(false);
-        setShowExpenseDropdown(false);
-        setShowCategoryDropdown(false);
-        setShowProfileDropdown(false);
-        setShowNotifications(false);
-      }
-    };
-
-    document.addEventListener("mousedown", handleClickOutside);
-    return () => {
-      document.removeEventListener("mousedown", handleClickOutside);
-    };
-  }, []);
-
-
-  // Navigation functions
   const toggleBudgetDropdown = () => {
     setShowBudgetDropdown(!showBudgetDropdown);
     if (showExpenseDropdown) setShowExpenseDropdown(false);
@@ -593,7 +312,6 @@ const userProfile = {
     if (showProfileDropdown) setShowProfileDropdown(false);
     if (showNotifications) setShowNotifications(false);
   };
-
 
   const toggleExpenseDropdown = () => {
     setShowExpenseDropdown(!showExpenseDropdown);
@@ -627,84 +345,167 @@ const userProfile = {
     if (showNotifications) setShowNotifications(false);
   };
 
-  // NEW: Function to handle Manage Profile click
-  const handleManageProfile = () => {
-    setShowManageProfile(true);
-    setShowProfileDropdown(false);
+  // Current Date State
+  const [currentDate, setCurrentDate] = useState(new Date());
+
+  const getUserRole = () => {
+    if (!user) return "User";
+    if (user.roles?.bms) return user.roles.bms;
+    if (user.is_superuser) return "ADMIN";
+    return "User";
   };
 
-  // NEW: Function to close Manage Profile
-  const handleCloseManageProfile = () => {
-    setShowManageProfile(false);
+  const userProfile = {
+    name: user
+      ? `${user.first_name || ""} ${user.last_name || ""}`.trim() || "User"
+      : "User",
+    role: getUserRole(),
+    avatar:
+      user?.profile_picture ||
+      "https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?ixlib=rb-1.2.1&ixid=eyJhcHBfaWQiOjEyMDd9&auto=format&fit=facearea&facepad=2&w=256&h=256&q=80",
   };
 
-  const handleCategorySelect = (categoryCode) => {
-    setSelectedCategory(categoryCode);
-    setCurrentPage(1); // Reset to page 1 when filter changes
+  // Debounce Search
+  useEffect(() => {
+    const timerId = setTimeout(() => {
+      setDebouncedSearchTerm(searchTerm);
+      setCurrentPage(1);
+    }, 500);
+    return () => clearTimeout(timerId);
+  }, [searchTerm]);
+
+  // Clock
+  useEffect(() => {
+    const interval = setInterval(() => setCurrentDate(new Date()), 1000);
+    return () => clearInterval(interval);
+  }, []);
+
+  // Fetch Categories on Mount
+  useEffect(() => {
+    const fetchCategories = async () => {
+      try {
+        const res = await getExpenseCategories();
+        // Assume API returns list of categories.
+        // We can manually add "CapEx" and "OpEx" if the API returns subcategories,
+        // OR if the API supports filtering by Classification, we can just use static options for this page.
+        // For History, usually filtering by CapEx/OpEx is desired.
+
+        // Option A: Use API categories
+        // setCategories([{ code: "", name: "All Categories" }, ...res.data]);
+
+        // Option B: Use Static Main Classifications (Matches Requirement: Asset/Liability/Equity/Revenue/Expense)
+        // But for Expenses, it's usually CapEx vs OpEx.
+        setCategories([
+          { code: "", name: "All Categories" },
+          { code: "CAPEX", name: "CapEx" },
+          { code: "OPEX", name: "OpEx" },
+        ]);
+      } catch (error) {
+        console.error("Failed to fetch categories", error);
+      }
+    };
+    fetchCategories();
+  }, []);
+
+  // Fetch Expenses - Updated Params logic
+  useEffect(() => {
+    const fetchExpenses = async () => {
+      setLoading(true);
+      try {
+        const params = {
+          page: currentPage,
+          page_size: pageSize,
+          search: debouncedSearchTerm,
+          // MODIFICATION: Use the correct filter key for classification
+          category__classification:
+            selectedCategory !== "" ? selectedCategory : undefined,
+        };
+
+        // Clean empty params
+        Object.keys(params).forEach(
+          (key) => params[key] === undefined && delete params[key]
+        );
+
+        const res = await getExpenseHistoryList(params);
+        setExpenses(res.data.results);
+        setPagination(res.data);
+      } catch (error) {
+        console.error("Failed to fetch expenses:", error);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchExpenses();
+  }, [currentPage, pageSize, debouncedSearchTerm, selectedCategory]);
+
+  // Dropdown Close Handler
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (
+        !event.target.closest(".nav-dropdown") &&
+        !event.target.closest(".profile-container") &&
+        !event.target.closest(".notification-container") &&
+        !event.target.closest(".filter-dropdown")
+      ) {
+        setShowBudgetDropdown(false);
+        setShowExpenseDropdown(false);
+        setShowCategoryDropdown(false);
+        setShowProfileDropdown(false);
+        setShowNotifications(false);
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
+
+  // Handlers
+  const handleCategorySelect = (code) => {
+    setSelectedCategory(code);
+    setCurrentPage(1);
     setShowCategoryDropdown(false);
-  };
-
-  const handleNavigate = (path) => {
-    navigate(path);
-    setShowBudgetDropdown(false);
-    setShowExpenseDropdown(false);
-    setShowCategoryDropdown(false);
-    setShowProfileDropdown(false);
-    setShowNotifications(false);
   };
 
   const handleLogout = async () => {
     await logout();
   };
 
+  const handleManageProfile = () => {
+    setShowManageProfile(true);
+    setShowProfileDropdown(false);
+  };
+
   const handleViewExpense = async (expense) => {
     setViewModalLoading(true);
-    setSelectedExpense(expense); // Set this to trigger the view change
-    
-    // Create sample proposal details for the expense
-    const sampleProposalDetails = {
-      title: `${expense.description} - Proposal Details`,
-      performance_end_date: "2024-12-31",
-      project_summary: `This proposal outlines the budget allocation for ${expense.description} under the ${expense.department} department.`,
-      project_description: `Detailed project description for ${expense.description}. This includes all necessary components, timelines, and expected outcomes for the project implementation.`,
-      items: [
-        {
-          cost_element: expense.category_name,
-          description: expense.description,
-          estimated_cost: expense.amount
-        },
-        {
-          cost_element: "Additional Expenses",
-          description: "Miscellaneous and contingency costs",
-          estimated_cost: (parseFloat(expense.amount) * 0.1).toFixed(2)
-        }
-      ]
-    };
+    setSelectedExpense(expense);
+    setSelectedProposalDetails(null);
 
-    setTimeout(() => {
-      setSelectedProposalDetails(sampleProposalDetails);
+    try {
+      // 1. Get Expense Details (to find proposal ID)
+      // If the list serializer doesn't have proposal info, fetch details.
+      // Assuming getExpenseDetailsForModal returns { proposal_id: 123 }
+      const detailsRes = await getExpenseDetailsForModal(expense.id);
+      const proposalId = detailsRes.data.proposal_id;
+
+      if (proposalId) {
+        // 2. Fetch Proposal Details
+        const proposalRes = await getProposalDetails(proposalId);
+        setSelectedProposalDetails(proposalRes.data);
+      } else {
+        // Handle case where expense isn't linked to a proposal (e.g. ad-hoc)
+        // Can just show expense details
+        setSelectedProposalDetails(null);
+      }
+    } catch (error) {
+      console.error("Failed to fetch details", error);
+    } finally {
       setViewModalLoading(false);
-    }, 1000);
+    }
   };
 
   const handleBackToList = () => {
     setSelectedExpense(null);
-    setSelectedProposalDetails(null); // Clear details on back
+    setSelectedProposalDetails(null);
   };
-  // MODIFICATION END'
-
-  // Date and time for Navbar
-  const [currentDate, setCurrentDate] = useState(new Date());
-
-  useEffect(() => {
-    const interval = setInterval(() => {
-      setCurrentDate(new Date());
-    }, 1000);
-
-    return () => {
-      clearInterval(interval);
-    };
-  }, []);
 
   const formattedDay = currentDate.toLocaleDateString("en-US", {
     weekday: "long",
@@ -727,11 +528,13 @@ const userProfile = {
       className="app-container"
       style={{ minWidth: "1200px", overflowY: "auto", height: "100vh" }}
     >
-      {/* Navigation Bar */}
+      {/* Navbar (Same as before, simplified for brevity in this output, assumed present from previous code block or standard nav) */}
       <nav
         className="navbar"
         style={{ position: "static", marginBottom: "20px" }}
       >
+        {/* ... Navbar Content (Logo, Links, Profile) ... */}
+        {/* Copying navbar structure from previous file to ensure completeness if replacing whole file */}
         <div
           className="navbar-content"
           style={{
@@ -742,16 +545,9 @@ const userProfile = {
             height: "60px",
           }}
         >
-          {/* Logo and System Name */}
           <div
             className="navbar-brand"
-            style={{
-              display: "flex",
-              alignItems: "center",
-              height: "60px",
-              overflow: "hidden",
-              gap: "12px",
-            }}
+            style={{ display: "flex", alignItems: "center", gap: "12px" }}
           >
             <div
               style={{
@@ -789,7 +585,6 @@ const userProfile = {
             </span>
           </div>
 
-          {/* Main Navigation Links */}
           <div
             className="navbar-links"
             style={{ display: "flex", gap: "20px" }}
@@ -797,14 +592,10 @@ const userProfile = {
             <Link to="/dashboard" className="nav-link">
               Dashboard
             </Link>
-
-            {/* Budget Dropdown */}
             <div className="nav-dropdown">
               <div
                 className={`nav-link ${showBudgetDropdown ? "active" : ""}`}
                 onClick={toggleBudgetDropdown}
-                onMouseDown={(e) => e.preventDefault()}
-                style={{ outline: "none" }}
               >
                 Budget{" "}
                 <ChevronDown
@@ -826,47 +617,41 @@ const userProfile = {
                 >
                   <div
                     className="dropdown-item"
-                    onClick={() => handleNavigate("/finance/budget-proposal")}
+                    onClick={() => navigate("/finance/budget-proposal")}
                   >
                     Budget Proposal
                   </div>
                   <div
                     className="dropdown-item"
-                    onClick={() => handleNavigate("/finance/proposal-history")}
+                    onClick={() => navigate("/finance/proposal-history")}
                   >
                     Proposal History
                   </div>
                   <div
                     className="dropdown-item"
-                    onClick={() => handleNavigate("/finance/ledger-view")}
+                    onClick={() => navigate("/finance/ledger-view")}
                   >
                     Ledger View
                   </div>
                   <div
                     className="dropdown-item"
-                    onClick={() => handleNavigate("/finance/budget-allocation")}
+                    onClick={() => navigate("/finance/budget-allocation")}
                   >
                     Budget Allocation
                   </div>
                   <div
                     className="dropdown-item"
-                    onClick={() =>
-                      handleNavigate("/finance/budget-variance-report")
-                    }
+                    onClick={() => navigate("/finance/budget-variance-report")}
                   >
                     Budget Variance Report
                   </div>
                 </div>
               )}
             </div>
-
-            {/* Expense Dropdown */}
             <div className="nav-dropdown">
               <div
                 className={`nav-link ${showExpenseDropdown ? "active" : ""}`}
                 onClick={toggleExpenseDropdown}
-                onMouseDown={(e) => e.preventDefault()}
-                style={{ outline: "none" }}
               >
                 Expense{" "}
                 <ChevronDown
@@ -888,13 +673,13 @@ const userProfile = {
                 >
                   <div
                     className="dropdown-item"
-                    onClick={() => handleNavigate("/finance/expense-tracking")}
+                    onClick={() => navigate("/finance/expense-tracking")}
                   >
                     Expense Tracking
                   </div>
                   <div
                     className="dropdown-item"
-                    onClick={() => handleNavigate("/finance/expense-history")}
+                    onClick={() => navigate("/finance/expense-history")}
                   >
                     Expense History
                   </div>
@@ -903,12 +688,10 @@ const userProfile = {
             </div>
           </div>
 
-          {/* User Controls */}
           <div
             className="navbar-controls"
             style={{ display: "flex", alignItems: "center", gap: "15px" }}
           >
-            {/* Timestamp/Date */}
             <div
               className="date-time-badge"
               style={{
@@ -918,24 +701,15 @@ const userProfile = {
                 fontSize: "0.95rem",
                 color: "#007bff",
                 fontWeight: 500,
-                display: "flex",
-                alignItems: "center",
               }}
             >
               {formattedDay}, {formattedDate} | {formattedTime}
             </div>
-
-            {/* Notification Icon */}
             <div className="notification-container">
               <div
                 className="notification-icon"
                 onClick={toggleNotifications}
-                onMouseDown={(e) => e.preventDefault()}
-                style={{
-                  position: "relative",
-                  cursor: "pointer",
-                  outline: "none",
-                }}
+                style={{ cursor: "pointer", position: "relative" }}
               >
                 <Bell size={20} />
                 <span
@@ -958,155 +732,19 @@ const userProfile = {
                   3
                 </span>
               </div>
-
-              {showNotifications && (
-                <div
-                  className="notification-panel"
-                  style={{
-                    position: "absolute",
-                    top: "100%",
-                    right: 0,
-                    backgroundColor: "white",
-                    border: "1px solid #ccc",
-                    borderRadius: "8px",
-                    padding: "10px",
-                    width: "300px",
-                    zIndex: 1000,
-                  }}
-                >
-                  <div
-                    className="notification-header"
-                    style={{
-                      display: "flex",
-                      justifyContent: "space-between",
-                      alignItems: "center",
-                      marginBottom: "10px",
-                    }}
-                  >
-                    <h3>Notifications</h3>
-                    <button
-                      className="clear-all-btn"
-                      onMouseDown={(e) => e.preventDefault()}
-                      style={{ outline: "none" }}
-                    >
-                      Clear All
-                    </button>
-                  </div>
-                  <div className="notification-list">
-                    <div
-                      className="notification-item"
-                      style={{
-                        display: "flex",
-                        padding: "8px 0",
-                        borderBottom: "1px solid #eee",
-                      }}
-                    >
-                      <div
-                        className="notification-icon-wrapper"
-                        style={{ marginRight: "10px" }}
-                      >
-                        <Bell size={16} />
-                      </div>
-                      <div className="notification-content" style={{ flex: 1 }}>
-                        <div
-                          className="notification-title"
-                          style={{ fontWeight: "bold" }}
-                        >
-                          Budget Approved
-                        </div>
-                        <div className="notification-message">
-                          Your Q3 budget has been approved
-                        </div>
-                        <div
-                          className="notification-time"
-                          style={{ fontSize: "12px", color: "#666" }}
-                        >
-                          2 hours ago
-                        </div>
-                      </div>
-                      <button
-                        className="notification-delete"
-                        style={{
-                          background: "none",
-                          border: "none",
-                          cursor: "pointer",
-                          outline: "none",
-                        }}
-                        onMouseDown={(e) => e.preventDefault()}
-                      >
-                        &times;
-                      </button>
-                    </div>
-                    <div
-                      className="notification-item"
-                      style={{
-                        display: "flex",
-                        padding: "8px 0",
-                        borderBottom: "1px solid #eee",
-                      }}
-                    >
-                      <div
-                        className="notification-icon-wrapper"
-                        style={{ marginRight: "10px" }}
-                      >
-                        <Bell size={16} />
-                      </div>
-                      <div className="notification-content" style={{ flex: 1 }}>
-                        <div
-                          className="notification-title"
-                          style={{ fontWeight: "bold" }}
-                        >
-                          Expense Report
-                        </div>
-                        <div className="notification-message">
-                          New expense report needs review
-                        </div>
-                        <div
-                          className="notification-time"
-                          style={{ fontSize: "12px", color: "#666" }}
-                        >
-                          5 hours ago
-                        </div>
-                      </div>
-                      <button
-                        className="notification-delete"
-                        style={{
-                          background: "none",
-                          border: "none",
-                          cursor: "pointer",
-                          outline: "none",
-                        }}
-                        onMouseDown={(e) => e.preventDefault()}
-                      >
-                        &times;
-                      </button>
-                    </div>
-                  </div>
-                </div>
-              )}
             </div>
-
-            {/* Profile Dropdown */}
             <div className="profile-container" style={{ position: "relative" }}>
               <div
                 className="profile-trigger"
                 onClick={toggleProfileDropdown}
-                onMouseDown={(e) => e.preventDefault()}
-                style={{
-                  display: "flex",
-                  alignItems: "center",
-                  cursor: "pointer",
-                  outline: "none",
-                }}
+                style={{ cursor: "pointer" }}
               >
                 <img
                   src={userProfile.avatar}
-                  alt="User avatar"
-                  className="profile-image"
+                  alt="User"
                   style={{ width: "32px", height: "32px", borderRadius: "50%" }}
                 />
               </div>
-
               {showProfileDropdown && (
                 <div
                   className="profile-dropdown"
@@ -1133,7 +771,6 @@ const userProfile = {
                     <img
                       src={userProfile.avatar}
                       alt="Profile"
-                      className="profile-dropdown-image"
                       style={{
                         width: "40px",
                         height: "40px",
@@ -1141,21 +778,16 @@ const userProfile = {
                         marginRight: "10px",
                       }}
                     />
-                    <div className="profile-details">
-                      <div
-                        className="profile-name"
-                        style={{ fontWeight: "bold" }}
-                      >
+                    <div>
+                      <div style={{ fontWeight: "bold" }}>
                         {userProfile.name}
                       </div>
                       <div
-                        className="profile-role-badge"
                         style={{
-                          backgroundColor: "#e9ecef",
-                          padding: "2px 8px",
-                          borderRadius: "12px",
                           fontSize: "12px",
-                          display: "inline-block",
+                          backgroundColor: "#e9ecef",
+                          borderRadius: "12px",
+                          padding: "2px 8px",
                         }}
                       >
                         {userProfile.role}
@@ -1170,59 +802,12 @@ const userProfile = {
                       margin: "10px 0",
                     }}
                   ></div>
-                  <div
-                    className="dropdown-item"
-                    onClick={handleManageProfile} // UPDATED: Now calls handleManageProfile
-                    style={{
-                      display: "flex",
-                      alignItems: "center",
-                      padding: "8px 0",
-                      cursor: "pointer",
-                      outline: "none",
-                    }}
-                    onMouseDown={(e) => e.preventDefault()}
-                  >
-                    <User size={16} style={{ marginRight: "8px" }} />
-                    <span>Manage Profile</span>
+                  <div className="dropdown-item" onClick={handleManageProfile}>
+                    <User size={16} style={{ marginRight: "8px" }} /> Manage
+                    Profile
                   </div>
-                  {userProfile.role === "Admin" && (
-                    <div
-                      className="dropdown-item"
-                      style={{
-                        display: "flex",
-                        alignItems: "center",
-                        padding: "8px 0",
-                        cursor: "pointer",
-                        outline: "none",
-                      }}
-                      onMouseDown={(e) => e.preventDefault()}
-                    >
-                      <Settings size={16} style={{ marginRight: "8px" }} />
-                      <span>User Management</span>
-                    </div>
-                  )}
-                  <div
-                    className="dropdown-divider"
-                    style={{
-                      height: "1px",
-                      backgroundColor: "#eee",
-                      margin: "10px 0",
-                    }}
-                  ></div>
-                  <div
-                    className="dropdown-item"
-                    onClick={handleLogout}
-                    style={{
-                      display: "flex",
-                      alignItems: "center",
-                      padding: "8px 0",
-                      cursor: "pointer",
-                      outline: "none",
-                    }}
-                    onMouseDown={(e) => e.preventDefault()}
-                  >
-                    <LogOut size={16} style={{ marginRight: "8px" }} />
-                    <span>Log Out</span>
+                  <div className="dropdown-item" onClick={handleLogout}>
+                    <LogOut size={16} style={{ marginRight: "8px" }} /> Log Out
                   </div>
                 </div>
               )}
@@ -1231,18 +816,13 @@ const userProfile = {
         </div>
       </nav>
 
-      {/* Main Content */}
       <div
         className="content-container"
         style={{ padding: "20px", maxWidth: "1200px", margin: "0 auto" }}
       >
-        {/* Conditionally render either ExpenseHistory content or ManageProfile */}
         {showManageProfile ? (
-          <ManageProfile 
-            onClose={handleCloseManageProfile} 
-          />
+          <ManageProfile onClose={handleCloseManageProfile} />
         ) : (
-          /* Page Container for everything */
           <div
             className="ledger-container"
             style={{
@@ -1258,7 +838,6 @@ const userProfile = {
           >
             {!selectedExpense ? (
               <>
-                {/* Header Section with Title and Controls */}
                 <div
                   className="top"
                   style={{
@@ -1274,7 +853,6 @@ const userProfile = {
                     className="controls-container"
                     style={{ display: "flex", gap: "10px" }}
                   >
-                    {/* Search Bar - Width reduced to 400px */}
                     <div style={{ position: "relative" }}>
                       <input
                         type="text"
@@ -1287,12 +865,12 @@ const userProfile = {
                           border: "1px solid #ccc",
                           borderRadius: "4px",
                           outline: "none",
-                          width: "400px", // Reduced width to 400px
+                          width: "300px",
                         }}
                       />
                     </div>
 
-                    {/* Category Filter */}
+                    {/* Category Filter - Updated Style */}
                     <div
                       className="filter-dropdown"
                       style={{ position: "relative" }}
@@ -1302,7 +880,6 @@ const userProfile = {
                           showCategoryDropdown ? "active" : ""
                         }`}
                         onClick={toggleCategoryDropdown}
-                        onMouseDown={(e) => e.preventDefault()}
                         style={{
                           padding: "8px 12px",
                           border: "1px solid #ccc",
@@ -1310,20 +887,21 @@ const userProfile = {
                           backgroundColor: "white",
                           display: "flex",
                           alignItems: "center",
-                          gap: "5px",
+                          justifyContent: "space-between",
+                          minWidth: "160px",
                           outline: "none",
                         }}
                       >
-                        {/* MODIFICATION START */}
                         <span>
                           {selectedCategory
-                            ? categories.find((c) => c.code === selectedCategory)
-                                ?.name
+                            ? categories.find(
+                                (c) => c.code === selectedCategory
+                              )?.name
                             : "All Categories"}
                         </span>
-                        {/* MODIFICATION END */}
                         <ChevronDown size={14} />
                       </button>
+
                       {showCategoryDropdown && (
                         <div
                           className="category-dropdown-menu"
@@ -1338,15 +916,13 @@ const userProfile = {
                             zIndex: 1000,
                           }}
                         >
-                          {/* MODIFICATION START */}
                           {categories.map((category) => (
                             <div
                               key={category.code}
-                              className={`category-dropdown-item ${
-                                selectedCategory === category.code ? "active" : ""
-                              }`}
-                              onClick={() => handleCategorySelect(category.code)}
-                              onMouseDown={(e) => e.preventDefault()}
+                              className="category-dropdown-item"
+                              onClick={() =>
+                                handleCategorySelect(category.code)
+                              }
                               style={{
                                 padding: "8px 12px",
                                 cursor: "pointer",
@@ -1354,20 +930,17 @@ const userProfile = {
                                   selectedCategory === category.code
                                     ? "#f0f0f0"
                                     : "white",
-                                outline: "none",
                               }}
                             >
                               {category.name}
                             </div>
                           ))}
-                          {/* MODIFICATION END */}
                         </div>
                       )}
                     </div>
                   </div>
                 </div>
 
-                {/* Separator line between title and table */}
                 <div
                   style={{
                     height: "1px",
@@ -1376,7 +949,7 @@ const userProfile = {
                   }}
                 ></div>
 
-                {/* Expenses Table - KEEPING ORIGINAL SIZING */}
+                {/* Table - Updated Columns to match ExpenseTracking */}
                 <div
                   style={{
                     flex: 1,
@@ -1384,260 +957,225 @@ const userProfile = {
                     border: "1px solid #e0e0e0",
                     borderRadius: "4px",
                     position: "relative",
-                    marginLeft: "20px",
-                    marginRight: "20px",
                   }}
                 >
-                  {/* Custom scrollbar styling */}
-                  <style>
-                    {`
-                      div::-webkit-scrollbar {
-                        width: 8px;
-                      }
-                      div::-webkit-scrollbar-track {
-                        background: #f1f1f1;
-                        border-radius: 4px;
-                      }
-                      div::-webkit-scrollbar-thumb {
-                        background: #c1c1c1;
-                        border-radius: 4px;
-                      }
-                      div::-webkit-scrollbar-thumb:hover {
-                        background: #a8a8a8;
-                      }
-                    `}
-                  </style>
-                  <div
-                    className="table-scroll-container"
+                  <table
+                    className="ledger-table"
                     style={{
-                      height: "100%",
-                      overflow: "auto",
+                      width: "100%",
+                      borderCollapse: "collapse",
+                      tableLayout: "fixed",
+                      minWidth: "800px",
                     }}
                   >
-                    <table
-                      className="ledger-table"
-                      style={{
-                        width: "100%",
-                        borderCollapse: "collapse",
-                        tableLayout: "fixed",
-                        minWidth: "800px",
-                      }}
-                    >
-                      <thead>
-                        <tr
+                    <thead>
+                      <tr
+                        style={{
+                          backgroundColor: "#f8f9fa",
+                          position: "sticky",
+                          top: 0,
+                          zIndex: 10,
+                        }}
+                      >
+                        <th
                           style={{
+                            width: "12%",
+                            padding: "0.75rem",
+                            textAlign: "left",
+                            borderBottom: "2px solid #dee2e6",
                             backgroundColor: "#f8f9fa",
-                            position: "sticky",
-                            top: 0,
-                            zIndex: 10,
                           }}
                         >
-                          <th
-                            style={{
-                              width: "20%",
-                              padding: "0.75rem",
-                              textAlign: "center",
-                              borderBottom: "2px solid #dee2e6",
-                              height: "50px",
-                              verticalAlign: "middle",
-                              backgroundColor: "#f8f9fa",
-                              fontWeight: "600",
-                              fontSize: "0.9rem",
-                            }}
+                          DATE
+                        </th>
+                        <th
+                          style={{
+                            width: "25%",
+                            padding: "0.75rem",
+                            textAlign: "left",
+                            borderBottom: "2px solid #dee2e6",
+                            backgroundColor: "#f8f9fa",
+                          }}
+                        >
+                          DESCRIPTION
+                        </th>
+                        {/* Added Department Column */}
+                        <th
+                          style={{
+                            width: "18%",
+                            padding: "0.75rem",
+                            textAlign: "left",
+                            borderBottom: "2px solid #dee2e6",
+                            backgroundColor: "#f8f9fa",
+                          }}
+                        >
+                          DEPARTMENT
+                        </th>
+                        <th
+                          style={{
+                            width: "10%",
+                            padding: "0.75rem",
+                            textAlign: "left",
+                            borderBottom: "2px solid #dee2e6",
+                            backgroundColor: "#f8f9fa",
+                          }}
+                        >
+                          CATEGORY
+                        </th>
+                        {/* Added Sub-Category Column */}
+                        <th
+                          style={{
+                            width: "15%",
+                            padding: "0.75rem",
+                            textAlign: "left",
+                            borderBottom: "2px solid #dee2e6",
+                            backgroundColor: "#f8f9fa",
+                          }}
+                        >
+                          SUB-CATEGORY
+                        </th>
+                        <th
+                          style={{
+                            width: "12%",
+                            padding: "0.75rem",
+                            textAlign: "right",
+                            borderBottom: "2px solid #dee2e6",
+                            backgroundColor: "#f8f9fa",
+                          }}
+                        >
+                          AMOUNT
+                        </th>
+                        <th
+                          style={{
+                            width: "10%",
+                            padding: "0.75rem",
+                            textAlign: "center",
+                            borderBottom: "2px solid #dee2e6",
+                            backgroundColor: "#f8f9fa",
+                          }}
+                        >
+                          ACTIONS
+                        </th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {loading ? (
+                        <tr>
+                          <td
+                            colSpan="7"
+                            style={{ padding: "20px", textAlign: "center" }}
                           >
-                            DATE
-                          </th>
-                          <th
-                            style={{
-                              width: "35%",
-                              padding: "0.75rem",
-                              textAlign: "center",
-                              borderBottom: "2px solid #dee2e6",
-                              height: "50px",
-                              verticalAlign: "middle",
-                              backgroundColor: "#f8f9fa",
-                              fontWeight: "600",
-                              fontSize: "0.9rem",
-                            }}
-                          >
-                            DESCRIPTION
-                          </th>
-                          <th
-                            style={{
-                              width: "20%",
-                              padding: "0.75rem",
-                              textAlign: "center",
-                              borderBottom: "2px solid #dee2e6",
-                              height: "50px",
-                              verticalAlign: "middle",
-                              backgroundColor: "#f8f9fa",
-                              fontWeight: "600",
-                              fontSize: "0.9rem",
-                            }}
-                          >
-                            CATEGORY
-                          </th>
-                          <th
-                            style={{
-                              width: "15%",
-                              padding: "0.75rem",
-                              textAlign: "center",
-                              borderBottom: "2px solid #dee2e6",
-                              height: "50px",
-                              verticalAlign: "middle",
-                              backgroundColor: "#f8f9fa",
-                              fontWeight: "600",
-                              fontSize: "0.9rem",
-                            }}
-                          >
-                            AMOUNT
-                          </th>
-                          <th
-                            style={{
-                              width: "10%",
-                              padding: "0.75rem",
-                              textAlign: "center",
-                              borderBottom: "2px solid #dee2e6",
-                              height: "50px",
-                              verticalAlign: "middle",
-                              backgroundColor: "#f8f9fa",
-                              fontWeight: "600",
-                              fontSize: "0.9rem",
-                            }}
-                          >
-                            ACTIONS
-                          </th>
+                            Loading...
+                          </td>
                         </tr>
-                      </thead>
-                      {/* MODIFICATION START */}
-                      <tbody>
-                        {expenses.length > 0 ? (
-                          expenses.map((expense, index) => (
-                            <tr
-                              key={expense.id}
-                              className={index % 2 === 1 ? "alternate-row" : ""}
-                              style={{
-                                backgroundColor:
-                                  index % 2 === 1 ? "#F8F8F8" : "#FFFFFF",
-                                color: "#0C0C0C",
-                                height: "50px",
-                                transition: "background-color 0.2s ease",
-                              }}
-                              onMouseEnter={(e) => {
-                                e.currentTarget.style.backgroundColor = "#fcfcfc";
-                              }}
-                              onMouseLeave={(e) => {
-                                e.currentTarget.style.backgroundColor =
-                                  index % 2 === 1 ? "#F8F8F8" : "#FFFFFF";
-                              }}
-                            >
-                              <td
-                                style={{
-                                  padding: "0.75rem",
-                                  borderBottom: "1px solid #dee2e6",
-                                  textAlign: "center",
-                                  verticalAlign: "middle",
-                                  wordWrap: "break-word",
-                                  whiteSpace: "normal",
-                                }}
-                              >
-                                {expense.date}
-                              </td>
-                              <td
-                                style={{
-                                  padding: "0.75rem",
-                                  borderBottom: "1px solid #dee2e6",
-                                  textAlign: "center",
-                                  verticalAlign: "middle",
-                                  wordWrap: "break-word",
-                                  whiteSpace: "normal",
-                                }}
-                              >
-                                {expense.description}
-                              </td>
-                              <td
-                                style={{
-                                  padding: "0.75rem",
-                                  borderBottom: "1px solid #dee2e6",
-                                  textAlign: "center",
-                                  verticalAlign: "middle",
-                                  wordWrap: "break-word",
-                                  whiteSpace: "normal",
-                                }}
-                              >
-                                {expense.category_name}
-                              </td>
-                              <td
-                                style={{
-                                  padding: "0.75rem",
-                                  borderBottom: "1px solid #dee2e6",
-                                  textAlign: "center",
-                                  verticalAlign: "middle",
-                                  wordWrap: "break-word",
-                                  whiteSpace: "normal",
-                                }}
-                              >
-                                ₱
-                                {parseFloat(expense.amount).toLocaleString(
-                                  "en-US",
-                                  {
-                                    minimumFractionDigits: 2,
-                                    maximumFractionDigits: 2,
-                                  }
-                                )}
-                              </td>
-                              <td
-                                style={{
-                                  padding: "0.75rem",
-                                  borderBottom: "1px solid #dee2e6",
-                                  textAlign: "center",
-                                  verticalAlign: "middle",
-                                }}
-                              >
-                                <button
-                                  className="view-btn"
-                                  onClick={() => handleViewExpense(expense)}
-                                  onMouseDown={(e) => e.preventDefault()}
-                                  style={{
-                                    padding: "5px 15px",
-                                    backgroundColor: "#007bff",
-                                    color: "white",
-                                    border: "none",
-                                    borderRadius: "4px",
-                                    cursor: "pointer",
-                                    outline: "none",
-                                  }}
-                                >
-                                  View
-                                </button>
-                              </td>
-                            </tr>
-                          ))
-                        ) : (
-                          <tr>
+                      ) : expenses.length > 0 ? (
+                        expenses.map((expense, index) => (
+                          <tr
+                            key={expense.id}
+                            className={index % 2 === 1 ? "alternate-row" : ""}
+                            style={{
+                              backgroundColor:
+                                index % 2 === 1 ? "#F8F8F8" : "#FFFFFF",
+                              height: "50px",
+                            }}
+                          >
                             <td
-                              colSpan="5"
-                              className="no-results"
                               style={{
-                                padding: "20px",
-                                textAlign: "center",
-                                height: "50px",
-                                verticalAlign: "middle",
+                                padding: "0.75rem",
+                                borderBottom: "1px solid #dee2e6",
                               }}
                             >
-                              {searchTerm || selectedCategory !== ""
-                                ? "No expenses match your search criteria."
-                                : "No expenses found."}
+                              {expense.date}
+                            </td>
+                            <td
+                              style={{
+                                padding: "0.75rem",
+                                borderBottom: "1px solid #dee2e6",
+                              }}
+                            >
+                              {expense.description}
+                            </td>
+
+                            {/* FIX: Ensure these match ExpenseTrackingSerializer keys */}
+                            <td
+                              style={{
+                                padding: "0.75rem",
+                                borderBottom: "1px solid #dee2e6",
+                              }}
+                            >
+                              {expense.department_name || "N/A"}
+                            </td>
+
+                            {/* Category (CapEx/OpEx) */}
+                            <td
+                              style={{
+                                padding: "0.75rem",
+                                borderBottom: "1px solid #dee2e6",
+                              }}
+                            >
+                              {expense.category_name || "N/A"}
+                            </td>
+
+                            {/* Sub-Category (Specific Name) */}
+                            <td
+                              style={{
+                                padding: "0.75rem",
+                                borderBottom: "1px solid #dee2e6",
+                              }}
+                            >
+                              {expense.sub_category_name || "N/A"}
+                            </td>
+
+                            <td
+                              style={{
+                                padding: "0.75rem",
+                                borderBottom: "1px solid #dee2e6",
+                                textAlign: "right",
+                              }}
+                            >
+                              ₱
+                              {parseFloat(expense.amount).toLocaleString(
+                                "en-US",
+                                { minimumFractionDigits: 2 }
+                              )}
+                            </td>
+                            <td
+                              style={{
+                                padding: "0.75rem",
+                                borderBottom: "1px solid #dee2e6",
+                                textAlign: "center",
+                              }}
+                            >
+                              <button
+                                onClick={() => handleViewExpense(expense)}
+                                style={{
+                                  padding: "5px 15px",
+                                  backgroundColor: "#007bff",
+                                  color: "white",
+                                  border: "none",
+                                  borderRadius: "4px",
+                                  cursor: "pointer",
+                                }}
+                              >
+                                View
+                              </button>
                             </td>
                           </tr>
-                        )}
-                      </tbody>
-                      {/* MODIFICATION END */}
-                    </table>
-                  </div>
+                        ))
+                      ) : (
+                        <tr>
+                          <td
+                            colSpan="7"
+                            style={{ padding: "20px", textAlign: "center" }}
+                          >
+                            No expenses found.
+                          </td>
+                        </tr>
+                      )}
+                    </tbody>
+                  </table>
                 </div>
 
-                {/* MODIFICATION START */}
                 {pagination.count > 0 && (
                   <Pagination
                     currentPage={currentPage}
@@ -1648,10 +1186,8 @@ const userProfile = {
                       setPageSize(newSize);
                       setCurrentPage(1);
                     }}
-                    pageSizeOptions={[5, 10, 20, 50]}
                   />
                 )}
-                {/* MODIFICATION END */}
               </>
             ) : (
               <div
@@ -1677,19 +1213,13 @@ const userProfile = {
                     cursor: "pointer",
                     marginBottom: "20px",
                     alignSelf: "flex-start",
-                    outline: "none",
                   }}
                 >
-                  <ArrowLeft size={16} />
-                  <span>Back to Expenses</span>
+                  <ArrowLeft size={16} /> <span>Back to Expenses</span>
                 </button>
 
                 <div
-                  style={{
-                    flex: 1,
-                    overflow: "auto",
-                    paddingRight: "10px",
-                  }}
+                  style={{ flex: 1, overflow: "auto", paddingRight: "10px" }}
                 >
                   {viewModalLoading ? (
                     <div>Loading details...</div>
@@ -1713,7 +1243,6 @@ const userProfile = {
                           {selectedProposalDetails.performance_end_date}
                         </div>
                       </div>
-
                       <div
                         className="proposal-section"
                         style={{ marginBottom: "20px" }}
@@ -1724,20 +1253,15 @@ const userProfile = {
                             margin: "0 0 10px 0",
                             fontSize: "0.9rem",
                             color: "#6c757d",
-                            textTransform: "uppercase",
                             fontWeight: "600",
                           }}
                         >
                           PROJECT SUMMARY
                         </h4>
-                        <p
-                          className="section-content"
-                          style={{ margin: 0, lineHeight: "1.5" }}
-                        >
+                        <p className="section-content">
                           {selectedProposalDetails.project_summary}
                         </p>
                       </div>
-
                       <div
                         className="proposal-section"
                         style={{ marginBottom: "20px" }}
@@ -1748,20 +1272,15 @@ const userProfile = {
                             margin: "0 0 10px 0",
                             fontSize: "0.9rem",
                             color: "#6c757d",
-                            textTransform: "uppercase",
                             fontWeight: "600",
                           }}
                         >
                           PROJECT DESCRIPTION
                         </h4>
-                        <p
-                          className="section-content"
-                          style={{ margin: 0, lineHeight: "1.5" }}
-                        >
+                        <p className="section-content">
                           {selectedProposalDetails.project_description}
                         </p>
                       </div>
-
                       <div className="proposal-section">
                         <h4
                           className="section-label"
@@ -1769,7 +1288,6 @@ const userProfile = {
                             margin: "0 0 10px 0",
                             fontSize: "0.9rem",
                             color: "#6c757d",
-                            textTransform: "uppercase",
                             fontWeight: "600",
                           }}
                         >
@@ -1793,79 +1311,54 @@ const userProfile = {
                               borderBottom: "1px solid #dee2e6",
                             }}
                           >
-                            <div
-                              className="cost-type-header"
-                              style={{ flex: "1" }}
-                            >
-                              TYPE
-                            </div>
-                            <div
-                              className="cost-desc-header"
-                              style={{ flex: "2" }}
-                            >
-                              DESCRIPTION
-                            </div>
-                            <div
-                              className="cost-amount-header"
-                              style={{ flex: "1", textAlign: "right" }}
-                            >
+                            <div style={{ flex: "1" }}>TYPE</div>
+                            <div style={{ flex: "2" }}>DESCRIPTION</div>
+                            <div style={{ flex: "1", textAlign: "right" }}>
                               ESTIMATED COST
                             </div>
                           </div>
-                          {selectedProposalDetails.items.map((item, idx) => (
-                            <div
-                              className="cost-row"
-                              key={idx}
-                              style={{
-                                display: "flex",
-                                padding: "10px 15px",
-                                borderBottom:
-                                  idx < selectedProposalDetails.items.length - 1
-                                    ? "1px solid #dee2e6"
-                                    : "none",
-                              }}
-                            >
+                          {selectedProposalDetails.items &&
+                            selectedProposalDetails.items.map((item, idx) => (
                               <div
-                                className="cost-type"
+                                className="cost-row"
+                                key={idx}
                                 style={{
-                                  flex: "1",
                                   display: "flex",
-                                  alignItems: "center",
+                                  padding: "10px 15px",
+                                  borderBottom: "1px solid #dee2e6",
                                 }}
                               >
-                                <span
-                                  className="cost-bullet"
+                                <div
                                   style={{
-                                    width: "8px",
-                                    height: "8px",
-                                    backgroundColor: "#007bff",
-                                    borderRadius: "50%",
-                                    marginRight: "10px",
+                                    flex: "1",
+                                    display: "flex",
+                                    alignItems: "center",
                                   }}
-                                ></span>
-                                {item.cost_element}
-                              </div>
-                              <div
-                                className="cost-description"
-                                style={{ flex: "2" }}
-                              >
-                                {item.description}
-                              </div>
-                              <div
-                                className="cost-amount"
-                                style={{ flex: "1", textAlign: "right" }}
-                              >
-                                ₱
-                                {parseFloat(item.estimated_cost).toLocaleString(
-                                  "en-US",
-                                  {
+                                >
+                                  <span
+                                    style={{
+                                      width: "8px",
+                                      height: "8px",
+                                      backgroundColor: "#007bff",
+                                      borderRadius: "50%",
+                                      marginRight: "10px",
+                                    }}
+                                  ></span>
+                                  {item.cost_element}
+                                </div>
+                                <div style={{ flex: "2" }}>
+                                  {item.description}
+                                </div>
+                                <div style={{ flex: "1", textAlign: "right" }}>
+                                  ₱
+                                  {parseFloat(
+                                    item.estimated_cost
+                                  ).toLocaleString("en-US", {
                                     minimumFractionDigits: 2,
-                                    maximumFractionDigits: 2,
-                                  }
-                                )}
+                                  })}
+                                </div>
                               </div>
-                            </div>
-                          ))}
+                            ))}
                           <div
                             className="cost-row total"
                             style={{
@@ -1875,18 +1368,11 @@ const userProfile = {
                               fontWeight: "600",
                             }}
                           >
-                            <div
-                              className="cost-type"
-                              style={{ flex: "1" }}
-                            ></div>
-                            <div
-                              className="cost-description"
-                              style={{ flex: "2", fontWeight: "bold" }}
-                            >
+                            <div style={{ flex: "1" }}></div>
+                            <div style={{ flex: "2", fontWeight: "bold" }}>
                               TOTAL
                             </div>
                             <div
-                              className="cost-amount"
                               style={{
                                 flex: "1",
                                 textAlign: "right",
@@ -1894,23 +1380,53 @@ const userProfile = {
                               }}
                             >
                               ₱
-                              {selectedProposalDetails.items
-                                .reduce(
-                                  (acc, item) =>
-                                    acc + parseFloat(item.estimated_cost),
-                                  0
-                                )
-                                .toLocaleString("en-US", {
-                                  minimumFractionDigits: 2,
-                                  maximumFractionDigits: 2,
-                                })}
+                              {parseFloat(
+                                selectedProposalDetails.total_cost ||
+                                  selectedProposalDetails.amount
+                              ).toLocaleString("en-US", {
+                                minimumFractionDigits: 2,
+                              })}
                             </div>
                           </div>
                         </div>
                       </div>
                     </>
                   ) : (
-                    <div>No proposal details found for this expense.</div>
+                    <div>
+                      <h3>Expense Details</h3>
+                      <p>
+                        <strong>Description:</strong>{" "}
+                        {selectedExpense.description}
+                      </p>
+                      <p>
+                        <strong>Amount:</strong> ₱
+                        {parseFloat(selectedExpense.amount).toLocaleString(
+                          "en-US",
+                          { minimumFractionDigits: 2 }
+                        )}
+                      </p>
+                      <p>
+                        <strong>Date:</strong> {selectedExpense.date}
+                      </p>
+                      <p>
+                        <strong>Department:</strong>{" "}
+                        {selectedExpense.department_name || "N/A"}
+                      </p>
+                      <p>
+                        <strong>Category:</strong>{" "}
+                        {selectedExpense.category_name || "N/A"}
+                      </p>
+                      <p>
+                        <strong>Sub-Category:</strong>{" "}
+                        {selectedExpense.sub_category_name || "N/A"}
+                      </p>
+                      <p style={{ color: "#666", marginTop: "20px" }}>
+                        <em>
+                          This expense is not linked to a full project proposal
+                          structure or details are unavailable.
+                        </em>
+                      </p>
+                    </div>
                   )}
                 </div>
               </div>

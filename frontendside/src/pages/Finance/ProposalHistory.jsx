@@ -428,14 +428,28 @@ const ProposalHistory = () => {
     setShowManageProfile(false);
   };
 
-  // User profile data
-  const userProfile = {
-    name: user ? `${user.first_name} ${user.last_name}` : "User",
-    role: user?.roles?.bms || "User",
-    avatar:
-      "https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?ixlib=rb-1.2.1&ixid=eyJhcHBfaWQiOjEyMDd9&auto=format&fit=facearea&facepad=2&w=256&h=256&q=80",
-  };
+const getUserRole = () => {
+  if (!user) return "User";
+  
+  // Check for role in different possible locations
+  if (user.roles?.bms) return user.roles.bms;
+  if (user.role_display) return user.role_display;
+  if (user.role) return user.role;
+  
+  // Default role names based on user type
+  if (user.is_superuser) return "ADMIN";
+  if (user.is_staff) return "STAFF";
+  
+  return "User";
+};
 
+const userRole = getUserRole();
+
+const userProfile = {
+  name: user ? `${user.first_name || ''} ${user.last_name || ''}`.trim() || "User" : "User",
+  role: userRole,
+  avatar: user?.profile_picture || "https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?ixlib=rb-1.2.1&ixid=eyJhcHBfaWQiOjEyMDd9&auto=format&fit=facearea&facepad=2&w=256&h=256&q=80",
+};
   // API Data State
   const [history, setHistory] = useState([]);
   const [pagination, setPagination] = useState({ count: 0 });

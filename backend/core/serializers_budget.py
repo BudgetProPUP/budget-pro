@@ -239,36 +239,48 @@ class LedgerViewSerializer(serializers.ModelSerializer):
             return obj.expense_category.name
         return "General"
 
-
+# MODIFICATION START: Updated to split Debit/Credit accounts for the Table
 class JournalEntryListSerializer(serializers.ModelSerializer):
     """
     Serializer for Journal Entry Page listing view. NOW USED FOR BUDGET ADJUSTMENT PAGE.
     """
+    category = serializers.SerializerMethodField() 
     created_by_username = serializers.CharField(read_only=True)
     ticket_id = serializers.CharField(source='entry_id', read_only=True)
     amount = serializers.DecimalField(source='total_amount', max_digits=15, decimal_places=2, read_only=True)
-    account = serializers.SerializerMethodField()
+    
+    # New fields for the Budget Allocation Table
+    debit_account = serializers.SerializerMethodField()
+    credit_account = serializers.SerializerMethodField()
+    
     # MODIFIED: Added Department Name
     department_name = serializers.CharField(source='department.name', read_only=True, default="N/A")
+    
     class Meta:
         model = JournalEntry
-        fields = ['id', 'ticket_id', 'date', 'category', 'department_name', 'account', 'description', 
+        fields = ['id', 'ticket_id', 'date', 'category', 'department_name', 
+                  'debit_account', 'credit_account', 'description', 
                   'amount', 'created_by_username']
         
-    def get_account(self, obj):
-        """
-        Display the account from the first debit line for simplicity.
-        """
-        first_debit_line = obj.lines.filter(transaction_type='DEBIT').first()
-        if first_debit_line and first_debit_line.account:
-            return first_debit_line.account.name
-        
-        first_line = obj.lines.first()
-        if first_line and first_line.account:
-            return first_line.account.name
-        
-        return "No Account"
+    def get_debit_account(self, obj):
+        """Find the account name associated with the DEBIT line"""
+        debit_line = obj.lines.filter(transaction_type='DEBIT').first()
+        return debit_line.account.name if debit_line and debit_line.account else "N/A"
 
+    def get_credit_account(self, obj):
+        """Find the account name associated with the CREDIT line"""
+        credit_line = obj.lines.filter(transaction_type='CREDIT').first()
+        return credit_line.account.name if credit_line and credit_line.account else "N/A"
+
+    def get_category(self, obj):
+        # Return classification if available, else JE category
+        line = obj.lines.filter(expense_category__isnull=False).first()
+        if line and line.expense_category:
+            classification = line.expense_category.classification
+            if classification == 'CAPEX': return 'CapEx'
+            if classification == 'OPEX': return 'OpEx'
+        return obj.category.title()
+# MODIFICATION END
 
 class JournalEntryLineInputSerializer(serializers.Serializer):
     account_id = serializers.IntegerField(
@@ -584,51 +596,70 @@ class ProposalReviewBudgetOverviewSerializer(serializers.Serializer):
         max_digits=15, decimal_places=2)
 
 
+# MODIFICATION START: Update BudgetAdjustmentSerializer to handle UI inputs (names)
 class BudgetAdjustmentSerializer(serializers.Serializer):
-    """
-    Serializer for creating a budget adjustment. This modifies a budget allocation
-    and creates a corresponding journal entry for audit purposes.
-    """
     date = serializers.DateField()
-    description = serializers.CharField(max_length=255)
-
-    source_allocation_id = serializers.IntegerField()
-    destination_allocation_id = serializers.IntegerField(
-        required=False, allow_null=True)
-
-    amount = serializers.DecimalField(max_digits=15, decimal_places=2, validators=[
-                                      MinValueValidator(Decimal('0.01'))])
-
-    offsetting_account_id = serializers.IntegerField()
+    description = serializers.CharField(max_length=255, required=False, allow_blank=True)
+    amount = serializers.DecimalField(max_digits=15, decimal_places=2, validators=[MinValueValidator(Decimal('0.01'))])
+    
+    # UI inputs (Strings)
+    department_name = serializers.CharField()
+    category_name = serializers.CharField()
+    source_account_name = serializers.CharField()  # Where money comes FROM
+    destination_account_name = serializers.CharField()  # Where money goes TO
 
     def validate(self, data):
-        source_id = data.get('source_allocation_id')
-        dest_id = data.get('destination_allocation_id')
-
-        if source_id == dest_id and dest_id is not None:
-            raise serializers.ValidationError(
-                "Source and destination allocations cannot be the same.")
-
         try:
-            BudgetAllocation.objects.get(id=source_id, is_active=True)
-        except BudgetAllocation.DoesNotExist:
-            raise serializers.ValidationError(
-                {"source_allocation_id": "Active source allocation not found."})
-
-        if dest_id:
+            # 1. Resolve Department
             try:
-                BudgetAllocation.objects.get(id=dest_id, is_active=True)
-            except BudgetAllocation.DoesNotExist:
-                raise serializers.ValidationError(
-                    {"destination_allocation_id": "Active destination allocation not found."})
+                department = Department.objects.get(name__iexact=data['department_name'])
+            except Department.DoesNotExist:
+                department = Department.objects.get(code__iexact=data['department_name'])
 
-        try:
-            Account.objects.get(id=data.get(
-                'offsetting_account_id'), is_active=True)
-        except Account.DoesNotExist:
-            raise serializers.ValidationError(
-                {"offsetting_account_id": "Active offsetting account not found."})
+            # 2. Find Account objects
+            source_account = Account.objects.filter(name__iexact=data['source_account_name']).first()
+            destination_account = Account.objects.filter(name__iexact=data['destination_account_name']).first()
 
+            if not source_account or not destination_account:
+                raise serializers.ValidationError("Invalid accounts selected.")
+
+            # 3. Find Budget Allocations
+            source_alloc = BudgetAllocation.objects.filter(
+                department=department,
+                account=source_account,
+                is_active=True
+            ).first()
+            
+            dest_alloc = BudgetAllocation.objects.filter(
+                department=department,
+                account=destination_account,
+                is_active=True
+            ).first()
+
+            # 4. Validate that source has enough funds
+            if source_alloc:
+                total_expenses = Expense.objects.filter(
+                    budget_allocation=source_alloc,
+                    status='APPROVED'
+                ).aggregate(total=Sum('amount'))['total'] or Decimal('0.00')
+                
+                available_funds = source_alloc.amount - total_expenses
+                
+                if data['amount'] > available_funds:
+                    raise serializers.ValidationError(
+                        f"Insufficient funds in source account. Available: {available_funds:,.2f}, Requested: {data['amount']:,.2f}"
+                    )
+
+            # Store resolved objects
+            data['department'] = department
+            data['source_account_obj'] = source_account
+            data['destination_account_obj'] = destination_account
+            data['source_alloc'] = source_alloc
+            data['dest_alloc'] = dest_alloc
+
+        except Department.DoesNotExist:
+            raise serializers.ValidationError("Invalid Department")
+        
         return data
 
 class ExpenseCategoryVarianceSerializer(serializers.Serializer):

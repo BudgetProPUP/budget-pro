@@ -5,9 +5,8 @@ import budgetApi from './budgetAPI';
  * @param {object} params - Query parameters.
  */
 export const getBudgetAdjustments = (params) => {
-  // MODIFICATION START: Point to the correct, existing URL for Journal Entries
+  // Point to the Journal Entry List view which is used for the table
   return budgetApi.get('/journal-entries/', { params });
-  // MODIFICATION END
 };
 
 /**
@@ -17,4 +16,13 @@ export const getBudgetAdjustments = (params) => {
 export const createJournalEntry = (data) => {
   // This points to the existing view for creating journal entries
   return budgetApi.post('/journal-entries/create/', data);
+};
+
+/**
+ * Creates a new Budget Adjustment (Transfer or Modification).
+ * @param {object} data - The payload matching BudgetAdjustmentSerializer.
+ */
+export const createBudgetAdjustment = (data) => {
+  // This points to the BudgetAdjustmentView (CreateAPIView)
+  return budgetApi.post('/budget-adjustments/', data);
 };

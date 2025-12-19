@@ -272,6 +272,8 @@ class FiscalYearDropdownView(generics.ListAPIView):
     permission_classes = [IsAuthenticated]
 
 
+# MODIFICATION: Updated LedgerViewList to only show expense lines with proper categories
+
 @extend_schema(
     tags=['Ledger View'],
     summary="Get ledger view",
@@ -279,13 +281,14 @@ class FiscalYearDropdownView(generics.ListAPIView):
             OpenApiParameter(
                 name="search", description="Search by description or category", required=False, type=str),
             OpenApiParameter(
-                name="category", description="Filter by category (e.g., EXPENSES)", required=False, type=str),
+                name="category", description="Filter by category (CAPEX or OPEX)", required=False, type=str),
             OpenApiParameter(
                 name="transaction_type", description="Filter by transaction type", required=False, type=str),
+            OpenApiParameter(
+                name="department", description="Filter by department ID", required=False, type=int),
     ],
     responses={200: LedgerViewSerializer(many=True)}
 )
-# --- Ledger and Journal Entry Views ---
 class LedgerViewList(generics.ListAPIView):
     serializer_class = LedgerViewSerializer
     pagination_class = FiveResultsSetPagination
@@ -299,12 +302,15 @@ class LedgerViewList(generics.ListAPIView):
             'journal_entry__department',  # For Department column
             'expense_category'            # For Category column
         )
+
+        # CRITICAL FIX: Only show lines that have meaningful expense categories
+        # This removes "balancing" lines like "Cash in Bank" credits that don't represent actual expenses
+        queryset = queryset.filter(expense_category__isnull=False)
+
         search = self.request.query_params.get('search')
         category = self.request.query_params.get('category')
         transaction_type = self.request.query_params.get('transaction_type')
-
-        # New Filter: Department
-        department_id = self.request.query_params.get('department')
+        department_filter = self.request.query_params.get('department_id') or self.request.query_params.get('department')
 
         if search:
             queryset = queryset.filter(
@@ -312,26 +318,32 @@ class LedgerViewList(generics.ListAPIView):
                 Q(journal_entry__date__icontains=search) |
                 Q(journal_entry__description__icontains=search) |
                 Q(description__icontains=search) |
-                Q(journal_entry__category__icontains=search) |
+                # MODIFIED: Search in expense category
+                Q(expense_category__name__icontains=search) |
                 Q(account__name__icontains=search) |
                 Q(account__code__icontains=search)
             )
 
         if category:
-            # Check both the high-level JE category AND the granular expense category
-            queryset = queryset.filter(
-                Q(journal_entry__category__iexact=category) |
-                Q(expense_category__name__icontains=category)
-            )
+            # MODIFIED: Filter by CapEx/OpEx classification
+            if category.upper() in ['CAPEX', 'OPEX']:
+                queryset = queryset.filter(
+                    expense_category__classification__iexact=category
+                )
+            else:
+                # Fallback: Check sub-category name
+                queryset = queryset.filter(
+                    expense_category__name__icontains=category
+                )
 
         if transaction_type:
             queryset = queryset.filter(
                 journal_transaction_type__iexact=transaction_type)
 
         # MODIFIED: Logic to filter by Department
-        if department_id:
+        if department_filter:
             queryset = queryset.filter(
-                journal_entry__department_id=department_id)
+                journal_entry__department_id=department_filter)
 
         return queryset.order_by('-journal_entry__date', 'journal_entry__entry_id')
 
@@ -410,25 +422,27 @@ class JournalEntryListView(generics.ListAPIView):
         qs = JournalEntry.objects.prefetch_related(
             'lines__account', 'lines__expense_category', 'department'
         ).all()
-        
+
         search = self.request.query_params.get('search')
         category = self.request.query_params.get('category')
-        department = self.request.query_params.get('department') 
+        department = self.request.query_params.get('department')
 
         if search:
-            qs = qs.filter(Q(description__icontains=search) | 
+            qs = qs.filter(Q(description__icontains=search) |
                            Q(entry_id__icontains=search) |
                            Q(lines__account__name__icontains=search)).distinct()
 
         if category:
             if category.upper() in ['CAPEX', 'OPEX']:
-                qs = qs.filter(lines__expense_category__classification__iexact=category).distinct()
+                qs = qs.filter(
+                    lines__expense_category__classification__iexact=category).distinct()
             else:
                 qs = qs.filter(category__iexact=category)
 
         if department:
             # Fix: Check both Name and Code
-            qs = qs.filter(Q(department__name__iexact=department) | Q(department__code__iexact=department))
+            qs = qs.filter(Q(department__name__iexact=department)
+                           | Q(department__code__iexact=department))
 
         return qs.order_by('-date', '-entry_id')
 
@@ -1221,24 +1235,25 @@ class BudgetAdjustmentView(generics.CreateAPIView):
         data = serializer.validated_data
         user = self.request.user
         amount = data['amount']
-        
+
         source_alloc = data.get('source_alloc')
         dest_alloc = data.get('dest_alloc')
         dept = data['department']
         description = data.get('description') or f"Budget Adjustment/Transfer"
-        
+
         with transaction.atomic():
             # 1. Update Allocations (Real Impact)
             if source_alloc:
                 source_alloc.amount -= amount  # Reduce source
                 if source_alloc.amount < 0:
-                    raise serializers.ValidationError("Source allocation cannot go negative")
+                    raise serializers.ValidationError(
+                        "Source allocation cannot go negative")
                 source_alloc.save()
-                    
+
             if dest_alloc:
                 dest_alloc.amount += amount  # Increase destination
                 dest_alloc.save()
-            
+
             # 2. Create Journal Entry (Audit)
             je = JournalEntry.objects.create(
                 date=data['date'],
@@ -1250,7 +1265,7 @@ class BudgetAdjustmentView(generics.CreateAPIView):
                 created_by_user_id=user.id,
                 created_by_username=getattr(user, 'username', 'N/A')
             )
-            
+
             # For Asset Accounts (Budget Accounts):
             # CREDIT the source (money decreasing)
             JournalEntryLine.objects.create(
@@ -1262,7 +1277,7 @@ class BudgetAdjustmentView(generics.CreateAPIView):
                 description=f"Transfer out from {data['source_account_obj'].name}",
                 expense_category=source_alloc.category if source_alloc else None
             )
-            
+
             # DEBIT the destination (money increasing)
             JournalEntryLine.objects.create(
                 journal_entry=je,
@@ -1273,7 +1288,7 @@ class BudgetAdjustmentView(generics.CreateAPIView):
                 description=f"Transfer in to {data['destination_account_obj'].name}",
                 expense_category=dest_alloc.category if dest_alloc else None
             )
-            
+
             self.created_instance = je
 
     def create(self, request, *args, **kwargs):

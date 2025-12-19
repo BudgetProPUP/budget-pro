@@ -36,23 +36,35 @@ def get_date_range_from_filter(filter_value):
 
 
 class ExpenseHistoryView(generics.ListAPIView):
-    serializer_class = ExpenseHistorySerializer
+    serializer_class = ExpenseTrackingSerializer 
     permission_classes = [IsBMSUser]
     pagination_class = FiveResultsSetPagination
     filter_backends = [DjangoFilterBackend, filters.SearchFilter]
-    # MODIFICATION START: Add category__name and date to the search fields
-    search_fields = ['description', 'vendor', 'category__name']
-    # MODIFICATION END
-    filterset_fields = ['category__code']
+    
+    # MODIFICATION: Update search fields to match new serializer fields
+    search_fields = [
+        'description', 
+        'vendor', 
+        'transaction_id', 
+        'category__classification', # Search by CapEx/OpEx
+        'category__name' # Search by sub-category name
+    ]
+    
+    # MODIFICATION: Allow filtering by classification directly
+    filterset_fields = ['category__classification', 'category__code'] 
 
     def get_queryset(self):
         user = self.request.user
-        base_queryset = Expense.objects.filter(status='APPROVED')
+        # History is only for approved expenses
+        base_queryset = Expense.objects.filter(status='APPROVED').select_related(
+            'department', 
+            'category__parent_category' # Optimize for serializer
+        )
 
         user_roles = getattr(user, 'roles', {})
         bms_role = user_roles.get('bms')
 
-        if bms_role == 'ADMIN':
+        if bms_role in ['ADMIN', 'FINANCE_HEAD']: # Allow Finance Head to see history
             queryset = base_queryset
         else:
             department_id = getattr(user, 'department_id', None)

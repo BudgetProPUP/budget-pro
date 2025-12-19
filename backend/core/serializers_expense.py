@@ -79,6 +79,7 @@ class ExpenseTrackingSerializer(serializers.ModelSerializer):
             'department_name',    # Corresponds to "Department"
             'category_name',      # Corresponds to "Category"
             'sub_category_name',  # Corresponds to "Sub-category"
+            'description',        
             'amount',             # Corresponds to "Amount"
             'status',             # Corresponds to "Status"
             'accomplished'        # Corresponds to "Accomplished"
@@ -104,7 +105,6 @@ class ExpenseReviewSerializer(serializers.Serializer):
 
 class ExpenseDetailForModalSerializer(serializers.ModelSerializer):
     proposal_id = serializers.IntegerField(source='project.budget_proposal.id', read_only=True)
-
     class Meta:
         model = Expense
         fields = ['id', 'proposal_id']

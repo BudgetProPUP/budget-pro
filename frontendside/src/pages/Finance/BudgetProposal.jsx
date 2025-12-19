@@ -29,7 +29,7 @@ import { useAuth } from "../../context/AuthContext";
 import ManageProfile from "./ManageProfile";
 
 //TODO: Add popup helper when hovering over overflowing content
-//TODO: May need filter for pending. 
+//TODO: May need filter for pending.
 //Question: Should only approved appear here?
 
 const financeOperatorNames = [
@@ -509,38 +509,41 @@ const BudgetProposal = () => {
   const [pageSize, setPageSize] = useState(5);
 
   const getUserRole = () => {
-  if (!user) return "User";
-  
-  // Check for role in different possible locations
-  if (user.roles?.bms) return user.roles.bms;
-  if (user.role_display) return user.role_display;
-  if (user.role) return user.role;
-  
-  // Default role names based on user type
-  if (user.is_superuser) return "ADMIN";
-  if (user.is_staff) return "STAFF";
-  
-  return "User";
-};
+    if (!user) return "User";
 
-const userRole = getUserRole();
+    // Check for role in different possible locations
+    if (user.roles?.bms) return user.roles.bms;
+    if (user.role_display) return user.role_display;
+    if (user.role) return user.role;
 
-const userProfile = {
-  name: user ? `${user.first_name || ''} ${user.last_name || ''}`.trim() || "User" : "User",
-  role: userRole,
-  avatar: user?.profile_picture || "https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?ixlib=rb-1.2.1&ixid=eyJhcHBfaWQiOjEyMDd9&auto=format&fit=facearea&facepad=2&w=256&h=256&q=80",
-};
+    // Default role names based on user type
+    if (user.is_superuser) return "ADMIN";
+    if (user.is_staff) return "STAFF";
+
+    return "User";
+  };
+
+  const userRole = getUserRole();
+
+  const userProfile = {
+    name: user
+      ? `${user.first_name || ""} ${user.last_name || ""}`.trim() || "User"
+      : "User",
+    role: userRole,
+    avatar:
+      user?.profile_picture ||
+      "https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?ixlib=rb-1.2.1&ixid=eyJhcHBfaWQiOjEyMDd9&auto=format&fit=facearea&facepad=2&w=256&h=256&q=80",
+  };
   const [currentDate, setCurrentDate] = useState(new Date());
 
   const fetchSummary = async () => {
-      try {
-        const summaryRes = await getProposalSummary();
-        setSummaryData(summaryRes.data);
-      } catch (error) {
-        console.error("Failed to fetch summary:", error);
-      }
+    try {
+      const summaryRes = await getProposalSummary();
+      setSummaryData(summaryRes.data);
+    } catch (error) {
+      console.error("Failed to fetch summary:", error);
+    }
   };
-
 
   useEffect(() => {
     const timerId = setTimeout(() => {
@@ -559,7 +562,6 @@ const userProfile = {
       clearInterval(interval);
     };
   }, []);
-
 
   // MODIFIED: Fetch Departments on load
   useEffect(() => {
@@ -593,19 +595,11 @@ const userProfile = {
           page: currentPage,
           page_size: pageSize,
           search: debouncedSearchTerm,
-          // Map UI filters to Backend filters
-          // If selectedCategory is 'CAPEX'/'OPEX', backend needs logic or we filter by text
-          // For now, let's assume backend filter 'search' covers it or add specific param
-          // Re-using 'search' for simplicity if backend supports it,
-          // or ideally 'category' param if we updated the view filter.
-          // The view uses 'items__account__account_type__id' which is old.
-          // Let's rely on the updated ListSerializer which returns 'category' (CapEx/OpEx).
-          // We might need to filter client-side if backend filter isn't strict yet,
-          // but let's send it.
-          department: selectedDepartment, // The ViewSet expects 'department' (code)
+          department: selectedDepartment,
+          category: selectedCategory, // ✅ ADD THIS LINE - send to backend
         };
 
-        // Clean params
+        // Clean params - remove empty values
         Object.keys(params).forEach((key) => {
           if (params[key] === "" || params[key] === null) {
             delete params[key];
@@ -614,21 +608,13 @@ const userProfile = {
 
         const res = await getProposals(params);
 
-        // MODIFIED: Use API results directly.
-        // The Serializer now returns: department_name, category (CapEx), sub_category (Server)
-        // We just filter client-side for CapEx/OpEx if backend doesn't support that specific filter key yet.
-        let results = res.data.results;
+        // ✅ REMOVE the client-side filtering - let backend handle it
+        // if (selectedCategory && selectedCategory !== "") {
+        //   results = results.filter((p) => p.category === selectedCategory);
+        // }
 
-        if (selectedCategory && selectedCategory !== "") {
-          results = results.filter((p) => p.category === selectedCategory);
-        }
-
-        setProposals(results);
-        setPagination({
-          ...res.data,
-          count: res.data.count,
-          results: results,
-        });
+        setProposals(res.data.results); // Use results directly from API
+        setPagination(res.data);
       } catch (error) {
         console.error("Failed to fetch proposals:", error);
       } finally {

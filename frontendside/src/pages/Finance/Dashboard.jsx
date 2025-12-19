@@ -7,6 +7,10 @@ generate_forecasts.py calculates the average December spend from history (2023, 
 Since its set SEASONAL_MULTIPLIERS[12] = 1.3 (130% activity) in the seeder, historical Decembers are huge.
 The Forecast generator sees this "Year End Rush" pattern and predicts you will spend a lot in December.
 Verdict: Feature, not a bug. This accurately simulates a company that spends its remaining budget at year-end.
+
+
+
+
 */
 
 import React, { useState, useEffect } from "react";
@@ -297,97 +301,110 @@ const exportAccuracyReport = (
 
   try {
     const wb = XLSX.utils.book_new();
-    const summarySheetData = [
-      ["Forecast Accuracy Report", "", "", "", ""],
-      ["Generated on:", now.toLocaleString(), "", "", ""],
-      [],
-      ["Summary Metrics"],
-      ["Metric", "Value", "Details", "", ""],
-      [
-        "Analyzed Month",
-        `${forecastAccuracyData.month_name} ${forecastAccuracyData.year}`,
-        "Last completed month",
-        "",
-        "",
-      ],
-      [
-        "Accuracy Percentage",
-        `${forecastAccuracyData.accuracy_percentage}%`,
-        "",
-        "",
-        "",
-      ],
-      [
-        "Variance",
-        formatPeso(Math.abs(Number(forecastAccuracyData.variance))),
-        Number(forecastAccuracyData.variance) >= 0
-          ? "Over Forecast"
-          : "Under Forecast",
-        "",
-        "",
-      ],
-    ];
 
-    const comparisonSheetData = [
-      ["Monthly Forecast vs Actual Comparison", "", "", "", "", ""],
-      [],
-      [
-        "Month",
-        "Actual",
-        "Forecast",
-        "Variance Amount",
-        "Variance Status",
-        "Accuracy",
-      ],
-    ];
-
-    // Important: Convert cumulative data to monthly for the report too!
+    // --- 1. PREPARE DATA ---
     const monthlyForecasts = convertCumulativeToMonthly(forecastData);
 
+    const reportRows = [];
+    
+    // Header for Detail Section
+    const tableHeader = [
+      "Month",
+      "Actual",
+      "Forecast",
+      "Variance Amount",
+      "Variance Status",
+      "Accuracy",
+    ];
+
     if (moneyFlowData && Array.isArray(moneyFlowData) && monthlyForecasts) {
-      moneyFlowData.forEach((month) => {
+      moneyFlowData.forEach((month, index) => {
         const actualValue = Number(month.actual) || 0;
-        // Use monthlyForecasts here, not forecastData
-        const forecastPoint = monthlyForecasts.find(
+        
+        // Logic: Find raw forecast
+        let forecastPoint = monthlyForecasts.find(
           (f) => f.month_name === month.month_name
         );
-        const forecastValue = forecastPoint
-          ? Number(forecastPoint.forecast)
-          : 0;
+        let forecastValue = forecastPoint ? Number(forecastPoint.forecast) : 0;
+
+        // NOTE: Manual stitching logic removed. 
+        // The export should reflect the raw data comparison shown in the 
+        // "Detailed Metrics Table" on the UI, where December shows a variance.
+
         const variance = actualValue - forecastValue;
+        
+        // Floating point precision check (Epsilon)
+        const isExact = Math.abs(variance) < 0.01;
 
-        let accuracy = "N/A";
+        // Calculate Accuracy
+        let accuracyPct = 0;
         if (actualValue > 0) {
-          accuracy =
-            (100 * (1 - Math.abs(variance) / actualValue)).toFixed(1) + "%";
-        } else if (forecastValue === 0) accuracy = "100.0%";
-        else accuracy = "0.0%";
+          accuracyPct = 100 * (1 - Math.abs(variance) / actualValue);
+        } else if (forecastValue === 0) {
+          accuracyPct = 100;
+        }
 
-        comparisonSheetData.push([
+        // Clamp accuracy between 0 and 100 to avoid negative percentages or > 100%
+        const displayAccuracy = Math.max(0, Math.min(100, accuracyPct)).toFixed(1) + "%";
+        
+        // Status Text
+        let statusText = "Exact Match";
+        if (!isExact) {
+            statusText = variance > 0 ? "Actual > Forecast" : "Actual < Forecast";
+        }
+
+        reportRows.push([
           month.month_name,
           formatPeso(actualValue),
           formatPeso(forecastValue),
           formatPeso(Math.abs(variance)),
-          variance > 0
-            ? "Actual > Forecast"
-            : variance < 0
-            ? "Actual < Forecast"
-            : "Exact Match",
-          accuracy,
+          statusText,
+          displayAccuracy,
         ]);
       });
     }
 
-    const ws1 = XLSX.utils.aoa_to_sheet(summarySheetData);
-    const ws2 = XLSX.utils.aoa_to_sheet(comparisonSheetData);
-    XLSX.utils.book_append_sheet(wb, ws1, "Accuracy Summary");
-    XLSX.utils.book_append_sheet(wb, ws2, "Monthly Comparison");
+    // --- 2. BUILD SHEETS ---
+
+    // Sheet 1: Executive Summary & Details Combined (Professional Look)
+    const combinedData = [
+      ["FORECAST ACCURACY REPORT"],
+      ["Generated on:", now.toLocaleString()],
+      [""], // Spacer
+      ["EXECUTIVE SUMMARY"],
+      ["Analyzed Month", `${forecastAccuracyData.month_name} ${forecastAccuracyData.year}`],
+      ["Status", "Last completed month"],
+      ["Accuracy Score", `${forecastAccuracyData.accuracy_percentage}%`],
+      ["Variance", `${formatPeso(Math.abs(Number(forecastAccuracyData.variance)))} (${Number(forecastAccuracyData.variance) >= 0 ? "Over" : "Under"} Forecast)`],
+      [""], // Spacer
+      [""], // Spacer
+      ["DETAILED MONTHLY BREAKDOWN"],
+      tableHeader,
+      ...reportRows
+    ];
+
+    const ws1 = XLSX.utils.aoa_to_sheet(combinedData);
+
+    // --- 3. BEAUTIFICATION (Column Widths) ---
+    // Standard XLSX doesn't support fonts/colors easily, but we can fix widths.
+    const wscols = [
+      { wch: 15 }, // Month
+      { wch: 20 }, // Actual
+      { wch: 20 }, // Forecast
+      { wch: 20 }, // Variance
+      { wch: 20 }, // Status
+      { wch: 15 }, // Accuracy
+    ];
+    ws1["!cols"] = wscols;
+
+    XLSX.utils.book_append_sheet(wb, ws1, "Forecast Report");
     XLSX.writeFile(wb, fileName);
   } catch (error) {
     console.error("Error exporting accuracy report:", error);
     alert("Failed to export accuracy report.");
   }
 };
+
 
 function BudgetDashboard() {
   const [currentDate, setCurrentDate] = useState(new Date());

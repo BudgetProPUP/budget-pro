@@ -1148,6 +1148,18 @@ def export_budget_variance_excel(request):
     if not fiscal_year_id:
         return Response({"error": "fiscal_year_id is required"}, status=status.HTTP_400_BAD_REQUEST)
 
+    # ADDED: Parse month parameter (same as display endpoint)
+    try:
+        month = int(request.query_params.get('month')
+                    ) if request.query_params.get('month') else None
+        if month and (month < 1 or month > 12):
+            raise ValueError()
+    except (ValueError, TypeError):
+        return Response(
+            {"error": "Invalid month provided. Must be an integer between 1 and 12."}, 
+            status=status.HTTP_400_BAD_REQUEST
+        )
+
     try:
         fiscal_year = FiscalYear.objects.get(id=fiscal_year_id)
     except FiscalYear.DoesNotExist:
@@ -1157,15 +1169,25 @@ def export_budget_variance_excel(request):
     top_categories = ExpenseCategory.objects.filter(level=1, is_active=True)
 
     def aggregate_node(category):
+        # Budget (whole year, not filtered by month)
         budget = BudgetAllocation.objects.filter(
             category=category, fiscal_year=fiscal_year, is_active=True
         ).aggregate(total=Coalesce(Sum('amount'), 0, output_field=DecimalField()))['total']
 
-        actual = Expense.objects.filter(
+        # FIXED: Apply month filter to actual expenses (same as display endpoint)
+        actual_qs = Expense.objects.filter(
             category=category,
             budget_allocation__fiscal_year=fiscal_year,
             status='APPROVED'
-        ).aggregate(total=Coalesce(Sum('amount'), 0, output_field=DecimalField()))['total']
+        )
+        
+        # Apply month filter if provided
+        if month:
+            actual_qs = actual_qs.filter(date__month=month)
+        
+        actual = actual_qs.aggregate(
+            total=Coalesce(Sum('amount'), 0, output_field=DecimalField())
+        )['total']
 
         children_data = [aggregate_node(child)
                          for child in category.subcategories.all()]
@@ -1174,13 +1196,19 @@ def export_budget_variance_excel(request):
             child_budget = sum(c['budget'] for c in children_data)
             child_actual = sum(c['actual'] for c in children_data)
             return {
-                "name": category.name, "budget": child_budget, "actual": child_actual,
-                "available": child_budget - child_actual, "children": children_data
+                "name": category.name, 
+                "budget": child_budget, 
+                "actual": child_actual,
+                "available": child_budget - child_actual, 
+                "children": children_data
             }
         else:
             return {
-                "name": category.name, "budget": budget, "actual": actual,
-                "available": budget - actual, "children": []
+                "name": category.name, 
+                "budget": budget, 
+                "actual": actual,
+                "available": budget - actual, 
+                "children": []
             }
 
     report_data = [aggregate_node(cat) for cat in top_categories]
@@ -1190,12 +1218,25 @@ def export_budget_variance_excel(request):
     ws = wb.active
     ws.title = "Budget Variance Report"
 
+    # IMPROVED: Add month info to title if filtering
+    if month:
+        ws.append([f"Budget Variance Report - {fiscal_year.name} (Month: {month})"])
+    else:
+        ws.append([f"Budget Variance Report - {fiscal_year.name} (Full Year)"])
+    ws.merge_cells('A1:D1')
+    ws.cell(row=1, column=1).font = Font(bold=True, size=12)
+    ws.append([])  # Blank row
+
     header = ["Category", "Budget", "Actual", "Available"]
     ws.append(header)
     for col in range(1, len(header) + 1):
-        ws.cell(row=1, column=col).font = Font(bold=True)
+        ws.cell(row=3, column=col).font = Font(bold=True)
+        # IMPROVED: Add currency number format
+        if col > 1:  # Budget, Actual, Available columns
+            ws.cell(row=3, column=col).number_format = '#,##0.00'
 
-    def write_rows(data, indent=0):
+    def write_rows(data, indent=0, start_row=4):
+        current_row = start_row
         for item in data:
             ws.append([
                 f"{' ' * indent * 4}{item['name']}",
@@ -1203,19 +1244,32 @@ def export_budget_variance_excel(request):
                 item['actual'],
                 item['available']
             ])
+            # Apply currency format
+            for col in range(2, 5):  # Columns B, C, D
+                ws.cell(row=current_row, column=col).number_format = '#,##0.00'
+            
+            current_row += 1
             if item.get('children'):
-                write_rows(item['children'], indent + 1)
+                current_row = write_rows(item['children'], indent + 1, current_row)[1]
+        return current_row, current_row
 
     write_rows(report_data)
 
-    for col in ws.columns:
-        max_length = max(len(str(cell.value)) for cell in col)
-        ws.column_dimensions[get_column_letter(
-            col[0].column)].width = max(max_length + 2, 12)
+    # Auto-size columns
+    ws.column_dimensions['A'].width = 30
+    ws.column_dimensions['B'].width = 15
+    ws.column_dimensions['C'].width = 15
+    ws.column_dimensions['D'].width = 15
 
     response = HttpResponse(
         content_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
-    filename = f"budget_variance_report_{fiscal_year.name}.xlsx"
+    
+    # IMPROVED: Include month in filename
+    if month:
+        filename = f"budget_variance_report_{fiscal_year.name}_month{month}.xlsx"
+    else:
+        filename = f"budget_variance_report_{fiscal_year.name}.xlsx"
+    
     response["Content-Disposition"] = f'attachment; filename="{filename}"'
     wb.save(response)
     return response

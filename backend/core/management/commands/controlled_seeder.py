@@ -476,42 +476,45 @@ class Command(BaseCommand):
 
         for alloc in allocations:
             year = alloc.fiscal_year.start_date.year
+            project_end = alloc.project.end_date
 
-            # Determine month range
-            end_month = 12 if year < current_year else current_month
-
-            # Determine status based on year
-            # Past years MUST be approved for forecast generator to see them
-            base_status = 'APPROVED' if year < current_year else 'SUBMITTED'
-
+            # Only create expenses within project timeline
+            end_month = min(12, project_end.month) if year <= project_end.year else 12
+            
             for month in range(1, end_month + 1):
                 # 70% chance of expense in any given month
                 if random.random() < 0.3:
                     continue
-
-                # Use a fixed day to make the record deterministic
-                day = random.randint(1, 28)
+                
+                # If it's the project end month, limit the day
+                if month == project_end.month and year == project_end.year:
+                    max_day = min(28, project_end.day)
+                else:
+                    max_day = 28
+                
+                # Calculate day ONCE and use it
+                day = random.randint(1, max_day)
                 expense_date = datetime(year, month, day).date()
+                
+                # Double-check: Skip if expense would be after project end
+                if expense_date > project_end:
+                    continue
 
                 # Pick users
                 user = next(
-                    (u for u in SIMULATED_USERS if u['dept']
-                     == alloc.department.code),
+                    (u for u in SIMULATED_USERS if u['dept'] == alloc.department.code),
                     SIMULATED_USERS[0]
                 )
                 finance_head = SIMULATED_USERS[1]
 
                 # --- NEW CALCULATION LOGIC ---
                 # 1. Base burn rate: 1.5% to 3.5% of total budget per expense
-                # This ensures amounts are relative to the budget size
                 burn_rate = Decimal(random.uniform(0.015, 0.035))
 
                 # 2. Apply Seasonal Multiplier
-                seasonal_factor = Decimal(
-                    str(SEASONAL_MULTIPLIERS.get(month, 1.0)))
+                seasonal_factor = Decimal(str(SEASONAL_MULTIPLIERS.get(month, 1.0)))
 
                 # 3. Apply Yearly Growth (Inflation)
-                # 2023=1.0, 2024=1.05, 2025=1.10
                 year_diff = year - 2023
                 growth_factor = Decimal(1.0 + (year_diff * 0.05))
 
@@ -524,12 +527,10 @@ class Command(BaseCommand):
 
                 # Current year data might be mixed status
                 if year == current_year:
-                    # 90% Approved for Jan-LastMonth, Mixed for Current Month
                     if month < current_month:
                         status = 'APPROVED'
                     else:
-                        status = random.choice(
-                            ['APPROVED', 'SUBMITTED', 'SUBMITTED'])
+                        status = random.choice(['APPROVED', 'SUBMITTED', 'SUBMITTED'])
                 else:
                     status = 'APPROVED'
 

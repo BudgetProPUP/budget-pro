@@ -107,9 +107,9 @@ export const reviewExpense = (expenseId, reviewData) => {
  * Marks an approved expense as accomplished.
  * @param {number} expenseId - The ID of the expense to mark.
  */
-export const markExpenseAccomplished = (expenseId) => {
+// CORRECTED NAME HERE
+export const markExpenseAsAccomplished = (expenseId) => {
     return budgetApi.post(`/expenses/${expenseId}/mark_as_accomplished/`);
 };
-// MODIFICATION END
 
 // Add other necessary functions, like fetching vendors or employees if they become dynamic

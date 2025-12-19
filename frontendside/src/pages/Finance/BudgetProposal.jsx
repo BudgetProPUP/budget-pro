@@ -23,14 +23,9 @@ import {
 // MODIFIED: Import department API
 import { getAllDepartments } from "../../API/departments";
 // MODIFIED: Import category API if needed, or stick to CapEx/OpEx hardcoded if that's the requirement
-// But better to fetch from API if we want dynamic filtering.
 import { getAccountTypes } from "../../API/dropdownAPI";
 import { useAuth } from "../../context/AuthContext";
 import ManageProfile from "./ManageProfile";
-
-//TODO: Add popup helper when hovering over overflowing content
-//TODO: May need filter for pending.
-//Question: Should only approved appear here?
 
 const financeOperatorNames = [
   "Finance Operator",
@@ -38,7 +33,7 @@ const financeOperatorNames = [
   "Finance Manager",
 ];
 
-// Status Component - Copied from ProposalHistory
+// Status Component
 const Status = ({ type, name, personName = null, location = null }) => {
   return (
     <div className={`status-${type.split(" ").join("-")}`}>
@@ -59,7 +54,7 @@ const Status = ({ type, name, personName = null, location = null }) => {
   );
 };
 
-// Pagination Component - Copied from LedgerView
+// Pagination Component
 const Pagination = ({
   currentPage,
   pageSize,
@@ -198,7 +193,6 @@ const Pagination = ({
         </button>
       );
     }
-
     return pages;
   };
 
@@ -286,7 +280,7 @@ const Pagination = ({
   );
 };
 
-// Signature Upload Component - UPDATED with softer Remove button
+// Signature Upload Component
 const SignatureUpload = ({ value, onChange }) => {
   const [preview, setPreview] = useState(value || "");
   const [file, setFile] = useState(null);
@@ -294,7 +288,6 @@ const SignatureUpload = ({ value, onChange }) => {
   const handleFileChange = (e) => {
     const file = e.target.files[0];
     if (file) {
-      // Check file type
       const validTypes = [
         "image/png",
         "image/jpeg",
@@ -305,13 +298,10 @@ const SignatureUpload = ({ value, onChange }) => {
         alert("Please upload a valid image file (PNG, JPG, JPEG, SVG)");
         return;
       }
-
-      // Check file size (max 5MB)
       if (file.size > 5 * 1024 * 1024) {
         alert("File size should be less than 5MB");
         return;
       }
-
       setFile(file);
       const reader = new FileReader();
       reader.onload = (e) => {
@@ -351,7 +341,7 @@ const SignatureUpload = ({ value, onChange }) => {
             style={{
               marginTop: "8px",
               padding: "4px 12px",
-              backgroundColor: "#adb5bd", // SOFTER COLOR
+              backgroundColor: "#adb5bd",
               color: "white",
               border: "none",
               borderRadius: "4px",
@@ -399,7 +389,6 @@ const SignatureUpload = ({ value, onChange }) => {
           </div>
         </div>
       )}
-
       <input
         id="signature-upload"
         type="file"
@@ -407,7 +396,6 @@ const SignatureUpload = ({ value, onChange }) => {
         onChange={handleFileChange}
         style={{ display: "none" }}
       />
-
       {file && (
         <div style={{ marginTop: "8px", fontSize: "12px", color: "#666" }}>
           File: {file.name}
@@ -417,8 +405,6 @@ const SignatureUpload = ({ value, onChange }) => {
   );
 };
 
-// Keep categoriesData if needs simple CapEx/OpEx filtering,
-// OR fetch from API.
 const categoriesData = [
   { id: "CAPEX", name: "CapEx" },
   { id: "OPEX", name: "Opex" },
@@ -434,6 +420,7 @@ const BudgetProposal = () => {
     visible: false,
     readOnly: false,
   });
+
   const [showCommentPopup, setShowCommentPopup] = useState(false);
   const [showConfirmationPopup, setShowConfirmationPopup] = useState(false);
   const [reviewComment, setReviewComment] = useState("");
@@ -442,18 +429,13 @@ const BudgetProposal = () => {
   const [searchTerm, setSearchTerm] = useState("");
   const [showCategoryDropdown, setShowCategoryDropdown] = useState(false);
   const [showDepartmentDropdown, setShowDepartmentDropdown] = useState(false);
-
   const [showManageProfile, setShowManageProfile] = useState(false);
-
-  // MODIFIED: Add state for departments list
   const [departmentOptions, setDepartmentOptions] = useState([]);
-  // Finance operator signature state - UPDATED with auto-generated name
+  const [financeOperatorName, setFinanceOperatorName] = useState("");
+  const [financeOperatorSignature, setFinanceOperatorSignature] = useState("");
 
-  // Utility function to shorten department names
   const shortenDepartmentName = (name, maxLength = 20) => {
     if (!name || name.length <= maxLength) return name;
-
-    // Common abbreviations
     const abbreviations = {
       Department: "Dept.",
       Management: "Mgmt.",
@@ -465,32 +447,24 @@ const BudgetProposal = () => {
       "Information Technology": "IT",
       Finance: "Fin.",
     };
-
     let shortened = name;
     for (const [full, abbr] of Object.entries(abbreviations)) {
       shortened = shortened.replace(new RegExp(full, "gi"), abbr);
     }
-
     if (shortened.length <= maxLength) return shortened;
     return shortened.substring(0, maxLength - 3) + "...";
   };
-
-  // NEW: Initialize with empty string or a generic placeholder
-  const [financeOperatorName, setFinanceOperatorName] = useState("");
-  const [financeOperatorSignature, setFinanceOperatorSignature] = useState("");
 
   const handleManageProfile = () => {
     setShowManageProfile(true);
     setShowProfileDropdown(false);
   };
-
   const handleCloseManageProfile = () => {
     setShowManageProfile(false);
   };
 
   const navigate = useNavigate();
   const { user, logout } = useAuth();
-
   const [loading, setLoading] = useState(true);
   const [proposals, setProposals] = useState([]);
   const [summaryData, setSummaryData] = useState({
@@ -500,31 +474,24 @@ const BudgetProposal = () => {
   });
   const [categories, setCategories] = useState([]);
   const [pagination, setPagination] = useState({ count: 0 });
-
   const [selectedCategory, setSelectedCategory] = useState("");
   const [selectedDepartment, setSelectedDepartment] = useState("");
   const [debouncedSearchTerm, setDebouncedSearchTerm] = useState("");
-
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize, setPageSize] = useState(5);
+  const [currentDate, setCurrentDate] = useState(new Date());
 
   const getUserRole = () => {
     if (!user) return "User";
-
-    // Check for role in different possible locations
     if (user.roles?.bms) return user.roles.bms;
     if (user.role_display) return user.role_display;
     if (user.role) return user.role;
-
-    // Default role names based on user type
     if (user.is_superuser) return "ADMIN";
     if (user.is_staff) return "STAFF";
-
     return "User";
   };
 
   const userRole = getUserRole();
-
   const userProfile = {
     name: user
       ? `${user.first_name || ""} ${user.last_name || ""}`.trim() || "User"
@@ -534,7 +501,9 @@ const BudgetProposal = () => {
       user?.profile_picture ||
       "https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?ixlib=rb-1.2.1&ixid=eyJhcHBfaWQiOjEyMDd9&auto=format&fit=facearea&facepad=2&w=256&h=256&q=80",
   };
-  const [currentDate, setCurrentDate] = useState(new Date());
+
+  const isFinanceManager =
+    userRole === "FINANCE_HEAD" || userRole === "ADMIN" || user?.is_staff;
 
   const fetchSummary = async () => {
     try {
@@ -557,27 +526,22 @@ const BudgetProposal = () => {
     const interval = setInterval(() => {
       setCurrentDate(new Date());
     }, 1000);
-
     return () => {
       clearInterval(interval);
     };
   }, []);
 
-  // MODIFIED: Fetch Departments on load
   useEffect(() => {
     const fetchDropdowns = async () => {
       try {
         const deptRes = await getAllDepartments();
         setDepartmentOptions([
           { value: "", label: "All Departments" },
-          ...deptRes.data.map((d) => ({ value: d.code, label: d.code })), // Use code for shorter labels
+          ...deptRes.data.map((d) => ({ value: d.code, label: d.code })),
         ]);
-
-        // Fetch Summary
         const summaryRes = await getProposalSummary();
         setSummaryData(summaryRes.data);
         fetchSummary();
-
         setCategories([{ id: "", name: "All Categories" }, ...categoriesData]);
       } catch (error) {
         console.error("Failed to fetch initial data:", error);
@@ -586,7 +550,6 @@ const BudgetProposal = () => {
     fetchDropdowns();
   }, []);
 
-  // MODIFIED: Simplified fetchProposals (Removed Mock Logic)
   useEffect(() => {
     const fetchProposals = async () => {
       setLoading(true);
@@ -596,24 +559,15 @@ const BudgetProposal = () => {
           page_size: pageSize,
           search: debouncedSearchTerm,
           department: selectedDepartment,
-          category: selectedCategory, // ✅ ADD THIS LINE - send to backend
+          category: selectedCategory,
         };
-
-        // Clean params - remove empty values
         Object.keys(params).forEach((key) => {
           if (params[key] === "" || params[key] === null) {
             delete params[key];
           }
         });
-
         const res = await getProposals(params);
-
-        // ✅ REMOVE the client-side filtering - let backend handle it
-        // if (selectedCategory && selectedCategory !== "") {
-        //   results = results.filter((p) => p.category === selectedCategory);
-        // }
-
-        setProposals(res.data.results); // Use results directly from API
+        setProposals(res.data.results);
         setPagination(res.data);
       } catch (error) {
         console.error("Failed to fetch proposals:", error);
@@ -647,21 +601,6 @@ const BudgetProposal = () => {
     .toUpperCase();
 
   useEffect(() => {
-    const fetchInitialData = async () => {
-      try {
-        const [summaryRes] = await Promise.all([getProposalSummary()]);
-        setSummaryData(summaryRes.data);
-
-        // Set categories to only CapEx and Opex
-        setCategories([{ id: "", name: "All Categories" }, ...categoriesData]);
-      } catch (error) {
-        console.error("Failed to fetch initial data:", error);
-      }
-    };
-    fetchInitialData();
-  }, []);
-
-  useEffect(() => {
     const handleClickOutside = (event) => {
       if (
         !event.target.closest(".nav-dropdown") &&
@@ -677,23 +616,11 @@ const BudgetProposal = () => {
         setShowCategoryDropdown(false);
       }
     };
-
     document.addEventListener("mousedown", handleClickOutside);
     return () => {
       document.removeEventListener("mousedown", handleClickOutside);
     };
   }, []);
-
-  const departments = [
-    { value: "", label: "All Departments" },
-    { value: "Merchandise Planning", label: "Merchandise Planning" },
-    { value: "Store Operations", label: "Store Operations" },
-    { value: "Marketing", label: "Marketing" },
-    { value: "Operations", label: "Operations" },
-    { value: "IT", label: "IT" },
-    { value: "Logistics", label: "Logistics" },
-    { value: "Human Resources", label: "Human Resources" },
-  ];
 
   const rejectionReasons = [
     "Budget Constraints",
@@ -760,7 +687,7 @@ const BudgetProposal = () => {
   const handleDepartmentSelect = (department) => {
     setSelectedDepartment(department);
     setShowDepartmentDropdown(false);
-    setCurrentPage(1); // Reset to first page when filter changes
+    setCurrentPage(1);
   };
 
   const handleCategorySelect = (categoryId) => {
@@ -787,36 +714,23 @@ const BudgetProposal = () => {
     try {
       const res = await getProposalDetail(proposal.id);
       const data = res.data;
-
-      // Normalize data for the view
       const enhancedProposal = {
         ...data,
-        // FIXED: Map reference field for Ticket ID
         reference: data.external_system_id || proposal.reference || "N/A",
-
-        // Map backend fields to what the UI expects if different
         department: data.department_name || data.department || "N/A",
-
-        // FIXED: Preserve the actual status from the API
         status: data.status || proposal.status || "PENDING",
-
         category: data.category || "N/A",
-
         sub_category:
           data.sub_category ||
           (data.items && data.items.length > 0
             ? data.items[0].cost_element
             : "N/A"),
-
         submitted_by: data.submitted_by_name || data.submitted_by || "N/A",
         amount: data.total_cost || data.amount || 0,
       };
-
       setSelectedProposal(enhancedProposal);
-
       const isReadOnly =
         data.status === "APPROVED" || data.status === "REJECTED";
-
       if (isReadOnly) {
         setFinanceOperatorName(data.finance_operator_name || "");
         setFinanceOperatorSignature(data.signature || "");
@@ -824,7 +738,6 @@ const BudgetProposal = () => {
         setFinanceOperatorName("");
         setFinanceOperatorSignature("");
       }
-
       setShowReviewPopup({ visible: true, readOnly: isReadOnly });
     } catch (error) {
       console.error("Failed to fetch proposal details:", error);
@@ -856,25 +769,17 @@ const BudgetProposal = () => {
     closeCommentPopup();
   };
 
-  // MODIFIED: Updated handleSubmitReview to use FormData for File Upload
   const handleSubmitReview = async () => {
     if (!selectedProposal) return;
-
     let finalComment = reviewComment;
     if (reviewStatus === "REJECTED" && rejectionReason) {
       finalComment = `Reason: ${rejectionReason}. \n${reviewComment}`;
     }
-
     try {
-      // Create FormData to send file + text
       const formData = new FormData();
       formData.append("status", reviewStatus);
       formData.append("comment", finalComment);
       formData.append("finance_operator_name", financeOperatorName);
-
-      // Handle Signature:
-      // If it's a data URL (base64) from the SignatureUpload component,
-      // we need to convert it to a Blob to send as a file.
       if (
         financeOperatorSignature &&
         financeOperatorSignature.startsWith("data:")
@@ -883,16 +788,11 @@ const BudgetProposal = () => {
         const blob = await fetchRes.blob();
         formData.append("signature", blob, "signature.png");
       }
-
       await reviewProposal(selectedProposal.id, formData);
-
       closeConfirmationPopup();
       closeReviewPopup();
-      // Refresh list
       setCurrentPage(1);
-      // Trigger re-fetch
       setDebouncedSearchTerm((prev) => prev + " ");
-      // MODIFIED: Refresh Summary Cards
       fetchSummary();
     } catch (error) {
       console.error("Failed to submit review:", error);
@@ -904,7 +804,6 @@ const BudgetProposal = () => {
     }
   };
 
-  // Print function for the review popup
   const handlePrint = () => {
     const printWindow = window.open("", "_blank");
     printWindow.document.write(`
@@ -1065,8 +964,6 @@ const BudgetProposal = () => {
           <script>
             window.onload = function() {
               window.print();
-              // Close window after print (optional, commented out for debugging)
-              // setTimeout(function() { window.close(); }, 500);
             };
           </script>
         </body>
@@ -1368,50 +1265,6 @@ const BudgetProposal = () => {
                           style={{ fontSize: "12px", color: "#666" }}
                         >
                           2 hours ago
-                        </div>
-                      </div>
-                      <button
-                        className="notification-delete"
-                        style={{
-                          background: "none",
-                          border: "none",
-                          cursor: "pointer",
-                          outline: "none",
-                        }}
-                        onMouseDown={(e) => e.preventDefault()}
-                      >
-                        &times;
-                      </button>
-                    </div>
-                    <div
-                      className="notification-item"
-                      style={{
-                        display: "flex",
-                        padding: "8px 0",
-                        borderBottom: "1px solid #eee",
-                      }}
-                    >
-                      <div
-                        className="notification-icon-wrapper"
-                        style={{ marginRight: "10px" }}
-                      >
-                        <Bell size={16} />
-                      </div>
-                      <div className="notification-content" style={{ flex: 1 }}>
-                        <div
-                          className="notification-title"
-                          style={{ fontWeight: "bold" }}
-                        >
-                          Expense Report
-                        </div>
-                        <div className="notification-message">
-                          New expense report needs review
-                        </div>
-                        <div
-                          className="notification-time"
-                          style={{ fontSize: "12px", color: "#666" }}
-                        >
-                          5 hours ago
                         </div>
                       </div>
                       <button
@@ -2170,7 +2023,11 @@ const BudgetProposal = () => {
                               }}
                               style={{
                                 padding: "4px 8px",
-                                backgroundColor: "#007bff",
+                                backgroundColor:
+                                  proposal.status === "SUBMITTED" &&
+                                  isFinanceManager
+                                    ? "#007bff"
+                                    : "#6c757d",
                                 color: "white",
                                 border: "none",
                                 borderRadius: "4px",
@@ -2179,7 +2036,10 @@ const BudgetProposal = () => {
                                 minWidth: "60px",
                               }}
                             >
-                              REVIEW
+                              {proposal.status === "SUBMITTED" &&
+                              isFinanceManager
+                                ? "REVIEW"
+                                : "VIEW"}
                             </button>
                           </td>
                         </tr>
@@ -2564,21 +2424,29 @@ const BudgetProposal = () => {
                     <div style={{ marginTop: "5px" }}>
                       <input
                         type="text"
-                        // MODIFIED: Bind to state
                         value={financeOperatorName}
                         onChange={(e) => setFinanceOperatorName(e.target.value)}
-                        // MODIFIED: Read-only if reviewing history
-                        disabled={showReviewPopup.readOnly}
-                        placeholder="Enter finance operator name"
+                        // FIX: Disabled if read-only OR if user is NOT Finance Manager
+                        disabled={showReviewPopup.readOnly || !isFinanceManager}
+                        placeholder={
+                          isFinanceManager
+                            ? "Enter finance operator name"
+                            : "Pending Finance Review"
+                        }
                         style={{
                           width: "100%",
                           padding: "8px",
                           border: "1px solid #ccc",
                           borderRadius: "4px",
                           outline: "none",
-                          backgroundColor: showReviewPopup.readOnly
-                            ? "#f8f9fa"
-                            : "white",
+                          backgroundColor:
+                            showReviewPopup.readOnly || !isFinanceManager
+                              ? "#f8f9fa"
+                              : "white",
+                          color:
+                            showReviewPopup.readOnly || !isFinanceManager
+                              ? "#666"
+                              : "#000",
                         }}
                       />
                     </div>
@@ -2588,26 +2456,42 @@ const BudgetProposal = () => {
                   <div className="detail-item" style={{ marginBottom: "15px" }}>
                     <strong>Signature (Attachment):</strong>
                     <div style={{ marginTop: "5px" }}>
-                      {showReviewPopup.readOnly &&
-                      selectedProposal.signature ? (
-                        // If read-only and signature exists from API, show image
+                      {/* LOGIC: Show upload ONLY if it's editable AND user is Finance Manager */}
+                      {!showReviewPopup.readOnly && isFinanceManager ? (
+                        <SignatureUpload
+                          value={financeOperatorSignature}
+                          onChange={setFinanceOperatorSignature}
+                        />
+                      ) : selectedProposal.signature ||
+                        financeOperatorSignature ? (
+                        /* Show existing signature if present (Read Only view) */
                         <img
-                          src={selectedProposal.signature}
+                          src={
+                            selectedProposal.signature ||
+                            financeOperatorSignature
+                          }
                           alt="Signature"
                           style={{
                             maxWidth: "300px",
                             maxHeight: "100px",
                             border: "1px solid #ccc",
+                            padding: "5px",
+                            backgroundColor: "#f8f9fa",
                           }}
                         />
-                      ) : !showReviewPopup.readOnly ? (
-                        // If editable, show upload component
-                        <SignatureUpload
-                          value={financeOperatorSignature}
-                          onChange={setFinanceOperatorSignature}
-                        />
                       ) : (
-                        <div style={{ color: "#999", fontStyle: "italic" }}>
+                        /* Show placeholder if no signature and user cannot edit */
+                        <div
+                          style={{
+                            padding: "15px",
+                            backgroundColor: "#f8f9fa",
+                            border: "1px dashed #ccc",
+                            borderRadius: "4px",
+                            color: "#999",
+                            fontStyle: "italic",
+                            fontSize: "13px",
+                          }}
+                        >
                           No signature attached.
                         </div>
                       )}
@@ -2643,63 +2527,66 @@ const BudgetProposal = () => {
               </div>
             </div>
 
-            {/* Footer with Action Buttons - Only show if NOT read-only */}
-            {!showReviewPopup.readOnly && (
-              <div
-                className="popup-footer"
-                style={{
-                  marginTop: "20px",
-                  paddingTop: "15px",
-                  borderTop: "1px solid #e0e0e0",
-                }}
-              >
+            {/* Footer with Action Buttons - Only show if NOT read-only AND user is Finance Head/Admin */}
+            {!showReviewPopup.readOnly &&
+              (userRole === "FINANCE_HEAD" ||
+                userRole === "ADMIN" ||
+                user?.is_staff) && (
                 <div
-                  className="action-buttons"
+                  className="popup-footer"
                   style={{
-                    display: "flex",
-                    gap: "10px",
-                    justifyContent: "center",
+                    marginTop: "20px",
+                    paddingTop: "15px",
+                    borderTop: "1px solid #e0e0e0",
                   }}
                 >
-                  <button
-                    className="action-btn approve-btn"
-                    onClick={() => handleStatusChange("APPROVED")}
+                  <div
+                    className="action-buttons"
                     style={{
-                      padding: "8px 24px",
-                      backgroundColor: "#28a745",
-                      color: "white",
-                      border: "none",
-                      borderRadius: "4px",
-                      cursor: "pointer",
-                      fontSize: "14px",
-                      minWidth: "100px",
-                      outline: "none",
-                      fontWeight: "bold",
+                      display: "flex",
+                      gap: "10px",
+                      justifyContent: "center",
                     }}
                   >
-                    Approve
-                  </button>
-                  <button
-                    className="action-btn reject-btn"
-                    onClick={() => handleStatusChange("REJECTED")}
-                    style={{
-                      padding: "8px 24px",
-                      backgroundColor: "#dc3545",
-                      color: "white",
-                      border: "none",
-                      borderRadius: "4px",
-                      cursor: "pointer",
-                      fontSize: "14px",
-                      minWidth: "100px",
-                      outline: "none",
-                      fontWeight: "bold",
-                    }}
-                  >
-                    Reject
-                  </button>
+                    <button
+                      className="action-btn approve-btn"
+                      onClick={() => handleStatusChange("APPROVED")}
+                      style={{
+                        padding: "8px 24px",
+                        backgroundColor: "#28a745",
+                        color: "white",
+                        border: "none",
+                        borderRadius: "4px",
+                        cursor: "pointer",
+                        fontSize: "14px",
+                        minWidth: "100px",
+                        outline: "none",
+                        fontWeight: "bold",
+                      }}
+                    >
+                      Approve
+                    </button>
+                    <button
+                      className="action-btn reject-btn"
+                      onClick={() => handleStatusChange("REJECTED")}
+                      style={{
+                        padding: "8px 24px",
+                        backgroundColor: "#dc3545",
+                        color: "white",
+                        border: "none",
+                        borderRadius: "4px",
+                        cursor: "pointer",
+                        fontSize: "14px",
+                        minWidth: "100px",
+                        outline: "none",
+                        fontWeight: "bold",
+                      }}
+                    >
+                      Reject
+                    </button>
+                  </div>
                 </div>
-              </div>
-            )}
+              )}
           </div>
         </div>
       )}

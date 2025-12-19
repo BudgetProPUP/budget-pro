@@ -14,12 +14,12 @@ from rest_framework import generics, filters, viewsets, serializers
 from rest_framework.decorators import action
 from rest_framework.response import Response
 from rest_framework import status
-from rest_framework.parsers import MultiPartParser, FormParser
+from rest_framework.parsers import MultiPartParser, FormParser,JSONParser
 from django.db.models import Sum, Q
 from django.db.models.functions import Coalesce
 from core.service_authentication import APIKeyAuthentication
+from django.db import transaction 
 
-#ExpenseTrackingView, ExpenseCreateView, and ExpenseDetailView classes consolidated to ExpenseViewSet
 def get_date_range_from_filter(filter_value):
     today = timezone.now().date()
     if filter_value == 'this_month':
@@ -36,35 +36,35 @@ def get_date_range_from_filter(filter_value):
 
 
 class ExpenseHistoryView(generics.ListAPIView):
-    serializer_class = ExpenseTrackingSerializer 
+    serializer_class = ExpenseTrackingSerializer
     permission_classes = [IsBMSUser]
     pagination_class = FiveResultsSetPagination
     filter_backends = [DjangoFilterBackend, filters.SearchFilter]
-    
+
     # MODIFICATION: Update search fields to match new serializer fields
     search_fields = [
-        'description', 
-        'vendor', 
-        'transaction_id', 
-        'category__classification', # Search by CapEx/OpEx
-        'category__name' # Search by sub-category name
+        'description',
+        'vendor',
+        'transaction_id',
+        'category__classification',  # Search by CapEx/OpEx
+        'category__name'  # Search by sub-category name
     ]
-    
+
     # MODIFICATION: Allow filtering by classification directly
-    filterset_fields = ['category__classification', 'category__code'] 
+    filterset_fields = ['category__classification', 'category__code']
 
     def get_queryset(self):
         user = self.request.user
         # History is only for approved expenses
         base_queryset = Expense.objects.filter(status='APPROVED').select_related(
-            'department', 
-            'category__parent_category' # Optimize for serializer
+            'department',
+            'category__parent_category'  # Optimize for serializer
         )
 
         user_roles = getattr(user, 'roles', {})
         bms_role = user_roles.get('bms')
 
-        if bms_role in ['ADMIN', 'FINANCE_HEAD']: # Allow Finance Head to see history
+        if bms_role in ['ADMIN', 'FINANCE_HEAD']:  # Allow Finance Head to see history
             queryset = base_queryset
         else:
             department_id = getattr(user, 'department_id', None)
@@ -151,7 +151,7 @@ class ExpenseHistoryView(generics.ListAPIView):
 #         category_code = self.request.query_params.get('category__code')
 #         if category_code:
 #             queryset = queryset.filter(category__code=category_code)
-            
+
 #         department_filter_id = self.request.query_params.get('department')
 #         if department_filter_id:
 #             queryset = queryset.filter(department_id=department_filter_id)
@@ -182,7 +182,7 @@ class ExpenseHistoryView(generics.ListAPIView):
 #     )
 #     def get(self, request, *args, **kwargs):
 #         return super().get(request, *args, **kwargs)
-    
+
 # MODIFICATION START: The ExpenseViewSet replaces the individual views below.
 class ExpenseViewSet(viewsets.ModelViewSet):
     """
@@ -190,18 +190,17 @@ class ExpenseViewSet(viewsets.ModelViewSet):
     Covers listing (Expense Tracking), creating (Submit Expense),
     and marking expenses as accomplished.
     """
-    permission_classes = [IsBMSUser]
+    permission_classes = [IsBMSUser]  # Allows Dept Heads to List/Create
     pagination_class = FiveResultsSetPagination
     filter_backends = [filters.SearchFilter, DjangoFilterBackend]
     search_fields = [
-        'description', 'vendor', 'transaction_id', 
+        'description', 'vendor', 'transaction_id',
         'account__account_type__name', 'status', 'date'
     ]
-    # MODIFICATION START: Add category__classification to filterset_fields
-    filterset_fields = ['category__code', 'department', 'category__classification']
-    # MODIFICATION END
-    # Needed for file uploads in the 'create' action
-    parser_classes = [MultiPartParser, FormParser]
+    filterset_fields = ['category__code',
+                        'department', 'category__classification']
+    # MODIFICATION: Add JSONParser to support non-file actions like Review
+    parser_classes = [MultiPartParser, FormParser, JSONParser] 
 
     def get_queryset(self):
         user = self.request.user
@@ -209,16 +208,11 @@ class ExpenseViewSet(viewsets.ModelViewSet):
         user_roles = getattr(user, 'roles', {})
         bms_role = user_roles.get('bms')
 
-        # MODIFICATION: Allow FINANCE_HEAD to see all expenses (Global View)
+        # DATA ISOLATION
         if bms_role in ['ADMIN', 'FINANCE_HEAD']:
             queryset = base_queryset
-            
-            # Optional: If the UI sends a 'department' filter, apply itt
-            # This allows the Finance Head to "Drill Down" using the dropdown
-            # (DjangoFilterBackend usually handles this automatically if configured, 
-            # but explicit handling ensures it works with custom logic)
         else:
-            # Regular Department Heads only see their own
+            # GENERAL_USER (Dept Head) sees only own department
             department_id = getattr(user, 'department_id', None)
             if department_id:
                 queryset = base_queryset.filter(department_id=department_id)
@@ -226,13 +220,12 @@ class ExpenseViewSet(viewsets.ModelViewSet):
                 queryset = Expense.objects.none()
 
         return queryset.order_by('-date')
-    
+
     def get_serializer_class(self):
         if self.action == 'list':
             return ExpenseTrackingSerializer
         if self.action == 'create':
             return ExpenseCreateSerializer
-        # For retrieve, update, etc.
         return ExpenseDetailSerializer
 
     @extend_schema(
@@ -240,9 +233,12 @@ class ExpenseViewSet(viewsets.ModelViewSet):
         summary="List expenses for tracking",
         description="Paginated list of expenses with filters for category, department, and date range. The search parameter looks in the 'REF NO.', 'TYPE', 'DESCRIPTION', and vendor fields.",
         parameters=[
-            OpenApiParameter(name="search", description="Search by Ref No, Type, Description, or Vendor", required=False, type=str),
-            OpenApiParameter(name="category__code", description="Filter by category code", required=False, type=str),
-            OpenApiParameter(name="department", description="Filter by department ID", required=False, type=int),
+            OpenApiParameter(
+                name="search", description="Search by Ref No, Type, Description, or Vendor", required=False, type=str),
+            OpenApiParameter(
+                name="category__code", description="Filter by category code", required=False, type=str),
+            OpenApiParameter(
+                name="department", description="Filter by department ID", required=False, type=int),
         ]
     )
     def list(self, request, *args, **kwargs):
@@ -254,23 +250,20 @@ class ExpenseViewSet(viewsets.ModelViewSet):
         description="Submit an expense with one or more attachments (e.g., receipts, invoices). The system validates against available, unlocked budget allocations for the project.",
     )
     def create(self, request, *args, **kwargs):
-        serializer = self.get_serializer(data=request.data, context={'request': request})
+        serializer = self.get_serializer(
+            data=request.data, context={'request': request})
         serializer.is_valid(raise_exception=True)
         expense = serializer.save()
         headers = self.get_success_headers(serializer.data)
         return Response({'success': 'Expense submitted', 'id': expense.id}, status=status.HTTP_201_CREATED, headers=headers)
 
-    # MODIFICATION START: Add review action for approving/rejecting expenses
+    # --- ACTION: REVIEW (Finance Head Only) ---
     @extend_schema(
         tags=['Expense Tracking Page Actions'],
         summary="Review an expense (Finance Manager)",
         description="Allows a Finance Manager to approve or reject a submitted expense.",
         request=ExpenseReviewSerializer,
-        responses={
-            200: ExpenseDetailSerializer,
-            400: OpenApiResponse(description="Invalid request (e.g., expense not in 'SUBMITTED' state)."),
-            403: OpenApiResponse(description="Permission denied.")
-        }
+        responses={200: ExpenseDetailSerializer}
     )
     @action(detail=True, methods=['post'], permission_classes=[IsBMSFinanceHead])
     def review(self, request, pk=None):
@@ -285,7 +278,7 @@ class ExpenseViewSet(viewsets.ModelViewSet):
 
         serializer = ExpenseReviewSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
-        
+
         new_status = serializer.validated_data['status']
         notes = serializer.validated_data.get('notes')
         reviewer = request.user
@@ -293,7 +286,6 @@ class ExpenseViewSet(viewsets.ModelViewSet):
         with transaction.atomic():
             expense.status = new_status
             if notes:
-                # Prepend the review notes to any existing notes
                 expense.notes = f"Review Note ({reviewer.username} on {timezone.now().strftime('%Y-%m-%d')}): {notes}\n---\n{expense.notes or ''}"
 
             if new_status == 'APPROVED':
@@ -301,24 +293,18 @@ class ExpenseViewSet(viewsets.ModelViewSet):
                 expense.approved_by_username = reviewer.username
                 expense.approved_at = timezone.now()
 
-            # The post_save signal will handle Journal Entry creation upon this save
             expense.save()
 
-        # Return the full, updated expense details
-        response_serializer = ExpenseDetailSerializer(expense, context={'request': request})
+        response_serializer = ExpenseDetailSerializer(
+            expense, context={'request': request})
         return Response(response_serializer.data, status=status.HTTP_200_OK)
-    # MODIFICATION END
 
+    # --- ACTION: MARK ACCOMPLISHED (Finance Head Only) ---
     @extend_schema(
         tags=['Expense Tracking Page Actions'],
         summary="Mark an expense as accomplished (Finance Manager)",
-        description="Allows a Finance Manager to verify a manual expense entry. Sets the 'is_accomplished' flag to true.",
         request=None,
-        responses={
-            200: ExpenseTrackingSerializer,
-            403: OpenApiResponse(description="You do not have permission to perform this action."),
-            400: OpenApiResponse(description="Expense cannot be marked as accomplished (e.g., not approved yet).")
-        }
+        responses={200: ExpenseTrackingSerializer}
     )
     @action(detail=True, methods=['post'], permission_classes=[IsBMSFinanceHead])
     def mark_as_accomplished(self, request, pk=None):
@@ -329,7 +315,7 @@ class ExpenseViewSet(viewsets.ModelViewSet):
                 {"error": "Only approved expenses can be marked as accomplished."},
                 status=status.HTTP_400_BAD_REQUEST
             )
-        
+
         if expense.is_accomplished:
             return Response(
                 {"message": "Expense is already marked as accomplished."},
@@ -341,6 +327,7 @@ class ExpenseViewSet(viewsets.ModelViewSet):
 
         serializer = ExpenseTrackingSerializer(expense)
         return Response(serializer.data, status=status.HTTP_200_OK)
+
 
 @extend_schema(
     tags=['Expense Tracking Page'],
@@ -359,7 +346,7 @@ class ExpenseTrackingSummaryView(APIView):
         today = timezone.now().date()
         active_fiscal_year = FiscalYear.objects.filter(
             start_date__lte=today, end_date__gte=today, is_active=True).first()
-        
+
         if not active_fiscal_year:
             return Response({"error": "No active fiscal year found."}, status=status.HTTP_404_NOT_FOUND)
 
@@ -373,7 +360,7 @@ class ExpenseTrackingSummaryView(APIView):
             total_spent = Expense.objects.filter(
                 budget_allocation__fiscal_year=active_fiscal_year, status='APPROVED'
             ).aggregate(total=Coalesce(Sum('amount'), Decimal('0.0')))['total']
-            
+
             total_expenses_this_month = Expense.objects.filter(
                 status='APPROVED',
                 date__year=today.year,
@@ -383,9 +370,9 @@ class ExpenseTrackingSummaryView(APIView):
             # Department Summary (Existing Logic)
             if not hasattr(user, 'department_id'):
                 return Response({"error": "User has no associated department."}, status=status.HTTP_400_BAD_REQUEST)
-            
+
             department_id = user.department_id
-            
+
             total_budget = BudgetAllocation.objects.filter(
                 department_id=department_id, fiscal_year=active_fiscal_year, is_active=True
             ).aggregate(total=Coalesce(Sum('amount'), Decimal('0.0')))['total']
@@ -419,7 +406,7 @@ class ExpenseTrackingSummaryView(APIView):
     responses={201: BudgetAllocationCreateSerializer}
 )
 class BudgetAllocationCreateView(generics.CreateAPIView):
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsBMSFinanceHead] # Only Finance should legally be able to add new bucket of money.
     serializer_class = BudgetAllocationCreateSerializer
 
     def perform_create(self, serializer):
@@ -429,7 +416,7 @@ class BudgetAllocationCreateView(generics.CreateAPIView):
 
 # class ExpenseCreateView(APIView):
 #     permission_classes = [IsAuthenticated]
-#     parser_classes = [MultiPartParser, FormParser]  
+#     parser_classes = [MultiPartParser, FormParser]
 #     @extend_schema(
 #         tags=['Expense Tracking Page'],
 #         request=ExpenseCreateSerializer,
@@ -466,17 +453,18 @@ class BudgetAllocationCreateView(generics.CreateAPIView):
     summary="List Expense Categories",
     description="Returns all active expense categories. Optional: Filter by ?project_id=X to show only categories allocated to that project.",
     parameters=[
-        OpenApiParameter(name="project_id", type=int, required=False, description="Filter categories by project allocation")
+        OpenApiParameter(name="project_id", type=int, required=False,
+                         description="Filter categories by project allocation")
     ],
     responses={200: ExpenseCategoryDropdownSerializerV2(many=True)}
 )
 class ExpenseCategoryDropdownView(generics.ListAPIView):
     serializer_class = ExpenseCategoryDropdownSerializerV2
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsBMSUser]
 
     def get_queryset(self):
         queryset = ExpenseCategory.objects.filter(is_active=True)
-        
+
         project_id = self.request.query_params.get('project_id')
         if project_id:
             category_ids = BudgetAllocation.objects.filter(
@@ -484,10 +472,12 @@ class ExpenseCategoryDropdownView(generics.ListAPIView):
                 is_active=True,
                 is_locked=False
             ).values_list('category_id', flat=True).distinct()
-            
+
             queryset = queryset.filter(id__in=category_ids)
-        
+
         return queryset.order_by('code')
+
+
 @extend_schema(
     tags=['Expense History Page'],
     summary="Get the parent proposal ID for a single expense",
@@ -519,7 +509,8 @@ class ExpenseDetailViewForModal(generics.RetrieveAPIView):
             return base_queryset.filter(department_id=department_id)
 
         return Expense.objects.none()
-    
+
+
 class ExternalExpenseViewSet(viewsets.ModelViewSet):
     """
     ViewSet for EXTERNAL services (e.g., AMS, HDS) to create Expense records.

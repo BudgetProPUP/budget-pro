@@ -8,7 +8,8 @@ Since its set SEASONAL_MULTIPLIERS[12] = 1.3 (130% activity) in the seeder, hist
 The Forecast generator sees this "Year End Rush" pattern and predicts you will spend a lot in December.
 Verdict: Feature, not a bug. This accurately simulates a company that spends its remaining budget at year-end.
 
-
+Note on Forecasting: get_budget_forecast view currently does not have data isolation. Department head will see their specific atual/budget lines compared against the Global Forecast Line (high numbers) on the money flow chart.
+Address later when we refine the forecasting logic.
 
 
 */
@@ -292,7 +293,8 @@ const exportAccuracyReport = (
   const now = new Date();
   const dateStr = now.toISOString().split("T")[0].replace(/-/g, "");
   const timeStr = now.toTimeString().split(" ")[0].replace(/:/g, "");
-  const fileName = `forecast_accuracy_report_${dateStr}_${timeStr}.xlsx`;
+  // CHANGED: Updated filename to match dashboard_summary format
+  const fileName = `dashboard_summary_${dateStr}_${timeStr}.xlsx`;
 
   if (!forecastAccuracyData || !moneyFlowData || !forecastData) {
     alert("Accuracy data is not available to export.");
@@ -306,7 +308,7 @@ const exportAccuracyReport = (
     const monthlyForecasts = convertCumulativeToMonthly(forecastData);
 
     const reportRows = [];
-    
+
     // Header for Detail Section
     const tableHeader = [
       "Month",
@@ -320,19 +322,19 @@ const exportAccuracyReport = (
     if (moneyFlowData && Array.isArray(moneyFlowData) && monthlyForecasts) {
       moneyFlowData.forEach((month, index) => {
         const actualValue = Number(month.actual) || 0;
-        
+
         // Logic: Find raw forecast
         let forecastPoint = monthlyForecasts.find(
           (f) => f.month_name === month.month_name
         );
         let forecastValue = forecastPoint ? Number(forecastPoint.forecast) : 0;
 
-        // NOTE: Manual stitching logic removed. 
-        // The export should reflect the raw data comparison shown in the 
+        // NOTE: Manual stitching logic removed.
+        // The export should reflect the raw data comparison shown in the
         // "Detailed Metrics Table" on the UI, where December shows a variance.
 
         const variance = actualValue - forecastValue;
-        
+
         // Floating point precision check (Epsilon)
         const isExact = Math.abs(variance) < 0.01;
 
@@ -345,12 +347,13 @@ const exportAccuracyReport = (
         }
 
         // Clamp accuracy between 0 and 100 to avoid negative percentages or > 100%
-        const displayAccuracy = Math.max(0, Math.min(100, accuracyPct)).toFixed(1) + "%";
-        
+        const displayAccuracy =
+          Math.max(0, Math.min(100, accuracyPct)).toFixed(1) + "%";
+
         // Status Text
         let statusText = "Exact Match";
         if (!isExact) {
-            statusText = variance > 0 ? "Actual > Forecast" : "Actual < Forecast";
+          statusText = variance > 0 ? "Actual > Forecast" : "Actual < Forecast";
         }
 
         reportRows.push([
@@ -372,15 +375,23 @@ const exportAccuracyReport = (
       ["Generated on:", now.toLocaleString()],
       [""], // Spacer
       ["EXECUTIVE SUMMARY"],
-      ["Analyzed Month", `${forecastAccuracyData.month_name} ${forecastAccuracyData.year}`],
+      [
+        "Analyzed Month",
+        `${forecastAccuracyData.month_name} ${forecastAccuracyData.year}`,
+      ],
       ["Status", "Last completed month"],
       ["Accuracy Score", `${forecastAccuracyData.accuracy_percentage}%`],
-      ["Variance", `${formatPeso(Math.abs(Number(forecastAccuracyData.variance)))} (${Number(forecastAccuracyData.variance) >= 0 ? "Over" : "Under"} Forecast)`],
+      [
+        "Variance",
+        `${formatPeso(Math.abs(Number(forecastAccuracyData.variance)))} (${
+          Number(forecastAccuracyData.variance) >= 0 ? "Over" : "Under"
+        } Forecast)`,
+      ],
       [""], // Spacer
       [""], // Spacer
       ["DETAILED MONTHLY BREAKDOWN"],
       tableHeader,
-      ...reportRows
+      ...reportRows,
     ];
 
     const ws1 = XLSX.utils.aoa_to_sheet(combinedData);
@@ -404,7 +415,6 @@ const exportAccuracyReport = (
     alert("Failed to export accuracy report.");
   }
 };
-
 
 function BudgetDashboard() {
   const [currentDate, setCurrentDate] = useState(new Date());
@@ -434,27 +444,31 @@ function BudgetDashboard() {
   const { user, logout } = useAuth();
 
   const getUserRole = () => {
-  if (!user) return "User";
-  
-  // Check for role in different possible locations
-  if (user.roles?.bms) return user.roles.bms;
-  if (user.role_display) return user.role_display;
-  if (user.role) return user.role;
-  
-  // Default role names based on user type
-  if (user.is_superuser) return "ADMIN";
-  if (user.is_staff) return "STAFF";
-  
-  return "User";
-};
+    if (!user) return "User";
 
-const userRole = getUserRole();
+    // Check for role in different possible locations
+    if (user.roles?.bms) return user.roles.bms;
+    if (user.role_display) return user.role_display;
+    if (user.role) return user.role;
 
-const userProfile = {
-  name: user ? `${user.first_name || ''} ${user.last_name || ''}`.trim() || "User" : "User",
-  role: userRole,
-  avatar: user?.profile_picture || "https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?ixlib=rb-1.2.1&ixid=eyJhcHBfaWQiOjEyMDd9&auto=format&fit=facearea&facepad=2&w=256&h=256&q=80",
-};
+    // Default role names based on user type
+    if (user.is_superuser) return "ADMIN";
+    if (user.is_staff) return "STAFF";
+
+    return "User";
+  };
+
+  const userRole = getUserRole();
+
+  const userProfile = {
+    name: user
+      ? `${user.first_name || ""} ${user.last_name || ""}`.trim() || "User"
+      : "User",
+    role: userRole,
+    avatar:
+      user?.profile_picture ||
+      "https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?ixlib=rb-1.2.1&ixid=eyJhcHBfaWQiOjEyMDd9&auto=format&fit=facearea&facepad=2&w=256&h=256&q=80",
+  };
   // --- API CALLS ---
 
   // 1. Initial Data Load

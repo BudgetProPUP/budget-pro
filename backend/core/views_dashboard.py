@@ -187,13 +187,20 @@ def get_dashboard_budget_summary(request):
         end_date_filter = (start_date_filter + relativedelta(months=3)) - relativedelta(days=1)
         budget_divisor = 4
     
-    # Base queryset for allocations
-    # MODIFICATION: Remove Data Isolation for Dashboard Summary
-    # We want the summary cards to show the COMPANY-WIDE status, not just the user's department.
+    # Base queryset
     allocations_qs = BudgetAllocation.objects.filter(
         is_active=True,
         fiscal_year=fiscal_year
     )
+
+    # DATA ISOLATION LOGIC
+    if bms_role == 'GENERAL_USER':
+        department_id = getattr(user, 'department_id', None)
+        if department_id:
+            allocations_qs = allocations_qs.filter(department_id=department_id)
+        else:
+            # If user has no department, they see 0
+            allocations_qs = BudgetAllocation.objects.none()
 
     # if bms_role == 'FINANCE_HEAD':
     #     department_id = getattr(user, 'department_id', None)
@@ -209,8 +216,9 @@ def get_dashboard_budget_summary(request):
     total_budget_for_period = total_yearly_budget / Decimal(budget_divisor)
 
     # Filter expenses within the calculated date range
+    # Note: Ensure Total Spent logic also filters by allocations_qs to inherit the department filter
     total_spent_for_period = Expense.objects.filter(
-        budget_allocation__in=allocations_qs,
+        budget_allocation__in=allocations_qs, # Inherits department restriction
         status='APPROVED',
         date__range=[start_date_filter, end_date_filter]
     ).aggregate(total=Sum('amount'))['total'] or Decimal('0.00')
@@ -633,14 +641,13 @@ def get_project_status_list(request):
     user_roles = getattr(user, 'roles', {})
     bms_role = user_roles.get('bms')
 
-    if bms_role == 'FINANCE_HEAD':
+    # FIX: Finance Head gets global view. General User gets restricted view.
+    if bms_role == 'GENERAL_USER':
         department_id = getattr(user, 'department_id', None)
         if department_id:
             allocations_qs = allocations_qs.filter(department_id=department_id)
         else:
             allocations_qs = BudgetAllocation.objects.none()
-    # ADMIN sees all
-    # --- MODIFICATION END ---
 
     project_data = []
 
@@ -707,7 +714,9 @@ def get_project_status_list(request):
 @api_view(['GET'])
 @permission_classes([IsBMSUser]) # MODIFIED: Use specific BMS permission
 def get_department_budget_status(request):
-    user = request.user # MODIFIED: Get user
+    user = request.user
+    user_roles = getattr(user, 'roles', {})
+    bms_role = user_roles.get('bms')
     today = timezone.now().date()
 
     fiscal_year = FiscalYear.objects.filter(
@@ -718,12 +727,17 @@ def get_department_budget_status(request):
 
     if not fiscal_year:
         return Response({"detail": "No active fiscal year found."}, status=404)
-
-     # --- MODIFICATION START ---
-    # REMOVE DATA ISOLATION FOR THIS VIEW
-    # We want the Dashboard Pie Chart to show the global context (All Departments)
-    # regardless of the user's specific department assignment.
+    
     departments_qs = Department.objects.filter(is_active=True)
+
+    # DATA ISOLATION LOGIC
+    if bms_role == 'GENERAL_USER':
+        department_id = getattr(user, 'department_id', None)
+        if department_id:
+            departments_qs = departments_qs.filter(id=department_id)
+        else:
+            departments_qs = Department.objects.none()
+
     result = []
 
     # MODIFIED: Iterate over the filtered queryset
@@ -844,15 +858,17 @@ def overall_monthly_budget_actual(request):
     budget_query = BudgetAllocation.objects.filter(fiscal_year=fiscal_year, is_active=True)
     expense_query_base = Expense.objects.filter(status='APPROVED', budget_allocation__fiscal_year=fiscal_year)
 
-    # if bms_role == 'FINANCE_HEAD':
-    #     department_id = getattr(user, 'department_id', None)
-    #     if department_id:
-    #         budget_query = budget_query.filter(department_id=department_id)
-    #         expense_query_base = expense_query_base.filter(department_id=department_id)
-    #     else:
-    #         budget_query = budget_query.none()
-    #         expense_query_base = expense_query_base.none()
-    # ADMIN role will not be filtered and will see overall data
+    # FIX: Restrict General Users, allow Finance/Admin global
+    if bms_role == 'GENERAL_USER':
+        department_id = getattr(user, 'department_id', None)
+        if department_id:
+            budget_query = budget_query.filter(department_id=department_id)
+            expense_query_base = expense_query_base.filter(department_id=department_id)
+        else:
+            budget_query = budget_query.none()
+            expense_query_base = expense_query_base.none()
+            
+    # ADMIN and FINANCE_HEAD see overall data
     
     total_budget = budget_query.aggregate(total=Coalesce(Sum('amount'), Decimal('0')))['total']
     # --- MODIFICATION END ---
@@ -975,10 +991,12 @@ class ProjectDetailView(generics.RetrieveAPIView):
         user_roles = getattr(user, 'roles', {})
         bms_role = user_roles.get('bms')
 
-        if bms_role == 'ADMIN':
+        # FIX: Finance Head joins Admin in global view
+        if bms_role in ['ADMIN', 'FINANCE_HEAD']:
             return Project.objects.all()
         
-        if bms_role == 'FINANCE_HEAD':
+        # FIX: General User gets department view
+        if bms_role == 'GENERAL_USER':
             department_id = getattr(user, 'department_id', None)
             if department_id:
                 return Project.objects.filter(department_id=department_id)

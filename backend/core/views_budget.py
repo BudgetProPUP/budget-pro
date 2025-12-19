@@ -29,7 +29,7 @@ from .models import (
     FiscalYear, BudgetAllocation, Expense, JournalEntry, JournalEntryLine,
     ProposalComment, ProposalHistory, UserActivityLog, Project
 )
-from .permissions import IsTrustedService, IsBMSFinanceHead, IsBMSUser, IsBMSAdmin
+from .permissions import CanSubmitForApproval, IsTrustedService, IsBMSFinanceHead, IsBMSUser, IsBMSAdmin
 from .pagination import FiveResultsSetPagination, SixResultsSetPagination, StandardResultsSetPagination
 from .serializers import FiscalYearSerializer
 from .serializers_budget import (
@@ -90,10 +90,7 @@ from .serializers_budget import (
 
 
 class BudgetProposalSummaryView(generics.GenericAPIView):
-    # --- MODIFICATION START ---
-    # Changed permission from IsAuthenticated to the more specific IsBMSUser
-    permission_classes = [IsBMSUser]
-    # --- MODIFICATION END ---
+    permission_classes = [IsBMSUser]  # Allows Dept Heads
     serializer_class = BudgetProposalSummarySerializer
 
     @extend_schema(
@@ -108,12 +105,11 @@ class BudgetProposalSummaryView(generics.GenericAPIView):
 
         active_proposals = BudgetProposal.objects.filter(is_deleted=False)
 
-        # MODIFIED: Logic to match Table View visibility
-        if bms_role == 'ADMIN' or bms_role == 'FINANCE_HEAD':
-            # Finance Head/Admin sees GLOBAL stats
-            pass
+        # DATA ISOLATION
+        if bms_role in ['ADMIN', 'FINANCE_HEAD']:
+            pass  # See all
         else:
-            # Department Heads see DEPARTMENT stats
+            # Dept Head sees own dept
             department_id = getattr(user, 'department_id', None)
             if department_id:
                 active_proposals = active_proposals.filter(
@@ -124,7 +120,6 @@ class BudgetProposalSummaryView(generics.GenericAPIView):
         total = active_proposals.count()
         pending = active_proposals.filter(status='SUBMITTED').count()
 
-        # Total budget calculation...
         total_budget = active_proposals.aggregate(
             total=Sum('items__estimated_cost'))['total'] or 0
 
@@ -292,25 +287,37 @@ class FiscalYearDropdownView(generics.ListAPIView):
 class LedgerViewList(generics.ListAPIView):
     serializer_class = LedgerViewSerializer
     pagination_class = FiveResultsSetPagination
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsBMSUser]  # Changed from IsAuthenticated
 
     def get_queryset(self):
-        # MODIFIED: Added select_related for new ForeignKeys to prevent N+1 queries
         queryset = JournalEntryLine.objects.select_related(
             'journal_entry',
             'account',
-            'journal_entry__department',  # For Department column
-            'expense_category'            # For Category column
+            'journal_entry__department',
+            'expense_category'
         )
 
-        # CRITICAL FIX: Only show lines that have meaningful expense categories
-        # This removes "balancing" lines like "Cash in Bank" credits that don't represent actual expenses
         queryset = queryset.filter(expense_category__isnull=False)
+
+        # --- DATA ISOLATION LOGIC ---
+        user = self.request.user
+        user_roles = getattr(user, 'roles', {})
+        bms_role = user_roles.get('bms')
+
+        if bms_role == 'GENERAL_USER':
+            department_id = getattr(user, 'department_id', None)
+            if department_id:
+                # Filter lines where the parent Journal Entry belongs to the user's department
+                queryset = queryset.filter(
+                    journal_entry__department_id=department_id)
+            else:
+                return JournalEntryLine.objects.none()
 
         search = self.request.query_params.get('search')
         category = self.request.query_params.get('category')
         transaction_type = self.request.query_params.get('transaction_type')
-        department_filter = self.request.query_params.get('department_id') or self.request.query_params.get('department')
+        department_filter = self.request.query_params.get(
+            'department_id') or self.request.query_params.get('department')
 
         if search:
             queryset = queryset.filter(
@@ -318,20 +325,17 @@ class LedgerViewList(generics.ListAPIView):
                 Q(journal_entry__date__icontains=search) |
                 Q(journal_entry__description__icontains=search) |
                 Q(description__icontains=search) |
-                # MODIFIED: Search in expense category
                 Q(expense_category__name__icontains=search) |
                 Q(account__name__icontains=search) |
                 Q(account__code__icontains=search)
             )
 
         if category:
-            # MODIFIED: Filter by CapEx/OpEx classification
             if category.upper() in ['CAPEX', 'OPEX']:
                 queryset = queryset.filter(
                     expense_category__classification__iexact=category
                 )
             else:
-                # Fallback: Check sub-category name
                 queryset = queryset.filter(
                     expense_category__name__icontains=category
                 )
@@ -340,7 +344,6 @@ class LedgerViewList(generics.ListAPIView):
             queryset = queryset.filter(
                 journal_transaction_type__iexact=transaction_type)
 
-        # MODIFIED: Logic to filter by Department
         if department_filter:
             queryset = queryset.filter(
                 journal_entry__department_id=department_filter)
@@ -400,9 +403,7 @@ class LedgerExportView(APIView):
 
 
 @extend_schema(
-    # MODIFICATION: Add tag
     tags=['Journal Entry Page', 'Budget Adjustment Page'],
-    # MODIFICATION: Update summary
     summary="List Journal Entries (used for Budget Adjustment page)",
     parameters=[
             OpenApiParameter(
@@ -415,7 +416,8 @@ class LedgerExportView(APIView):
 class JournalEntryListView(generics.ListAPIView):
     serializer_class = JournalEntryListSerializer
     pagination_class = FiveResultsSetPagination
-    permission_classes = [IsAuthenticated]
+    # CHANGED: From IsAuthenticated to IsBMSUser
+    permission_classes = [IsBMSUser]
     search_fields = ['entry_id', 'description', 'lines__account__name']
 
     def get_queryset(self):
@@ -423,6 +425,19 @@ class JournalEntryListView(generics.ListAPIView):
             'lines__account', 'lines__expense_category', 'department'
         ).all()
 
+        # --- MODIFICATION START: Data Isolation ---
+        user = self.request.user
+        user_roles = getattr(user, 'roles', {})
+        bms_role = user_roles.get('bms')
+
+        if bms_role == 'GENERAL_USER':
+            department_id = getattr(user, 'department_id', None)
+            if department_id:
+                qs = qs.filter(department_id=department_id)
+            else:
+                return JournalEntry.objects.none()
+            
+            
         search = self.request.query_params.get('search')
         category = self.request.query_params.get('category')
         department = self.request.query_params.get('department')
@@ -541,7 +556,240 @@ class AccountTypeDropdownView(generics.ListAPIView):
     def get(self, request, *args, **kwargs):
         return super().get(request, *args, **kwargs)
 
+class BudgetProposalUIViewSet(viewsets.ReadOnlyModelViewSet):
+    """
+    ViewSet for the User Interface (UI).
+    Handles listing, retrieving, reviewing, and commenting on proposals.
+    """
+    # Base permission: Any BMS user can read/list (subject to queryset isolation)
+    permission_classes = [IsBMSUser]
+    pagination_class = FiveResultsSetPagination
+    filter_backends = [DjangoFilterBackend, filters.SearchFilter]
+    search_fields = [
+        'title',
+        'external_system_id',
+        'submitted_by_name',
+        'items__cost_element',  # Sub-category (cost element)
+        'items__category__name'  # Sub-category (category name)
+    ]
+    filterset_fields = ['status']
 
+    def get_queryset(self):
+        """
+        Dynamically filters the queryset based on user role for data isolation.
+        """
+        user = self.request.user
+        # Base query
+        base_queryset = BudgetProposal.objects.filter(is_deleted=False).select_related(
+            'department', 'fiscal_year'
+        ).prefetch_related('items__account__account_type', 'comments', 'items__category')
+
+        user_roles = getattr(user, 'roles', {})
+        bms_role = user_roles.get('bms')
+
+        # 1. Determine Visibility (Data Isolation)
+        if bms_role in ['ADMIN', 'FINANCE_HEAD']:
+            # Admins and Finance Heads see ALL proposals
+            queryset = base_queryset
+        else:
+            # Department Heads see ONLY their own department's proposals
+            department_id = getattr(user, 'department_id', None)
+            if department_id:
+                queryset = base_queryset.filter(department_id=department_id)
+            else:
+                return BudgetProposal.objects.none()
+
+        # 2. Apply UI Filters (Status, Category, etc.)
+        status_filter = self.request.query_params.get('status')
+        department_filter = self.request.query_params.get('department')
+        category_filter = self.request.query_params.get('category')
+
+        if department_filter:
+            queryset = queryset.filter(department__code=department_filter)
+
+        if status_filter:
+            queryset = queryset.filter(status=status_filter)
+
+        if category_filter:
+            queryset = queryset.filter(
+                items__category__classification__iexact=category_filter).distinct()
+
+        return queryset.order_by('-created_at')
+
+    def get_serializer_class(self):
+        if self.action == 'retrieve':
+            return BudgetProposalDetailSerializer
+        # Use MessageSerializer for creation/submission to handle nested items and logic
+        if self.action == 'submit_proposal':
+            return BudgetProposalMessageSerializer
+        return BudgetProposalListSerializer
+
+    # --- ACTION: SUBMIT PROPOSAL (For Dept Heads) ---
+    @extend_schema(
+        summary="Submit a new proposal (Department Head)",
+        request=BudgetProposalMessageSerializer,
+        responses={201: BudgetProposalMessageSerializer},
+        tags=['Budget Proposal Page Actions']
+    )
+    @action(detail=False, methods=['post'], permission_classes=[CanSubmitForApproval])
+    def submit_proposal(self, request):
+        """
+        Allows Department Heads (and others) to submit a new budget proposal.
+        The proposal is created with status 'SUBMITTED' (or 'DRAFT').
+        """
+        # Inject the user's name as 'submitted_by_name' if not provided
+        data = request.data.copy()
+        if 'submitted_by_name' not in data:
+            data['submitted_by_name'] = request.user.get_full_name(
+            ) or request.user.username
+
+        # If user is a Dept Head, force the department to be their own
+        user_roles = getattr(request.user, 'roles', {})
+        if user_roles.get('bms') == 'GENERAL_USER':
+            department_id = getattr(request.user, 'department_id', None)
+            if department_id:
+                data['department_input'] = str(department_id)
+
+        serializer = BudgetProposalMessageSerializer(
+            data=data, context={'request': request})
+        serializer.is_valid(raise_exception=True)
+        proposal = serializer.save()
+
+        return Response(serializer.data, status=status.HTTP_201_CREATED)
+
+    # --- ACTION: REVIEW (Finance Head Only) ---
+    @extend_schema(
+        summary="Review a proposal (Finance Head)",
+        request=ProposalReviewSerializer,
+        responses={200: BudgetProposalDetailSerializer},
+        tags=['Budget Proposal Page Actions']
+    )
+    @action(detail=True, methods=['post'], permission_classes=[IsBMSFinanceHead])
+    def review(self, request, pk=None):
+        proposal = self.get_object()
+
+        review_input_serializer = ProposalReviewSerializer(data=request.data)
+        review_input_serializer.is_valid(raise_exception=True)
+
+        new_status = review_input_serializer.validated_data['status']
+        comment_text = review_input_serializer.validated_data.get('comment', '')
+        finance_operator = review_input_serializer.validated_data.get('finance_operator_name', '')
+        signature_file = review_input_serializer.validated_data.get('signature')
+
+        reviewer_user_id = request.user.id
+        reviewer_name = request.user.get_full_name() or request.user.username
+        previous_status_for_history = proposal.status
+
+        with transaction.atomic():
+            proposal.status = new_status
+
+            if finance_operator:
+                proposal.finance_operator_name = finance_operator
+            if signature_file:
+                proposal.signature = signature_file
+
+            if new_status == 'APPROVED':
+                proposal.approved_by_name = reviewer_name
+                proposal.approval_date = timezone.now()
+                proposal.rejected_by_name = None
+                proposal.rejection_date = None
+
+                if not hasattr(proposal, 'project') or proposal.project is None:
+                    Project.objects.create(
+                        name=f"Project for: {proposal.title}",
+                        description=proposal.project_summary,
+                        start_date=proposal.performance_start_date,
+                        end_date=proposal.performance_end_date,
+                        department=proposal.department,
+                        budget_proposal=proposal,
+                        status='PLANNING'
+                    )
+            elif new_status == 'REJECTED':
+                proposal.rejected_by_name = reviewer_name
+                proposal.rejection_date = timezone.now()
+                proposal.approved_by_name = None
+                proposal.approval_date = None
+                if hasattr(proposal, 'project') and proposal.project is not None:
+                    proposal.project.status = 'CANCELLED'
+                    proposal.project.save(update_fields=['status'])
+
+            proposal.last_modified = timezone.now()
+            proposal.save()
+
+            if comment_text:
+                ProposalComment.objects.create(
+                    proposal=proposal,
+                    user_id=reviewer_user_id,
+                    user_username=reviewer_name,
+                    comment=comment_text
+                )
+
+            ProposalHistory.objects.create(
+                proposal=proposal, action=new_status,
+                action_by_name=reviewer_name,
+                previous_status=previous_status_for_history,
+                new_status=proposal.status,
+                comments=comment_text or f"Status changed to {new_status}."
+            )
+
+        # Outbound notification logic
+            try:
+                dts_callback_url = settings.DTS_STATUS_UPDATE_URL
+                if dts_callback_url:
+                    payload = {
+                        'ticket_id': proposal.external_system_id,
+                        'status': new_status,
+                        'comment': comment_text,
+                        'reviewed_by': reviewer_name,
+                        'reviewed_at': timezone.now().isoformat()
+                    }
+                    headers = {
+                        'Content-Type': 'application/json',
+                        'X-API-Key': settings.BMS_AUTH_KEY_FOR_DTS
+                    }
+                    requests.post(
+                        dts_callback_url, json=payload, headers=headers, timeout=5)
+                    
+                    proposal.sync_status = 'SYNCED'
+                    proposal.last_sync_timestamp = timezone.now()
+                    proposal.save(update_fields=['sync_status', 'last_sync_timestamp'])
+            except requests.RequestException:
+                proposal.sync_status = 'FAILED'
+                proposal.save(update_fields=['sync_status'])
+
+        output_serializer = BudgetProposalDetailSerializer(
+            proposal, context={'request': request})
+        return Response(output_serializer.data, status=status.HTTP_200_OK)
+
+    # --- ACTION: ADD COMMENT (All Users) ---
+    @extend_schema(
+        summary="Add a comment to a proposal",
+        request=ProposalCommentCreateSerializer,
+        responses={201: ProposalCommentSerializer},
+        tags=['Budget Proposal Page Actions']
+    )
+    @action(detail=True, methods=['post'], url_path='add-comment', permission_classes=[IsBMSUser])
+    def add_comment(self, request, pk=None):
+        proposal = self.get_object()
+        comment_serializer = ProposalCommentCreateSerializer(data=request.data)
+        comment_serializer.is_valid(raise_exception=True)
+        comment_text = comment_serializer.validated_data['comment']
+
+        commenter_name = f"{request.user.first_name} {request.user.last_name}".strip(
+        ) or request.user.username
+
+        comment_obj = ProposalComment.objects.create(
+            proposal=proposal,
+            user_id=request.user.id,
+            user_username=commenter_name,
+            comment=comment_text
+        )
+        ProposalHistory.objects.create(
+            proposal=proposal, action='COMMENTED', action_by_name=commenter_name,
+            comments=f"Comment added: '{comment_text}'"
+        )
+        return Response(ProposalCommentSerializer(comment_obj).data, status=status.HTTP_201_CREATED)
+    
 class ExternalBudgetProposalViewSet(viewsets.ModelViewSet):
     """
     ViewSet for EXTERNAL service-to-service communication (e.g., from DTS/TTS).
@@ -555,17 +803,15 @@ class ExternalBudgetProposalViewSet(viewsets.ModelViewSet):
     # methods from ModelViewSet, which are now correctly protected.
 
 
-# 2. Update BudgetProposalUIViewSet.review to save signature
-class BudgetProposalUIViewSet(viewsets.ReadOnlyModelViewSet):
+# 2. Update BudgetProposalUIViewSet.review to save signatureclass BudgetProposalUIViewSet(viewsets.ReadOnlyModelViewSet):
     """
     ViewSet for the User Interface (UI).
-    Handles listing, retrieving, reviewing, and commenting on proposals for
-    authenticated users with JWTs.
+    Handles listing, retrieving, reviewing, and commenting on proposals.
     """
+    # Base permission: Any BMS user can read/list (subject to queryset isolation)
     permission_classes = [IsBMSUser]
     pagination_class = FiveResultsSetPagination
     filter_backends = [DjangoFilterBackend, filters.SearchFilter]
-    # MODIFIED: Added search fields for Submitted By and Sub-Category
     search_fields = [
         'title',
         'external_system_id',
@@ -578,9 +824,9 @@ class BudgetProposalUIViewSet(viewsets.ReadOnlyModelViewSet):
     def get_queryset(self):
         """
         Dynamically filters the queryset based on user role for data isolation.
-        And applies UI filters.
         """
         user = self.request.user
+        # Base query
         base_queryset = BudgetProposal.objects.filter(is_deleted=False).select_related(
             'department', 'fiscal_year'
         ).prefetch_related('items__account__account_type', 'comments', 'items__category')
@@ -588,36 +834,30 @@ class BudgetProposalUIViewSet(viewsets.ReadOnlyModelViewSet):
         user_roles = getattr(user, 'roles', {})
         bms_role = user_roles.get('bms')
 
-        # 1. Determine Base Visibility (Data Isolation)
-        if bms_role == 'ADMIN' or bms_role == 'FINANCE_HEAD':
-            # Admins and Finance Heads see ALL proposals to allow review/oversight
+        # 1. Determine Visibility (Data Isolation)
+        if bms_role in ['ADMIN', 'FINANCE_HEAD']:
+            # Admins and Finance Heads see ALL proposals
             queryset = base_queryset
         else:
-            # Regular users (Dept Heads) see ONLY their own department's proposals
+            # Department Heads see ONLY their own department's proposals
             department_id = getattr(user, 'department_id', None)
             if department_id:
                 queryset = base_queryset.filter(department_id=department_id)
             else:
                 return BudgetProposal.objects.none()
 
-        # 2. Apply UI Filters (Department, Status, Category)
-        # These filters apply to everyone
-
+        # 2. Apply UI Filters (Status, Category, etc.)
         status_filter = self.request.query_params.get('status')
         department_filter = self.request.query_params.get('department')
-        category_filter = self.request.query_params.get(
-            'category')  # 'CAPEX' or 'OPEX'
+        category_filter = self.request.query_params.get('category')
 
         if department_filter:
-            # Filter by Department Code (e.g., 'IT', 'HR')
             queryset = queryset.filter(department__code=department_filter)
 
         if status_filter:
             queryset = queryset.filter(status=status_filter)
 
         if category_filter:
-            # Filter by Classification (CapEx/OpEx)
-            # We filter if ANY item in the proposal matches the classification
             queryset = queryset.filter(
                 items__category__classification__iexact=category_filter).distinct()
 
@@ -626,8 +866,45 @@ class BudgetProposalUIViewSet(viewsets.ReadOnlyModelViewSet):
     def get_serializer_class(self):
         if self.action == 'retrieve':
             return BudgetProposalDetailSerializer
-        # For 'list' action
+        # Use MessageSerializer for creation/submission to handle nested items and logic
+        if self.action == 'submit_proposal':
+            return BudgetProposalMessageSerializer
         return BudgetProposalListSerializer
+
+    # --- ACTION: SUBMIT PROPOSAL (For Dept Heads) ---
+    @extend_schema(
+        summary="Submit a new proposal (Department Head)",
+        request=BudgetProposalMessageSerializer,
+        responses={201: BudgetProposalMessageSerializer},
+        tags=['Budget Proposal Page Actions']
+    )
+    @action(detail=False, methods=['post'], permission_classes=[CanSubmitForApproval])
+    def submit_proposal(self, request):
+        """
+        Allows Department Heads (and others) to submit a new budget proposal.
+        The proposal is created with status 'SUBMITTED' (or 'DRAFT').
+        """
+        # Inject the user's name as 'submitted_by_name' if not provided
+        data = request.data.copy()
+        if 'submitted_by_name' not in data:
+            data['submitted_by_name'] = request.user.get_full_name(
+            ) or request.user.username
+
+        # If user is a Dept Head, force the department to be their own
+        user_roles = getattr(request.user, 'roles', {})
+        if user_roles.get('bms') == 'GENERAL_USER':
+            department_id = getattr(request.user, 'department_id', None)
+            if department_id:
+                data['department_input'] = str(department_id)
+
+        serializer = BudgetProposalMessageSerializer(
+            data=data, context={'request': request})
+        serializer.is_valid(raise_exception=True)
+        proposal = serializer.save()
+
+        return Response(serializer.data, status=status.HTTP_201_CREATED)
+
+    # --- ACTION: REVIEW (Finance Head Only) ---
 
     @extend_schema(
         summary="Review a proposal (Finance Head)",
@@ -750,8 +1027,10 @@ class BudgetProposalUIViewSet(viewsets.ReadOnlyModelViewSet):
             proposal, context={'request': request})
         return Response(output_serializer.data, status=status.HTTP_200_OK)
 
+    # --- ACTION: ADD COMMENT (All Users) ---
+
     @extend_schema(
-        summary="Add a comment to a proposal (internal user)",
+        summary="Add a comment to a proposal",
         request=ProposalCommentCreateSerializer,
         responses={201: ProposalCommentSerializer},
         tags=['Budget Proposal Page Actions']
@@ -962,20 +1241,18 @@ for this application's goal: tracking planned financial outflows against actual 
 
 
 class BudgetVarianceReportView(APIView):
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsBMSUser]  # Changed from IsAuthenticated
     '''
     View for budget variance report page
     '''
     @extend_schema(
         tags=["Budget Variance Reports"],
         summary="Budget Variance Report",
-        description="The Budget Variance Report shows how budget allocations are utilized across hierarchical categories such as Income and Expense. For each category, it displays: Budget (total allocated from BudgetAllocation objects), Actual (total approved Expense entries), and Available (Budget minus Actual). A negative Available value indicates overspending. Categories are organized into levels: Level 1 (top-level like INCOME or EXPENSE), Level 2 (groups like DISCRETIONARY or OPERATIONS), and Level 3 (specific items like Cloud Hosting or Utilities). This report helps departments track financial performance and identify areas of over- or under-spending.",
+        description="The Budget Variance Report shows how budget allocations are utilized...",
         parameters=[
             OpenApiParameter(name="fiscal_year_id", required=True, type=int),
-            # MODIFICATION START: Add month parameter to Swagger documentation
             OpenApiParameter(
-                name="month", description="Filter actuals by a specific month (1-12). If omitted, aggregates for the whole year.", type=int)
-            # MODIFICATION END
+                name="month", description="Filter actuals by a specific month (1-12).", type=int)
         ],
         responses={200: ExpenseCategoryVarianceSerializer(many=True)}
     )
@@ -984,21 +1261,30 @@ class BudgetVarianceReportView(APIView):
         if not fiscal_year_id:
             return Response({"error": "fiscal_year_id is required"}, status=status.HTTP_400_BAD_REQUEST)
 
-        # MODIFICATION START: Get the optional month parameter
         try:
             month = int(request.query_params.get('month')
                         ) if request.query_params.get('month') else None
             if month and (month < 1 or month > 12):
                 raise ValueError()
         except (ValueError, TypeError):
-            return Response({"error": "Invalid month provided. Must be an integer between 1 and 12."}, status=status.HTTP_400_BAD_REQUEST)
-        # MODIFICATION END
+            return Response({"error": "Invalid month provided."}, status=status.HTTP_400_BAD_REQUEST)
 
         try:
             fiscal_year = FiscalYear.objects.get(id=fiscal_year_id)
         except FiscalYear.DoesNotExist:
             return Response({"error": "Fiscal Year not found"}, status=status.HTTP_404_NOT_FOUND)
-        # --- START: Optional User Activity Logging ---
+
+        # --- DATA ISOLATION LOGIC ---
+        user = request.user
+        user_roles = getattr(user, 'roles', {})
+        bms_role = user_roles.get('bms')
+
+        filter_dept_id = None
+        if bms_role == 'GENERAL_USER':
+            filter_dept_id = getattr(user, 'department_id', None)
+            if not filter_dept_id:
+                # Dept Head with no department sees empty report
+                return Response([])
 
         try:
             UserActivityLog.objects.create(
@@ -1022,23 +1308,33 @@ class BudgetVarianceReportView(APIView):
             level=1, is_active=True)
 
         def aggregate_node(category):
-            # Budget is typically for the whole year, so it's not filtered by month.
-            budget = BudgetAllocation.objects.filter(
+            # 1. Budget Calculation
+            budget_qs = BudgetAllocation.objects.filter(
                 category=category, fiscal_year=fiscal_year, is_active=True
-            ).aggregate(total=Coalesce(Sum('amount'), 0, output_field=DecimalField()))['total']
+            )
+            # Apply Dept Filter
+            if filter_dept_id:
+                budget_qs = budget_qs.filter(department_id=filter_dept_id)
 
-            # MODIFICATION START: Filter 'Actual' spending by the selected month if provided
+            budget = budget_qs.aggregate(total=Coalesce(
+                Sum('amount'), 0, output_field=DecimalField()))['total']
+
+            # 2. Actual Calculation
             actual_qs = Expense.objects.filter(
                 category=category,
                 budget_allocation__fiscal_year=fiscal_year,
                 status='APPROVED'
             )
+
+            # Apply Dept Filter
+            if filter_dept_id:
+                actual_qs = actual_qs.filter(department_id=filter_dept_id)
+
             if month:
                 actual_qs = actual_qs.filter(date__month=month)
 
             actual = actual_qs.aggregate(total=Coalesce(
                 Sum('amount'), 0, output_field=DecimalField()))['total']
-            # MODIFICATION END
 
             available = budget - actual
             children = []
@@ -1055,6 +1351,7 @@ class BudgetVarianceReportView(APIView):
                     "category": category.name,
                     "code": category.code,
                     "level": category.level,
+                    "classification": category.classification,  # Ensure field exists
                     "budget": round(child_budget, 2),
                     "actual": round(child_actual, 2),
                     "available": round(child_available, 2),
@@ -1065,6 +1362,7 @@ class BudgetVarianceReportView(APIView):
                     "category": category.name,
                     "code": category.code,
                     "level": category.level,
+                    "classification": category.classification,  # Ensure field exists
                     "budget": round(budget, 2),
                     "actual": round(actual, 2),
                     "available": round(available, 2),
@@ -1073,7 +1371,6 @@ class BudgetVarianceReportView(APIView):
         # Builds nested dictionariers, each representing top level expense categories, and its full budget/actual/available breakdown (and subcategories)
         # aggregate_node(cat) - recursive function that computes budget, actual, and available amounts for given category (and all its children if any)
         result = [aggregate_node(cat) for cat in top_categories]
-
         return Response(result)
 
 
@@ -1156,7 +1453,7 @@ def export_budget_variance_excel(request):
             raise ValueError()
     except (ValueError, TypeError):
         return Response(
-            {"error": "Invalid month provided. Must be an integer between 1 and 12."}, 
+            {"error": "Invalid month provided. Must be an integer between 1 and 12."},
             status=status.HTTP_400_BAD_REQUEST
         )
 
@@ -1180,11 +1477,11 @@ def export_budget_variance_excel(request):
             budget_allocation__fiscal_year=fiscal_year,
             status='APPROVED'
         )
-        
+
         # Apply month filter if provided
         if month:
             actual_qs = actual_qs.filter(date__month=month)
-        
+
         actual = actual_qs.aggregate(
             total=Coalesce(Sum('amount'), 0, output_field=DecimalField())
         )['total']
@@ -1196,18 +1493,18 @@ def export_budget_variance_excel(request):
             child_budget = sum(c['budget'] for c in children_data)
             child_actual = sum(c['actual'] for c in children_data)
             return {
-                "name": category.name, 
-                "budget": child_budget, 
+                "name": category.name,
+                "budget": child_budget,
                 "actual": child_actual,
-                "available": child_budget - child_actual, 
+                "available": child_budget - child_actual,
                 "children": children_data
             }
         else:
             return {
-                "name": category.name, 
-                "budget": budget, 
+                "name": category.name,
+                "budget": budget,
                 "actual": actual,
-                "available": budget - actual, 
+                "available": budget - actual,
                 "children": []
             }
 
@@ -1220,7 +1517,8 @@ def export_budget_variance_excel(request):
 
     # IMPROVED: Add month info to title if filtering
     if month:
-        ws.append([f"Budget Variance Report - {fiscal_year.name} (Month: {month})"])
+        ws.append(
+            [f"Budget Variance Report - {fiscal_year.name} (Month: {month})"])
     else:
         ws.append([f"Budget Variance Report - {fiscal_year.name} (Full Year)"])
     ws.merge_cells('A1:D1')
@@ -1247,10 +1545,11 @@ def export_budget_variance_excel(request):
             # Apply currency format
             for col in range(2, 5):  # Columns B, C, D
                 ws.cell(row=current_row, column=col).number_format = '#,##0.00'
-            
+
             current_row += 1
             if item.get('children'):
-                current_row = write_rows(item['children'], indent + 1, current_row)[1]
+                current_row = write_rows(
+                    item['children'], indent + 1, current_row)[1]
         return current_row, current_row
 
     write_rows(report_data)
@@ -1263,13 +1562,13 @@ def export_budget_variance_excel(request):
 
     response = HttpResponse(
         content_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
-    
+
     # IMPROVED: Include month in filename
     if month:
         filename = f"budget_variance_report_{fiscal_year.name}_month{month}.xlsx"
     else:
         filename = f"budget_variance_report_{fiscal_year.name}.xlsx"
-    
+
     response["Content-Disposition"] = f'attachment; filename="{filename}"'
     wb.save(response)
     return response
@@ -1282,7 +1581,9 @@ def export_budget_variance_excel(request):
     responses={201: JournalEntryListSerializer}
 )
 class BudgetAdjustmentView(generics.CreateAPIView):
-    permission_classes = [IsAuthenticated]
+    # CHANGED: From IsAuthenticated/IsBMSUser to IsBMSFinanceHead
+    # Only Finance Heads can legally modify the budget allocation.
+    permission_classes = [IsBMSFinanceHead]
     serializer_class = BudgetAdjustmentSerializer
 
     def perform_create(self, serializer):

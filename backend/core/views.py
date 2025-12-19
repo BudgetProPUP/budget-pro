@@ -21,50 +21,71 @@ from rest_framework import viewsets, filters, status
 from rest_framework.decorators import action
 from django.db import connection
 from django.db.utils import OperationalError
+
+from core.permissions import IsBMSUser
 from .serializers import DepartmentSerializer, ValidProjectAccountSerializer
 from .models import BudgetAllocation, Department, JournalEntryLine, UserActivityLog
 
 User = get_user_model()
 
-def ratelimit_handler(request, exception): # Not yet hooked up
+
+def ratelimit_handler(request, exception):  # Not yet hooked up
     """Custom handler for rate limit exceeded"""
     return JsonResponse({
         'error': 'Rate limit exceeded. Please try again later.',
         'detail': 'Too many requests from your IP address.'
     }, status=429)
-    
-def budget_health_check_view(request): # Renamed for clarity
+
+
+def budget_health_check_view(request):  # Renamed for clarity
     app_status = {"status": "healthy", "service": "budget_service"}
     try:
-        connection.ensure_connection() # Check budget_service's DB
+        connection.ensure_connection()  # Check budget_service's DB
         db_connected = True
     except OperationalError:
         db_connected = False
         app_status["database_status"] = "unhealthy"
         app_status["status"] = "degraded"
     else:
-         app_status["database_status"] = "healthy"
+        app_status["database_status"] = "healthy"
 
     if db_connected:
         return JsonResponse(app_status, status=200)
     else:
         return JsonResponse(app_status, status=503)
-    
+
 
 class ValidProjectAccountView(APIView):
     """
     API that returns valid projects and accounts with active budget allocations.
+    Restricted by user role/department.
     """
-    
+    # MODIFICATION: Add permission class
+    permission_classes = [IsBMSUser]
+
     @extend_schema(
         tags=['Valid Projects and Accounts with Active Allocations'],
         summary="Get valid projects and accounts with active allocations",
         responses={200: ValidProjectAccountSerializer(many=True)},
     )
     def get(self, request):
+        # Base Query
         allocations = BudgetAllocation.objects.filter(is_active=True).select_related(
             'project', 'account', 'department', 'fiscal_year'
         )
+
+        # --- MODIFICATION START: Data Isolation ---
+        user = request.user
+        user_roles = getattr(user, 'roles', {})
+        bms_role = user_roles.get('bms')
+
+        if bms_role == 'GENERAL_USER':
+            department_id = getattr(user, 'department_id', None)
+            if department_id:
+                allocations = allocations.filter(department_id=department_id)
+            else:
+                allocations = allocations.none()
+        # --- MODIFICATION END ---
 
         data = [
             {
@@ -79,9 +100,13 @@ class ValidProjectAccountView(APIView):
             for a in allocations
         ]
 
+        # Deduplicate results (if a project has multiple allocations)
+        # Or keep as is if the frontend filters specific allocations.
+        # The current serializer structure implies unique combinations.
+
         return Response(data, status=status.HTTP_200_OK)
-    
-    
+
+
 @extend_schema_view(
     list=extend_schema(
         operation_id="list_departments",
@@ -123,7 +148,7 @@ class DepartmentViewSet(viewsets.ReadOnlyModelViewSet):
     serializer_class = DepartmentSerializer
     filter_backends = [filters.SearchFilter]
     search_fields = ['name', 'code']
-    
+
 
 # --- The following views have been moved to auth_service.users.views ---
 
@@ -546,4 +571,3 @@ class CustomTokenRefreshView(TokenRefreshView):
 """
 
 # --- End of moved views ---
-

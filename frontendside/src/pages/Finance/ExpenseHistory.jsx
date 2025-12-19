@@ -350,8 +350,14 @@ const ExpenseHistory = () => {
 
   const getUserRole = () => {
     if (!user) return "User";
+    // Check nested roles first
     if (user.roles?.bms) return user.roles.bms;
+    // Check direct properties
+    if (user.role_display) return user.role_display;
+    if (user.role) return user.role;
+    // Fallback
     if (user.is_superuser) return "ADMIN";
+    if (user.is_staff) return "STAFF";
     return "User";
   };
 
@@ -476,27 +482,33 @@ const ExpenseHistory = () => {
 
   const handleViewExpense = async (expense) => {
     setViewModalLoading(true);
-    setSelectedExpense(expense);
+    setSelectedExpense(expense); // Keep table data as fallback
     setSelectedProposalDetails(null);
 
     try {
-      // 1. Get Expense Details (to find proposal ID)
-      // If the list serializer doesn't have proposal info, fetch details.
-      // Assuming getExpenseDetailsForModal returns { proposal_id: 123 }
+      // 1. Get Expense Details for Modal (this now includes vendor, etc.)
       const detailsRes = await getExpenseDetailsForModal(expense.id);
-      const proposalId = detailsRes.data.proposal_id;
+      const modalData = detailsRes.data;
+
+      // Create a merged expense object with all data
+      const fullExpenseData = {
+        ...expense, // Keep table data
+        ...modalData, // Override with modal data (includes vendor)
+      };
+
+      setSelectedExpense(fullExpenseData);
+      const proposalId = modalData.proposal_id;
 
       if (proposalId) {
         // 2. Fetch Proposal Details
         const proposalRes = await getProposalDetails(proposalId);
         setSelectedProposalDetails(proposalRes.data);
       } else {
-        // Handle case where expense isn't linked to a proposal (e.g. ad-hoc)
-        // Can just show expense details
         setSelectedProposalDetails(null);
       }
     } catch (error) {
       console.error("Failed to fetch details", error);
+      // Fallback: use table data (may not have vendor)
     } finally {
       setViewModalLoading(false);
     }
@@ -1225,80 +1237,237 @@ const ExpenseHistory = () => {
                     <div>Loading details...</div>
                   ) : selectedProposalDetails ? (
                     <>
+                      {/* Existing Proposal Details */}
                       <div
                         className="proposal-header"
                         style={{ marginBottom: "20px" }}
                       >
-                        <h3
-                          className="proposal-title"
-                          style={{ margin: "0 0 5px 0", fontSize: "1.5rem" }}
-                        >
-                          {selectedProposalDetails.title}
-                        </h3>
                         <div
-                          className="proposal-date"
-                          style={{ color: "#6c757d" }}
+                          style={{
+                            display: "flex",
+                            justifyContent: "space-between",
+                            alignItems: "flex-start",
+                            marginBottom: "10px",
+                            flexWrap: "wrap",
+                            gap: "10px",
+                          }}
                         >
-                          Performance End Date:{" "}
-                          {selectedProposalDetails.performance_end_date}
+                          <div>
+                            <h4
+                              style={{
+                                margin: "0 0 5px 0",
+                                color: "#6c757d",
+                                fontSize: "0.9rem",
+                                textTransform: "uppercase",
+                              }}
+                            >
+                              Linked Project Context
+                            </h4>
+                            <h3
+                              className="proposal-title"
+                              style={{
+                                margin: "0 0 5px 0",
+                                fontSize: "1.5rem",
+                                fontWeight: "600",
+                                color: "#333",
+                              }}
+                            >
+                              {selectedProposalDetails.title}
+                            </h3>
+                          </div>
+                          <div
+                            className="proposal-date"
+                            style={{
+                              color: "#6c757d",
+                              fontSize: "0.9rem",
+                              whiteSpace: "nowrap",
+                            }}
+                          >
+                            Performance End Date:{" "}
+                            {selectedProposalDetails.performance_end_date}
+                          </div>
                         </div>
                       </div>
+
+                      {/* NEW: Show the specific expense details first */}
+                      <div
+                        className="expense-summary-section"
+                        style={{
+                          backgroundColor: "#f8f9fa",
+                          padding: "20px",
+                          borderRadius: "8px",
+                          marginBottom: "25px",
+                          border: "1px solid #e9ecef",
+                        }}
+                      >
+                        <h4
+                          style={{
+                            margin: "0 0 15px 0",
+                            fontSize: "1.2rem",
+                            color: "#333",
+                            fontWeight: "600",
+                          }}
+                        >
+                          Transaction Details
+                        </h4>
+                        <div
+                          style={{
+                            display: "grid",
+                            gridTemplateColumns: "1fr 1fr",
+                            gap: "15px",
+                          }}
+                        >
+                          <div>
+                            <strong style={{ color: "#6c757d" }}>Date:</strong>
+                            <div style={{ marginTop: "4px", fontSize: "1rem" }}>
+                              {selectedExpense.date}
+                            </div>
+                          </div>
+                          <div>
+                            <strong style={{ color: "#6c757d" }}>
+                              Amount:
+                            </strong>
+                            <div style={{ marginTop: "4px" }}>
+                              <span
+                                style={{
+                                  color: "#28a745",
+                                  fontWeight: "bold",
+                                  fontSize: "1.1rem",
+                                }}
+                              >
+                                ₱
+                                {parseFloat(
+                                  selectedExpense.amount
+                                ).toLocaleString("en-US", {
+                                  minimumFractionDigits: 2,
+                                })}
+                              </span>
+                            </div>
+                          </div>
+                          <div style={{ gridColumn: "1 / -1" }}>
+                            <strong style={{ color: "#6c757d" }}>
+                              Description:
+                            </strong>
+                            <div
+                              style={{
+                                marginTop: "4px",
+                                fontSize: "1rem",
+                                lineHeight: "1.4",
+                              }}
+                            >
+                              {selectedExpense.description}
+                            </div>
+                          </div>
+                          <div>
+                            <strong style={{ color: "#6c757d" }}>
+                              Vendor:
+                            </strong>
+                            <div style={{ marginTop: "4px", fontSize: "1rem" }}>
+                              {selectedExpense.vendor || "N/A"}
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+
                       <div
                         className="proposal-section"
-                        style={{ marginBottom: "20px" }}
+                        style={{
+                          marginBottom: "25px",
+                          backgroundColor: "white",
+                          padding: "20px",
+                          borderRadius: "8px",
+                          border: "1px solid #e9ecef",
+                        }}
                       >
                         <h4
                           className="section-label"
                           style={{
-                            margin: "0 0 10px 0",
-                            fontSize: "0.9rem",
-                            color: "#6c757d",
+                            margin: "0 0 15px 0",
+                            fontSize: "1rem",
+                            color: "#495057",
                             fontWeight: "600",
+                            textTransform: "uppercase",
+                            letterSpacing: "0.5px",
                           }}
                         >
-                          PROJECT SUMMARY
+                          Project Summary
                         </h4>
-                        <p className="section-content">
+                        <p
+                          className="section-content"
+                          style={{
+                            margin: "0",
+                            lineHeight: "1.6",
+                            color: "#333",
+                          }}
+                        >
                           {selectedProposalDetails.project_summary}
                         </p>
                       </div>
+
                       <div
                         className="proposal-section"
-                        style={{ marginBottom: "20px" }}
+                        style={{
+                          marginBottom: "25px",
+                          backgroundColor: "white",
+                          padding: "20px",
+                          borderRadius: "8px",
+                          border: "1px solid #e9ecef",
+                        }}
                       >
                         <h4
                           className="section-label"
                           style={{
-                            margin: "0 0 10px 0",
-                            fontSize: "0.9rem",
-                            color: "#6c757d",
+                            margin: "0 0 15px 0",
+                            fontSize: "1rem",
+                            color: "#495057",
                             fontWeight: "600",
+                            textTransform: "uppercase",
+                            letterSpacing: "0.5px",
                           }}
                         >
-                          PROJECT DESCRIPTION
+                          Project Description
                         </h4>
-                        <p className="section-content">
+                        <p
+                          className="section-content"
+                          style={{
+                            margin: "0",
+                            lineHeight: "1.6",
+                            color: "#333",
+                          }}
+                        >
                           {selectedProposalDetails.project_description}
                         </p>
                       </div>
-                      <div className="proposal-section">
+
+                      <div
+                        className="proposal-section"
+                        style={{
+                          backgroundColor: "white",
+                          padding: "20px",
+                          borderRadius: "8px",
+                          border: "1px solid #e9ecef",
+                        }}
+                      >
                         <h4
                           className="section-label"
                           style={{
-                            margin: "0 0 10px 0",
-                            fontSize: "0.9rem",
-                            color: "#6c757d",
+                            margin: "0 0 20px 0",
+                            fontSize: "1rem",
+                            color: "#495057",
                             fontWeight: "600",
+                            textTransform: "uppercase",
+                            letterSpacing: "0.5px",
                           }}
                         >
-                          COST ELEMENTS
+                          Cost Elements
                         </h4>
                         <div
                           className="cost-table"
                           style={{
                             border: "1px solid #dee2e6",
-                            borderRadius: "4px",
+                            borderRadius: "6px",
                             overflow: "hidden",
+                            boxShadow: "0 1px 3px rgba(0,0,0,0.05)",
                           }}
                         >
                           <div
@@ -1306,15 +1475,18 @@ const ExpenseHistory = () => {
                             style={{
                               display: "flex",
                               backgroundColor: "#f8f9fa",
-                              padding: "10px 15px",
+                              padding: "15px 20px",
                               fontWeight: "600",
                               borderBottom: "1px solid #dee2e6",
+                              color: "#495057",
+                              fontSize: "0.9rem",
+                              textTransform: "uppercase",
                             }}
                           >
-                            <div style={{ flex: "1" }}>TYPE</div>
-                            <div style={{ flex: "2" }}>DESCRIPTION</div>
+                            <div style={{ flex: "1" }}>Type</div>
+                            <div style={{ flex: "2" }}>Description</div>
                             <div style={{ flex: "1", textAlign: "right" }}>
-                              ESTIMATED COST
+                              Estimated Cost
                             </div>
                           </div>
                           {selectedProposalDetails.items &&
@@ -1324,8 +1496,11 @@ const ExpenseHistory = () => {
                                 key={idx}
                                 style={{
                                   display: "flex",
-                                  padding: "10px 15px",
-                                  borderBottom: "1px solid #dee2e6",
+                                  padding: "15px 20px",
+                                  borderBottom: "1px solid #e9ecef",
+                                  backgroundColor:
+                                    idx % 2 === 0 ? "#fff" : "#fcfcfc",
+                                  alignItems: "center",
                                 }}
                               >
                                 <div
@@ -1337,19 +1512,28 @@ const ExpenseHistory = () => {
                                 >
                                   <span
                                     style={{
-                                      width: "8px",
-                                      height: "8px",
+                                      width: "10px",
+                                      height: "10px",
                                       backgroundColor: "#007bff",
                                       borderRadius: "50%",
-                                      marginRight: "10px",
+                                      marginRight: "12px",
                                     }}
                                   ></span>
-                                  {item.cost_element}
+                                  <span style={{ fontWeight: "500" }}>
+                                    {item.cost_element}
+                                  </span>
                                 </div>
-                                <div style={{ flex: "2" }}>
+                                <div style={{ flex: "2", color: "#666" }}>
                                   {item.description}
                                 </div>
-                                <div style={{ flex: "1", textAlign: "right" }}>
+                                <div
+                                  style={{
+                                    flex: "1",
+                                    textAlign: "right",
+                                    fontWeight: "500",
+                                    color: "#333",
+                                  }}
+                                >
                                   ₱
                                   {parseFloat(
                                     item.estimated_cost
@@ -1363,13 +1547,21 @@ const ExpenseHistory = () => {
                             className="cost-row total"
                             style={{
                               display: "flex",
-                              padding: "10px 15px",
+                              padding: "20px",
                               backgroundColor: "#f8f9fa",
                               fontWeight: "600",
+                              fontSize: "1.1rem",
+                              borderTop: "2px solid #dee2e6",
                             }}
                           >
                             <div style={{ flex: "1" }}></div>
-                            <div style={{ flex: "2", fontWeight: "bold" }}>
+                            <div
+                              style={{
+                                flex: "2",
+                                fontWeight: "bold",
+                                color: "#495057",
+                              }}
+                            >
                               TOTAL
                             </div>
                             <div
@@ -1377,6 +1569,7 @@ const ExpenseHistory = () => {
                                 flex: "1",
                                 textAlign: "right",
                                 fontWeight: "bold",
+                                color: "#28a745",
                               }}
                             >
                               ₱
@@ -1397,6 +1590,10 @@ const ExpenseHistory = () => {
                       <p>
                         <strong>Description:</strong>{" "}
                         {selectedExpense.description}
+                      </p>
+                      <p>
+                        <strong>Vendor:</strong>{" "}
+                        {selectedExpense.vendor || "N/A"} {/* ADD THIS LINE */}
                       </p>
                       <p>
                         <strong>Amount:</strong> ₱

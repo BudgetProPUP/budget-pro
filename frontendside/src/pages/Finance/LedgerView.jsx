@@ -12,12 +12,11 @@ import LOGOMAP from "../../assets/MAP.jpg";
 import "./LedgerView.css";
 import { useAuth } from "../../context/AuthContext";
 import { getLedgerEntries } from "../../API/ledgerAPI";
-import { getJournalChoices } from "../../API/dropdownAPI";
-
-// Import ManageProfile component
+// MODIFIED: Added department API import
+import { getAllDepartments } from "../../API/departments";
 import ManageProfile from "./ManageProfile";
 
-// Pagination Component
+// Pagination Component (Preserved)
 const Pagination = ({
   currentPage,
   pageSize,
@@ -249,103 +248,6 @@ const Pagination = ({
   );
 };
 
-// Sample data based on your provided structure
-const sampleData = {
-  "Merchandise Planning": {
-    subCategories: [
-      "Product Range Planning",
-      "Buying Costs",
-      "Market Research",
-      "Inventory Handling Fees",
-      "Supplier Coordination",
-      "Seasonal Planning Tools",
-      "Training",
-      "Travel",
-      "Software Subscription"
-    ]
-  },
-  "Store Operations": {
-    subCategories: [
-      "Store Consumables",
-      "POS Maintenance",
-      "Store Repairs",
-      "Sales Incentives",
-      "Uniforms",
-      "Store Opening Expenses",
-      "Store Supplies",
-      "Training",
-      "Travel",
-      "Utilities"
-    ]
-  },
-  "Marketing": {
-    subCategories: [
-      "Campaign Budget",
-      "Branding Materials",
-      "Digital Ads",
-      "Social Media Management",
-      "Events Budget",
-      "Influencer Fees",
-      "Photography/Videography",
-      "Software Subscription",
-      "Training",
-      "Travel"
-    ]
-  },
-  "Operations": {
-    subCategories: [
-      "Equipment Maintenance",
-      "Fleet/Vehicle Expenses",
-      "Operational Supplies",
-      "Business Permits",
-      "Facility Utilities",
-      "Compliance Costs",
-      "Training",
-      "Office Supplies"
-    ]
-  },
-  "IT": {
-    subCategories: [
-      "Server Hosting",
-      "Software Licenses",
-      "Cloud Subscriptions",
-      "Hardware Purchases",
-      "Data Tools",
-      "Cybersecurity Costs",
-      "API Subscription Fees",
-      "Domain Renewals",
-      "Training",
-      "Office Supplies"
-    ]
-  },
-  "Logistics": {
-    subCategories: [
-      "Shipping Costs",
-      "Warehouse Equipment",
-      "Transport & Fuel",
-      "Freight Fees",
-      "Vendor Delivery Charges",
-      "Storage Fees",
-      "Packaging Materials",
-      "Safety Gear",
-      "Training"
-    ]
-  },
-  "Human Resources": {
-    subCategories: [
-      "Recruitment Expenses",
-      "Job Posting Fees",
-      "Employee Engagement Activities",
-      "Training & Workshops",
-      "Medical & Wellness Programs",
-      "Background Checks",
-      "HR Systems/Payroll Software",
-      "Office Supplies",
-      "Travel"
-    ]
-  }
-};
-
 const LedgerView = () => {
   // Navigation and UI State
   const [showBudgetDropdown, setShowBudgetDropdown] = useState(false);
@@ -358,31 +260,29 @@ const LedgerView = () => {
   const { user, logout } = useAuth();
 
   // User profile data
-const getUserRole = () => {
-  if (!user) return "User";
-  
-  // Check for role in different possible locations
-  if (user.roles?.bms) return user.roles.bms;
-  if (user.role_display) return user.role_display;
-  if (user.role) return user.role;
-  
-  // Default role names based on user type
-  if (user.is_superuser) return "ADMIN";
-  if (user.is_staff) return "STAFF";
-  
-  return "User";
-};
+  const getUserRole = () => {
+    if (!user) return "User";
+    if (user.roles?.bms) return user.roles.bms;
+    if (user.role_display) return user.role_display;
+    if (user.role) return user.role;
+    if (user.is_superuser) return "ADMIN";
+    if (user.is_staff) return "STAFF";
+    return "User";
+  };
 
-const userRole = getUserRole();
+  const userRole = getUserRole();
+  const userProfile = {
+    name: user
+      ? `${user.first_name || ""} ${user.last_name || ""}`.trim() || "User"
+      : "User",
+    role: userRole,
+    avatar:
+      user?.profile_picture ||
+      "https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?ixlib=rb-1.2.1&ixid=eyJhcHBfaWQiOjEyMDd9&auto=format&fit=facearea&facepad=2&w=256&h=256&q=80",
+  };
 
-const userProfile = {
-  name: user ? `${user.first_name || ''} ${user.last_name || ''}`.trim() || "User" : "User",
-  role: userRole,
-  avatar: user?.profile_picture || "https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?ixlib=rb-1.2.1&ixid=eyJhcHBfaWQiOjEyMDd9&auto=format&fit=facearea&facepad=2&w=256&h=256&q=80",
-};
   // API Data State
   const [ledgerEntries, setLedgerEntries] = useState([]);
-  const [filteredLedgerEntries, setFilteredLedgerEntries] = useState([]);
   const [pagination, setPagination] = useState({ count: 0 });
   const [loading, setLoading] = useState(true);
 
@@ -393,224 +293,39 @@ const userProfile = {
   const [pageSize, setPageSize] = useState(5);
   const [selectedCategory, setSelectedCategory] = useState("");
   const [selectedDepartment, setSelectedDepartment] = useState("");
+  const [departmentOptions, setDepartmentOptions] = useState([]);
 
   // Date/Time State
   const [currentDate, setCurrentDate] = useState(new Date());
 
-  // Department options
-  const departmentOptions = [
-    { value: "", label: "All Departments" },
-    { value: "Merchandise Planning", label: "Merchandise Planning" },
-    { value: "Store Operations", label: "Store Operations" },
-    { value: "Marketing", label: "Marketing" },
-    { value: "Operations", label: "Operations" },
-    { value: "IT", label: "IT" },
-    { value: "Logistics", label: "Logistics" },
-    { value: "Human Resources", label: "Human Resources" },
-  ];
-
   // Category options - only CapEx and OpEx
   const categoryOptions = [
     { value: "", label: "All Categories" },
-    { value: "CapEx", label: "CapEx" },
-    { value: "OpEx", label: "OpEx" },
+    { value: "CAPEX", label: "CapEx" },
+    { value: "OPEX", label: "OpEx" },
   ];
 
   const [showManageProfile, setShowManageProfile] = useState(false);
 
-  // Helper function to get random item from array
-  const getRandomItem = useCallback((arr) => arr[Math.floor(Math.random() * arr.length)], []);
+  // --- API CALLS ---
 
-  // Helper function to normalize category to only CapEx or OpEx
-  const normalizeCategory = (category) => {
-    if (!category) return "OpEx";
-    
-    const lowerCategory = category.toLowerCase();
-    // Check for CapEx patterns
-    if (lowerCategory.includes("capex") || 
-        lowerCategory.includes("capital") ||
-        lowerCategory.includes("capital expenditure") ||
-        lowerCategory === "cap") {
-      return "CapEx";
-    }
-    
-    // Check for OpEx patterns
-    if (lowerCategory.includes("opex") || 
-        lowerCategory.includes("operating") ||
-        lowerCategory.includes("operational expenditure") ||
-        lowerCategory === "op") {
-      return "OpEx";
-    }
-    
-    // Default to OpEx
-    return "OpEx";
-  };
-
-  // Helper function to enrich API data with sample data
-  const enrichLedgerData = useCallback((apiData) => {
-    return apiData.map((item, index) => {
-      // Get random department from sample data
-      const departments = Object.keys(sampleData);
-      const randomDept = selectedDepartment || getRandomItem(departments);
-      
-      // Get random subcategory from that department
-      const deptSubCats = sampleData[randomDept]?.subCategories || [];
-      const randomSubCat = deptSubCats.length > 0 ? getRandomItem(deptSubCats) : "General Expense";
-      
-      // Determine category from subcategory name patterns
-      let category = normalizeCategory(item.category);
-      
-      // Override category based on subcategory if it's not already CapEx or OpEx
-      if (category === "OpEx") {
-        const subCatLower = randomSubCat.toLowerCase();
-        
-        // Subcategories that should be CapEx
-        if (subCatLower.includes("hardware") || 
-            subCatLower.includes("equipment") || 
-            subCatLower.includes("software licenses") ||
-            subCatLower.includes("store opening") ||
-            subCatLower.includes("seasonal planning") ||
-            subCatLower.includes("branding materials") ||
-            subCatLower.includes("warehouse equipment") ||
-            subCatLower.includes("hr systems") ||
-            subCatLower.includes("payroll software")) {
-          category = "CapEx";
-        }
-      }
-      
-      // Format date to YYYY-MM-DD (CHANGED FROM MM/DD/YYYY)
-      const formatDate = (dateString) => {
-        try {
-          const date = new Date(dateString);
-          const year = date.getFullYear();
-          const month = String(date.getMonth() + 1).padStart(2, '0');
-          const day = String(date.getDate()).padStart(2, '0');
-          return `${year}-${month}-${day}`;
-        } catch (e) {
-          // Generate a random date for demo (also in YYYY-MM-DD format)
-          const year = 2025;
-          const month = String(Math.floor(Math.random() * 12) + 1).padStart(2, '0');
-          const day = String(Math.floor(Math.random() * 28) + 1).padStart(2, '0');
-          return `${year}-${month}-${day}`;
-        }
-      };
-      
-      // Generate ticket ID
-      const deptCode = randomDept.substring(0, 3).toUpperCase();
-      const ticketId = item.reference_id || `LED-${deptCode}-${String(index + 1).padStart(3, '0')}`;
-      
-      // Generate amount if not provided
-      const amount = item.amount || (Math.random() * 10000 + 100).toFixed(2);
-      
-      return {
-        ...item,
-        reference_id: ticketId,
-        date: formatDate(item.date),
-        department: randomDept,
-        category: category, // Now normalized to only CapEx or OpEx
-        subcategory: randomSubCat,
-        account: item.account || "General Account",
-        amount: amount,
-        description: item.description || randomSubCat
-      };
-    });
-  }, [selectedDepartment, getRandomItem]);
-
-  // Apply filters to data
-  const applyFilters = useCallback((data) => {
-    let filtered = [...data];
-    
-    // Apply department filter
-    if (selectedDepartment) {
-      filtered = filtered.filter(item => 
-        item.department === selectedDepartment
-      );
-    }
-    
-    // Apply category filter
-    if (selectedCategory) {
-      filtered = filtered.filter(item => 
-        item.category === selectedCategory
-      );
-    }
-    
-    // Apply search filter
-    if (searchTerm) {
-      filtered = filtered.filter(item =>
-        item.reference_id?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        item.department?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        item.subcategory?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        item.account?.toLowerCase().includes(searchTerm.toLowerCase())
-      );
-    }
-    
-    setFilteredLedgerEntries(filtered);
-  }, [selectedDepartment, selectedCategory, searchTerm]);
-
-  // Generate sample data for demonstration
-  const generateSampleData = useCallback(() => {
-    const sampleEntries = [];
-    const departments = selectedDepartment ? [selectedDepartment] : Object.keys(sampleData);
-    let recordCount = 0;
-    
-    departments.forEach((dept) => {
-      const deptItems = sampleData[dept]?.subCategories || ["General Expense"];
-      const recordsPerDept = selectedDepartment ? 15 : Math.floor(Math.random() * 6) + 3;
-      
-      for (let i = 1; i <= recordsPerDept; i++) {
-        recordCount++;
-        const subCat = getRandomItem(deptItems);
-        
-        // Determine category based on subcategory - only CapEx or OpEx
-        let category = "OpEx";
-        const subCatLower = subCat.toLowerCase();
-        if (subCatLower.includes("hardware") || 
-            subCatLower.includes("equipment") || 
-            subCatLower.includes("software licenses") ||
-            subCatLower.includes("store opening") ||
-            subCatLower.includes("seasonal planning") ||
-            subCatLower.includes("branding materials") ||
-            subCatLower.includes("warehouse equipment") ||
-            subCatLower.includes("hr systems") ||
-            subCatLower.includes("payroll software")) {
-          category = "CapEx";
-        }
-        
-        const deptCode = dept.substring(0, 3).toUpperCase();
-        const year = 2025;
-        const month = String(Math.floor(Math.random() * 12) + 1).padStart(2, '0');
-        const day = String(Math.floor(Math.random() * 28) + 1).padStart(2, '0');
-        
-        sampleEntries.push({
-          id: recordCount,
-          reference_id: `LED-${deptCode}-${String(recordCount).padStart(3, '0')}`,
-          date: `${year}-${month}-${day}`, // CHANGED to YYYY-MM-DD format
-          department: dept,
-          category: category, // Only CapEx or OpEx
-          subcategory: subCat,
-          account: `${dept} Account`,
-          amount: (Math.random() * 10000 + 100).toFixed(2),
-          description: subCat
-        });
-      }
-    });
-    
-    const enrichedData = sampleEntries;
-    setLedgerEntries(enrichedData);
-    setPagination({ count: enrichedData.length });
-    applyFilters(enrichedData);
-  }, [selectedDepartment, getRandomItem, applyFilters]);
-
-  // Debounce search term
+  // 1. Fetch Dropdowns
   useEffect(() => {
-    const timerId = setTimeout(() => {
-      setDebouncedSearchTerm(searchTerm);
-      setCurrentPage(1);
-    }, 500);
-    return () => clearTimeout(timerId);
-  }, [searchTerm]);
+    const fetchDropdowns = async () => {
+      try {
+        const deptRes = await getAllDepartments();
+        setDepartmentOptions([
+          { value: "", label: "All Departments" },
+          ...deptRes.data.map((d) => ({ value: d.id, label: d.name })), // Use ID, not code
+        ]);
+      } catch (error) {
+        console.error("Failed to fetch departments:", error);
+      }
+    };
+    fetchDropdowns();
+  }, []);
 
-  // Fetch Ledger Data from API
+  // 2. Fetch Ledger Data
   useEffect(() => {
     const fetchLedgerData = async () => {
       setLoading(true);
@@ -620,25 +335,19 @@ const userProfile = {
           page_size: pageSize,
           search: debouncedSearchTerm,
           category: selectedCategory,
+          department_id: selectedDepartment, // Backend expects 'department_id', not 'department'
         };
-        
-        Object.keys(params).forEach((key) => {
-          if (!params[key]) delete params[key];
-        });
+
+        // Clean params
+        if (!params.category) delete params.category;
+        if (!params.department) delete params.department;
 
         const response = await getLedgerEntries(params);
-        
-        // Enrich the API data with sample data
-        const enrichedData = enrichLedgerData(response.data.results);
-        setLedgerEntries(enrichedData);
+
+        setLedgerEntries(response.data.results);
         setPagination(response.data);
-        
-        // Apply client-side filtering
-        applyFilters(enrichedData);
       } catch (error) {
         console.error("Failed to fetch ledger entries:", error);
-        // Create sample data if API fails
-        generateSampleData();
       } finally {
         setLoading(false);
       }
@@ -649,12 +358,19 @@ const userProfile = {
     pageSize,
     debouncedSearchTerm,
     selectedCategory,
-    enrichLedgerData,
-    applyFilters,
-    generateSampleData
+    selectedDepartment,
   ]);
 
-  // Update current date/time every second
+  // Debounce search term
+  useEffect(() => {
+    const timerId = setTimeout(() => {
+      setDebouncedSearchTerm(searchTerm);
+      setCurrentPage(1);
+    }, 500);
+    return () => clearTimeout(timerId);
+  }, [searchTerm]);
+
+  // Update current date/time
   useEffect(() => {
     const interval = setInterval(() => {
       setCurrentDate(new Date());
@@ -670,12 +386,7 @@ const userProfile = {
         !event.target.closest(".profile-container") &&
         !event.target.closest(".filter-dropdown")
       ) {
-        setShowBudgetDropdown(false);
-        setShowExpenseDropdown(false);
-        setShowCategoryDropdown(false);
-        setShowDepartmentDropdown(false);
-        setShowProfileDropdown(false);
-        setShowNotifications(false);
+        closeAllDropdowns();
       }
     };
     document.addEventListener("mousedown", handleClickOutside);
@@ -683,58 +394,44 @@ const userProfile = {
   }, []);
 
   // Navigation dropdown handlers
+  const closeAllDropdowns = () => {
+    setShowBudgetDropdown(false);
+    setShowExpenseDropdown(false);
+    setShowCategoryDropdown(false);
+    setShowDepartmentDropdown(false);
+    setShowProfileDropdown(false);
+    setShowNotifications(false);
+  };
+
   const toggleBudgetDropdown = () => {
-    setShowBudgetDropdown((prev) => !prev);
-    setShowExpenseDropdown(false);
-    setShowCategoryDropdown(false);
-    setShowDepartmentDropdown(false);
-    setShowProfileDropdown(false);
-    setShowNotifications(false);
+    const s = !showBudgetDropdown;
+    closeAllDropdowns();
+    setShowBudgetDropdown(s);
   };
-
   const toggleExpenseDropdown = () => {
-    setShowExpenseDropdown((prev) => !prev);
-    setShowBudgetDropdown(false);
-    setShowCategoryDropdown(false);
-    setShowDepartmentDropdown(false);
-    setShowProfileDropdown(false);
-    setShowNotifications(false);
+    const s = !showExpenseDropdown;
+    closeAllDropdowns();
+    setShowExpenseDropdown(s);
   };
-
-  const toggleCategoryDropdown = () => {
-    setShowCategoryDropdown((prev) => !prev);
-    setShowBudgetDropdown(false);
-    setShowExpenseDropdown(false);
-    setShowDepartmentDropdown(false);
-    setShowProfileDropdown(false);
-    setShowNotifications(false);
-  };
-
   const toggleDepartmentDropdown = () => {
-    setShowDepartmentDropdown((prev) => !prev);
-    setShowBudgetDropdown(false);
-    setShowExpenseDropdown(false);
-    setShowCategoryDropdown(false);
-    setShowProfileDropdown(false);
-    setShowNotifications(false);
+    const s = !showDepartmentDropdown;
+    closeAllDropdowns();
+    setShowDepartmentDropdown(s);
   };
-
+  const toggleCategoryDropdown = () => {
+    const s = !showCategoryDropdown;
+    closeAllDropdowns();
+    setShowCategoryDropdown(s);
+  };
   const toggleNotifications = () => {
-    setShowNotifications((prev) => !prev);
-    setShowBudgetDropdown(false);
-    setShowExpenseDropdown(false);
-    setShowCategoryDropdown(false);
-    setShowDepartmentDropdown(false);
-    setShowProfileDropdown(false);
+    const s = !showNotifications;
+    closeAllDropdowns();
+    setShowNotifications(s);
   };
-
   const toggleProfileDropdown = () => {
-    setShowProfileDropdown((prev) => !prev);
-    setShowBudgetDropdown(false);
-    setShowExpenseDropdown(false);
-    setShowCategoryDropdown(false);
-    setShowDepartmentDropdown(false);
-    setShowNotifications(false);
+    const s = !showProfileDropdown;
+    closeAllDropdowns();
+    setShowProfileDropdown(s);
   };
 
   // Filter handlers
@@ -752,36 +449,38 @@ const userProfile = {
 
   const handleNavigate = (path) => {
     navigate(path);
+    closeAllDropdowns();
   };
 
-  // Updated logout function
   const handleLogout = async () => {
     await logout();
   };
 
-  // New function to handle Manage Profile click
   const handleManageProfile = () => {
     setShowManageProfile(true);
     setShowProfileDropdown(false);
   };
 
-  // New function to close Manage Profile
   const handleCloseManageProfile = () => {
     setShowManageProfile(false);
   };
 
   // Get display label for filters
   const getCategoryDisplay = () => {
-    const option = categoryOptions.find(opt => opt.value === selectedCategory);
+    const option = categoryOptions.find(
+      (opt) => opt.value === selectedCategory
+    );
     return option ? option.label : "All Categories";
   };
 
   const getDepartmentDisplay = () => {
-    const option = departmentOptions.find(opt => opt.value === selectedDepartment);
+    const option = departmentOptions.find(
+      (opt) => opt.value === selectedDepartment
+    );
     return option ? option.label : "All Departments";
   };
 
-  // Format date and time for display
+  // Formatters
   const formattedDay = currentDate.toLocaleDateString("en-US", {
     weekday: "long",
   });
@@ -798,17 +497,11 @@ const userProfile = {
     })
     .toUpperCase();
 
-  // Get data to display based on current page
-  const getDisplayData = () => {
-    const dataToUse = filteredLedgerEntries.length > 0 ? filteredLedgerEntries : ledgerEntries;
-    const startIndex = (currentPage - 1) * pageSize;
-    const endIndex = startIndex + pageSize;
-    return dataToUse.slice(startIndex, endIndex);
-  };
-
-  // Get total items for pagination
-  const getTotalItems = () => {
-    return filteredLedgerEntries.length > 0 ? filteredLedgerEntries.length : pagination.count;
+  const formatAmount = (val) => {
+    return `₱${parseFloat(val).toLocaleString("en-US", {
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
+    })}`;
   };
 
   return (
@@ -1164,63 +857,63 @@ const userProfile = {
                       e.currentTarget.style.color = "#000"; // Keep black text
                     }}
                   >
-                    <User size={16} style={{ marginRight: "8px" }} />Manage
-                    Profile
+                    <User size={16} style={{ marginRight: "8px" }} />
+                    Manage Profile
                   </div>
-                {userProfile.role === "ADMIN" && (
-                <div
-                  className="dropdown-item"
-                  style={{
-                    display: "flex",
-                    alignItems: "center",
-                    padding: "8px 0",
-                    cursor: "pointer",
-                    transition: "background-color 0.2s ease",
-                    color: "#000",
-                  }}
-                  onMouseEnter={(e) => {
-                    e.currentTarget.style.backgroundColor = "#f0f0f0";
-                    e.currentTarget.style.color = "#000";
-                  }}
-                  onMouseLeave={(e) => {
-                    e.currentTarget.style.backgroundColor = "transparent";
-                    e.currentTarget.style.color = "#000";
-                  }}
-                >
-                  <Settings size={16} style={{ marginRight: "8px" }} /> User
-                  Management
-                </div>
-              )}
-              <div
-                className="dropdown-divider"
-                style={{
-                  height: "1px",
-                  backgroundColor: "#eee",
-                  margin: "10px 0",
-                }}
-              ></div>
-              <div
-                className="dropdown-item"
-                onClick={handleLogout}
-                style={{
-                  display: "flex",
-                  alignItems: "center",
-                  padding: "8px 0",
-                  cursor: "pointer",
-                  transition: "background-color 0.2s ease",
-                  color: "#000",
-                }}
-                onMouseEnter={(e) => {
-                  e.currentTarget.style.backgroundColor = "#f0f0f0";
-                  e.currentTarget.style.color = "#000";
-                }}
-                onMouseLeave={(e) => {
-                  e.currentTarget.style.backgroundColor = "transparent";
-                  e.currentTarget.style.color = "#000";
-                }}
-              >
-                <LogOut size={16} style={{ marginRight: "8px" }} /> Log Out
-              </div>
+                  {userProfile.role === "ADMIN" && (
+                    <div
+                      className="dropdown-item"
+                      style={{
+                        display: "flex",
+                        alignItems: "center",
+                        padding: "8px 0",
+                        cursor: "pointer",
+                        transition: "background-color 0.2s ease",
+                        color: "#000",
+                      }}
+                      onMouseEnter={(e) => {
+                        e.currentTarget.style.backgroundColor = "#f0f0f0";
+                        e.currentTarget.style.color = "#000";
+                      }}
+                      onMouseLeave={(e) => {
+                        e.currentTarget.style.backgroundColor = "transparent";
+                        e.currentTarget.style.color = "#000";
+                      }}
+                    >
+                      <Settings size={16} style={{ marginRight: "8px" }} /> User
+                      Management
+                    </div>
+                  )}
+                  <div
+                    className="dropdown-divider"
+                    style={{
+                      height: "1px",
+                      backgroundColor: "#eee",
+                      margin: "10px 0",
+                    }}
+                  ></div>
+                  <div
+                    className="dropdown-item"
+                    onClick={handleLogout}
+                    style={{
+                      display: "flex",
+                      alignItems: "center",
+                      padding: "8px 0",
+                      cursor: "pointer",
+                      transition: "background-color 0.2s ease",
+                      color: "#000",
+                    }}
+                    onMouseEnter={(e) => {
+                      e.currentTarget.style.backgroundColor = "#f0f0f0";
+                      e.currentTarget.style.color = "#000";
+                    }}
+                    onMouseLeave={(e) => {
+                      e.currentTarget.style.backgroundColor = "transparent";
+                      e.currentTarget.style.color = "#000";
+                    }}
+                  >
+                    <LogOut size={16} style={{ marginRight: "8px" }} /> Log Out
+                  </div>
                 </div>
               )}
             </div>
@@ -1301,7 +994,10 @@ const userProfile = {
                 </div>
 
                 {/* Department Filter Button - Added before Category */}
-                <div className="filter-dropdown" style={{ position: "relative" }}>
+                <div
+                  className="filter-dropdown"
+                  style={{ position: "relative" }}
+                >
                   <button
                     className={`filter-dropdown-btn ${
                       showDepartmentDropdown ? "active" : ""
@@ -1318,10 +1014,22 @@ const userProfile = {
                       gap: "5px",
                       outline: "none",
                       minWidth: "160px",
+                      maxWidth: "200px",
+                      cursor: "pointer",
                     }}
                   >
-                    <span>{getDepartmentDisplay()}</span>
-                    <ChevronDown size={14} />
+                    <span
+                      style={{
+                        flex: 1,
+                        textAlign: "left",
+                        whiteSpace: "nowrap",
+                        overflow: "hidden",
+                        textOverflow: "ellipsis",
+                      }}
+                    >
+                      {getDepartmentDisplay()}
+                    </span>
+                    <ChevronDown size={14} style={{ flexShrink: 0 }} />
                   </button>
                   {showDepartmentDropdown && (
                     <div
@@ -1333,7 +1041,7 @@ const userProfile = {
                         backgroundColor: "white",
                         border: "1px solid #ccc",
                         borderRadius: "4px",
-                        width: "100%",
+                        width: "250px", // Widen to prevent truncate on menu
                         zIndex: 1000,
                         maxHeight: "300px",
                         overflowY: "auto",
@@ -1355,6 +1063,7 @@ const userProfile = {
                                 ? "#f0f0f0"
                                 : "white",
                             outline: "none",
+                            whiteSpace: "normal", // Wrap text in menu
                           }}
                         >
                           {dept.label}
@@ -1365,7 +1074,10 @@ const userProfile = {
                 </div>
 
                 {/* Category Filter Button - Updated to only CapEx and OpEx */}
-                <div className="filter-dropdown" style={{ position: "relative" }}>
+                <div
+                  className="filter-dropdown"
+                  style={{ position: "relative" }}
+                >
                   <button
                     className={`filter-dropdown-btn ${
                       showCategoryDropdown ? "active" : ""
@@ -1382,6 +1094,7 @@ const userProfile = {
                       gap: "5px",
                       outline: "none",
                       minWidth: "140px",
+                      cursor: "pointer",
                     }}
                   >
                     <span>{getCategoryDisplay()}</span>
@@ -1553,8 +1266,8 @@ const userProfile = {
                         Loading...
                       </td>
                     </tr>
-                  ) : getDisplayData().length > 0 ? (
-                    getDisplayData().map((entry, index) => (
+                  ) : ledgerEntries.length > 0 ? (
+                    ledgerEntries.map((entry, index) => (
                       <tr
                         key={index}
                         className={index % 2 === 1 ? "alternate-row" : ""}
@@ -1602,7 +1315,7 @@ const userProfile = {
                             fontSize: "14px",
                             fontWeight: "400",
                             color: "#000000", // Changed to black
-                            textAlign: "center",
+                            textAlign: "left",
                           }}
                         >
                           {entry.category} {/* Now only shows CapEx or OpEx */}
@@ -1615,7 +1328,8 @@ const userProfile = {
                             color: "#000000", // Changed to black
                           }}
                         >
-                          {entry.subcategory}
+                          {/* Ensure this matches serializer field name */}
+                          {entry.sub_category || "General"}
                         </td>
                         <td
                           style={{
@@ -1635,10 +1349,9 @@ const userProfile = {
                             fontWeight: "400",
                             color: "#000000", // Changed to black
                           }}
-                        >{`₱${parseFloat(entry.amount).toLocaleString("en-US", {
-                          minimumFractionDigits: 2,
-                          maximumFractionDigits: 2,
-                        })}`}</td>
+                        >
+                          {formatAmount(entry.amount)}
+                        </td>
                       </tr>
                     ))
                   ) : (
@@ -1657,11 +1370,11 @@ const userProfile = {
             </div>
 
             {/* Pagination */}
-            {getTotalItems() > 0 && !loading && (
+            {pagination.count > 0 && !loading && (
               <Pagination
                 currentPage={currentPage}
                 pageSize={pageSize}
-                totalItems={getTotalItems()}
+                totalItems={pagination.count}
                 onPageChange={setCurrentPage}
                 onPageSizeChange={(newSize) => {
                   setPageSize(newSize);

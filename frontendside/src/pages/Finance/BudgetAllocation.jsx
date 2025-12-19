@@ -1,4 +1,11 @@
-// REVIEW: Modals and Records
+/* 
+NOTE ON BUDGET MODIFICATION LOGIC:
+This system follows strict accounting principles for immutability. 
+"Modifying" a budget does NOT edit the historical record. Instead, it creates a 
+NEW Journal Entry (Adjustment) for the specified amount on the current date.
+The original entry remains as a historical record of the state at that time.
+The cumulative effect of these entries determines the current budget balance.
+*/
 import React, { useState, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import {
@@ -286,8 +293,6 @@ function BudgetAllocation() {
   const navigate = useNavigate();
   const { user, logout } = useAuth();
 
-  
-
   // --- STATE ---
   const [showBudgetDropdown, setShowBudgetDropdown] = useState(false);
   const [showExpenseDropdown, setShowExpenseDropdown] = useState(false);
@@ -298,27 +303,32 @@ function BudgetAllocation() {
   const [showManageProfile, setShowManageProfile] = useState(false);
 
   const getUserRole = () => {
-  if (!user) return "User";
-  
-  // Check for role in different possible locations
-  if (user.roles?.bms) return user.roles.bms;
-  if (user.role_display) return user.role_display;
-  if (user.role) return user.role;
-  
-  // Default role names based on user type
-  if (user.is_superuser) return "ADMIN";
-  if (user.is_staff) return "STAFF";
-  
-  return "User";
-};
+    if (!user) return "User";
 
-const userRole = getUserRole();
+    // Check deeply nested roles first (from JWT decoding)
+    if (user.roles && user.roles.bms) return user.roles.bms;
 
-const userProfile = {
-  name: user ? `${user.first_name || ''} ${user.last_name || ''}`.trim() || "User" : "User",
-  role: userRole,
-  avatar: user?.profile_picture || "https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?ixlib=rb-1.2.1&ixid=eyJhcHBfaWQiOjEyMDd9&auto=format&fit=facearea&facepad=2&w=256&h=256&q=80",
-};
+    // Check direct role property (from Login API response user object)
+    if (user.role) return user.role;
+
+    // Default role names based on user type
+    if (user.is_superuser) return "ADMIN";
+    if (user.is_staff) return "STAFF";
+
+    return "User";
+  };
+
+  const userRole = getUserRole();
+
+  const userProfile = {
+    name: user
+      ? `${user.first_name || ""} ${user.last_name || ""}`.trim() || "User"
+      : "User",
+    role: userRole,
+    avatar:
+      user?.profile_picture ||
+      "https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?ixlib=rb-1.2.1&ixid=eyJhcHBfaWQiOjEyMDd9&auto=format&fit=facearea&facepad=2&w=256&h=256&q=80",
+  };
 
   const isFinanceManager = userRole === "FINANCE_HEAD" || userRole === "ADMIN";
 
@@ -328,8 +338,8 @@ const userProfile = {
   };
 
   const handleCloseManageProfile = () => {
-  setShowManageProfile(false);
-};
+    setShowManageProfile(false);
+  };
 
   // Data
   const [adjustments, setAdjustments] = useState([]);

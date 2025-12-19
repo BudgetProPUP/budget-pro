@@ -8,7 +8,8 @@ Since its set SEASONAL_MULTIPLIERS[12] = 1.3 (130% activity) in the seeder, hist
 The Forecast generator sees this "Year End Rush" pattern and predicts you will spend a lot in December.
 Verdict: Feature, not a bug. This accurately simulates a company that spends its remaining budget at year-end.
 
-
+Note on Forecasting: get_budget_forecast view currently does not have data isolation. Department head will see their specific atual/budget lines compared against the Global Forecast Line (high numbers) on the money flow chart.
+Address later when we refine the forecasting logic.
 
 
 */

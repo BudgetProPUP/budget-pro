@@ -1,103 +1,101 @@
 from rest_framework import permissions
 
-# The service name slug for the Budget Management System -
-# - should match the slug in the auth_service's System model
+# The service name slug for the Budget Management System
 BMS_SERVICE_SLUG = 'bms' 
 
 class IsBMSAdmin(permissions.BasePermission):
     """
     Permission check for BMS Administrator role.
-    Reads the role from the JWT payload.
+    Admins have full access to all system features.
     """
     def has_permission(self, request, view):
         user_roles = getattr(request.user, 'roles', {})
         bms_role = user_roles.get(BMS_SERVICE_SLUG)
         return bms_role == 'ADMIN'
 
+
 class IsBMSFinanceHead(permissions.BasePermission):
     """
     Permission check for BMS Finance Head role.
-    Reads the role from the JWT payload.
+    Finance Heads can approve proposals, expenses, and allocations.
+    They have global visibility across all departments.
     """
     def has_permission(self, request, view):
         user_roles = getattr(request.user, 'roles', {})
         bms_role = user_roles.get(BMS_SERVICE_SLUG)
         return bms_role == 'FINANCE_HEAD'
 
+
+class IsBMSDepartmentHead(permissions.BasePermission):
+    """
+    Permission check for Department Head role (GENERAL_USER).
+    Department Heads can:
+    - Submit proposals (for Finance approval)
+    - Request budget adjustments (forwarded)
+    - Submit expenses (for Finance approval)
+    - View their own department's data only
+    """
+    def has_permission(self, request, view):
+        user_roles = getattr(request.user, 'roles', {})
+        bms_role = user_roles.get(BMS_SERVICE_SLUG)
+        return bms_role == 'GENERAL_USER'
+
+
 class IsBMSUser(permissions.BasePermission):
     """
-    Permission check for any valid BMS user (Admin or Finance Head).
-    Reads the role from the JWT payload.
+    Permission check for ANY valid BMS user.
+    Allows: Admin, Finance Head, OR Department Head (GENERAL_USER).
+    Use this for endpoints that all authenticated BMS users can access.
+    """
+    def has_permission(self, request, view):
+        user_roles = getattr(request.user, 'roles', {})
+        bms_role = user_roles.get(BMS_SERVICE_SLUG)
+        return bms_role in ['ADMIN', 'FINANCE_HEAD', 'GENERAL_USER']
+
+
+class IsBMSFinanceHeadOrAdmin(permissions.BasePermission):
+    """
+    Permission for actions that require approval authority.
+    Only Finance Heads and Admins can approve/reject proposals and expenses.
     """
     def has_permission(self, request, view):
         user_roles = getattr(request.user, 'roles', {})
         bms_role = user_roles.get(BMS_SERVICE_SLUG)
         return bms_role in ['ADMIN', 'FINANCE_HEAD']
 
+
+class CanSubmitForApproval(permissions.BasePermission):
+    """
+    Permission for submitting items that require Finance approval.
+    Department Heads and above can submit.
+    """
+    def has_permission(self, request, view):
+        user_roles = getattr(request.user, 'roles', {})
+        bms_role = user_roles.get(BMS_SERVICE_SLUG)
+        return bms_role in ['ADMIN', 'FINANCE_HEAD', 'GENERAL_USER']
+
+
+class CanViewGlobalData(permissions.BasePermission):
+    """
+    Permission for viewing data across all departments.
+    Only Admins and Finance Heads have global visibility.
+    Department Heads are restricted to their own department.
+    """
+    def has_permission(self, request, view):
+        user_roles = getattr(request.user, 'roles', {})
+        bms_role = user_roles.get(BMS_SERVICE_SLUG)
+        return bms_role in ['ADMIN', 'FINANCE_HEAD']
+
+
 class IsTrustedService(permissions.BasePermission):
     """
     Allows access only to authenticated services (via API Key).
+    Used for service-to-service communication (e.g., DTS, TTS).
     """
     def has_permission(self, request, view):
-        # Check if request.user is an instance of the ServicePrincipal
-        # and potentially check request.user.service_name
-        from .service_authentication import ServicePrincipal # Avoid circular import if in same file
+        from .service_authentication import ServicePrincipal
         
         return (request.user and
                 request.user.is_authenticated and
                 isinstance(request.user, ServicePrincipal) and
                 request.user.service_name in ["DTS", "TTS"])
-        
-# class IsFinanceHead(permissions.BasePermission):
-   
-#     # Permission check for Finance Head role.
-   
-#     def has_permission(self, request, view):
-#         return request.user.is_authenticated and request.user.role == 'FINANCE_HEAD'
-
-# class IsAdmin(permissions.BasePermission):
-   
-#     # Permission check for Finance Operator role.
-   
-#     def has_permission(self, request, view):
-#         return request.user.is_authenticated and request.user.role == 'ADMIN'
-    
-# class IsFinanceOperator(permissions.BasePermission):
-   
-#     # Permission check for Finance Operator role.
-   
-#     def has_permission(self, request, view):
-#         return request.user.is_authenticated and request.user.role == 'FINANCE_OPERATOR'
-
-
-# class IsFinanceUser(permissions.BasePermission):
-   
-#     # Permission check for any finance user (Head or Operator).
-   
-#     def has_permission(self, request, view):
-#         return request.user.is_authenticated and request.user.role in ['FINANCE_HEAD', 'ADMIN']
-
-
-# class IsOwnerOrFinanceHead(permissions.BasePermission):
-
-#     # Object-level permission to allow owners of an object or finance heads to access it.
-#     # Assumes the model instance has a `created_by` or `submitted_by` attribute.
- 
-#     def has_object_permission(self, request, view, obj):
-#         if request.user.role == 'FINANCE_HEAD':
-#             return True
-            
-#         # Check if object has a user relationship field
-#         user_field = None
-#         if hasattr(obj, 'created_by'):
-#             user_field = 'created_by'
-#         elif hasattr(obj, 'submitted_by'):
-#             user_field = 'submitted_by'
-#         elif hasattr(obj, 'user'):
-#             user_field = 'user'
-            
-#         if user_field is not None:
-#             return getattr(obj, user_field) == request.user
-            
-#         return False
-    

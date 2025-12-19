@@ -88,30 +88,39 @@ class BudgetProposalDetailSerializer(serializers.ModelSerializer):
     comments = ProposalCommentSerializer(many=True, read_only=True)
     last_reviewed_at = serializers.SerializerMethodField()
     latest_review_comment = serializers.SerializerMethodField()
+    # MODIFIED: category field remains, sub_category added
     category = serializers.SerializerMethodField()
+    sub_category = serializers.SerializerMethodField()
 
     class Meta:
         model = BudgetProposal
         fields = [
             'id', 'external_system_id', 'title', 'project_summary', 'project_description',
             'performance_notes', 'submitted_by_name', 'status', 'department_name',
-            'fiscal_year', 'category', 'performance_start_date', 'performance_end_date',
+            # Added sub_category
+            'fiscal_year', 'category', 'sub_category', 'performance_start_date', 'performance_end_date',
             'items', 'total_cost', 'document', 'comments', 'last_reviewed_at',
             'approved_by_name', 'approval_date', 'rejected_by_name', 'rejection_date',
             'latest_review_comment', 'submitted_at',
-            # MODIFIED: New fields for detailed review form
             'finance_operator_name', 'signature'
         ]
 
     def get_total_cost(self, obj): return obj.items.aggregate(
         total=Sum('estimated_cost'))['total'] or 0
 
-    # MODIFIED: Updated to fetch category name from the new relationship
     def get_category(self, obj):
+        # MODIFIED: Return Classification (CapEx/OpEx) instead of Name
+        first_item = obj.items.first()
+        if first_item and first_item.category:
+            return first_item.category.classification
+        return "General"
+
+    def get_sub_category(self, obj):
+        # MODIFIED: Return specific Category Name (e.g. Server Hosting)
         first_item = obj.items.first()
         if first_item and first_item.category:
             return first_item.category.name
-        return "General"
+        return "N/A"
 
     def get_last_reviewed_at(self, obj):
         if obj.status == 'APPROVED':
@@ -131,6 +140,10 @@ class BudgetProposalDetailSerializer(serializers.ModelSerializer):
 
 
 class ProposalHistorySerializer(serializers.ModelSerializer):
+    # MODIFICATION START: Added proposal_pk for frontend navigation/details
+    proposal_pk = serializers.IntegerField(
+        source='proposal.id', read_only=True)
+    # MODIFICATION END
     proposal_id = serializers.CharField(
         source='proposal.external_system_id', read_only=True)
     proposal = serializers.CharField(
@@ -147,27 +160,33 @@ class ProposalHistorySerializer(serializers.ModelSerializer):
 
     class Meta:
         model = ProposalHistory
-        fields = ['id', 'proposal_id', 'proposal', 'category', 'subcategory', 'department',
+        fields = ['id', 'proposal_pk', 'proposal_id', 'proposal', 'category', 'subcategory', 'department',
                   'last_modified', 'last_modified_by', 'status']
 
     def get_category(self, obj):
-        """Get the category from the first item of the related proposal"""
+        """Get the Main Classification (CapEx/OpEx)"""
         try:
             first_item = obj.proposal.items.first()
+            if first_item and first_item.category:
+                return first_item.category.classification
+            # Fallback to old AccountType logic if category is missing (migration safety)
             if first_item and first_item.account and first_item.account.account_type:
                 return first_item.account.account_type.name
             return "N/A"
-        except Exception as e:
+        except Exception:
             return "N/A"
 
     def get_subcategory(self, obj):
-        """Use the cost_element of the first item as the subcategory"""
+        """Get the Specific Category Name (e.g., Server Hosting)"""
         try:
             first_item = obj.proposal.items.first()
+            if first_item and first_item.category:
+                return first_item.category.name
+            # Fallback
             if first_item and first_item.cost_element:
                 return first_item.cost_element
             return "N/A"
-        except Exception as e:
+        except Exception:
             return "N/A"
 
 
@@ -249,7 +268,7 @@ class LedgerViewSerializer(serializers.ModelSerializer):
             return 'OPEX'  # Expenses are typically OpEx
         if je_cat == 'ASSETS':
             return 'CAPEX'  # Assets are typically CapEx
-        
+
         # 4. Default for unknown
         return 'N/A'
 
@@ -266,7 +285,7 @@ class LedgerViewSerializer(serializers.ModelSerializer):
         for line in sibling_lines:
             if line.expense_category:
                 return line.expense_category.name
-        
+
         # 3. Default
         return "General"
 

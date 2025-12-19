@@ -9,7 +9,7 @@ from decimal import Decimal
 # Import models
 from core.models import (
     Department, AccountType, Account, FiscalYear, BudgetProposal, BudgetProposalItem,
-    BudgetAllocation, ExpenseCategory, Expense, Project, ProjectFiscalYear
+    BudgetAllocation, ExpenseCategory, Expense, Project, ProjectFiscalYear, ProposalHistory
 )
 
 # ... (SIMULATED_USERS, DEPARTMENTS_CONFIG, CATEGORY_TREE - KEEP SAME) ...
@@ -315,6 +315,9 @@ class Command(BaseCommand):
                     # Set logical submission date: early January for that year
                     submission_date = datetime(year, 1, random.randint(
                         5, 14), random.randint(8, 17), random.randint(0, 59))
+                    
+                    # Make submission date timezone aware
+                    submission_dt = timezone.make_aware(submission_date)
 
                     proposal, created = BudgetProposal.objects.update_or_create(
                         external_system_id=ticket_id,
@@ -330,7 +333,7 @@ class Command(BaseCommand):
                             'performance_end_date': datetime(year, 12, 15).date(),
                             'sync_status': 'SYNCED',
                             'finance_operator_name': finance_head['full_name'] if status != 'SUBMITTED' else '',
-                            'submitted_at': timezone.make_aware(submission_date),
+                            'submitted_at': submission_dt,
                         }
                     )
 
@@ -345,11 +348,39 @@ class Command(BaseCommand):
                             estimated_cost=amount,
                             account=accounts['ASSET'] if cat.classification == 'CAPEX' else accounts['EXPENSE']
                         )
+                        
+                        # --- MODIFICATION START: Create Initial History (Submitted) ---
+                        ProposalHistory.objects.get_or_create(
+                            proposal=proposal,
+                            action='SUBMITTED',
+                            defaults={
+                                'action_by_name': user['full_name'],
+                                'action_at': submission_dt,
+                                'new_status': 'SUBMITTED',
+                                'comments': f"Initial submission via seeder."
+                            }
+                        )
+                        # --- MODIFICATION END ---
 
                     if status == 'APPROVED':
                         proposal.approved_by_name = finance_head['full_name']
                         proposal.approval_date = datetime(year, 1, 20)
                         proposal.save()
+                        
+                        # --- MODIFICATION START: Create Approval History ---
+                        approval_dt = timezone.make_aware(datetime(year, 1, 20, 10, 0, 0))
+                        ProposalHistory.objects.get_or_create(
+                            proposal=proposal,
+                            action='APPROVED',
+                            defaults={
+                                'action_by_name': finance_head['full_name'],
+                                'action_at': approval_dt,
+                                'previous_status': 'SUBMITTED',
+                                'new_status': 'APPROVED',
+                                'comments': "Approved via controlled seeder."
+                            }
+                        )
+                        # --- MODIFICATION END ---
 
                         project, _ = Project.objects.update_or_create(
                             budget_proposal=proposal,
@@ -370,6 +401,22 @@ class Command(BaseCommand):
                         proposal.rejected_by_name = finance_head['full_name']
                         proposal.rejection_date = datetime(year, 1, 25)
                         proposal.save()
+                        
+                        # --- MODIFICATION START: Create Rejection History ---
+                        rejection_dt = timezone.make_aware(datetime(year, 1, 25, 14, 30, 0))
+                        ProposalHistory.objects.get_or_create(
+                            proposal=proposal,
+                            action='REJECTED',
+                            defaults={
+                                'action_by_name': finance_head['full_name'],
+                                'action_at': rejection_dt,
+                                'previous_status': 'SUBMITTED',
+                                'new_status': 'REJECTED',
+                                'comments': "Rejected due to budget constraints (Seeder)."
+                            }
+                        )
+                        # --- MODIFICATION END ---
+                        
         return projects
 
     def seed_allocations(self, projects, categories, fiscal_years):

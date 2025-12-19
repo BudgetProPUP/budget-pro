@@ -302,11 +302,9 @@ class JournalEntryListSerializer(serializers.ModelSerializer):
     amount = serializers.DecimalField(
         source='total_amount', max_digits=15, decimal_places=2, read_only=True)
 
-    # New fields for the Budget Allocation Table
     debit_account = serializers.SerializerMethodField()
     credit_account = serializers.SerializerMethodField()
 
-    # MODIFIED: Added Department Name
     department_name = serializers.CharField(
         source='department.name', read_only=True, default="N/A")
 
@@ -317,17 +315,33 @@ class JournalEntryListSerializer(serializers.ModelSerializer):
                   'amount', 'created_by_username']
 
     def get_debit_account(self, obj):
-        """Find the account name associated with the DEBIT line"""
+        """
+        Find the account name associated with the DEBIT line.
+        If an expense category is linked, append it for clarity.
+        """
         debit_line = obj.lines.filter(transaction_type='DEBIT').first()
-        return debit_line.account.name if debit_line and debit_line.account else "N/A"
+        if debit_line:
+            account_name = debit_line.account.name
+            # If there's a specific sub-category (expense_category), show that instead of generic GL account
+            if debit_line.expense_category:
+                return debit_line.expense_category.name
+            return account_name
+        return "N/A"
 
     def get_credit_account(self, obj):
-        """Find the account name associated with the CREDIT line"""
+        """
+        Find the account name associated with the CREDIT line.
+        """
         credit_line = obj.lines.filter(transaction_type='CREDIT').first()
-        return credit_line.account.name if credit_line and credit_line.account else "N/A"
+        if credit_line:
+            account_name = credit_line.account.name
+            if credit_line.expense_category:
+                 return credit_line.expense_category.name
+            return account_name
+        return "N/A"
 
     def get_category(self, obj):
-        # Return classification if available, else JE category
+        # 1. Try to get classification from lines (CapEx/OpEx)
         line = obj.lines.filter(expense_category__isnull=False).first()
         if line and line.expense_category:
             classification = line.expense_category.classification
@@ -335,8 +349,12 @@ class JournalEntryListSerializer(serializers.ModelSerializer):
                 return 'CapEx'
             if classification == 'OPEX':
                 return 'OpEx'
-        return obj.category.title()
-# MODIFICATION END
+        
+        # 2. Fallback to the JE category field, formatted nicely
+        if obj.category:
+            return obj.category.replace('_', ' ').title()
+            
+        return "General"
 
 
 class JournalEntryLineInputSerializer(serializers.Serializer):

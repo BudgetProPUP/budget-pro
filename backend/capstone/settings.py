@@ -118,10 +118,11 @@ AUTHENTICATION_BACKENDS = [
 # CORS - Updated for Render with Railway fallback
 CORS_ALLOWED_ORIGINS = [
     "http://localhost:5173",  # Local frontend
-    "https://frontend-r2az.onrender.com",  # Render frontend
-    "https://auth-service-cdln.onrender.com",  # Render auth service
-    os.getenv('FRONTEND_URL'),  # Environment variable
-    os.getenv('AUTH_SERVICE_URL'),  # Environment variable
+    "https://frontend-r2az.onrender.com",  # Old Render frontend (keep for safety or remove)
+    "https://budget-pro-static-site.onrender.com",  # <--- ADD THIS NEW URL
+    "https://auth-service-cdln.onrender.com",
+    os.getenv('FRONTEND_URL'),
+    os.getenv('AUTH_SERVICE_URL'),
 ]
 
 # Added Railway URLs as fallback

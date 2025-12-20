@@ -260,11 +260,12 @@ USE_TZ = True
 
 # CORS - Updated for Render with Railway fallback
 CORS_ALLOWED_ORIGINS = [
-    "http://localhost:5173",  # Local frontend
-    "https://frontend-r2az.onrender.com",  # Render frontend
-    "https://budget-pro.onrender.com",  # Render budget service
-    os.getenv('FRONTEND_URL'),  # Environment variable
-    os.getenv('BUDGET_SERVICE_PUBLIC_URL'),  # Environment variable
+    "http://localhost:5173",
+    "https://frontend-r2az.onrender.com",
+    "https://budget-pro-static-site.onrender.com", # <--- ADD THIS NEW URL
+    "https://budget-pro.onrender.com",
+    os.getenv('FRONTEND_URL'),
+    os.getenv('BUDGET_SERVICE_PUBLIC_URL'),
 ]
 
 # Add Railway URLs as fallback

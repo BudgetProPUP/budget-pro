@@ -60,9 +60,12 @@ export const getCategoryBudgetData = () => {
 /**
  * Fetches data for the "View Details" section of the budget per category module.
  */
-export const getDepartmentBudgetData = () => {
+// MODIFICATION: Accept period param
+export const getDepartmentBudgetData = (period = 'yearly') => {
     // Use 'budgetApi'
-    return budgetApi.get('/dashboard/department-status/');
+    return budgetApi.get('/dashboard/department-status/', {
+        params: { period }
+    });
 };
 
 /**

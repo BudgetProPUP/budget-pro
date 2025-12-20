@@ -19,10 +19,11 @@ from rest_framework.decorators import api_view, permission_classes, action
 import calendar
 from decimal import Decimal
 from django.utils import timezone
-from datetime import date
+from datetime import date, timedelta
 from dateutil.relativedelta import relativedelta
 from .serializers_dashboard import ForecastSerializer
 from django.views.decorators.cache import cache_page
+
 
 class DepartmentBudgetView(views.APIView):
     """
@@ -116,6 +117,15 @@ class DepartmentBudgetView(views.APIView):
         return Response(serializer.data)
 
 
+# Helper to scale values based on period
+def get_period_divisor(period):
+    if period == 'monthly':
+        return Decimal('12.0')
+    elif period == 'quarterly':
+        return Decimal('4.0')
+    return Decimal('1.0')
+
+
 @extend_schema(
     tags=["Dashboard"],
     summary="Get dashboard budget summary",
@@ -130,7 +140,7 @@ class DepartmentBudgetView(views.APIView):
             enum=['monthly', 'quarterly', 'yearly']
         )
     ],
-    #MODIFICATION END
+    # MODIFICATION END
     responses={200: DashboardBudgetSummarySerializer},
     examples=[
         OpenApiExample(
@@ -156,7 +166,7 @@ def get_dashboard_budget_summary(request):
     user = request.user
     user_roles = getattr(user, 'roles', {})
     bms_role = user_roles.get('bms')
-    
+
     today = timezone.now().date()
     fiscal_year = FiscalYear.objects.filter(
         start_date__lte=today,
@@ -167,77 +177,78 @@ def get_dashboard_budget_summary(request):
     if not fiscal_year:
         return Response({"detail": "No active fiscal year found."}, status=404)
 
-    # Logic to handle period-based filterin 
+    # Filter Logic
     period = request.query_params.get('period', 'yearly')
-    start_date_filter = fiscal_year.start_date
-    end_date_filter = fiscal_year.end_date
-    budget_divisor = 1
 
+    # Define date ranges for SPENT calculation
     if period == 'monthly':
         start_date_filter = today.replace(day=1)
-        # Correctly find the last day of the current month
-        end_date_filter = (start_date_filter + relativedelta(months=1)) - relativedelta(days=1)
-        budget_divisor = 12
+        # End date: First day of next month - 1 day
+        next_month = today.replace(day=28) + timedelta(days=4)
+        end_date_filter = next_month.replace(day=1) - timedelta(days=1)
     elif period == 'quarterly':
-        # Determine the current quarter
         current_quarter = (today.month - 1) // 3 + 1
         start_month = (current_quarter - 1) * 3 + 1
         start_date_filter = date(today.year, start_month, 1)
-        # Correctly find the end of the quarter
-        end_date_filter = (start_date_filter + relativedelta(months=3)) - relativedelta(days=1)
-        budget_divisor = 4
-    
-    # Base queryset
+        end_date_filter = (start_date_filter +
+                           relativedelta(months=3)) - relativedelta(days=1)
+    else:  # yearly
+        start_date_filter = fiscal_year.start_date
+        end_date_filter = fiscal_year.end_date
+
+    # Base allocations
     allocations_qs = BudgetAllocation.objects.filter(
         is_active=True,
         fiscal_year=fiscal_year
     )
 
-    # DATA ISOLATION LOGIC
+    # Data Isolation
     if bms_role == 'GENERAL_USER':
         department_id = getattr(user, 'department_id', None)
         if department_id:
             allocations_qs = allocations_qs.filter(department_id=department_id)
         else:
-            # If user has no department, they see 0
             allocations_qs = BudgetAllocation.objects.none()
 
-    # if bms_role == 'FINANCE_HEAD':
-    #     department_id = getattr(user, 'department_id', None)
-    #     if department_id:
-    #         allocations_qs = allocations_qs.filter(department_id=department_id)
-    #     else:
-    #         allocations_qs = BudgetAllocation.objects.none()
-    
-    # Calculate the total budget for the ENTIRE year first
-    total_yearly_budget = allocations_qs.aggregate(total=Sum('amount'))['total'] or Decimal('0.00')
-    
-    # Prorate the budget for the selected period
-    total_budget_for_period = total_yearly_budget / Decimal(budget_divisor)
+    # 1. Total Yearly Budget (Base)
+    total_yearly_budget = allocations_qs.aggregate(
+        total=Sum('amount'))['total'] or Decimal('0.00')
 
-    # Filter expenses within the calculated date range
-    # Note: Ensure Total Spent logic also filters by allocations_qs to inherit the department filter
+    # 2. Divisor for Period
+    divisor = get_period_divisor(period)
+
+    # 3. Calculate Period Budget (Allocated for this timeframe)
+    total_budget_for_period = total_yearly_budget / divisor
+
+    # 4. Calculate Actual Spent (In this specific timeframe)
+    # Note: We filter expenses by the calculated date range
     total_spent_for_period = Expense.objects.filter(
-        budget_allocation__in=allocations_qs, # Inherits department restriction
+        budget_allocation__in=allocations_qs,
         status='APPROVED',
         date__range=[start_date_filter, end_date_filter]
     ).aggregate(total=Sum('amount'))['total'] or Decimal('0.00')
-    
+
+    # 5. Remaining
     remaining_budget = total_budget_for_period - total_spent_for_period
-    percentage_used = (total_spent_for_period / total_budget_for_period * 100) if total_budget_for_period > 0 else Decimal('0.00')
-    
+
+    # 6. Percentage
+    percentage_used = Decimal('0.00')
+    if total_budget_for_period > 0:
+        percentage_used = (total_spent_for_period /
+                           total_budget_for_period) * 100
+
     serializer = DashboardBudgetSummarySerializer({
         "fiscal_year": fiscal_year.name,
-        "total_budget": total_budget_for_period,
-        "total_spent": total_spent_for_period,
-        "remaining_budget": remaining_budget,
-        "percentage_used": round(percentage_used, 2),
-        "remaining_percentage": round(100 - percentage_used, 2),
+        "total_budget": round(total_budget_for_period, 2),
+        "total_spent": round(total_spent_for_period, 2),
+        "remaining_budget": round(remaining_budget, 2),
+        # usually 1 decimal for %
+        "percentage_used": round(percentage_used, 1),
+        "remaining_percentage": round(100 - percentage_used, 1),
         "available_for_allocation": True
     })
 
     return Response(serializer.data)
-    # --- MODIFICATION END ---
 
 
 class MonthlyBudgetActualViewSet(viewsets.ViewSet):
@@ -617,10 +628,10 @@ def get_all_projects(request):
     ]
 )
 @api_view(['GET'])
-@permission_classes([IsBMSUser]) # MODIFIED: Use specific BMS permission
+@permission_classes([IsBMSUser])  # MODIFIED: Use specific BMS permission
 def get_project_status_list(request):
     paginator = ProjectStatusPagination()
-    user = request.user # MODIFIED: Get user
+    user = request.user  # MODIFIED: Get user
     today = timezone.now().date()
 
     fiscal_year = FiscalYear.objects.filter(
@@ -685,34 +696,21 @@ def get_project_status_list(request):
 
 @extend_schema(
     summary="Department Budget vs Actual",
-    description="Returns all departments' budget allocations, spending, and usage percentage for the active fiscal year. This is for the fourth element of the dashboard",
-    responses={200: DepartmentBudgetStatusSerializer(many=True)},
-    tags=["Dashboard"],
-    examples=[
-        OpenApiExample(
-            "Example Response",
-            value=[
-                {
-                    "department_id": 1,
-                    "department_name": "IT Department",
-                    "budget": "3000000.00",
-                    "spent": "2100000.00",
-                    "percentage_used": 70.0
-                },
-                {
-                    "department_id": 2,
-                    "department_name": "HR Department",
-                    "budget": "2000000.00",
-                    "spent": "500000.00",
-                    "percentage_used": 25.0
-                }
-            ],
-            response_only=True
+    description="Returns departments' budget status. Supports period filtering to scale budget/spent values.",
+    parameters=[
+        OpenApiParameter(
+            name="period",
+            description="Filter by time period (yearly, quarterly, monthly). Default: yearly",
+            required=False,
+            type=str,
+            enum=['monthly', 'quarterly', 'yearly']
         )
-    ]
+    ],
+    responses={200: DepartmentBudgetStatusSerializer(many=True)},
+    tags=["Dashboard"]
 )
 @api_view(['GET'])
-@permission_classes([IsBMSUser]) # MODIFIED: Use specific BMS permission
+@permission_classes([IsBMSUser])
 def get_department_budget_status(request):
     user = request.user
     user_roles = getattr(user, 'roles', {})
@@ -728,9 +726,27 @@ def get_department_budget_status(request):
     if not fiscal_year:
         return Response({"detail": "No active fiscal year found."}, status=404)
     
+    # Filter Logic
+    period = request.query_params.get('period', 'yearly')
+    divisor = get_period_divisor(period)
+
+    # Define date ranges for SPENT calculation
+    if period == 'monthly':
+        start_date_filter = today.replace(day=1)
+        next_month = today.replace(day=28) + timedelta(days=4)
+        end_date_filter = next_month.replace(day=1) - timedelta(days=1)
+    elif period == 'quarterly':
+        current_quarter = (today.month - 1) // 3 + 1
+        start_month = (current_quarter - 1) * 3 + 1
+        start_date_filter = date(today.year, start_month, 1)
+        end_date_filter = (start_date_filter + relativedelta(months=3)) - relativedelta(days=1)
+    else: # yearly
+        start_date_filter = fiscal_year.start_date
+        end_date_filter = fiscal_year.end_date
+
     departments_qs = Department.objects.filter(is_active=True)
 
-    # DATA ISOLATION LOGIC
+    # DATA ISOLATION
     if bms_role == 'GENERAL_USER':
         department_id = getattr(user, 'department_id', None)
         if department_id:
@@ -740,29 +756,36 @@ def get_department_budget_status(request):
 
     result = []
 
-    # MODIFIED: Iterate over the filtered queryset
     for dept in departments_qs:
         allocations = BudgetAllocation.objects.filter(
             is_active=True,
             fiscal_year=fiscal_year,
-            department=dept # MODIFIED: Use department object
+            department=dept 
         )
 
-        budget = allocations.aggregate(total=Sum('amount'))['total'] or 0
+        # 1. Total Yearly Budget for Dept
+        yearly_budget = allocations.aggregate(total=Sum('amount'))['total'] or Decimal('0.00')
+        
+        # 2. Scaled Budget for Period
+        period_budget = yearly_budget / divisor
 
-        spent = Expense.objects.filter(
+        # 3. Spent in Period
+        period_spent = Expense.objects.filter(
             status='APPROVED',
-            budget_allocation__in=allocations
-        ).aggregate(total=Sum('amount'))['total'] or 0
+            budget_allocation__in=allocations,
+            date__range=[start_date_filter, end_date_filter]
+        ).aggregate(total=Sum('amount'))['total'] or Decimal('0.00')
 
-        percent_used = (spent / budget * 100) if budget > 0 else 0
+        percent_used = Decimal('0.0')
+        if period_budget > 0:
+            percent_used = (period_spent / period_budget) * 100
 
         result.append({
             "department_id": dept.id,
             "department_name": dept.name,
-            "budget": budget,
-            "spent": spent,
-            "percentage_used": round(percent_used, 2)
+            "budget": round(period_budget, 2),
+            "spent": round(period_spent, 2),
+            "percentage_used": round(percent_used, 1)
         })
 
     serializer = DepartmentBudgetStatusSerializer(result, many=True)
@@ -833,7 +856,7 @@ class TopCategoryBudgetAllocationView(APIView):
     ]
 )
 @api_view(['GET'])
-@permission_classes([IsBMSUser]) # Use specific BMS permission
+@permission_classes([IsBMSUser])  # Use specific BMS permission
 def overall_monthly_budget_actual(request):
     fiscal_year_id = request.query_params.get('fiscal_year_id')
     user = request.user
@@ -854,23 +877,27 @@ def overall_monthly_budget_actual(request):
     # Apply data isolation to budget and expense queries
     user_roles = getattr(user, 'roles', {})
     bms_role = user_roles.get('bms')
-    
-    budget_query = BudgetAllocation.objects.filter(fiscal_year=fiscal_year, is_active=True)
-    expense_query_base = Expense.objects.filter(status='APPROVED', budget_allocation__fiscal_year=fiscal_year)
+
+    budget_query = BudgetAllocation.objects.filter(
+        fiscal_year=fiscal_year, is_active=True)
+    expense_query_base = Expense.objects.filter(
+        status='APPROVED', budget_allocation__fiscal_year=fiscal_year)
 
     # FIX: Restrict General Users, allow Finance/Admin global
     if bms_role == 'GENERAL_USER':
         department_id = getattr(user, 'department_id', None)
         if department_id:
             budget_query = budget_query.filter(department_id=department_id)
-            expense_query_base = expense_query_base.filter(department_id=department_id)
+            expense_query_base = expense_query_base.filter(
+                department_id=department_id)
         else:
             budget_query = budget_query.none()
             expense_query_base = expense_query_base.none()
-            
+
     # ADMIN and FINANCE_HEAD see overall data
-    
-    total_budget = budget_query.aggregate(total=Coalesce(Sum('amount'), Decimal('0')))['total']
+
+    total_budget = budget_query.aggregate(
+        total=Coalesce(Sum('amount'), Decimal('0')))['total']
     # --- MODIFICATION END ---
 
     # Simple even distribution of budget across 12 months for the chart
@@ -980,8 +1007,8 @@ def get_category_budget_status(request):
 class ProjectDetailView(generics.RetrieveAPIView):
     # queryset = Project.objects.all() # REMOVED: Will be handled by get_queryset
     serializer_class = ProjectDetailSerializer
-    permission_classes = [IsBMSUser] # MODIFIED: Use specific BMS permission
-    
+    permission_classes = [IsBMSUser]  # MODIFIED: Use specific BMS permission
+
     # --- MODIFICATION START ---
     def get_queryset(self):
         """
@@ -994,13 +1021,13 @@ class ProjectDetailView(generics.RetrieveAPIView):
         # FIX: Finance Head joins Admin in global view
         if bms_role in ['ADMIN', 'FINANCE_HEAD']:
             return Project.objects.all()
-        
+
         # FIX: General User gets department view
         if bms_role == 'GENERAL_USER':
             department_id = getattr(user, 'department_id', None)
             if department_id:
                 return Project.objects.filter(department_id=department_id)
-        
+
         return Project.objects.none()
     # --- MODIFICATION END ---
 
@@ -1017,6 +1044,7 @@ This results in a correctly ascending forecast line on the chart, as intended.
 Added Robustness: The function now includes checks to handle cases where there is no historical spending data, preventing potential errors and returning an empty list [] gracefully.
     """
 
+
 @extend_schema(
     tags=["Dashboard", "Forecasting"],
     summary="Get Latest Budget Forecast",
@@ -1028,16 +1056,16 @@ Added Robustness: The function now includes checks to handle cases where there i
     responses={200: ForecastSerializer(many=True)},
 )
 @api_view(['GET'])
-@permission_classes([IsBMSUser]) # Use specific BMS permission
-@cache_page(60 * 5) # (cache for 300 seconds = 5 minutes)
+@permission_classes([IsBMSUser])  # Use specific BMS permission
+@cache_page(60 * 5)  # (cache for 300 seconds = 5 minutes)
 def get_budget_forecast(request):
     """
     Retrieves a pre-calculated forecast from the database.
     This is now a very fast read operation (US-019).
-    
+
     This replaces the old on-demand calculation logic with a simple database lookup,
     dramatically improving performance.
-    
+
     Forecasting Workflow (How it works):
     --------------------------------------------------
     1. Forecasts are generated in advance by a management command (not in this view).
@@ -1051,7 +1079,7 @@ def get_budget_forecast(request):
     """
     fiscal_year_id = request.query_params.get('fiscal_year_id')
     user = request.user
-    
+
     # Determine the fiscal year (either by ID or by finding the active one)
     today = timezone.now().date()
     if fiscal_year_id:
@@ -1079,29 +1107,31 @@ def get_budget_forecast(request):
             {"detail": "No forecast available. Please generate forecast data first."},
             status=status.HTTP_200_OK
         )
-    
+
     # Get all the data points associated with that forecast, ordered by month
     data_points = latest_forecast.data_points.all()
-    
+
     # Optional: Apply data isolation for FINANCE_HEAD users
     # Note: This assumes forecasts are organization-wide. If
     # department-specific forecasts are needed, add a department field
     # to the Forecast model and filter accordingly
     user_roles = getattr(user, 'roles', {})
     bms_role = user_roles.get('bms')
-    
+
     # For now, all users see the same forecast
     # If you need department-specific forecasts later, uncomment and modify:
     # if bms_role == 'FINANCE_HEAD':
     #     department_id = getattr(user, 'department_id', None)
     #     if department_id and latest_forecast.department_id != department_id:
     #         return Response([], status=status.HTTP_200_OK)
-    
+
     # Serialize and return the forecast data points (one per month, cumulative)
     serializer = ForecastSerializer(data_points, many=True)
     return Response(serializer.data)
 
 # MODIFICATION START
+
+
 @extend_schema(
     tags=["Dashboard", "Forecasting"],
     summary="Get Forecast Accuracy Metric (US-028)",
@@ -1140,19 +1170,21 @@ def get_forecast_accuracy(request):
         if point:
             cum_val = point.forecasted_value
             # Get previous month's cumulative to subtract
-            prev_point = relevant_forecast.data_points.filter(month=last_month-1).first()
-            prev_val = prev_point.forecasted_value if prev_point else Decimal('0.0')
-            
+            prev_point = relevant_forecast.data_points.filter(
+                month=last_month-1).first()
+            prev_val = prev_point.forecasted_value if prev_point else Decimal(
+                '0.0')
+
             forecasted_spend = cum_val - prev_val
 
     # 3. Variance
     variance = actual_spend - forecasted_spend
-    
+
     # 4. Accuracy
     accuracy_percentage = 0.0
     if actual_spend > 0:
         error = abs(variance) / actual_spend
-        accuracy_percentage = max(0, 100 * (1 - error)) # Clamp to 0
+        accuracy_percentage = max(0, 100 * (1 - error))  # Clamp to 0
     elif actual_spend == 0 and forecasted_spend == 0:
         accuracy_percentage = 100.0
 

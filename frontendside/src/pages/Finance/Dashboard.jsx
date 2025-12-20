@@ -11,6 +11,10 @@ Verdict: Feature, not a bug. This accurately simulates a company that spends its
 Note on Forecasting: get_budget_forecast view currently does not have data isolation. Department head will see their specific atual/budget lines compared against the Global Forecast Line (high numbers) on the money flow chart.
 Address later when we refine the forecasting logic.
 
+Calculations: Math is done consistently using Decimal on the backend.
+Consistency: The Pie Chart and Department List will now scale down when you select "Monthly" or "Quarterly", matching the Summary Cards.
+Accuracy: Division happens before subtraction, reducing rounding drift.
+
 
 */
 
@@ -476,20 +480,17 @@ function BudgetDashboard() {
     const fetchStaticData = async () => {
       try {
         setLoading(true);
-
-        // MODIFICATION: Change from 2 to null to use the Active Fiscal Year (ID 3)
         const fiscalYearId = null;
 
-        const [moneyFlowRes, pieChartRes, departmentDetailsRes] =
+        // Removed getDepartmentBudgetData from here
+        const [moneyFlowRes, pieChartRes] =
           await Promise.all([
             getMoneyFlowData(fiscalYearId),
             getTopCategoryAllocations(),
-            getDepartmentBudgetData(),
           ]);
 
         setMoneyFlowData(moneyFlowRes.data);
         setPieChartApiData(pieChartRes.data);
-        setDepartmentDetailsData(departmentDetailsRes.data);
       } catch (error) {
         console.error("Failed to fetch static dashboard data:", error);
       } finally {
@@ -502,17 +503,24 @@ function BudgetDashboard() {
     return () => clearInterval(interval);
   }, []);
 
-  // 2. Summary Data (Refreshes on Filter Change)
+  // 2. Summary & Department Data (Refreshes on Filter Change)
   useEffect(() => {
-    const fetchSummaryData = async () => {
+    const fetchDataBasedOnPeriod = async () => {
       try {
-        const summaryRes = await getBudgetSummary(timeFilter);
+        // Fetch both Summary and Department data with the time filter
+        const [summaryRes, deptRes] = await Promise.all([
+             getBudgetSummary(timeFilter),
+             getDepartmentBudgetData(timeFilter) // Update API function to accept arg
+        ]);
+        
         setSummaryData(summaryRes.data);
+        setDepartmentDetailsData(deptRes.data);
+        
       } catch (error) {
-        console.error("Failed to fetch budget summary data:", error);
+        console.error("Failed to fetch period data:", error);
       }
     };
-    fetchSummaryData();
+    fetchDataBasedOnPeriod();
   }, [timeFilter]);
 
   // 3. Forecast Data (Refreshes on Toggle)
